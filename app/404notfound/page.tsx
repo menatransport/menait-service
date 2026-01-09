@@ -7,14 +7,13 @@ export default function NotFoundPage() {
         <div className="h-screen w-screen bg-gray-100 flex items-center">
             <div className="container flex flex-col md:flex-row items-center justify-center px-5 text-gray-700">
                 <div className="max-w-md">
-                    <div className="text-5xl font-dark font-bold">Offline</div>
+                    <div className="text-5xl font-dark font-bold">404</div>
                     <p
                         className="text-2xl md:text-3xl font-light leading-normal"
-                    >It looks like you are currently offline. Please check your internet connection.</p>
-                    <p className="mb-8">Once you're back online, you can continue browsing.</p>
+                    >We can’t seem to find the page you were looking for, but don’t worry</p>
+                    <p className="mb-8">   — you can head back home and keep exploring.</p>
 
-                    <button onClick={() => window.location.reload()} className="px-4 inline py-2 text-sm font-medium leading-5 shadow text-white transition-colors duration-150 border border-transparent rounded-lg focus:outline-none focus:shadow-outline-blue bg-blue-600 active:bg-blue-600 hover:bg-blue-700 mr-2">Try Again</button>
-                    <button onClick={() => window.location.href = '/home'} className="px-4 inline py-2 text-sm font-medium leading-5 shadow text-white transition-colors duration-150 border border-transparent rounded-lg focus:outline-none focus:shadow-outline-blue bg-gray-600 active:bg-gray-600 hover:bg-gray-700">back to homepage</button>
+                    <button onClick={() => window.location.href = '/home'} className="px-4 inline py-2 text-sm font-medium leading-5 shadow text-white transition-colors duration-150 border border-transparent rounded-lg focus:outline-none focus:shadow-outline-blue bg-blue-600 active:bg-blue-600 hover:bg-blue-700">back to homepage</button>
                 </div>
                 <div className="max-w-lg">
                     <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2395 1800" width="400"><defs>

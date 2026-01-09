@@ -18,6 +18,7 @@ export default function LoginPage() {
         e.preventDefault();
         // Handle login logic here
         console.log({ username, password, rememberMe });
+        router.push('/home');
     };
 
     return (
