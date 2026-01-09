@@ -4,7 +4,7 @@
   "description": "MenaIT Service Application",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#025f68",
   "theme_color": "#025f68",
   "orientation": "portrait-primary",
   "icons": [
