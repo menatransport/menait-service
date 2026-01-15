@@ -54,7 +54,7 @@ export default function ServicePage() {
                 console.log('เจอ ID แก้ไข:', formId);
                 setSelectedFormId(formId);
                 try {
-                    const res = await fetch(`/api/forms?path=${formId}`, {
+                    const res = await fetch(`/api/formsubmit?path=${formId}`, {
                         method: "GET",
                     });
 
