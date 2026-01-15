@@ -1,21 +1,46 @@
 'use client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { useState } from 'react';
-import { ArrowLeft, TriangleAlert, Send, ChevronDown, FileText, AlertCircle, User, Shield, Lightbulb } from 'lucide-react';
+
+import { useEffect, useState } from 'react';
+import { Lightbulb } from 'lucide-react';
 import { NavElse } from '@/components/navbar';
-import { IssueForm } from '@/components/formissue';
-
-
+import { PreviewForm } from '@/components/previewform';
 
 export default function IssuePage() {
-    
-  
+
+    const [formData, setFormData] = useState<any>(null);
+
+    useEffect(() => {
+        const fetchFormData = async () => {
+            try {
+                const res = await fetch(`/api/formsubmit?path=ISSUE_IT_005`, {
+                    method: "GET",
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Error: ${res.status}`);
+                }
+
+                const data = await res.json();
+                console.log('Data fetched:', data);
+                if (data) {
+                    setFormData(data);
+                }
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error);
+            }
+
+        };
+
+        fetchFormData();
+    }, []);
+
+    const handleSubmit = (data: any) => {
+        console.log('ข้อมูลจากฟอร์มที่ส่งมา: ', data);
+    }
 
     return (
         <div className="h-screen flex flex-col overflow-hidden bg-linear-to-br from-[#026a75] via-[#037a86] to-[#025f68]">
-            
+
             {/* Navbar */}
             <NavElse title="แจ้งปัญหาการใช้งานระบบ อุปกรณ์ หรือโปรแกรม" />
 
@@ -36,13 +61,12 @@ export default function IssuePage() {
                         </div>
                     </div>
 
-                    <IssueForm />
-            
-
-                    {/* Footer Info */}
-                    <div className="mt-6 text-center text-gray-500 text-xs sm:text-sm">
-                        <p>หากมีปัญหาเร่งด่วน กรุณาติดต่อ IT Support <span className="font-semibold text-[#026a75]">xxxx</span></p>
-                    </div>
+                    {formData && (
+                        <PreviewForm
+                            formData={formData}
+                            submitData={(data) => handleSubmit(data)}
+                        />
+                    )}
                 </div>
             </main>
         </div>

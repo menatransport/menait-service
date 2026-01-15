@@ -24,7 +24,7 @@ interface Option {
   option_label: string;
 }
 
-interface IssueDropdownProps {
+interface DropdownSearchProps {
   value: string;
   onChange: (value: string) => void;
   options: Option[];
@@ -34,7 +34,7 @@ interface IssueDropdownProps {
   disabled?: boolean;
 }
 
-export const IssueDropdown = ({
+export const DropdownSearch = ({
   value,
   onChange,
   options,
@@ -42,7 +42,7 @@ export const IssueDropdown = ({
   searchPlaceholder = "ค้นหา...",
   error = false,
   disabled = false
-}: IssueDropdownProps) => {
+}: DropdownSearchProps) => {
   const [open, setOpen] = React.useState(false)
 
   const selectedOption = options.find(opt => opt.option_value === value);
@@ -56,7 +56,7 @@ export const IssueDropdown = ({
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            "w-1/2 h-12 justify-between px-4 bg-white border-2 rounded-xl text-sm font-normal transition-all duration-300 hover:border-[#026a75]/50 focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75]",
+            "w-full h-12 justify-between px-4 bg-white border-2 rounded-xl text-sm font-normal transition-all duration-300 hover:border-[#026a75]/50 focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75]",
             error ? "border-rose-300 bg-rose-50" : "border-gray-200",
             !value && "text-gray-500"
           )}
@@ -76,9 +76,9 @@ export const IssueDropdown = ({
               {options.map((option) => (
                 <CommandItem
                   key={option.option_value}
-                  value={option.option_value}
-                  onSelect={(currentValue) => {
-                    onChange(currentValue === value ? "" : currentValue)
+                  value={option.option_label}
+                  onSelect={() => {
+                    onChange(option.option_value === value ? "" : option.option_value)
                     setOpen(false)
                   }}
                   className=" cursor-pointer"
