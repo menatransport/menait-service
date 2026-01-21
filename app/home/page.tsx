@@ -29,7 +29,7 @@ export default function HomePage() {
             title: "ติดตามคำร้อง",
             description: "ตรวจสอบสถานะคำร้องของคุณ",
             icon: CheckCircle,
-            href: "/ticket",
+            href: "/mytickets",
             color: "bg-gradient-to-br from-emerald-500 to-emerald-600",
             shadowColor: "shadow-emerald-200",
         },

@@ -2,12 +2,26 @@
 
 import { useEffect, useState } from 'react';
 import { Lightbulb } from 'lucide-react';
-import { NavElse } from '@/components/navbar';
+import { NavElse, getUserProfile } from '@/components/navbar';
 import { PreviewForm } from '@/components/previewform';
+import swal from 'sweetalert2';
+import { useRouter } from 'next/navigation';
+
+type formDataType = {
+    created_by: string;
+    form_code: string;
+    values: [{
+        question_id: number;
+        value_text: string;
+    }];
+}
 
 export default function IssuePage() {
+    const router = useRouter();
+    const user = getUserProfile();
 
     const [formData, setFormData] = useState<any>(null);
+    const [clearAfterSubmit, setClearAfterSubmit] = useState<boolean>(true);
 
     useEffect(() => {
         const fetchFormData = async () => {
@@ -34,8 +48,33 @@ export default function IssuePage() {
         fetchFormData();
     }, []);
 
-    const handleSubmit = (data: any) => {
-        console.log('ข้อมูลจากฟอร์มที่ส่งมา: ', data);
+    const handleSubmit = async (data: formDataType) => {
+        const employeeId = user?.employee_id;
+        const res = await fetch('/api/formsubmit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ ...data, created_by: employeeId }),
+        })
+        const resData = await res.json();
+        console.log('resData : ', resData)
+        if (res.ok) {
+            swal.fire({
+                icon: 'success',
+                title: 'ส่งแบบฟอร์มสำเร็จ',
+                text: 'ขอบคุณที่ใช้บริการ',
+                confirmButtonText: 'ตกลง',
+            })
+           setClearAfterSubmit(true);
+        } else {
+            swal.fire({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาด',
+                text: resData.error || 'ไม่สามารถส่งแบบฟอร์มได้',
+                confirmButtonText: 'ตกลง',
+            })
+        }
     }
 
     return (
@@ -64,6 +103,7 @@ export default function IssuePage() {
                     {formData && (
                         <PreviewForm
                             formData={formData}
+                            clearAfterSubmit={clearAfterSubmit}
                             submitData={(data) => handleSubmit(data)}
                         />
                     )}

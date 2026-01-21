@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from "react"
-import { NavElse } from "@/components/navbar"
+import { NavElse, getUserProfile } from "@/components/navbar"
 import {
     Plus,
     Trash2,
@@ -92,6 +92,7 @@ const questionTypeConfig: Record<string, { label: string; icon: React.ElementTyp
 }
 
 export default function BuilderPage() {
+    const user = getUserProfile();
     const [formData, setFormData] = useState<FormSetup>({
         form_type: "",
         form_code: "",

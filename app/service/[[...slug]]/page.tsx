@@ -2,11 +2,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DropdownSearch } from "@/components/ui/dropdown/issue";
-import { NavElse } from "@/components/navbar";
+import { NavElse, getUserProfile } from "@/components/navbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search } from "lucide-react";
 import { useParams } from 'next/navigation'
 import { PreviewForm } from "@/components/previewform";
+import swal from "sweetalert2";
 
 type formSetup = {
     id: string;
@@ -27,12 +28,14 @@ type formDataType = {
 }
 
 export default function ServicePage() {
+    const user = getUserProfile();
 
     const router = useRouter();
     const params = useParams();
     const [form, setForm] = useState<formSetup[]>([]);
     const [formData, setFormData] = useState<any>(null);
     const [selectedFormId, setSelectedFormId] = useState<string>("");
+    const [clearAfterSubmit, setClearAfterSubmit] = useState<boolean>(true);
 
     useEffect(() => {
         const getForm = async () => {
@@ -84,15 +87,34 @@ export default function ServicePage() {
         router.push(`/service/${value}`);
     }
 
-    const handleSubmit = (data: formDataType) => {
-       const employeeId = '680043'
-       const res = fetch('/api/formsubmit', {
+    const handleSubmit = async (data: formDataType) => {
+        console.log('Submitting data:', data);
+        const employeeId = user?.employee_id;
+        const res = await fetch('/api/formsubmit', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({...data, created_by: employeeId}),
+            body: JSON.stringify({ ...data, created_by: employeeId }),
         })
+        const resData = await res.json();
+        console.log('resData : ', resData)
+        if (res.ok) {
+            swal.fire({
+                icon: 'success',
+                title: 'ส่งแบบฟอร์มสำเร็จ',
+                text: 'ขอบคุณที่ใช้บริการ',
+                confirmButtonText: 'ตกลง',
+            })
+            setClearAfterSubmit(true);
+        } else {
+            swal.fire({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาด',
+                text: resData.error || 'ไม่สามารถส่งแบบฟอร์มได้',
+                confirmButtonText: 'ตกลง',
+            })
+        }
     }
 
     return (
@@ -131,6 +153,7 @@ export default function ServicePage() {
                     {formData && (
                         <PreviewForm
                             formData={formData}
+                            clearAfterSubmit={clearAfterSubmit}
                             submitData={(data) => handleSubmit(data)}
                         />
                     )}

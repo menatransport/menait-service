@@ -1,5 +1,5 @@
 'use client'
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "./ui/card";
 import { Label } from "./ui/label";
 import { AlertCircle, Send, CalendarIcon, ClipboardList, Clock } from "lucide-react";
@@ -43,10 +43,16 @@ type SubmitValue = {
     value_number?: number;
 }
 
-export const PreviewForm = ({ formData, submitData }: { formData: FormData; submitData: (data: any) => void }) => {
+export const PreviewForm = ({ formData, submitData, clearAfterSubmit }: { formData: FormData; submitData: (data: any) => void; clearAfterSubmit: boolean }) => {
 
     const [formValues, setFormValues] = useState<Record<string, string | string[]>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        if (clearAfterSubmit) {
+            setFormValues({});
+        }
+    }, [clearAfterSubmit]);
 
     const handleInputChange = (name: string, value: string | string[]) => {
         setFormValues(prev => ({ ...prev, [name]: value }));

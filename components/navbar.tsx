@@ -4,14 +4,38 @@ import { ArrowLeft, Bell, HomeIcon, icons, Search, Shield, User, ChevronDown } f
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useRouter } from 'next/navigation';
+import { UserProfile } from '@/lib/profile';
 
 interface NavbarProps {
     isHome?: boolean;
     title?: string;
 }
 
+interface User {
+    id: Number,
+    username: String,
+    firstname: String,
+    lastname: String,
+    employee_id: String,
+    site: String,
+    department: String,
+    position: String,
+    position_level: String,
+    position_level_id: Number,
+}
+
+export function getUserProfile()  {
+    if (typeof window !== 'undefined') {
+        const userData = localStorage.getItem('user');
+        return userData ? JSON.parse(userData) : User;
+    }
+}
+
+
 export const Navbar = ({ isHome = false, title }: NavbarProps) => {
     const router = useRouter();
+    const user = getUserProfile();
+    
     const componentdefault = [
         {
             title: 'หน้าหลัก',
@@ -30,7 +54,7 @@ export const Navbar = ({ isHome = false, title }: NavbarProps) => {
         },
         {
             title: 'ติดตามคำขอ',
-            href: '/tracking',
+            href: '/mytickets',
             icon: icons.CircleCheck,
         },
         {
@@ -115,8 +139,8 @@ export const Navbar = ({ isHome = false, title }: NavbarProps) => {
                                     <User className="w-4 h-4 sm:w-5 sm:h-5 text-[#026a75]" />
                                 </div>
                                 <div className="hidden sm:block">
-                                    <p className="text-white font-semibold text-sm">Kittaboon</p>
-                                    <p className="text-white/70 text-xs">IT Department</p>
+                                    <p className="text-white font-semibold text-sm">{user?.firstname}</p>
+                                    <p className="text-white/70 text-xs">{user?.department}</p>
                                 </div>
                                 <ChevronDown className="w-4 h-4 text-white/70 transition-transform duration-300 group-hover:rotate-180" />
                             </div>
@@ -125,9 +149,7 @@ export const Navbar = ({ isHome = false, title }: NavbarProps) => {
                             <div className="absolute right-0 top-full mt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 z-50">
                                 <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-2 min-w-150">
 
-                                    {/* Menu Grid - Wide Layout */}
                                     <div className="flex gap-2 p-2">
-                                        {/* Default Components - Left Side */}
                                         <div className="flex-1">
                                             <h3 className="text-xs font-semibold text-gray-500 mb-2 px-2">ทั่วไป</h3>
                                             <div className="grid grid-cols-3 gap-2">
@@ -153,8 +175,6 @@ export const Navbar = ({ isHome = false, title }: NavbarProps) => {
 
                                         {/* Divider */}
                                         <div className="w-px bg-gray-200 my-2"></div>
-
-                                        {/* Admin Components - Right Side */}
                                         <div className="flex-1">
                                             <h3 className="text-xs font-semibold text-gray-500 mb-2 px-2">ระบบจัดการ</h3>
                                             <div className="grid grid-cols-1 gap-2">
@@ -181,16 +201,15 @@ export const Navbar = ({ isHome = false, title }: NavbarProps) => {
 
                                     {/* Bottom Dropdown Menu */}
                                     <div className="p-2 border-t border-gray-200/80">
-                                        {/* User Info Card */}
                                         <div className="flex flex-row justify-between p-3 bg-linear-to-r from-[#026a75]/5 to-[#8ce4cb]/10 rounded-xl mb-3">
-                                            {/* User Profile Section */}
                                             <div className="flex items-center gap-3 mb-3">
                                                 <div className="w-10 h-10 bg-linear-to-br from-[#026a75] to-[#8ce4cb] rounded-full flex items-center justify-center shadow-md">
-                                                    <span className="text-white p-2" >KL</span>
+                                                    <span className="text-white p-2" >{user?.firstname?.charAt(0)}{user?.lastname?.charAt(0)}</span>
                                                 </div>
                                                 <div className="flex-1">
-                                                    <p className="text-sm font-semibold text-gray-800">IT Department</p>
-                                                    <p className="text-xs text-gray-500">kittaboon.l@menatransport.co.th</p>
+                                                    <p className="text-md font-bold text-gray-800">{user?.employee_id}</p>
+                                                    <p className="text-xs text-gray-500">{user?.username}</p>
+                                                    <p className="text-xs text-gray-500">{user?.department}</p>
                                                 </div>
                                             </div>
 
@@ -247,7 +266,7 @@ export const Navbar = ({ isHome = false, title }: NavbarProps) => {
 
                             <div className="animate-slide-in-left">
                                 <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-1 sm:mb-2">
-                                    สวัสดี, Kittaboon 👋
+                                    สวัสดี, {user?.firstname} 👋
                                 </h1>
                                 <p className="text-white/80 text-sm sm:text-base lg:text-lg">
                                     วันนี้คุณต้องการความช่วยเหลืออะไร?
