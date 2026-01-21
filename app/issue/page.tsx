@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Lightbulb } from 'lucide-react';
-import { NavElse, getUserProfile } from '@/components/navbar';
+import { NavElse } from '@/components/navbar';
 import { PreviewForm } from '@/components/previewform';
 import swal from 'sweetalert2';
 import { useRouter } from 'next/navigation';
@@ -18,7 +18,7 @@ type formDataType = {
 
 export default function IssuePage() {
     const router = useRouter();
-    const user = getUserProfile();
+ 
 
     const [formData, setFormData] = useState<any>(null);
     const [clearAfterSubmit, setClearAfterSubmit] = useState<boolean>(true);
@@ -49,13 +49,13 @@ export default function IssuePage() {
     }, []);
 
     const handleSubmit = async (data: formDataType) => {
-        const employeeId = user?.employee_id;
+        const employee_id = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').employee_id : null;
         const res = await fetch('/api/formsubmit', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ ...data, created_by: employeeId }),
+            body: JSON.stringify({ ...data, created_by: employee_id }),
         })
         const resData = await res.json();
         console.log('resData : ', resData)

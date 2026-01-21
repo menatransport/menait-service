@@ -22,20 +22,31 @@ import {
     TableRow,
 } from "@/components/ui/table"
 
+import {
+    Sheet,
+    SheetClose,
+    SheetContent,
+    SheetDescription,
+    SheetFooter,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet"
+
 
 import { type Ticket } from "@/app/mytickets/page";
-import {PreviewForm} from "@/components/previewform";
-import { table } from "console";
+
 import { Input } from "./ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import { Button } from "@/components/ui/button";
+
 
 
 {/* เพิ่ม DataTable Shadcn โดยใช้ข้อมูล tickets */ }
 
 {/* เมื่อกด Action View ให้เรียก onSelect และแสดง Drawer Shadcn มาฝั่งขวา โดยใช้ Design ของ previewform.tsx ด้านใน ให้ Responsive ทั้ง PC และ Mobile */ }
 
-export const TicketComponent = ({ tickets, onSelect, selectedTicket }: { tickets: Ticket[], onSelect: (ticket: Ticket) => void, selectedTicket: Ticket | null }) => {
+export const TicketComponent = ({ tickets, onSelect, formData }: { tickets: Ticket[], onSelect: (ticket: Ticket) => void, formData: any | null }) => {
     const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
 
     const filterableColumns = [
@@ -176,14 +187,23 @@ export const TicketComponent = ({ tickets, onSelect, selectedTicket }: { tickets
                                 <TableCell>{ticket.status}</TableCell>
                                 <TableCell>{new Date(ticket.created_at).toLocaleDateString()}</TableCell>
                                 <TableCell>
-                                    <Button
-                                        variant="link"
-                                        size="sm"
-                                        className="cursor-pointer"
-                                        onClick={() => onSelect(ticket)}
-                                    >
-                                        <Eye className="h-4 w-4 " />
-                                    </Button>
+                                    <Sheet>
+                                        <SheetTrigger asChild>
+                                            <Button variant="outline" onClick={() => onSelect(ticket)}>View</Button>
+                                        </SheetTrigger>
+                                        <SheetContent>
+                                            {/* <PreviewForm
+                                                    formData={formData}
+                                                    clearAfterSubmit={false}
+                                                /> */}
+                                            <SheetFooter>
+                                                <Button type="submit">Save changes</Button>
+                                                <SheetClose asChild>
+                                                    <Button variant="outline">Close</Button>
+                                                </SheetClose>
+                                            </SheetFooter>
+                                        </SheetContent>
+                                    </Sheet>
                                 </TableCell>
                             </TableRow>
                         ))}

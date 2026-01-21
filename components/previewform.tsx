@@ -18,6 +18,7 @@ type FormData = {
     form_status: string;
     need_approval: boolean;
     questions: Question[];
+    values: Question[];
 }
 
 type Question = {
@@ -334,6 +335,63 @@ export const PreviewForm = ({ formData, submitData, clearAfterSubmit }: { formDa
                         )}
                     </div>
                 );
+
+            case 'number':
+                return (
+                    <div key={question.name} className="space-y-2 w-1/2">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[#026a75] text-white text-xs font-bold">{index + 1}</div>
+                            <Label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                                {question.label}
+                                {question.required && <span className="text-rose-500">*</span>}
+                            </Label>
+                        </div>
+                        <input
+                            type="number"
+                            value={formValues[question.name] as string || ''}
+                            onChange={(e) => handleInputChange(question.name, e.target.value)}
+                            placeholder=""
+                            className={`w-full h-12 px-4 bg-white border-2 rounded-xl text-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/50 ${errors[question.name]
+                                ? 'border-rose-300 bg-rose-50'
+                                : 'border-gray-200'
+                                }`}
+                        />
+                        {errors[question.name] && (
+                            <p className="text-rose-500 text-xs flex items-center gap-1 mt-1">
+                                <AlertCircle className="w-3 h-3" />
+                                {errors[question.name]}
+                            </p>
+                        )}
+                    </div>
+                );
+                case 'text': 
+                    return (
+                        <div key={question.name} className="space-y-2 w-1/2">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[#026a75] text-white text-xs font-bold">{index + 1}</div>
+                                <Label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                                    {question.label}
+                                    {question.required && <span className="text-rose-500">*</span>}
+                                </Label>
+                            </div>
+                            <input
+                                type="text"
+                                value={formValues[question.name] as string || ''}
+                                onChange={(e) => handleInputChange(question.name, e.target.value)}
+                                placeholder=""
+                                className={`w-full h-12 px-4 bg-white border-2 rounded-xl text-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/50 ${errors[question.name]  
+                                    ? 'border-rose-300 bg-rose-50'
+                                    : 'border-gray-200' 
+                                    }`}
+                            />
+                            {errors[question.name] && (
+                                <p className="text-rose-500 text-xs flex items-center gap-1 mt-1">
+                                    <AlertCircle className="w-3 h-3" />
+                                    {errors[question.name]}
+                                </p>
+                            )}
+                        </div>
+                    );
 
             default:
                 return null;

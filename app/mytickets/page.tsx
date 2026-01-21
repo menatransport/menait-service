@@ -1,8 +1,9 @@
 'use client';
-import { NavElse, getUserProfile } from '@/components/navbar';
+import { NavElse } from '@/components/navbar';
 import { TicketComponent } from '@/components/tickets';
 import { Ticket } from 'lucide-react';
 import { useEffect, useState } from 'react';
+
 
 export type Ticket = {
     form_id: string;
@@ -15,14 +16,12 @@ export type Ticket = {
 };
 
 export default function TicketsPage() {
-    const user = getUserProfile();
     const [ tickets, setTickets ] = useState<Ticket[]>([]);
     const [ selectedTicket, setSelectedTicket ] = useState<Ticket | null>(null);
     useEffect(() => {
-
         const fetchData = async () => {
             try {
-                const employee_id = user?.employee_id ;
+                const employee_id = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').employee_id : null;
                 const response = await fetch(`/api/tickets?employee_id=${employee_id}`, {
                     method: 'GET',
                     headers: {
@@ -40,9 +39,13 @@ export default function TicketsPage() {
         
     }, []);
 
-    const handleSelected = (ticket: Ticket) => {
-        console.log('Selected ticket:', ticket);
-        setSelectedTicket(ticket);
+    const handleSelected = async (ticket: Ticket) => {
+        const res = await fetch(`/api/formsubmit?path=${ticket.form_id}`, {
+            method: "GET",
+        });
+        const data = await res.json();
+        console.log('Fetched form data for selected ticket:', data);
+        setSelectedTicket(data);
     }
 
     return (
@@ -52,7 +55,7 @@ export default function TicketsPage() {
 
             <main className="flex-1 min-h-0 bg-[#f0fafa] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-                   <TicketComponent tickets={tickets} selectedTicket={selectedTicket} onSelect={(e) => handleSelected(e)} />
+                   <TicketComponent tickets={tickets} formData={selectedTicket} onSelect={(e) => handleSelected(e)} />
                 </div>
             </main>
         </div>

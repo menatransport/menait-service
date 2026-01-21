@@ -4,7 +4,8 @@ import { ArrowLeft, Bell, HomeIcon, icons, Search, Shield, User, ChevronDown } f
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useRouter } from 'next/navigation';
-import { UserProfile } from '@/lib/profile';
+import { useEffect, useState } from "react";
+
 
 interface NavbarProps {
     isHome?: boolean;
@@ -13,6 +14,7 @@ interface NavbarProps {
 
 interface User {
     id: Number,
+    role: String,
     username: String,
     firstname: String,
     lastname: String,
@@ -24,18 +26,17 @@ interface User {
     position_level_id: Number,
 }
 
-export function getUserProfile()  {
-    if (typeof window !== 'undefined') {
-        const userData = localStorage.getItem('user');
-        return userData ? JSON.parse(userData) : User;
-    }
-}
-
-
 export const Navbar = ({ isHome = false, title }: NavbarProps) => {
-    const router = useRouter();
-    const user = getUserProfile();
-    
+   const router = useRouter();
+   const [user, setUserInfo] = useState<User | null>(null);
+
+    useEffect(() => {
+    const storedUserData = localStorage.getItem("user");
+    if (storedUserData) {
+      setUserInfo(JSON.parse(storedUserData));
+    }
+  }, []);
+
     const componentdefault = [
         {
             title: 'หน้าหลัก',
@@ -139,7 +140,7 @@ export const Navbar = ({ isHome = false, title }: NavbarProps) => {
                                     <User className="w-4 h-4 sm:w-5 sm:h-5 text-[#026a75]" />
                                 </div>
                                 <div className="hidden sm:block">
-                                    <p className="text-white font-semibold text-sm">{user?.firstname}</p>
+                                    <p className="text-white font-semibold text-sm">{user?.username}</p>
                                     <p className="text-white/70 text-xs">{user?.department}</p>
                                 </div>
                                 <ChevronDown className="w-4 h-4 text-white/70 transition-transform duration-300 group-hover:rotate-180" />
@@ -175,7 +176,7 @@ export const Navbar = ({ isHome = false, title }: NavbarProps) => {
 
                                         {/* Divider */}
                                         <div className="w-px bg-gray-200 my-2"></div>
-                                        <div className="flex-1">
+                                        {user?.role == 'a' && <div className="flex-1">
                                             <h3 className="text-xs font-semibold text-gray-500 mb-2 px-2">ระบบจัดการ</h3>
                                             <div className="grid grid-cols-1 gap-2">
                                                 {componentadmin.map((item, index) => {
@@ -197,6 +198,7 @@ export const Navbar = ({ isHome = false, title }: NavbarProps) => {
                                                 })}
                                             </div>
                                         </div>
+                                        }
                                     </div>
 
                                     {/* Bottom Dropdown Menu */}
@@ -207,8 +209,8 @@ export const Navbar = ({ isHome = false, title }: NavbarProps) => {
                                                     <span className="text-white p-2" >{user?.firstname?.charAt(0)}{user?.lastname?.charAt(0)}</span>
                                                 </div>
                                                 <div className="flex-1">
-                                                    <p className="text-md font-bold text-gray-800">{user?.employee_id}</p>
-                                                    <p className="text-xs text-gray-500">{user?.username}</p>
+                                                    <p className="text-md font-bold text-gray-800">ID: {user?.employee_id}</p>
+                                                    <p className="text-xs text-gray-500">{user?.firstname} {user?.lastname}</p>
                                                     <p className="text-xs text-gray-500">{user?.department}</p>
                                                 </div>
                                             </div>

@@ -3,13 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { CircleUserRound, KeyRound, Leaf, BookOpen } from 'lucide-react';
+import { CircleUserRound, KeyRound } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { json } from "stream/consumers";
 
 export default function LoginPage() {
     const [username, setUsername] = useState("");
@@ -31,9 +30,11 @@ export default function LoginPage() {
         if (!res.ok) return alert('Login failed. Try again.');
         const data = await res.json();
         console.log('Login response data:', data);
+        const role = (data.user.department === 'IT' || data.user.department === 'Operation Support') ? 'a' : 'u';
+        data.user.role = role;
         if (rememberMe) {
             localStorage.setItem('auth-token', data.access_token);
-            localStorage.setItem('user', data.user);
+            localStorage.setItem('user', JSON.stringify(data.user)); 
         }
         localStorage.setItem('user', JSON.stringify(data.user));
         router.push('/home');

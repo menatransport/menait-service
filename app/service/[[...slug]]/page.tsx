@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DropdownSearch } from "@/components/ui/dropdown/issue";
-import { NavElse, getUserProfile } from "@/components/navbar";
+import { NavElse } from "@/components/navbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search } from "lucide-react";
 import { useParams } from 'next/navigation'
@@ -28,8 +28,6 @@ type formDataType = {
 }
 
 export default function ServicePage() {
-    const user = getUserProfile();
-
     const router = useRouter();
     const params = useParams();
     const [form, setForm] = useState<formSetup[]>([]);
@@ -54,7 +52,6 @@ export default function ServicePage() {
         const fetchFormData = async () => {
             const formId = params?.slug?.[0];
             if (formId) {
-                console.log('เจอ ID แก้ไข:', formId);
                 setSelectedFormId(formId);
                 try {
                     const res = await fetch(`/api/formsubmit?path=${formId}`, {
@@ -89,13 +86,13 @@ export default function ServicePage() {
 
     const handleSubmit = async (data: formDataType) => {
         console.log('Submitting data:', data);
-        const employeeId = user?.employee_id;
+        const employee_id = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').employee_id : null;
         const res = await fetch('/api/formsubmit', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ ...data, created_by: employeeId }),
+            body: JSON.stringify({ ...data, created_by: employee_id }),
         })
         const resData = await res.json();
         console.log('resData : ', resData)
