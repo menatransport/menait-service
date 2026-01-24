@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from "react"
-import { NavElse } from "@/components/navbar"
+import { Navbar } from "@/components/navbar"
 import {
     Plus,
     Trash2,
@@ -423,7 +423,6 @@ export default function BuilderPage() {
         setIsPreviewOpen(true)
     }
 
-    // Render Preview Field
     const renderPreviewField = (question: Question, index: number) => {
         const config = questionTypeConfig[question.question_type]
 
@@ -681,10 +680,7 @@ export default function BuilderPage() {
 
 
     return (
-        <div className="h-screen flex flex-col overflow-hidden bg-linear-to-br from-[#026a75] via-[#037a86] to-[#025f68]">
-            {/* Navbar FormBuilder */}
-            <NavElse title={builderMode == "create" ? "สร้างฟอร์มแจ้งปัญหา และบริการ" : "แก้ไขฟอร์มแจ้งปัญหา และบริการ"} />
-
+        <Navbar isHome={false} title={builderMode == "create" ? "สร้างฟอร์มแจ้งปัญหา และบริการ" : "แก้ไขฟอร์มแจ้งปัญหา และบริการ"}>
             {/* Main Content */}
             <main className="flex-1 min-h-0 rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto" style={{ background: 'radial-gradient(circle, #c3ddde 1.5px, #f0fafa 1.5px)', backgroundSize: '20px 20px' }}>
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
@@ -995,6 +991,6 @@ export default function BuilderPage() {
                     </div>
                 </DialogContent>
             </Dialog>
-        </div>
+        </Navbar>
     )
 }

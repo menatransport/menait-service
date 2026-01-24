@@ -1,7 +1,7 @@
 'use client';
 import { House, TriangleAlert, CheckCircle, ClipboardList, Settings, Headphones, Ticket, Bot } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { NavHome } from "@/components/navbar";
+import { Navbar } from "@/components/navbar";
 import { ServicesMenu, InformationMenu } from "@/components/homecontent";
 
 
@@ -97,47 +97,43 @@ export default function HomePage() {
     ]
 
     return (
-        <div className="h-screen flex flex-col overflow-hidden bg-linear-to-br from-[#026a75] via-[#037a86] to-[#025f68]">
-
-            <NavHome />
-
-            {/* Main Content - Flexible height with scroll */}
+        <Navbar isHome={true} title={''}>
             <div className="flex-1 min-h-0 bg-[#f0fafa] rounded-t-[3rem] shadow-2xl overflow-hidden">
                 <main className="h-full overflow-y-auto">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
                         <ServicesMenu menuItems={menuItems} />
 
-                        <InformationMenu newsItems={newsItems} />
+                            <InformationMenu newsItems={newsItems} />
 
 
-                        {/* Help Banner */}
-                        <div className="mt-6 sm:mt-8 lg:mt-12 relative overflow-hidden rounded-xl sm:rounded-2xl lg:rounded-3xl bg-linear-to-r from-[#026a75] to-[#037a86] p-4 sm:p-6 lg:p-8 animate-fade-in-up stagger-8">
-                            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMzAiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-30"></div>
+                            {/* Help Banner */}
+                            <div className="mt-6 sm:mt-8 lg:mt-12 relative overflow-hidden rounded-xl sm:rounded-2xl lg:rounded-3xl bg-linear-to-r from-[#026a75] to-[#037a86] p-4 sm:p-6 lg:p-8 animate-fade-in-up stagger-8">
+                                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMzAiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-30"></div>
 
-                            <div className="relative flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-                                <div className="hidden sm:flex w-14 h-14 lg:w-16 lg:h-16 bg-white/20 rounded-2xl items-center justify-center animate-float">
-                                    <Headphones className="w-7 h-7 lg:w-8 lg:h-8 text-white" />
+                                <div className="relative flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                                    <div className="hidden sm:flex w-14 h-14 lg:w-16 lg:h-16 bg-white/20 rounded-2xl items-center justify-center animate-float">
+                                        <Headphones className="w-7 h-7 lg:w-8 lg:h-8 text-white" />
+                                    </div>
+
+                                    <div className="flex-1 text-center sm:text-left">
+                                        <h3 className="text-base sm:text-lg lg:text-xl font-bold text-white mb-1">
+                                            ต้องการความช่วยเหลือ?
+                                        </h3>
+                                        <p className="text-white/80 text-xs sm:text-sm">
+                                            เวลาทำการ 09:00 - 17:30 น. จันทร์ - ศุกร์
+                                        </p>
+                                    </div>
+
+                                    <Button className="bg-white cursor-pointer text-[#026a75] hover:text-white font-semibold px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-all duration-300 hover:scale-105 shadow-lg">
+                                        <Headphones className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                                        ติดต่อ Support
+                                    </Button>
                                 </div>
-
-                                <div className="flex-1 text-center sm:text-left">
-                                    <h3 className="text-base sm:text-lg lg:text-xl font-bold text-white mb-1">
-                                        ต้องการความช่วยเหลือ?
-                                    </h3>
-                                    <p className="text-white/80 text-xs sm:text-sm">
-                                        เวลาทำการ 09:00 - 17:30 น. จันทร์ - ศุกร์
-                                    </p>
-                                </div>
-
-                                <Button className="bg-white cursor-pointer text-[#026a75] hover:text-white font-semibold px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-all duration-300 hover:scale-105 shadow-lg">
-                                    <Headphones className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                                    ติดต่อ Support
-                                </Button>
                             </div>
                         </div>
-                    </div>
-                </main>
-            </div>
-        </div>
+                    </main>
+                </div>
+            </Navbar>
     );
 }

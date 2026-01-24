@@ -1,6 +1,6 @@
 'use client';
-import { NavElse } from '@/components/navbar';
-import { TicketComponent } from '@/components/tickets';
+import { Navbar } from '@/components/navbar';
+import { TicketComponent } from '@/components/ticketscontent';
 import { Ticket } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -16,8 +16,9 @@ export type Ticket = {
 };
 
 export default function TicketsPage() {
-    const [ tickets, setTickets ] = useState<Ticket[]>([]);
-    const [ selectedTicket, setSelectedTicket ] = useState<Ticket | null>(null);
+    const [tickets, setTickets] = useState<Ticket[]>([]);
+    const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+    
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -36,7 +37,7 @@ export default function TicketsPage() {
             }
         }
         fetchData();
-        
+
     }, []);
 
     const handleSelected = async (ticket: Ticket) => {
@@ -49,15 +50,8 @@ export default function TicketsPage() {
     }
 
     return (
-        <div className="h-screen flex flex-col overflow-hidden bg-linear-to-br from-[#026a75] via-[#037a86] to-[#025f68]">
-
-            <NavElse title="ติดตามสถานะคำร้อง" />
-
-            <main className="flex-1 min-h-0 bg-[#f0fafa] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-                   <TicketComponent tickets={tickets} formData={selectedTicket} onSelect={(e) => handleSelected(e)} />
-                </div>
-            </main>
-        </div>
+        <Navbar isHome={false} title="ติดตามสถานะคำร้อง">
+            <TicketComponent tickets={tickets} formData={selectedTicket} onSelect={(e) => handleSelected(e)} />
+        </Navbar>
     );
 }

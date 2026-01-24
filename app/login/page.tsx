@@ -34,7 +34,7 @@ export default function LoginPage() {
         data.user.role = role;
         if (rememberMe) {
             localStorage.setItem('auth-token', data.access_token);
-            localStorage.setItem('user', JSON.stringify(data.user)); 
+            localStorage.setItem('user', JSON.stringify(data.user));
         }
         localStorage.setItem('user', JSON.stringify(data.user));
         router.push('/home');
@@ -184,7 +184,7 @@ export default function LoginPage() {
                             </div>
                             {/* Login Button */}
                             <Button
-                               
+
                                 className="w-full h-11 bg-[#026a75] hover:bg-[#025f68] text-white font-medium transition-all duration-200 shadow-md hover:shadow-lg"
                             >
                                 Login
