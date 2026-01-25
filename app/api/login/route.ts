@@ -3,7 +3,12 @@ import type { NextRequest } from 'next/server';
 
 export async function POST(request: NextRequest) {
     const reqBody = await request.json();
-    const res = await fetch("https://api-ncac.onrender.com/auth/login", {
+    const isGoogleLogin = 'id_token' in reqBody;
+    const endpoint = isGoogleLogin 
+        ? "https://api-ncac.onrender.com/auth/login/google"
+        : "https://api-ncac.onrender.com/auth/login";
+    
+    const res = await fetch(endpoint, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -11,7 +16,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify(reqBody),
     });
     const data = await res.json();
-    console.log('data : ',data)
+    console.log('data : ', data);
     if (!res.ok) {
         return NextResponse.json({ error: data?.detail }, { status: res.status });
     }

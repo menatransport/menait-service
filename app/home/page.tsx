@@ -3,10 +3,24 @@ import { House, TriangleAlert, CheckCircle, ClipboardList, Settings, Headphones,
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/navbar";
 import { ServicesMenu, InformationMenu } from "@/components/homecontent";
-
-
+import { useEffect } from 'react';
+import Swal from 'sweetalert2';
 
 export default function HomePage() {
+
+ useEffect(() => {
+    const showWelcome = sessionStorage.getItem("showWelcome")
+    if (showWelcome === "true") {
+      Swal.fire({
+        icon: 'success',
+        title: 'ยินดีต้อนรับเข้าสู่ระบบ',
+        text: '',
+        draggable: true
+      })
+
+      sessionStorage.removeItem("showWelcome")
+    }
+  }, []);
 
     const menuItems = [
         {
@@ -78,23 +92,23 @@ export default function HomePage() {
         }
     ];
 
-    const adminItems = [
-        {
-            title: "Home",
-            icon: House,
-            href: "/home"
-        },
-        {
-            title: "Tickets",
-            icon: Ticket,
-            href: "/tickets"
-        },
-        {
-            title: "Builder",
-            icon: Bot,
-            href: "/builder"
-        }
-    ]
+    // const adminItems = [
+    //     {
+    //         title: "Home",
+    //         icon: House,
+    //         href: "/home"
+    //     },
+    //     {
+    //         title: "Tickets",
+    //         icon: Ticket,
+    //         href: "/tickets"
+    //     },
+    //     {
+    //         title: "Builder",
+    //         icon: Bot,
+    //         href: "/builder"
+    //     }
+    // ]
 
     return (
         <Navbar isHome={true} title={''}>

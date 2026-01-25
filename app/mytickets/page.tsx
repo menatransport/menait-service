@@ -1,6 +1,6 @@
 'use client';
 import { Navbar } from '@/components/navbar';
-import { TicketComponent } from '@/components/ticketscontent';
+import { TicketComponent } from '@/components/tickets/ticketscontent';
 import { Ticket } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -10,15 +10,18 @@ export type Ticket = {
     current_level: number;
     submission_id: string;
     form_code: string;
+    form_name: string;
     status: string;
     created_by: string;
+    created_by_email: string;
     created_at: string;
 };
 
 export default function TicketsPage() {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-    
+    const [isLoading, setIsLoading] = useState(true);
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -36,17 +39,28 @@ export default function TicketsPage() {
                 console.error('Error fetching tickets data:', error);
             }
         }
-        fetchData();
+        fetchData().finally(() => setIsLoading(false));
 
     }, []);
 
     const handleSelected = async (ticket: Ticket) => {
-        const res = await fetch(`/api/formsubmit?path=${ticket.form_id}`, {
+        const res = await fetch(`/api/formselect?path=${ticket.form_id}`, {
             method: "GET",
         });
         const data = await res.json();
-        console.log('Fetched form data for selected ticket:', data);
-        setSelectedTicket(data);
+        setSelectedTicket(data[0]);
+    }
+
+    if (isLoading) {
+        return (
+            <Navbar isHome={false} title="ติดตามสถานะคำร้อง">
+                <main className="flex-1 min-h-0 bg-[#f0fafa] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
+                    <div className="flex items-center justify-center h-64">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#026a75]"></div>
+                    </div>
+                </main>
+            </Navbar>
+        );
     }
 
     return (

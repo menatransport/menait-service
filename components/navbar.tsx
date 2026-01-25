@@ -172,7 +172,7 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title 
                                                             <button
                                                                 key={index}
                                                                 onClick={() => router.push(item.href)}
-                                                                className="flex flex-col cursor-pointer items-center gap-2 p-2 rounded-xl hover:bg-gradient-to-br hover:from-[#026a75]/10 hover:to-[#8ce4cb]/10 transition-all duration-200 group/item"
+                                                                className="flex flex-col cursor-pointer items-center gap-2 p-2 rounded-xl hover:bg-linear-to-br hover:from-[#026a75]/10 hover:to-[#8ce4cb]/10 transition-all duration-200 group/item"
                                                             >
                                                                 <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center group-hover/item:bg-[#026a75] transition-colors duration-200">
                                                                     <IconComponent className="w-5 h-5 text-gray-600 group-hover/item:text-white transition-colors duration-200" />
@@ -198,7 +198,7 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title 
                                                                 <button
                                                                     key={index}
                                                                     onClick={() => router.push(item.href)}
-                                                                    className={`flex cursor-pointer items-center gap-3 p-2 rounded-xl hover:bg-gradient-to-br hover:from-[#026a75]/10 hover:to-[#8ce4cb]/10 transition-all duration-200 group/item ${item.style || ''}`}
+                                                                    className={`flex cursor-pointer items-center gap-3 p-2 rounded-xl hover:bg-linear-to-br hover:from-[#026a75]/10 hover:to-[#8ce4cb]/10 transition-all duration-200 group/item ${item.style || ''}`}
                                                                 >
                                                                     <div className="w-8 h-8 bg-[#8ce4cb]/20 rounded-lg flex items-center justify-center group-hover/item:bg-[#026a75] transition-colors duration-200">
                                                                         <IconComponent className="w-4 h-4 text-[#026a75] group-hover/item:text-white transition-colors duration-200" />
@@ -216,9 +216,9 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title 
 
                                         {/* Bottom Dropdown Menu */}
                                         <div className="p-2 border-t border-gray-200/80">
-                                            <div className="flex flex-row justify-between p-3 bg-gradient-to-r from-[#026a75]/5 to-[#8ce4cb]/10 rounded-xl mb-3">
+                                            <div className="flex flex-row justify-between p-3 bg-linear-to-r from-[#026a75]/5 to-[#8ce4cb]/10 rounded-xl mb-3">
                                                 <div className="flex items-center gap-3 mb-3">
-                                                    <div className="w-10 h-10 bg-gradient-to-br from-[#026a75] to-[#8ce4cb] rounded-full flex items-center justify-center shadow-md">
+                                                    <div className="w-10 h-10 bg-linear-to-br from-[#026a75] to-[#8ce4cb] rounded-full flex items-center justify-center shadow-md">
                                                         <span className="text-white p-2">
                                                             {isClient ? `${user?.firstname?.charAt(0) || ''}${user?.lastname?.charAt(0) || ''}` : ''}
                                                         </span>

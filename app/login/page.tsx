@@ -1,58 +1,93 @@
 'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn, getSession } from "next-auth/react";
 import { CircleUserRound, KeyRound } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import Loading from "@/components/loading";
 
-export default function LoginPage() {
+function LoginForm() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [rememberMe, setRememberMe] = useState(false);
+    const searchParams = useSearchParams();
+    const [isLoading, setIsLoading] = useState(() => searchParams.get('google') === 'true');
     const router = useRouter();
+
+    const processLogin = async (body: object, saveToken = false): Promise<boolean> => {
+        setIsLoading(true);
+        try {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                alert('Login failed: ' + (err?.error || err?.detail || 'Try again.'));
+                setIsLoading(false);
+                return false;
+            }
+            const data = await res.json();
+            console.log('Login response:', data);
+        
+            if (data.user) {
+                data.user.role = ['IT', 'Operation Support'].includes(data.user.department) ? 'a' : 'u';
+                localStorage.setItem('user', JSON.stringify(data.user));
+            }
+            if (saveToken && data.access_token) {
+                localStorage.setItem('auth-token', data.access_token);
+            }
+            setTimeout(() => {
+            sessionStorage.setItem("showWelcome", "true")
+            router.push("/home");
+            }, 3000)
+            return true;
+        } catch (error) {
+            console.error('Login error:', error);
+            alert('Login failed. Please try again.');
+            setIsLoading(false);
+            return false;
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        console.log({ username, password, rememberMe });
-        const res = await fetch('/api/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ username, password }),
-        });
-        if (!res.ok) return alert('Login failed. Try again.');
-        const data = await res.json();
-        console.log('Login response data:', data);
-        const role = (data.user.department === 'IT' || data.user.department === 'Operation Support') ? 'a' : 'u';
-        data.user.role = role;
-        if (rememberMe) {
-            localStorage.setItem('auth-token', data.access_token);
-            localStorage.setItem('user', JSON.stringify(data.user));
-        }
-        localStorage.setItem('user', JSON.stringify(data.user));
-        router.push('/home');
+        await processLogin({ username, password }, rememberMe);
     };
 
-    const handleAuthengoogle = async () => {
-        await signIn('google', { callbackUrl: '/home' });
-    }
+    useEffect(() => {
+        if (searchParams.get('google') !== 'true') return;
+        
+        const checkGoogleSession = async () => {
+            const session = await getSession() as any;
+            if (session?.id_token) {
+                await processLogin({ id_token: session.id_token }, true);
+            }
+        };
+        checkGoogleSession();
+    }, [searchParams]);
+
+    const handleAuthengoogle = () => {
+        setIsLoading(true);
+        signIn('google', { callbackUrl: '/login?google=true' });
+    };
 
     return (
         <div className="min-h-screen bg-linear-to-br from-[#026a75] via-[#037a86] to-[#025f68] flex items-center justify-center p-4 relative overflow-hidden">
-            {/* Decorative elements */}
+            {isLoading && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(107, 114, 128, 0.6)' }}>
+                    <Loading />
+                </div>
+            )}
             <div className="absolute top-10 left-10 hidden lg:block">
-                {/* <img src="/mena.png" alt="Logo" className="w-48 h-32" /> */}
-                {/* <Leaf className="w-32 h-32 text-white animate-pulse" /> */}
             </div>
             <div className="absolute bottom-10 right-10 opacity-20 hidden lg:block">
-                {/* <BookOpen className="w-32 h-32 text-white animate-pulse" /> */}
             </div>
 
             <div className="w-full max-w-md z-10">
@@ -62,7 +97,6 @@ export default function LoginPage() {
                 </div>
 
                 <Card className="shadow-2xl border-0 relative overflow-visible">
-                    {/* Logo/Laptop positioned near Login title */}
                     <div className="absolute -right-8 -top-16 sm:-right-8 sm:-top-10 opacity-90">
                         <svg xmlns="http://www.w3.org/2000/svg" width="140" height="120" version="1.1" viewBox="0 0 285.75 190.5">
                             <defs>
@@ -109,7 +143,6 @@ export default function LoginPage() {
                                     <path d="m86.603 157 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
                                 </g>
                                 <path d="m97.409 246.75-12.99 7.5-17.321-10 12.99-7.5z" fill="#b3b3b3" />
-                                {/* เงาที่ฐานโน๊ตบุ๊ค */}
                                 <ellipse cx="106" cy="306.5" rx="40" ry="8" fill="#000000" opacity="0.15" filter="url(#shadow)" />
                             </g>
                         </svg>
@@ -121,7 +154,6 @@ export default function LoginPage() {
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-5">
-                            {/* Username Field */}
                             <div className="space-y-2">
                                 <Label htmlFor="username" className="text-sm font-medium">
                                     Username :
@@ -140,7 +172,6 @@ export default function LoginPage() {
                                 </div>
                             </div>
 
-                            {/* Password Field */}
                             <div className="space-y-2">
                                 <Label htmlFor="password" className="text-sm font-medium">
                                     Password :
@@ -159,7 +190,6 @@ export default function LoginPage() {
                                 </div>
                             </div>
 
-                            {/* Remember Me & Forgot Password */}
                             <div className="flex items-center justify-between flex-wrap gap-2">
                                 <div className="flex items-center space-x-2">
                                     <Checkbox
@@ -182,21 +212,19 @@ export default function LoginPage() {
                                     Forgot password?
                                 </a>
                             </div>
-                            {/* Login Button */}
-                            <Button
 
+                            <Button
                                 className="w-full h-11 bg-[#026a75] hover:bg-[#025f68] text-white font-medium transition-all duration-200 shadow-md hover:shadow-lg"
                             >
                                 Login
                             </Button>
-                            {/* Authen With Google Workspace */}
                             <div className="flex items-center">
                                 <div className="grow border-t border-gray-300"></div>
                                 <span className="mx-4 text-gray-500">or</span>
                                 <div className="grow border-t border-gray-300"></div>
                             </div>
                             <div className="flex items-center justify-center bg-white dark:bg-gray-700">
-                                <button type="button" onClick={handleAuthengoogle} className="flex items-center cursor-pointer bg-white dark:bg-gray-900 border border-gray-300 rounded-lg shadow-md px-3 py-2 text-sm font-medium text-gray-800 dark:text-white hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                                <button type="button" onClick={handleAuthengoogle} className="flex justify-center items-center w-full cursor-pointer bg-white dark:bg-gray-900 border border-gray-300 rounded-lg shadow-md px-3 py-2 text-sm font-medium text-gray-800 dark:text-white hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
                                     <svg className="h-6 w-6 mr-2" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" width="800px" height="800px" viewBox="-0.5 0 48 48" version="1.1"> <title>Google-color</title> <desc>Created with Sketch.</desc> <defs> </defs> <g id="Icons" stroke="none" strokeWidth="1" fill="none" fillRule="evenodd"> <g id="Color-" transform="translate(-401.000000, -860.000000)"> <g id="Google" transform="translate(401.000000, 860.000000)"> <path d="M9.82727273,24 C9.82727273,22.4757333 10.0804318,21.0144 10.5322727,19.6437333 L2.62345455,13.6042667 C1.08206818,16.7338667 0.213636364,20.2602667 0.213636364,24 C0.213636364,27.7365333 1.081,31.2608 2.62025,34.3882667 L10.5247955,28.3370667 C10.0772273,26.9728 9.82727273,25.5168 9.82727273,24" id="Fill-1" fill="#FBBC05"> </path> <path d="M23.7136364,10.1333333 C27.025,10.1333333 30.0159091,11.3066667 32.3659091,13.2266667 L39.2022727,6.4 C35.0363636,2.77333333 29.6954545,0.533333333 23.7136364,0.533333333 C14.4268636,0.533333333 6.44540909,5.84426667 2.62345455,13.6042667 L10.5322727,19.6437333 C12.3545909,14.112 17.5491591,10.1333333 23.7136364,10.1333333" id="Fill-2" fill="#EB4335"> </path> <path d="M23.7136364,37.8666667 C17.5491591,37.8666667 12.3545909,33.888 10.5322727,28.3562667 L2.62345455,34.3946667 C6.44540909,42.1557333 14.4268636,47.4666667 23.7136364,47.4666667 C29.4455,47.4666667 34.9177955,45.4314667 39.0249545,41.6181333 L31.5177727,35.8144 C29.3995682,37.1488 26.7323182,37.8666667 23.7136364,37.8666667" id="Fill-3" fill="#34A853"> </path> <path d="M46.1454545,24 C46.1454545,22.6133333 45.9318182,21.12 45.6113636,19.7333333 L23.7136364,19.7333333 L23.7136364,28.8 L36.3181818,28.8 C35.6879545,31.8912 33.9724545,34.2677333 31.5177727,35.8144 L39.0249545,41.6181333 C43.3393409,37.6138667 46.1454545,31.6490667 46.1454545,24" id="Fill-4" fill="#4285F4"> </path> </g> </g> </g> </svg>
                                     <span>Continue with Google</span>
                                 </button>
@@ -214,5 +242,17 @@ export default function LoginPage() {
                 </p>
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(107, 114, 128, 0.6)' }}>
+                <Loading />
+            </div>
+        }>
+            <LoginForm />
+        </Suspense>
     );
 }
