@@ -19,8 +19,8 @@ const handler = NextAuth({
   ],
   callbacks: {
     async signIn({ account , profile } : { account: any, profile?: any }) {
-      console.log('account : ', account);
-      console.log('profile : ', profile);
+      // console.log('account : ', account);
+      // console.log('profile : ', profile);
       return true 
     },
     async jwt({ token, account }) {

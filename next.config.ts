@@ -6,9 +6,6 @@ const nextConfig: NextConfig = withPWA({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
-  fallbacks: {
-    document: "/404notfound",
-  },
   workboxOptions: {
     disableDevLogs: true,
   },
