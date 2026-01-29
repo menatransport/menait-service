@@ -131,7 +131,6 @@ export default function BuilderPage() {
             });
 
             const data = await res.json();
-            console.log('data : ', data)
             const sortedData = data.sort((a: PositionSetup, b: PositionSetup) => a.position_level_id - b.position_level_id);
             setPosition(sortedData)
         }
@@ -152,20 +151,17 @@ export default function BuilderPage() {
                         method: "GET",
                     });
 
-                    if (!res.ok) {
-                        throw new Error(`Error: ${res.status}`);
-                    }
-
+              
                     const data = await res.json();
                     console.log('Data fetched:', data);
-                    if (data) {
+                    if (data.form && data.rule) {
                         setFormData({
-                            form_type: data.form_type || "",
-                            form_code: data.form_code || "",
-                            form_name: data.form_name || "",
-                            need_approval: data.need_approval,
-                            form_status: data.form_status || "",
-                            questions: data.questions?.map((q: any, index: number) => ({
+                            form_type: data.form.form_type || "",
+                            form_code: data.form.form_code || "",
+                            form_name: data.form.form_name || "",
+                            need_approval: data.form.need_approval,
+                            form_status: data.form.form_status || "",
+                            questions: data.form.questions?.map((q: any, index: number) => ({
                                 id: `q_${Date.now()}_${index}`,
                                 question_name: q.name || "",
                                 question_label: q.label || "",
@@ -179,6 +175,19 @@ export default function BuilderPage() {
                                 })) || []
                             })) || []
                         });
+
+                        setFormRule(data.rule.rules?.map((r: any) => ({
+                            form_code: data.rule.form_code || data.form.form_code || "",
+                            level_no: r.level_no || 1,
+                            creator_min: r.creator_min || 0,
+                            creator_max: r.creator_max || 0,
+                            approve_by_type: r.approve_by_type || "position_level_range",
+                            approve_by_min: r.approve_by_min || 0,
+                            approve_by_max: r.approve_by_max || 0,
+                            same_department: r.same_department ?? true,
+                            is_active: r.is_active ?? true
+                        })) || []);
+
                         setBuilderMode("edit");
                     }
 
@@ -370,29 +379,29 @@ export default function BuilderPage() {
 
             console.log('save Data: ', JSON.stringify(saveData, null, 2))
             console.log('formRule: ', JSON.stringify(formRule, null, 2))
-            const res = await fetch("/api/builder", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    formData: saveData,
-                    formRule,
-                }),
-            });
-            console.log('res: ', res)
-            const responseData = await res.json();
+            // const res = await fetch("/api/builder", {
+            //     method: "POST",
+            //     headers: {
+            //         "Content-Type": "application/json",
+            //     },
+            //     body: JSON.stringify({
+            //         formData: saveData,
+            //         formRule,
+            //     }),
+            // });
+            // console.log('res: ', res)
+            // const responseData = await res.json();
 
-            if (!res.ok) {
-                throw new Error(responseData?.message || "ไม่สามารถบันทึกข้อมูลได้");
-            }
-            handleClear();
-            Swal.fire({
-                icon: "success",
-                title: "สำเร็จ",
-                text: responseData?.message || "บันทึกข้อมูลเรียบร้อยแล้ว",
-                confirmButtonText: "ตกลง",
-            });
+            // if (!res.ok) {
+            //     throw new Error(responseData?.message || "ไม่สามารถบันทึกข้อมูลได้");
+            // }
+            // handleClear();
+            // Swal.fire({
+            //     icon: "success",
+            //     title: "สำเร็จ",
+            //     text: responseData?.message || "บันทึกข้อมูลเรียบร้อยแล้ว",
+            //     confirmButtonText: "ตกลง",
+            // });
         } catch (error: any) {
             console.error("Save form error:", error);
 
@@ -945,11 +954,11 @@ export default function BuilderPage() {
                             {/* <Button type="button" variant="outline" className="gap-2 cursor-pointer" onClick={()=>console.log('ทดสอบกฏ : ',formRule)}>
                                 <Eye className="w-4 h-4" /> ทดสอบกฏ
                             </Button> */}
-                            {builderMode === "edit" && (
-                                <Button type="button" className="gap-2 bg-[#026a75] hover:bg-[#025f68] cursor-pointer">
+                            {/* {builderMode === "edit" && (
+                                <Button type="button" className="gap-2 bg-[#026a75] hover:bg-[#025f68] cursor-pointer" onClick={handleSaveForm}>
                                     <Pencil className="w-4 h-4" /> แก้ไขฟอร์ม
                                 </Button>
-                            )}
+                            )} */}
                             {builderMode === "create" && (
                                 <Button type="button" className="gap-2 bg-[#026a75] hover:bg-[#025f68] cursor-pointer" onClick={handleSaveForm}>
                                     <Save className="w-4 h-4" /> บันทึกฟอร์ม

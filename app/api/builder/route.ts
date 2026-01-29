@@ -16,7 +16,6 @@ export async function POST(request: NextRequest) {
     if (!resData.ok) {
         return NextResponse.json({ error: dataForm?.detail }, { status: resData.status });
     }
-    // console.log('Submitting formRule:', JSON.stringify(formRule[0]));
     const resRule = await fetch("https://api-ncac.onrender.com/forms/rules", {
         method: "POST",
         headers: {
@@ -47,20 +46,36 @@ export async function GET(request: NextRequest) {
     }
     
     try {
-        const res = await fetch(`https://api-ncac.onrender.com/forms/${formCode}`, {
+        const resForm = await fetch(`https://api-ncac.onrender.com/forms/${formCode}`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
             },
         });
         
-        const data = await res.json();
-        
-        if (!res.ok) {
-            return NextResponse.json({ error: data?.detail || "ไม่พบข้อมูลฟอร์ม" }, { status: res.status });
+        const resRule = await fetch(`https://api-ncac.onrender.com/forms/${formCode}/rules`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (!resForm.ok || !resRule.ok) {
+            const errorForm = await resForm.json();
+            const errorRule = await resRule.json();
+            return NextResponse.json({ 
+                error: errorForm?.detail || errorRule?.detail 
+            }, { status: resForm.status || resRule.status });
         }
         
-        return NextResponse.json(data);
+        const dataForm = await resForm.json();
+        const dataRule = await resRule.json();
+
+    return NextResponse.json({
+        form: dataForm,
+        rule: dataRule,
+    });
+
     } catch (error) {
         return NextResponse.json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูล" }, { status: 500 });
     }
