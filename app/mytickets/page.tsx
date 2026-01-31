@@ -51,6 +51,58 @@ export default function TicketsPage() {
         setSelectedTicket(data[0]);
     }
 
+    const handleApprove = async (ticket: Ticket) => {
+        try {
+            const response = await fetch(`/api/tickets/${ticket.submission_id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ status: 'Approved' }),
+            });
+            if (response.ok) {
+                // Update local state
+                setTickets(prev => prev.map(t => 
+                    t.submission_id === ticket.submission_id 
+                        ? { ...t, status: 'Approved' } 
+                        : t
+                ));
+                alert('อนุมัติคำร้องสำเร็จ');
+            } else {
+                alert('เกิดข้อผิดพลาดในการอนุมัติ');
+            }
+        } catch (error) {
+            console.error('Error approving ticket:', error);
+            alert('เกิดข้อผิดพลาดในการอนุมัติ');
+        }
+    };
+
+    const handleReject = async (ticket: Ticket) => {
+        try {
+            const response = await fetch(`/api/tickets/${ticket.submission_id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ status: 'Rejected' }),
+            });
+            if (response.ok) {
+                // Update local state
+                setTickets(prev => prev.map(t => 
+                    t.submission_id === ticket.submission_id 
+                        ? { ...t, status: 'Rejected' } 
+                        : t
+                ));
+                alert('ปฏิเสธคำร้องสำเร็จ');
+            } else {
+                alert('เกิดข้อผิดพลาดในการปฏิเสธ');
+            }
+        } catch (error) {
+            console.error('Error rejecting ticket:', error);
+            alert('เกิดข้อผิดพลาดในการปฏิเสธ');
+        }
+    };
+
     if (isLoading) {
         return (
             <Navbar isHome={false} title="ติดตามสถานะคำร้อง">
@@ -65,7 +117,13 @@ export default function TicketsPage() {
 
     return (
         <Navbar isHome={false} title="ติดตามสถานะคำร้อง">
-            <TicketComponent tickets={tickets} formData={selectedTicket} onSelect={(e) => handleSelected(e)} />
+            <TicketComponent 
+                tickets={tickets} 
+                formData={selectedTicket} 
+                onSelect={(e) => handleSelected(e)}
+                onApprove={handleApprove}
+                onReject={handleReject}
+            />
         </Navbar>
     );
 }
