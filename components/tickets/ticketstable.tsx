@@ -6,25 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { STATUS_CONFIG } from "./types";
 import { Button } from "../ui/button";
+import type { formSetup, Question } from "@/app/service/[[...slug]]/page";
+import { renderFormField, buildSubmitValues, prefillFormValues, formatDatetime } from "../renderForm";
 
 // ===================== CONSTANTS =====================
 const ITEMS_PER_PAGE = 10;
-
-// ===================== HELPER FUNCTIONS =====================
-const formatDatetime = (dateString: string): string => {
-    if (!dateString) return '-';
-    try {
-        return new Date(dateString).toLocaleDateString('th-TH', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    } catch {
-        return dateString;
-    }
-};
 
 const getInitial = (name: string): string => name?.charAt(0)?.toUpperCase() || 'U';
 
@@ -300,6 +286,10 @@ export const Viewer = ({
 }) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [formStructure, setFormStructure] = useState<formSetup | null>(null);
+    const [formValues, setFormValues] = useState<Record<string, any>>({});
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [isLoadingForm, setIsLoadingForm] = useState(false);
 
     const handleApprove = async () => {
         if (!ticket) return;
@@ -321,15 +311,81 @@ export const Viewer = ({
         }
     };
 
-    const handlePullForm = () => {
-        setIsEditing(true);
-        alert('ดึงข้อมูลแบบฟอร์มใหม่ - Coming soon');
-    }
+    const handleInputChange = (name: string, value: any) => {
+        setFormValues(prev => ({ ...prev, [name]: value }));
+        // Clear error when user starts typing
+        if (errors[name]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[name];
+                return newErrors;
+            });
+        }
+    };
+
+    const handlePullForm = async () => {
+        if (!ticket) return;
+        setIsLoadingForm(true);
+        
+        try {
+           console.log('Fetching form_code:', ticket.form_code);
+            const response = await fetch(`/api/formsubmit?path=${ticket.form_code}`, {
+                method: "GET",
+            });
+            const data = await response.json();
+            console.log('Fetched form data for editing:', data);
+            if (response.ok && data) {
+                const form = data as formSetup;
+                setFormStructure(form);
+                
+                if (formData?.values && form.questions) {
+                    const initialValues = prefillFormValues(form.questions, formData.values);
+                    setFormValues(initialValues);
+                }
+                
+                setIsEditing(true);
+                console.log('Fetched form structure:', form);
+            } else {
+                alert('เกิดข้อผิดพลาดในการดึงข้อมูลแบบฟอร์ม');
+            }
+        } catch (error) {
+            console.error('Error fetching form:', error);
+            alert('เกิดข้อผิดพลาดในการดึงข้อมูลแบบฟอร์ม');
+        } finally {
+            setIsLoadingForm(false);
+        }
+    };
+
+    const handleCancelEdit = () => {
+        setIsEditing(false);
+        setFormStructure(null);
+        setFormValues({});
+        setErrors({});
+    };
+
+    const handleSubmitEdit = () => {
+        if (!formStructure?.questions || !ticket) return;
+        
+        const values = buildSubmitValues(formStructure.questions, formValues);
+
+        const user = localStorage.getItem('user') 
+            ? JSON.parse(localStorage.getItem('user') || '{}') 
+            : {};
+
+        const result = {
+            updated_by: user.employee_id || user.email || 'unknown',
+            values: values
+        };
+
+        console.log('Submit Edit Result:', result);
+        console.log('JSON:', JSON.stringify(result, null, 2));
+
+        handleCancelEdit();
+    };
 
     return (
         <Sheet open={isOpen} onOpenChange={onClose}>
             <SheetContent side="right" className="w-full p-0 sm:max-w-lg flex flex-col h-full">
-                {/* Header - Fixed */}
                 <SheetHeader className="border-b p-4 sm:p-6 shrink-0">
                     <SheetTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</SheetTitle>
                     <SheetDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</SheetDescription>
@@ -377,49 +433,72 @@ export const Viewer = ({
                             {/* Form Data */}
                             {formData?.values && (
                                 <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                                    <div className="flex justify-between">
+                                    <div className="flex justify-between items-center">
                                         <h4 className="font-semibold text-gray-800 flex items-center gap-2">
                                             <FileText size={18} /> ข้อมูลที่กรอก
                                         </h4>
-                                        <div className="space-x-2">
-                                            {!isEditing && <Button
-                                                variant="default"
-                                                className="cursor-pointer"
-                                                onClick={handlePullForm}
-                                                size="sm"
-                                            >
-                                                แก้ไขข้อมูล
-                                            </Button>
-                                            }
-                                            {isEditing && <Button
-                                                variant="success"
-                                                className="cursor-pointer"
-                                                size="sm"
-                                            >
-                                                ยืนยัน
-                                            </Button>
-                                            }
-                                            {isEditing && <Button
-                                                variant="secondary"
-                                                className="cursor-pointer"
-                                                onClick={() => setIsEditing(false)}
-                                                size="sm"
-                                            >
-                                                ยกเลิก
-                                            </Button>
-                                            }
+                                        <div className="flex gap-2">
+                                            {!isEditing && (
+                                                <Button
+                                                    variant="default"
+                                                    className="cursor-pointer"
+                                                    onClick={handlePullForm}
+                                                    size="sm"
+                                                    disabled={isLoadingForm}
+                                                >
+                                                    {isLoadingForm ? 'กำลังโหลด...' : 'แก้ไขข้อมูล'}
+                                                </Button>
+                                            )}
+                                            {isEditing && (
+                                                <>
+                                                    <Button
+                                                        variant="secondary"
+                                                        className="cursor-pointer"
+                                                        onClick={handleCancelEdit}
+                                                        size="sm"
+                                                    >
+                                                        ยกเลิก
+                                                    </Button>
+                                                    <Button
+                                                        variant="default"
+                                                        className="cursor-pointer bg-emerald-600 hover:bg-emerald-700"
+                                                        onClick={handleSubmitEdit}
+                                                        size="sm"
+                                                    >
+                                                        ยืนยัน
+                                                    </Button>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="space-y-2 max-h-60 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {formData.values.map((val: any, idx: number) => (
-                                            <div key={idx} className="border-b border-gray-200 pb-2 last:border-0">
-                                                <p className="text-xs text-gray-500">{val.question_label || val.question_name}</p>
-                                                <p className="font-medium text-gray-800">
-                                                    {val.value_text || val.value_number || val.value_date || (val.value_boolean !== null ? (val.value_boolean ? 'ใช่' : 'ไม่') : '-')}
-                                                </p>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    
+                                    {/* Show form fields when editing */}
+                                    {isEditing && formStructure?.questions ? (
+                                        <div className="space-y-4 max-h-96 overflow-y-auto">
+                                            {formStructure.questions.map((question, idx) => 
+                                                renderFormField({
+                                                    question,
+                                                    index: idx,
+                                                    formValues,
+                                                    errors,
+                                                    onInputChange: handleInputChange,
+                                                    compact: true
+                                                })
+                                            )}
+                                        </div>
+                                    ) : (
+                                        /* Show read-only values when not editing */
+                                        <div className="space-y-2 max-h-60 overflow-y-auto grid grid-cols-2 gap-4">
+                                            {formData.values.map((val: any, idx: number) => (
+                                                <div key={idx} className="border-b border-gray-200 pb-2 last:border-0">
+                                                    <p className="text-xs text-gray-500">{val.question_label || val.question_name}</p>
+                                                    <p className="font-medium text-gray-800">
+                                                        {val.value_text || val.value_number || val.value_date || (val.value_boolean !== null ? (val.value_boolean ? 'ใช่' : 'ไม่') : '-')}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

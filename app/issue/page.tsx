@@ -7,12 +7,12 @@ import swal from 'sweetalert2';
 import { useRouter } from 'next/navigation';
 
 type formDataType = {
-    created_by: string;
+    created_by?: string;
     form_code: string;
-    values: [{
+    values: {
         question_id: number;
         value_text: string;
-    }];
+    }[];
 }
 
 export default function IssuePage() {
@@ -82,7 +82,7 @@ export default function IssuePage() {
             <IssueComponent
                 formData={formData}
                 clearAfterSubmit={clearAfterSubmit}
-                handleSubmit={handleSubmit}
+                onSubmit={handleSubmit}
                 isLoadingFormData={isLoadingFormData}
             />
         </Navbar>

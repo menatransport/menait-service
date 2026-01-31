@@ -6,22 +6,41 @@ import { useParams } from 'next/navigation'
 import { ServiceComponent } from "@/components/servicecontent"; 
 import swal from "sweetalert2";
 
-type formSetup = {
+export type formSetup = {
     id: string;
     form_name: string;
     form_code: string;
     form_type: string;
     created_by: string;
     created_at: string;
+    form_status: string;
+    need_approval: boolean;
+    questions: Question[];
+    values: Question[];
 }
 
-type formDataType = {
-    created_by: string;
+export type Question = {
+    id: number;
+    name: string;
+    label: string;
+    type: string;
+    required: boolean;
+    options: Option[];
+}
+
+export type Option = {
+    value: string;
+    label: string;
+    filter: string;
+}
+
+export type formDataType = {
+    created_by?: string;
     form_code: string;
-    values: [{
+    values: {
         question_id: number;
         value_text: string;
-    }];
+    }[];
 }
 
 export default function ServicePage() {
@@ -131,7 +150,7 @@ export default function ServicePage() {
                 formData={formData}
                 clearAfterSubmit={clearAfterSubmit}
                 handleSearch={handleSearch}
-                handleSubmit={handleSubmit}
+                onSubmit={handleSubmit}
                 isLoadingForms={isLoadingForms}
                 isLoadingFormData={isLoadingFormData}
             />
