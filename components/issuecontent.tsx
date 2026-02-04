@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Card, CardContent } from "./ui/card";
 import { Lightbulb, Loader2, Send, ClipboardList } from "lucide-react";
 import { Button } from "./ui/button";
 import { Question, type formSetup } from "@/app/service/[[...slug]]/page";
 import { buildSubmitValues, renderFormField } from "./renderForm";
+import Loading from "./loading";
 
 type FormDataType = {
     form_code: string;
@@ -14,14 +15,12 @@ type FormDataType = {
 
 interface IssueComponentProps {
     formData: formSetup | null;
-    clearAfterSubmit: boolean;
     onSubmit: (data: FormDataType) => void;
     isLoadingFormData: boolean;
 }
 
 export const IssueComponent = ({
     formData,
-    clearAfterSubmit,
     onSubmit,
     isLoadingFormData
 }: IssueComponentProps) => {
@@ -29,24 +28,28 @@ export const IssueComponent = ({
     const [formValues, setFormValues] = useState<Record<string, any>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    useEffect(() => {
-        if (clearAfterSubmit) {
-            setFormValues({});
-        }
-    }, [clearAfterSubmit]);
+    const sortedQuestions = useMemo(() =>
+        formData?.questions?.slice().sort((a, b) => a.id - b.id) || [],
+        [formData?.questions]
+    );
 
-    const handleInputChange = (name: string, value: any) => {
+    const handleInputChange = useCallback((name: string, value: any) => {
         setFormValues(prev => ({ ...prev, [name]: value }));
-        if (errors[name]) {
-            setErrors(prev => {
-                const newErrors = { ...prev };
-                delete newErrors[name];
-                return newErrors;
-            });
-        }
-    };
+        setErrors(prev => {
+            if (prev[name]) {
+                const { [name]: _, ...rest } = prev;
+                return rest;
+            }
+            return prev;
+        });
+    }, []);
 
-    const handleFormSubmit = (e: React.FormEvent) => {
+    // Clear form handler with useCallback
+    const handleClearForm = useCallback(() => {
+        setFormValues({});
+    }, []);
+
+    const handleFormSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
         if (!formData) return;
 
@@ -75,33 +78,19 @@ export const IssueComponent = ({
         };
 
         onSubmit(dataToSubmit);
-    };
+    }, [formData, formValues, onSubmit]);
 
     return (
         <main className="flex-1 min-h-0 bg-[#f0fafa] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
-                {/* Tips Card */}
-                <div className="mb-6 p-4 bg-linear-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl flex items-start gap-3">
-                    <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
-                        <Lightbulb className="w-5 h-5 text-amber-600" />
-                    </div>
-                    <div>
-                        <h3 className="font-semibold text-gray-800 text-sm">เคล็ดลับการแจ้งปัญหา</h3>
-                        <p className="text-gray-600 text-xs mt-1 leading-relaxed">
-                            ระบุรายละเอียดให้ชัดเจน เช่น ปัญหาที่พบ, เหตุกาณ์ที่เกิด (ถ้ามี) เพื่อให้ทีม IT ช่วยเหลือได้รวดเร็วขึ้น
-                        </p>
-                    </div>
-                </div>
-
                 {/* Form Content */}
                 {isLoadingFormData ? (
-                    <Card className="border-0 shadow-lg">
-                        <CardContent className="p-8 flex flex-col items-center justify-center">
-                            <Loader2 className="w-8 h-8 text-[#026a75] animate-spin mb-3" />
-                            <p className="text-gray-500">กำลังโหลดแบบฟอร์ม...</p>
-                        </CardContent>
-                    </Card>
+                 
+                <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
+                    <Loading />
+                </div>
+           
                 ) : formData ? (
                     <Card className="border-0 shadow-xl rounded-2xl sm:rounded-3xl overflow-hidden">
                         <CardContent className="p-4 sm:p-6 lg:p-8">
@@ -129,18 +118,16 @@ export const IssueComponent = ({
                             {/* Form */}
                             <form onSubmit={handleFormSubmit} className="space-y-5">
                                 <div className="space-y-5">
-                                    {formData.questions
-                                        .sort((a, b) => a.id - b.id)
-                                        .map((question, index) =>
-                                            renderFormField({
-                                                question,
-                                                index,
-                                                formValues,
-                                                errors,
-                                                onInputChange: handleInputChange,
-                                                compact: false
-                                            })
-                                        )}
+                                    {sortedQuestions.map((question, index) =>
+                                        renderFormField({
+                                            question,
+                                            index,
+                                            formValues,
+                                            errors,
+                                            onInputChange: handleInputChange,
+                                            compact: false
+                                        })
+                                    )}
                                 </div>
 
                                 {/* Submit Button */}
@@ -155,7 +142,7 @@ export const IssueComponent = ({
                                     <Button
                                         type="button"
                                         variant="ghost"
-                                        onClick={() => setFormValues({})}
+                                        onClick={handleClearForm}
                                         className="h-12 sm:h-14 px-6 sm:px-8 text-[#026a75] font-medium rounded-xl sm:rounded-2xl hover:bg-[#026a75]/10 hover:text-[#025f68] transition-all duration-300 group"
                                     >
                                         <svg

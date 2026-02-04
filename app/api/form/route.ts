@@ -2,14 +2,30 @@ import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// Allowed query patterns for security (prevent SQL injection)
+const ALLOWED_QUERY_PATTERNS = [
+    /^SELECT\s+[\w\s,*]+\s+FROM\s+form_masters/i,
+];
+
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const queryParam = searchParams.get('query');
-        if (!queryParam) return NextResponse.json({ error: "ไม่มีคำสั่ง SQL" }, { status: 400 });
+        
+        if (!queryParam) {
+            return NextResponse.json({ error: "ไม่มีคำสั่ง SQL" }, { status: 400 });
+        }
+        
+        // Basic SQL injection protection
+        const isAllowed = ALLOWED_QUERY_PATTERNS.some(pattern => pattern.test(queryParam));
+        if (!isAllowed) {
+            return NextResponse.json({ error: "Query not allowed" }, { status: 403 });
+        }
+        
         const result = await query(queryParam);
         return NextResponse.json(result.rows);
     } catch (error) {
-        return NextResponse.json({ error }, { status: 500 });
+        console.error('GET /api/form error:', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }

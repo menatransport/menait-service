@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
 import { CircleUserRound, KeyRound } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import Loading from "@/components/loading";
 
@@ -16,10 +16,12 @@ function LoginForm() {
     const [password, setPassword] = useState("");
     const [rememberMe, setRememberMe] = useState(false);
     const searchParams = useSearchParams();
+    // Lazy state initialization (rerender-lazy-state-init)
     const [isLoading, setIsLoading] = useState(() => searchParams.get('google') === 'true');
     const router = useRouter();
 
-    const processLogin = async (body: object, saveToken = false): Promise<boolean> => {
+    // Memoize processLogin with useCallback
+    const processLogin = useCallback(async (body: object, saveToken = false): Promise<boolean> => {
         setIsLoading(true);
         try {
             const res = await fetch('/api/login', {
@@ -54,12 +56,12 @@ function LoginForm() {
             setIsLoading(false);
             return false;
         }
-    };
+    }, [router]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         await processLogin({ username, password }, rememberMe);
-    };
+    }, [processLogin, username, password, rememberMe]);
 
     useEffect(() => {
         if (searchParams.get('google') !== 'true') return;
@@ -71,12 +73,12 @@ function LoginForm() {
             }
         };
         checkGoogleSession();
-    }, [searchParams]);
+    }, [searchParams, processLogin]);
 
-    const handleAuthengoogle = () => {
+    const handleAuthengoogle = useCallback(() => {
         setIsLoading(true);
         signIn('google', { callbackUrl: '/login?google=true' });
-    };
+    }, []);
 
     return (
         <div className="min-h-screen bg-linear-to-br from-[#026a75] via-[#037a86] to-[#025f68] flex items-center justify-center p-4 relative overflow-hidden">
@@ -214,6 +216,7 @@ function LoginForm() {
                             </div>
 
                             <Button
+                                type="submit"
                                 className="w-full h-11 bg-[#026a75] hover:bg-[#025f68] text-white font-medium transition-all duration-200 shadow-md hover:shadow-lg"
                             >
                                 Login

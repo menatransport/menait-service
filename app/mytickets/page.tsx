@@ -1,9 +1,17 @@
 'use client';
 import { Navbar } from '@/components/navbar';
 import { TicketComponent } from '@/components/tickets/ticketscontent';
-import { Ticket } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { type TabType } from '@/components/tickets/ticketstable';
+import { useEffect, useState, useCallback } from 'react';
 
+const showSuccessAlert = (title: string) => import('sweetalert2').then(({ default: Swal }) =>
+    Swal.fire({
+        title,
+        icon: 'success',
+        showConfirmButton: false,
+        timer: 2000
+    })
+);
 
 export type Ticket = {
     form_id: string;
@@ -12,35 +20,65 @@ export type Ticket = {
     form_code: string;
     form_name: string;
     status: string;
+    firstname: string;
+    lastname: string;
+    email: string;
     created_by: string;
     created_by_email: string;
     created_at: string;
+    image_url?: string;
 };
 
 export default function TicketsPage() {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<TabType>('apv');
+    const [employeeId, setEmployeeId] = useState<string | null>(null);
+    const [role, setRole] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchData = async () => {
+        const user = localStorage.getItem('user');
+        if (user) {
             try {
-                const employee_id = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').employee_id : null;
-                const response = await fetch(`/api/tickets?employee_id=${employee_id}`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                });
-                const data = await response.json();
-                console.log('Fetched tickets data:', data);
-                setTickets(data);
-            } catch (error) {
-                console.error('Error fetching tickets data:', error);
+                const parsed = JSON.parse(user);
+                setEmployeeId(parsed.employee_id || null);
+                setRole(parsed.role || null);
+            } catch {
+                setEmployeeId(null);
+                setRole(null);
             }
         }
-        fetchData().finally(() => setIsLoading(false));
+    }, []);
 
+    const fetchTickets = useCallback(async (tab: TabType) => {
+        if (!employeeId) return;
+        setIsLoading(true);
+        try {
+            const response = await fetch(`/api/tickets?employee_id=${employeeId}&tab=${tab}&role=${role}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            const data = await response.json();
+            console.log('Fetched tickets data:', data);
+            setTickets(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Error fetching tickets data:', error);
+            setTickets([]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [employeeId, role]);
+
+    useEffect(() => {
+        if (!employeeId) return;
+        fetchTickets(activeTab);
+    }, [employeeId, activeTab, fetchTickets]);
+
+    const handleTabChange = useCallback((tab: TabType) => {
+        setActiveTab(tab);
     }, []);
 
     const handleSelected = async (ticket: Ticket) => {
@@ -52,24 +90,35 @@ export default function TicketsPage() {
     }
 
     const handleApprove = async (ticket: Ticket) => {
+        console.log('Approving ticket:', ticket);
         try {
-            const response = await fetch(`/api/tickets/${ticket.submission_id}`, {
-                method: 'PATCH',
+            const res = await fetch('/api/tickets', {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ status: 'Approved' }),
+                body: JSON.stringify({
+                    form_id: ticket.form_id,
+                    employee_id: employeeId,
+                    action: 'approve',
+                }),
             });
-            if (response.ok) {
-                // Update local state
-                setTickets(prev => prev.map(t => 
-                    t.submission_id === ticket.submission_id 
-                        ? { ...t, status: 'Approved' } 
+
+            if (res.ok) {
+                setTickets(prev => prev.map(t =>
+                    t.form_id === ticket.form_id
+                        ? { ...t, status: 'Approved' }
                         : t
                 ));
-                alert('อนุมัติคำร้องสำเร็จ');
+                setSelectedTicket(prev =>
+                    prev && prev.form_id === ticket.form_id
+                        ? { ...prev, status: 'Approved' }
+                        : prev
+                );
+                await showSuccessAlert('อนุมัติคำร้องสำเร็จ');
             } else {
-                alert('เกิดข้อผิดพลาดในการอนุมัติ');
+                const errorData = await res.json().catch(() => ({}));
+                alert(`เกิดข้อผิดพลาดในการอนุมัติ: ${errorData.error || res.statusText}`);
             }
         } catch (error) {
             console.error('Error approving ticket:', error);
@@ -79,23 +128,32 @@ export default function TicketsPage() {
 
     const handleReject = async (ticket: Ticket) => {
         try {
-            const response = await fetch(`/api/tickets/${ticket.submission_id}`, {
-                method: 'PATCH',
+            const response = await fetch('/api/tickets', {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ status: 'Rejected' }),
+                body: JSON.stringify({
+                    form_id: ticket.form_id,
+                    employee_id: employeeId,
+                    action: 'reject',
+                }),
             });
             if (response.ok) {
-                // Update local state
-                setTickets(prev => prev.map(t => 
-                    t.submission_id === ticket.submission_id 
-                        ? { ...t, status: 'Rejected' } 
+                setTickets(prev => prev.map(t =>
+                    t.form_id === ticket.form_id
+                        ? { ...t, status: 'Rejected' }
                         : t
                 ));
-                alert('ปฏิเสธคำร้องสำเร็จ');
+                setSelectedTicket(prev =>
+                    prev && prev.form_id === ticket.form_id
+                        ? { ...prev, status: 'Rejected' }
+                        : prev
+                );
+                await showSuccessAlert('ปฏิเสธคำร้องสำเร็จ');
             } else {
-                alert('เกิดข้อผิดพลาดในการปฏิเสธ');
+                const errorData = await response.json().catch(() => ({}));
+                alert(`เกิดข้อผิดพลาดในการปฏิเสธ: ${errorData.error || response.statusText}`);
             }
         } catch (error) {
             console.error('Error rejecting ticket:', error);
@@ -117,12 +175,16 @@ export default function TicketsPage() {
 
     return (
         <Navbar isHome={false} title="ติดตามสถานะคำร้อง">
-            <TicketComponent 
-                tickets={tickets} 
-                formData={selectedTicket} 
+            <TicketComponent
+                tickets={tickets}
+                formData={selectedTicket}
                 onSelect={(e) => handleSelected(e)}
                 onApprove={handleApprove}
                 onReject={handleReject}
+                activeTab={activeTab}
+                onTabChange={handleTabChange}
+                loading={isLoading}
+                role={role}
             />
         </Navbar>
     );

@@ -1,96 +1,90 @@
 'use client';
-import { House, TriangleAlert, CheckCircle, ClipboardList, Settings, Headphones, Ticket, Bot } from 'lucide-react';
+import { TriangleAlert, CheckCircle, ClipboardList, Headphones } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/navbar";
 import { ServicesMenu, InformationMenu } from "@/components/homecontent";
 import { useEffect } from 'react';
-import Swal from 'sweetalert2';
+
+// Hoist static data outside component (rendering-hoist-jsx)
+const MENU_ITEMS = [
+    {
+        title: "แจ้งปัญหาการใช้งาน",
+        description: "แจ้งปัญหาการใช้งานระบบ อุปกรณ์ หรือโปรแกรม",
+        icon: TriangleAlert,
+        href: "/issue",
+        color: "bg-gradient-to-br from-blue-500 to-blue-600",
+        shadowColor: "shadow-blue-200",
+    },
+    {
+        title: "คำร้องขอบริการ",
+        description: "ส่งคำร้องขอบริการใหม่",
+        icon: ClipboardList,
+        href: "/service",
+        color: "bg-gradient-to-br from-amber-500 to-amber-600",
+        shadowColor: "shadow-amber-200",
+    },
+    {
+        title: "ติดตามคำร้องและอนุมัติ",
+        description: "ตรวจสอบคำร้อง และการอนุมัติ",
+        icon: CheckCircle,
+        href: "/mytickets",
+        color: "bg-gradient-to-br from-emerald-500 to-emerald-600",
+        shadowColor: "shadow-emerald-200",
+    },
+];
+
+const NEWS_ITEMS = [
+    {
+        id: 1,
+        image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400&h=200&fit=crop",
+        title: "อัปเดตระบบความปลอดภัย IT ใหม่",
+        excerpt: "ระบบรักษาความปลอดภัยใหม่พร้อมใช้งานแล้ว เพิ่มการป้องกันภัยคุกคามทางไซเบอร์",
+        author: "IT Security Team",
+        date: "7 ม.ค. 2569"
+    },
+    {
+        id: 2,
+        image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=200&fit=crop",
+        title: "การฝึกอบรม Microsoft 365",
+        excerpt: "เปิดรับสมัครการฝึกอบรมการใช้งาน Microsoft 365 สำหรับพนักงานใหม่",
+        author: "HR Department",
+        date: "5 ม.ค. 2569"
+    },
+    {
+        id: 3,
+        image: "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=400&h=200&fit=crop",
+        title: "แจ้งปิดปรับปรุงระบบ VPN",
+        excerpt: "ระบบ VPN จะปิดปรับปรุงในวันเสาร์ที่ 10 ม.ค. เวลา 22:00 - 06:00 น.",
+        author: "Network Team",
+        date: "3 ม.ค. 2569"
+    },
+    {
+        id: 4,
+        image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&h=200&fit=crop",
+        title: "เปิดตัวแอปพลิเคชัน IT Support",
+        excerpt: "แอปใหม่สำหรับแจ้งปัญหา IT ผ่านมือถือได้สะดวกยิ่งขึ้น",
+        author: "IT Development",
+        date: "1 ม.ค. 2569"
+    }
+];
 
 export default function HomePage() {
-
- useEffect(() => {
-    const showWelcome = sessionStorage.getItem("showWelcome")
-    if (showWelcome === "true") {
-      Swal.fire({
-        icon: 'success',
-        title: 'ยินดีต้อนรับเข้าสู่ระบบ',
-        text: '',
-        draggable: true
-      })
-
-      sessionStorage.removeItem("showWelcome")
-    }
-  }, []);
-
-    const menuItems = [
-        {
-            title: "แจ้งปัญหาการใช้งาน",
-            description: "แจ้งปัญหาการใช้งานระบบ อุปกรณ์ หรือโปรแกรม",
-            icon: TriangleAlert,
-            href: "/issue",
-            color: "bg-gradient-to-br from-blue-500 to-blue-600",
-            shadowColor: "shadow-blue-200",
-        },
-        {
-            title: "คำร้องขอบริการ",
-            description: "ส่งคำร้องขอบริการใหม่",
-            icon: ClipboardList,
-            href: "/service",
-            color: "bg-gradient-to-br from-amber-500 to-amber-600",
-            shadowColor: "shadow-amber-200",
-        },
-        {
-            title: "ติดตามคำร้อง",
-            description: "ตรวจสอบสถานะคำร้องของคุณ",
-            icon: CheckCircle,
-            href: "/mytickets",
-            color: "bg-gradient-to-br from-emerald-500 to-emerald-600",
-            shadowColor: "shadow-emerald-200",
-        },
-        {
-            title: "จัดการบัญชี",
-            description: "แก้ไขข้อมูลส่วนตัวและการตั้งค่า",
-            icon: Settings,
-            href: "/account",
-            color: "bg-gradient-to-br from-violet-500 to-violet-600",
-            shadowColor: "shadow-violet-200",
+    // Move Swal to dynamic import and only load when needed
+    useEffect(() => {
+        const showWelcome = sessionStorage.getItem("showWelcome");
+        if (showWelcome === "true") {
+            // Dynamically import Swal only when needed (bundle-conditional)
+            import('sweetalert2').then(({ default: Swal }) => {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'ยินดีต้อนรับเข้าสู่ระบบ',
+                    text: '',
+                    draggable: true
+                });
+            });
+            sessionStorage.removeItem("showWelcome");
         }
-    ];
-
-    const newsItems = [
-        {
-            id: 1,
-            image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400&h=200&fit=crop",
-            title: "อัปเดตระบบความปลอดภัย IT ใหม่",
-            excerpt: "ระบบรักษาความปลอดภัยใหม่พร้อมใช้งานแล้ว เพิ่มการป้องกันภัยคุกคามทางไซเบอร์",
-            author: "IT Security Team",
-            date: "7 ม.ค. 2569"
-        },
-        {
-            id: 2,
-            image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=200&fit=crop",
-            title: "การฝึกอบรม Microsoft 365",
-            excerpt: "เปิดรับสมัครการฝึกอบรมการใช้งาน Microsoft 365 สำหรับพนักงานใหม่",
-            author: "HR Department",
-            date: "5 ม.ค. 2569"
-        },
-        {
-            id: 3,
-            image: "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=400&h=200&fit=crop",
-            title: "แจ้งปิดปรับปรุงระบบ VPN",
-            excerpt: "ระบบ VPN จะปิดปรับปรุงในวันเสาร์ที่ 10 ม.ค. เวลา 22:00 - 06:00 น.",
-            author: "Network Team",
-            date: "3 ม.ค. 2569"
-        },
-        {
-            id: 4,
-            image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&h=200&fit=crop",
-            title: "เปิดตัวแอปพลิเคชัน IT Support",
-            excerpt: "แอปใหม่สำหรับแจ้งปัญหา IT ผ่านมือถือได้สะดวกยิ่งขึ้น",
-            author: "IT Development",
-            date: "1 ม.ค. 2569"
-        }
-    ];
+    }, []);
 
     // const adminItems = [
     //     {
@@ -116,9 +110,9 @@ export default function HomePage() {
                 <main className="h-full overflow-y-auto">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
-                        <ServicesMenu menuItems={menuItems} />
+                        <ServicesMenu menuItems={MENU_ITEMS} />
 
-                            <InformationMenu newsItems={newsItems} />
+                            <InformationMenu newsItems={NEWS_ITEMS} />
 
 
                             {/* Help Banner */}

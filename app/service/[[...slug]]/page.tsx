@@ -1,10 +1,28 @@
 'use client';
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useTransition, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { Navbar } from "@/components/navbar";
-import { useParams } from 'next/navigation'
-import { ServiceComponent } from "@/components/servicecontent"; 
-import swal from "sweetalert2";
+import { ServiceComponent } from "@/components/servicecontent";
+import Loading from "@/components/loading";
+
+// Dynamic import for sweetalert2 (bundle-defer-third-party)
+const showSuccessAlert = () => import('sweetalert2').then(({ default: Swal }) => 
+    Swal.fire({
+        icon: 'success',
+        title: 'ส่งแบบฟอร์มสำเร็จ',
+        text: 'ขอบคุณที่ใช้บริการ',
+        confirmButtonText: 'ตกลง',
+    })
+);
+
+const showErrorAlert = (message: string) => import('sweetalert2').then(({ default: Swal }) => 
+    Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: message || 'ไม่สามารถส่งแบบฟอร์มได้',
+        confirmButtonText: 'ตกลง',
+    })
+);
 
 export type formSetup = {
     id: string;
@@ -46,12 +64,15 @@ export type formDataType = {
 export default function ServicePage() {
     const router = useRouter();
     const params = useParams();
+    const [isPending, startTransition] = useTransition();
+
+    
+    // Lazy state initialization (rerender-lazy-state-init)
     const [form, setForm] = useState<formSetup[]>([]);
-    const [formData, setFormData] = useState<any>(null);
+    const [formData, setFormData] = useState<formSetup | null>(null);
     const [selectedFormId, setSelectedFormId] = useState<string>("");
-    const [clearAfterSubmit, setClearAfterSubmit] = useState<boolean>(true);
-    const [isLoadingForms, setIsLoadingForms] = useState<boolean>(true);
-    const [isLoadingFormData, setIsLoadingFormData] = useState<boolean>(false);
+    const [isLoadingForms, setIsLoadingForms] = useState(true);
+    const [isLoadingFormData, setIsLoadingFormData] = useState(false);
 
     useEffect(() => {
         const getForm = async () => {
@@ -108,39 +129,37 @@ export default function ServicePage() {
         fetchFormData();
     }, [params]);
 
-    const handleSearch = (value: string) => {
-        router.push(`/service/${value}`);
-    }
+    const handleSearch = useCallback((value: string) => {
+        startTransition(() => {
+            router.push(`/service/${value}`);
+        });
+    }, [router, startTransition]);
 
-    const handleSubmit = async (data: formDataType) => {
+    const handleSubmit = useCallback(async (data: formDataType) => {
         console.log('Submitting data:', data);
         const employee_id = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').employee_id : null;
-        const res = await fetch('/api/formsubmit', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ ...data, created_by: employee_id }),
-        })
-        const resData = await res.json();
-        console.log('resData : ', resData)
-        if (res.ok) {
-            swal.fire({
-                icon: 'success',
-                title: 'ส่งแบบฟอร์มสำเร็จ',
-                text: 'ขอบคุณที่ใช้บริการ',
-                confirmButtonText: 'ตกลง',
-            })
-            setClearAfterSubmit(true);
-        } else {
-            swal.fire({
-                icon: 'error',
-                title: 'เกิดข้อผิดพลาด',
-                text: resData.error || 'ไม่สามารถส่งแบบฟอร์มได้',
-                confirmButtonText: 'ตกลง',
-            })
+        setIsLoadingForms(true);
+        try {
+            const res = await fetch('/api/formsubmit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...data, created_by: employee_id }),
+            });
+            const resData = await res.json();
+            setIsLoadingForms(false);
+            if (res.ok) {
+                await showSuccessAlert();
+                router.push('/home');
+            } else {
+                await showErrorAlert(resData.error);
+            }
+            
+        } catch (error) {
+            setIsLoadingForms(false);
+            console.error('Submit error:', error);
+            await showErrorAlert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
         }
-    }
+    }, []);
 
     return (
         <Navbar isHome={false} title="ขอบริการสนับสนุนจากฝ่าย IT">
@@ -148,7 +167,6 @@ export default function ServicePage() {
                 form={form}
                 selectedFormId={selectedFormId}
                 formData={formData}
-                clearAfterSubmit={clearAfterSubmit}
                 handleSearch={handleSearch}
                 onSubmit={handleSubmit}
                 isLoadingForms={isLoadingForms}

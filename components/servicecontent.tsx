@@ -6,7 +6,8 @@ import { DropdownSearch } from "./ui/dropdown/issue";
 import { Question, type formSetup } from "@/app/service/[[...slug]]/page";
 import { Button } from "./ui/button";
 import { buildSubmitValues, renderFormField } from "./renderForm";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import Loading from "./loading";
 
 
 type FormDataType = {
@@ -17,8 +18,7 @@ type FormDataType = {
 interface ServiceComponentProps {
     form: formSetup[];
     selectedFormId: string;
-    formData: any;
-    clearAfterSubmit: boolean;
+    formData: formSetup | null;
     handleSearch: (value: string) => void;
     onSubmit: (data: FormDataType) => void;
     isLoadingForms: boolean;
@@ -29,7 +29,6 @@ export const ServiceComponent = ({
     form,
     selectedFormId,
     formData,
-    clearAfterSubmit,
     handleSearch,
     onSubmit,
     isLoadingForms,
@@ -39,26 +38,36 @@ export const ServiceComponent = ({
     const [formValues, setFormValues] = useState<Record<string, any>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    useEffect(() => {
-        if (clearAfterSubmit) {
-            setFormValues({});
-        }
-    }, [clearAfterSubmit]);
-
-
-    const handleInputChange = (name: string, value: any) => {
+    // Use useCallback for stable function reference (rerender-functional-setstate)
+    const handleInputChange = useCallback((name: string, value: any) => {
         setFormValues(prev => ({ ...prev, [name]: value }));
-        if (errors[name]) {
-            setErrors(prev => {
-                const newErrors = { ...prev };
-                delete newErrors[name];
-                return newErrors;
-            });
-        }
-    };
+        setErrors(prev => {
+            if (prev[name]) {
+                const { [name]: _, ...rest } = prev;
+                return rest;
+            }
+            return prev;
+        });
+    }, []);
 
-    const handleFormSubmit = (e: React.FormEvent) => {
+    // Memoize form options to prevent unnecessary recalculations
+    const formOptions = useMemo(() =>
+        form.map(f => ({
+            option_value: f.form_code,
+            option_label: `${f.form_code} ${f.form_name}`
+        })),
+        [form]
+    );
+
+    // Memoize sorted questions
+    const sortedQuestions = useMemo(() =>
+        formData?.questions?.slice().sort((a: Question, b: Question) => a.id - b.id) || [],
+        [formData?.questions]
+    );
+
+    const handleFormSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
+        if (!formData) return;
 
         const newErrors: Record<string, string> = {};
         formData.questions.forEach((q: Question) => {
@@ -85,7 +94,12 @@ export const ServiceComponent = ({
         };
 
         onSubmit(dataToSubmit);
-    };
+    }, [formData, formValues, onSubmit]);
+
+    // Clear form handler with useCallback
+    const handleClearForm = useCallback(() => {
+        setFormValues({});
+    }, []);
 
 
     return (
@@ -106,16 +120,13 @@ export const ServiceComponent = ({
 
                         <div className="relative">
                             {isLoadingForms ? (
-                                <div className="h-12 bg-gray-100 rounded-xl animate-pulse flex items-center justify-center">
-                                    <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
-                                </div>
+                                <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
+                        <Loading />
+                    </div>
                             ) : (
                                 <DropdownSearch
-                                    options={form.map(f => ({
-                                        option_value: f.form_code,
-                                        option_label: `${f.form_code} ${f.form_name}`
-                                    }))}
-                                    onChange={(value) => handleSearch(value)}
+                                    options={formOptions}
+                                    onChange={handleSearch}
                                     value={selectedFormId}
                                 />
                             )}
@@ -124,12 +135,9 @@ export const ServiceComponent = ({
                 </Card>
 
                 {isLoadingFormData ? (
-                    <Card className="border-0 shadow-lg">
-                        <CardContent className="p-8 flex flex-col items-center justify-center">
-                            <Loader2 className="w-8 h-8 text-[#026a75] animate-spin mb-3" />
-                            <p className="text-gray-500">กำลังโหลดแบบฟอร์ม...</p>
-                        </CardContent>
-                    </Card>
+                    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
+                        <Loading />
+                    </div>
                 ) : formData ? (
 
                     <Card className="border-0 shadow-xl rounded-2xl sm:rounded-3xl overflow-hidden">
@@ -156,18 +164,16 @@ export const ServiceComponent = ({
                             <form onSubmit={handleFormSubmit} className="space-y-5">
 
                                 <div className="space-y-5">
-                                    {(formData.questions as Question[])
-                                        .sort((a: Question, b: Question) => a.id - b.id)
-                                        .map((question: Question, index: number) =>
-                                            renderFormField({
-                                                question,
-                                                index,
-                                                formValues,
-                                                errors,
-                                                onInputChange: handleInputChange,
-                                                compact: false
-                                            })
-                                        )}
+                                    {sortedQuestions.map((question: Question, index: number) =>
+                                        renderFormField({
+                                            question,
+                                            index,
+                                            formValues,
+                                            errors,
+                                            onInputChange: handleInputChange,
+                                            compact: false
+                                        })
+                                    )}
                                 </div>
 
                                 {/* Submit Button */}
@@ -182,7 +188,7 @@ export const ServiceComponent = ({
                                     <Button
                                         type="button"
                                         variant="ghost"
-                                        onClick={() => setFormValues({})}
+                                        onClick={handleClearForm}
                                         className="h-12 sm:h-14 px-6 sm:px-8 text-[#026a75] font-medium rounded-xl sm:rounded-2xl hover:bg-[#026a75]/10 hover:text-[#025f68] transition-all duration-300 group"
                                     >
                                         <svg

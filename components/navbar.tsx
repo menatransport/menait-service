@@ -1,10 +1,10 @@
 'use client';
 
-import { ArrowLeft, Bell, HomeIcon, icons, Search, Shield, User, ChevronDown } from "lucide-react";
+import { ArrowLeft, Bell, HomeIcon, Search, Shield, User, ChevronDown, LayoutDashboard, Building, Database, Settings, LogOut, TriangleAlert, ClipboardList, CircleCheck, MessageCircle, Phone } from "lucide-react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 
 
 interface NavbarProps {
@@ -28,6 +28,22 @@ interface UserInfo {
 }
 
 
+const COMPONENT_DEFAULT = [
+    { title: 'หน้าหลัก', href: '/home', icon: HomeIcon },
+    { title: 'แจ้งปัญหา', href: '/issue', icon: TriangleAlert },
+    { title: 'ขอบริการ', href: '/service', icon: ClipboardList },
+    { title: 'ติดตามคำขอ', href: '/mytickets', icon: CircleCheck },
+    { title: 'ข่าวสารและประกาศ', href: '/inform', icon: MessageCircle },
+    { title: 'ติดต่อเรา', href: '/contact', icon: Phone },
+] as const;
+
+const COMPONENT_ADMIN = [
+    { title: 'แดชบอร์ด', href: '/dashboard', style: 'font-semibold text-[#026a75] bg-[#8ce4cb]/10', icon: LayoutDashboard },
+    { title: 'ผู้สร้าง', href: '/builder', style: 'font-semibold text-[#026a75] bg-[#8ce4cb]/10', icon: Building },
+    { title: 'ฐานข้อมูล', href: '/master', style: 'font-semibold text-[#026a75] bg-[#8ce4cb]/10', icon: Database },
+] as const;
+
+
 export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title }) => {
     const router = useRouter();
     const [user, setUserInfo] = useState<UserInfo | null>(null);
@@ -39,65 +55,20 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title 
         if (storedUserData) {
             try {
                 setUserInfo(JSON.parse(storedUserData));
-            } catch (error) {
-                console.error("Failed to parse user data:", error);
+            } catch {
+                router.push('/login');
             }
         }
     }, []);
 
-    const componentdefault = useMemo(() => [
-        {
-            title: 'หน้าหลัก',
-            href: '/home',
-            icon: HomeIcon
-        },
-        {
-            title: 'แจ้งปัญหา',
-            href: '/issue',
-            icon: icons.TriangleAlert,
-        },
-        {
-            title: 'ขอบริการ',
-            href: '/service',
-            icon: icons.ClipboardList,
-        },
-        {
-            title: 'ติดตามคำขอ',
-            href: '/mytickets',
-            icon: icons.CircleCheck,
-        },
-        {
-            title: 'ข่าวสารและประกาศ',
-            href: '/inform',
-            icon: icons.MessageCircle
-        },
-        {
-            title: 'ติดต่อเรา',
-            href: '/contact',
-            icon: icons.Phone,
-        },
-    ], []);
 
-    const componentadmin = useMemo(() => [
-        {
-            title: 'แดชบอร์ด',
-            href: '/dashboard',
-            style: 'font-semibold text-[#026a75] bg-[#8ce4cb]/10',
-            icon: icons.LayoutDashboard,
-        },
-        {
-            title: 'ผู้สร้าง',
-            href: '/builder',
-            style: 'font-semibold text-[#026a75] bg-[#8ce4cb]/10',
-            icon: icons.Building,
-        },
-        {
-            title: 'ฐานข้อมูล',
-            href: '/master',
-            style: 'font-semibold text-[#026a75] bg-[#8ce4cb]/10',
-            icon: icons.Database,
-        }
-    ], []);
+    const handleNavigate = useCallback((path: string) => {
+        router.push(path);
+    }, []);
+
+    const handleGoHome = useCallback(() => {
+        router.push('/home');
+    }, [router]);
 
     return (
         <div className="h-screen flex flex-col overflow-hidden bg-linear-to-br from-[#026a75] via-[#037a86] to-[#025f68]">
@@ -116,7 +87,7 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title 
                             </div>
                         ) : (
                             <Button
-                                onClick={() => router.push('/home')}
+                                onClick={handleGoHome}
                                 variant="ghost"
                                 className="text-white cursor-pointer hover:bg-white/20 rounded-xl h-10 w-auto px-3 sm:h-11 sm:px-4 transition-all duration-300 hover:scale-105 flex items-center gap-2"
                             >
@@ -166,12 +137,12 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title 
                                             <div className="flex-1">
                                                 <h3 className="text-xs font-semibold text-gray-500 mb-2 px-2">ทั่วไป</h3>
                                                 <div className="grid grid-cols-3 gap-2">
-                                                    {componentdefault.map((item, index) => {
+                                                {COMPONENT_DEFAULT.map((item, index) => {
                                                         const IconComponent = item.icon;
                                                         return (
                                                             <button
                                                                 key={index}
-                                                                onClick={() => router.push(item.href)}
+                                                                onClick={() => handleNavigate(item.href)}
                                                                 className="flex flex-col cursor-pointer items-center gap-2 p-2 rounded-xl hover:bg-linear-to-br hover:from-[#026a75]/10 hover:to-[#8ce4cb]/10 transition-all duration-200 group/item"
                                                             >
                                                                 <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center group-hover/item:bg-[#026a75] transition-colors duration-200">
@@ -192,12 +163,12 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title 
                                                 <div className="flex-1">
                                                     <h3 className="text-xs font-semibold text-gray-500 mb-2 px-2">ระบบจัดการ</h3>
                                                     <div className="grid grid-cols-1 gap-2">
-                                                        {componentadmin.map((item, index) => {
+                                                        {COMPONENT_ADMIN.map((item, index) => {
                                                             const IconComponent = item.icon;
                                                             return (
                                                                 <button
                                                                     key={index}
-                                                                    onClick={() => router.push(item.href)}
+                                                                    onClick={() => handleNavigate(item.href)}
                                                                     className={`flex cursor-pointer items-center gap-3 p-2 rounded-xl hover:bg-linear-to-br hover:from-[#026a75]/10 hover:to-[#8ce4cb]/10 transition-all duration-200 group/item ${item.style || ''}`}
                                                                 >
                                                                     <div className="w-8 h-8 bg-[#8ce4cb]/20 rounded-lg flex items-center justify-center group-hover/item:bg-[#026a75] transition-colors duration-200">
@@ -258,17 +229,17 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title 
                                             {/* Action Buttons */}
                                             <div className="grid grid-cols-2 gap-2">
                                                 <button
-                                                    onClick={() => router.push('/settings')}
+                                                    onClick={() => handleNavigate('/settings')}
                                                     className="group flex items-center cursor-pointer justify-center gap-2 py-3 px-4 bg-[#026a75] hover:bg-[#035f69] rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
                                                 >
-                                                    <icons.Settings className="w-4 h-4 text-white transition-colors duration-300" />
+                                                    <Settings className="w-4 h-4 text-white transition-colors duration-300" />
                                                     <span className="text-sm font-medium text-white transition-colors duration-300">ตั้งค่า</span>
                                                 </button>
                                                 <button
-                                                    onClick={() => router.push('/login')}
+                                                    onClick={() => handleNavigate('/login')}
                                                     className="group flex items-center cursor-pointer justify-center gap-2 py-3 px-4 bg-rose-500 hover:bg-rose-600 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
                                                 >
-                                                    <icons.LogOut className="w-4 h-4 text-white transition-colors duration-300" />
+                                                    <LogOut className="w-4 h-4 text-white transition-colors duration-300" />
                                                     <span className="text-sm font-medium text-white transition-colors duration-300">ออกจากระบบ</span>
                                                 </button>
                                             </div>
