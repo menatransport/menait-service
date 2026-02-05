@@ -12,6 +12,7 @@ export const TicketComponent = ({
     onReject,
     activeTab,
     onTabChange,
+    onStatusChange,
     loading,
     role
 }: {
@@ -22,6 +23,7 @@ export const TicketComponent = ({
     onReject?: (ticket: Ticket, remark: string) => Promise<void> | void;
     activeTab: TabType;
     onTabChange: (tab: TabType) => void;
+    onStatusChange?: (ticket: Ticket, newStatus: string) => void;
     loading: boolean;
     role?: string | null;
 }) => {
@@ -75,6 +77,7 @@ export const TicketComponent = ({
                 onClose={handleCloseDrawer}
                 onApprove={onApprove || (() => {})}
                 onReject={onReject || (() => {})}
+                onStatusChange={onStatusChange}
                 role={role}
             />
 

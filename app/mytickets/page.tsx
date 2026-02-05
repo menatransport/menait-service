@@ -173,6 +173,14 @@ export default function TicketsPage() {
         );
     }
 
+    const handleUpdateStatus = (ticket: Ticket, newStatus: string) => {
+        setTickets(prev => prev.map(t =>
+            t.form_id === ticket.form_id
+                ? { ...t, status: newStatus }
+                : t
+        ));
+    };
+
     return (
         <Navbar isHome={false} title="ติดตามสถานะคำร้อง">
             <TicketComponent
@@ -183,6 +191,7 @@ export default function TicketsPage() {
                 onReject={handleReject}
                 activeTab={activeTab}
                 onTabChange={handleTabChange}
+                onStatusChange={(ticket, newStatus) => handleUpdateStatus(ticket, newStatus)}
                 loading={isLoading}
                 role={role}
             />

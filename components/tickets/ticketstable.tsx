@@ -11,17 +11,26 @@ import { Button } from "../ui/button";
 import type { formSetup, Question } from "@/app/service/[[...slug]]/page";
 import { renderFormField, buildSubmitValues, prefillFormValues, formatDatetime } from "../renderForm";
 import { SelectStatus } from "../ui/selectstatus";
+import Swal from "sweetalert2";
 
 // ===================== CONSTANTS =====================
 const ITEMS_PER_PAGE = 10;
+const BadgeStatusMap: Record<string, { label: string; className: string }> = {
+    'Open': { label: 'Open', className: 'bg-blue-100 text-blue-800 border-blue-200' },
+    'In Progress': { label: 'In Progress', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+    'Done': { label: 'Done', className: 'bg-green-100 text-green-800 border-green-200' },
+    'Rejected': { label: 'Rejected', className: 'bg-red-100 text-red-800 border-red-200' },
+    'Backlog': { label: 'Backlog', className: 'bg-purple-100 text-purple-800 border-purple-200' },
+}
 
 // ===================== SUB COMPONENTS =====================
 const StatusBadge = ({ status }: { status: string }) => {
-    const config = STATUS_CONFIG[status] || {
-        label: status,
-        className: 'bg-gray-500 text-white border-gray-500'
-    };
-    return <Badge className={`${config.className} text-xs px-2 py-1`}>{config.label}</Badge>;
+    const config = STATUS_CONFIG[status] || BadgeStatusMap[status] || { label: status, className: 'bg-gray-100 text-gray-800 border-gray-200' };
+    return (
+        <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full border ${config.className}`}>
+            {config.label}
+        </span>
+    );
 };
 
 const UserAvatar = ({ email, imageUrl }: { email: string; imageUrl?: string }) => (
@@ -218,8 +227,8 @@ export const DataTable = ({
                                 key={value}
                                 onClick={() => onTabChange(value)}
                                 className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all cursor-pointer ${activeTab === value
-                                        ? 'bg-white text-[#04555e] shadow-md'
-                                        : 'text-white/80 hover:text-white'
+                                    ? 'bg-white text-[#04555e] shadow-md'
+                                    : 'text-white/80 hover:text-white'
                                     }`}
                             >
                                 {label}
@@ -255,8 +264,8 @@ export const DataTable = ({
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
                                 className={`flex items-center justify-center w-9 h-9 rounded-lg transition-all cursor-pointer relative ${showFilters || hasActiveFilters
-                                        ? 'bg-white text-[#04555e]'
-                                        : 'bg-white/10 text-white hover:bg-white/20'
+                                    ? 'bg-white text-[#04555e]'
+                                    : 'bg-white/10 text-white hover:bg-white/20'
                                     }`}
                             >
                                 <Filter size={16} />
@@ -294,8 +303,8 @@ export const DataTable = ({
                         <button
                             onClick={() => setShowFilters(!showFilters)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${showFilters || hasActiveFilters
-                                    ? 'bg-white text-[#04555e]'
-                                    : 'bg-white/10 text-white hover:bg-white/20 border border-white/20'
+                                ? 'bg-white text-[#04555e]'
+                                : 'bg-white/10 text-white hover:bg-white/20 border border-white/20'
                                 }`}
                             title="ตัวกรอง"
                         >
@@ -402,8 +411,8 @@ export const DataTable = ({
                                     key={value}
                                     onClick={() => { setFilterStatus(value); setCurrentPage(1); }}
                                     className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${filterStatus === value
-                                            ? 'bg-[#026a75] text-white border-[#026a75] shadow-sm'
-                                            : 'bg-white text-gray-600 border-gray-300 hover:border-[#026a75] hover:text-[#026a75]'
+                                        ? 'bg-[#026a75] text-white border-[#026a75] shadow-sm'
+                                        : 'bg-white text-gray-600 border-gray-300 hover:border-[#026a75] hover:text-[#026a75]'
                                         }`}
                                 >
                                     {label}
@@ -621,6 +630,7 @@ export const Viewer = ({
     onClose,
     onApprove,
     onReject,
+    onStatusChange,
     role
 }: {
     ticket: Ticket | null;
@@ -629,6 +639,7 @@ export const Viewer = ({
     onClose: () => void;
     onApprove: (ticket: Ticket, remark: string) => void;
     onReject: (ticket: Ticket, remark: string) => void;
+    onStatusChange?: (ticket: Ticket, newStatus: string) => void;
     role?: string | null;
 }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -733,11 +744,30 @@ export const Viewer = ({
 
     const handleConfirmStatusChange = async () => {
         if (!ticket || !pendingStatusChange) return;
-        
+
         try {
-            // TODO: API call to update status
-            console.log('Status changed to:', pendingStatusChange, 'for ticket:', ticket.form_id);
-            // You can add API call here
+            const response = await fetch('/api/status', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    form_id: ticket.form_id,
+                    new_status: pendingStatusChange,
+                    employee_id: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').employee_id : 'unknown',
+                }),
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                alert(`Error updating status: ${errorData?.error || 'Unknown error'}`);
+            } else {
+                onStatusChange?.(ticket, pendingStatusChange);
+                onClose();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'อัปเดตสถานะสำเร็จ',
+                    timer: 1500,
+                    showConfirmButton: false,
+                });
+            }
         } catch (error) {
             console.error('Error updating status:', error);
         } finally {
@@ -773,9 +803,9 @@ export const Viewer = ({
                                 ))}
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-gray-500">สถานะ</span>
-                                    { role === 'a' && ticket.status !== "In Progress" ? (
-                                        <SelectStatus 
-                                            status={ticket.status} 
+                                    {role === 'a' && ticket.status !== "In Progress" ? (
+                                        <SelectStatus
+                                            status={ticket.status}
                                             onChange={handleStatusChange}
                                         />
                                     ) : (
