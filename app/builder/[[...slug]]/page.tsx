@@ -377,31 +377,29 @@ export default function BuilderPage() {
                 questions: formData.questions.map(({ id, ...rest }) => rest),
             };
 
-            console.log('save Data: ', JSON.stringify(saveData, null, 2))
-            console.log('formRule: ', JSON.stringify(formRule, null, 2))
-            // const res = await fetch("/api/builder", {
-            //     method: "POST",
-            //     headers: {
-            //         "Content-Type": "application/json",
-            //     },
-            //     body: JSON.stringify({
-            //         formData: saveData,
-            //         formRule,
-            //     }),
-            // });
-            // console.log('res: ', res)
-            // const responseData = await res.json();
+            const res = await fetch("/api/builder", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    formData: saveData,
+                    formRule,
+                }),
+            });
+            console.log('res: ', res)
+            const responseData = await res.json();
 
-            // if (!res.ok) {
-            //     throw new Error(responseData?.message || "ไม่สามารถบันทึกข้อมูลได้");
-            // }
-            // handleClear();
-            // Swal.fire({
-            //     icon: "success",
-            //     title: "สำเร็จ",
-            //     text: responseData?.message || "บันทึกข้อมูลเรียบร้อยแล้ว",
-            //     confirmButtonText: "ตกลง",
-            // });
+            if (!res.ok) {
+                throw new Error(responseData?.message || "ไม่สามารถบันทึกข้อมูลได้");
+            }
+            handleClear();
+            Swal.fire({
+                icon: "success",
+                title: "สำเร็จ",
+                text: responseData?.message || "บันทึกข้อมูลเรียบร้อยแล้ว",
+                confirmButtonText: "ตกลง",
+            });
         } catch (error: any) {
             console.error("Save form error:", error);
 
