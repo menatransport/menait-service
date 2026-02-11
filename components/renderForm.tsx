@@ -9,7 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import type { Question } from "@/app/service/[[...slug]]/page";
+import type { Question, Option } from "@/app/service/[[...slug]]/page";
 
 // ===================== TYPES =====================
 export type FormFieldValue = string | string[] | number | boolean | null;
@@ -21,6 +21,7 @@ export interface RenderFieldProps {
     errors: Record<string, string>;
     onInputChange: (name: string, value: any) => void;
     compact?: boolean;
+    allQuestions?: Question[];
 }
 
 export interface SubmitValue {
@@ -48,13 +49,44 @@ export const formatDatetime = (dateString: string): string => {
 };
 
 // ===================== RENDER FIELD FUNCTION =====================
+
+const getFilteredOptions = (
+    options: Option[],
+    allQuestions: Question[] | undefined,
+    currentIndex: number,
+    formValues: Record<string, any>
+): Option[] => {
+    if (!options || options.length === 0) return [];
+    const hasFilter = options.some(opt => !!opt.filter);
+    if (!hasFilter || !allQuestions) return options;
+
+    const previousValues = new Set<string>();
+    for (let i = 0; i < currentIndex; i++) {
+        const q = allQuestions[i];
+        const val = formValues[q.name];
+        if (val !== undefined && val !== null && val !== '') {
+            if (Array.isArray(val)) {
+                val.forEach((v: string) => previousValues.add(v));
+            } else {
+                previousValues.add(String(val));
+            }
+        }
+    }
+
+    return options.filter(opt => {
+        if (!opt.filter) return true;
+        return previousValues.has(opt.filter);
+    });
+};
+
 export const renderFormField = ({
     question,
     index,
     formValues,
     errors,
     onInputChange,
-    compact = false
+    compact = false,
+    allQuestions
 }: RenderFieldProps): React.ReactNode => {
     const widthClass = compact ? '' : 'w-full sm:w-1/2';
 
@@ -83,6 +115,31 @@ export const renderFormField = ({
     const getInputClass = (hasError: boolean) => 
         `${inputBaseClass} ${hasError ? 'border-rose-300 bg-rose-50' : 'border-gray-200'}`;
 
+    const filteredOptions = getFilteredOptions(question.options, allQuestions, index, formValues)
+        .slice()
+        .sort((a, b) => {
+            const aIsOther = a.label === 'อื่นๆ' || a.value === 'Other';
+            const bIsOther = b.label === 'อื่นๆ' || b.value === 'Other';
+            if (aIsOther && !bIsOther) return 1;
+            if (!aIsOther && bIsOther) return -1;
+            return a.label.localeCompare(b.label, 'th');
+        });
+
+    const currentValue = formValues[question.name];
+    if (currentValue && filteredOptions.length > 0 && (question.type === 'dropdown' || question.type === 'multiselect')) {
+        if (question.type === 'dropdown') {
+            const isValid = filteredOptions.some(opt => opt.value === currentValue);
+            if (!isValid) {
+                setTimeout(() => onInputChange(question.name, ''), 0);
+            }
+        } else if (question.type === 'multiselect' && Array.isArray(currentValue)) {
+            const validValues = currentValue.filter((v: string) => filteredOptions.some(opt => opt.value === v));
+            if (validValues.length !== currentValue.length) {
+                setTimeout(() => onInputChange(question.name, validValues), 0);
+            }
+        }
+    }
+
     switch (question.type) {
         case 'dropdown':
             return (
@@ -91,7 +148,7 @@ export const renderFormField = ({
                     <DropdownSearch
                         value={formValues[question.name] as string || ''}
                         onChange={(value: string) => onInputChange(question.name, value)}
-                        options={(question.options || []).map(opt => ({
+                        options={filteredOptions.map(opt => ({
                             option_value: opt.value,
                             option_label: opt.label
                         }))}
@@ -199,7 +256,7 @@ export const renderFormField = ({
                     <div className={`space-y-3 p-4 bg-white border-2 rounded-xl ${
                         errors[question.name] ? 'border-rose-300 bg-rose-50' : 'border-gray-200'
                     }`}>
-                        {(question.options || []).map((option) => (
+                        {filteredOptions.map((option) => (
                             <div key={option.value} className="flex items-center space-x-3">
                                 <Checkbox
                                     id={`${question.name}-${option.value}`}

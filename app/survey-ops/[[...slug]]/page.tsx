@@ -1,15 +1,14 @@
 'use client';
 
 import { Navbar } from "@/components/navbar";
-import { SurveyOPSForm } from "@/components/survey/survey-ops-form";
+import { SurveyOPSForm } from "@/app/survey-ops/[[...slug]]/survey-ops-form";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Loading from "@/components/loading";
 
-// API URL constant
 const SYSTEMS_API_URL = process.env.NEXT_PUBLIC_SYSTEM_SCRIPT || '';
 const CACHE_KEY = 'survey_ops_systems';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000; 
 
 interface SystemData {
     system_id: string;

@@ -1,4 +1,3 @@
-// Types for ticket form data
 
 export interface FormValue {
     question_id: number;
@@ -65,7 +64,6 @@ export const STATUS_CONFIG: Record<string, StatusConfig> = {
     }
 };
 
-// Question type icons mapping
 export const QUESTION_TYPE_LABELS: Record<string, string> = {
     'text': 'ข้อความ',
     'longtext': 'ข้อความยาว',

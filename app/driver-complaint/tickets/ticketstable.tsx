@@ -1,16 +1,15 @@
 'use client';
-import { Ticket } from "@/app/mytickets/page";
+import { type Ticket } from "@/app/driver-complaint/page";
 import { FileSpreadsheet, User, Calendar, Eye, FileText, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X } from "lucide-react";
 import { useState, useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { STATUS_CONFIG } from "./types";
-import { Button } from "../ui/button";
-import type { formSetup, Question } from "@/app/service/[[...slug]]/page";
-import { renderFormField, buildSubmitValues, prefillFormValues, formatDatetime } from "../renderForm";
-import { SelectStatus } from "../ui/selectstatus";
+import { Button } from "@/components/ui/button";
+import type { formSetup } from "@/app/service/[[...slug]]/page";
+import { renderFormField, buildSubmitValues, prefillFormValues, formatDatetime } from "@/components/renderForm";
+import { SelectStatus } from "@/components/ui/selectstatus"
 import Swal from "sweetalert2";
 
 // ===================== CONSTANTS =====================
@@ -27,7 +26,34 @@ const BadgeStatusMap: Record<string, { label: string; className: string }> = {
 const StatusBadge = ({ status }: { status: string }) => {
     const config = STATUS_CONFIG[status] || BadgeStatusMap[status] || { label: status, className: 'bg-gray-100 text-gray-800 border-gray-200' };
     return (
-        <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full border ${config.className}`}>
+        <span className={`inline-block px-1 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-full border ${config.className}`}>
+            {config.label}
+        </span>
+    );
+};
+
+const APPROVAL_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+    'Approved': {
+        label: 'อนุมัติแล้ว',
+        className: 'text-emerald-600 bg-emerald-50'
+    },
+    'In Progress': {
+        label: 'รออนุมัติ',
+        className: 'text-amber-600 bg-amber-50'
+    },
+    'Rejected': {
+        label: 'ปฏิเสธ',
+        className: 'text-red-600 bg-red-50'
+    },
+};
+
+const ApprovalBadge = ({ status }: { status: string }) => {
+    if (!status) return null;
+    const config = APPROVAL_STATUS_CONFIG[status];
+    if (!config) return null;
+    return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full ml-2 ${config.className}`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-current" />
             {config.label}
         </span>
     );
@@ -129,8 +155,8 @@ const EmptyState = ({ colSpan }: { colSpan?: number }) => (
 
 // ===================== TAB OPTIONS =====================
 const TAB_OPTIONS = [
-    { value: 'apv', label: 'งานรออนุมัติ' },
-    { value: 'my', label: 'งานของฉัน' },
+    { value: 'apv', label: 'รออนุมัติ' },
+    { value: 'my', label: 'คำร้องทั้งหมด' },
 ] as const;
 
 export type TabType = 'my' | 'apv';
@@ -170,7 +196,7 @@ export const DataTable = ({
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
     const [filterStatus, setFilterStatus] = useState<string>('all');
     const [searchText, setSearchText] = useState<string>('');
-    const [showFilters, setShowFilters] = useState(false);
+    const [showFilters, setShowFilters] = useState(true);
 
     const processedData = useMemo(() => {
         let result = [...data];
@@ -182,9 +208,9 @@ export const DataTable = ({
         if (searchText.trim()) {
             const search = searchText.toLowerCase();
             result = result.filter(item =>
-                item.form_name?.toLowerCase().includes(search) ||
-                item.form_code?.toLowerCase().includes(search) ||
-                item.created_by?.toLowerCase().includes(search) ||
+                item.drivercode?.toLowerCase().includes(search) ||
+                item.drivercode?.toLowerCase().includes(search) ||
+                item.title?.toLowerCase().includes(search) ||
                 item.form_id?.toLowerCase().includes(search)
             );
         }
@@ -459,18 +485,21 @@ export const DataTable = ({
                     <div className="divide-y divide-gray-100">
                         {paginatedTickets.map((item) => (
                             <div
-                                key={item.submission_id}
+                                key={item.complaint_id}
                                 onClick={() => onViewTicket(item)}
                                 className="p-4 active:bg-gray-100 transition-colors cursor-pointer"
                             >
                                 {/* Card Header */}
-                                <div className="flex items-start gap-3">
-                                    <UserAvatar email={item.email} imageUrl={item.image_url} />
+                                <div className="flex items-start gap-2">
+                                    {/* <UserAvatar email={item.} imageUrl={item.} /> */}
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-start justify-between gap-2">
+                                        <div className="flex items-start">
                                             <div className="min-w-0 flex-1">
-                                                <h3 className="font-semibold text-gray-800 text-sm truncate">{item.form_name}</h3>
-                                                <p className="text-xs text-[#026a75] font-medium">{item.form_code}</p>
+                                                <h3 className="font-semibold text-gray-800 text-sm truncate">{item.title}</h3>
+                                                <div className="flex items-center mt-0.5">
+                                                    <p className="text-xs text-[#026a75] font-medium">{item.drivercode}</p>
+                                                    <ApprovalBadge status={item.status_approve} />
+                                                </div>
                                             </div>
                                             <StatusBadge status={item.status} />
                                         </div>
@@ -479,7 +508,7 @@ export const DataTable = ({
                                         <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
                                             <span className="flex items-center gap-1">
                                                 <User size={11} />
-                                                <span className="truncate max-w-20">{item.firstname} {item.lastname}</span>
+                                                {/* <span className="truncate max-w-20">{item.} {item.lastname}</span> */}
                                             </span>
                                             <span className="flex items-center gap-1">
                                                 <Calendar size={11} />
@@ -568,17 +597,19 @@ export const DataTable = ({
                             <EmptyState colSpan={4} />
                         ) : (
                             paginatedTickets.map((item) => (
-                                <tr key={item.submission_id} className="hover:bg-gray-50 transition-colors">
+                                <tr key={item.complaint_id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-4">
-                                            <UserAvatar email={item.email} imageUrl={item.image_url} />
+                                            {/* <UserAvatar email={item.email} imageUrl={item.image_url} /> */}
                                             <div className="min-w-0">
                                                 <p className="font-semibold text-gray-800 truncate">
-                                                    [{item.form_code}] {item.form_name}
+                                                    [{item.drivercode}] {item.title}
+                                                    <ApprovalBadge status={item.status_approve} />
                                                 </p>
                                                 <p className="text-xs text-[#026a75] font-medium">{item.form_id}</p>
                                                 <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                                                    <User size={11} /> <span className="font-bold">{item.created_by}</span> {item.firstname} {item.lastname}
+                                                    <User size={11} /> 
+                                                    {/* <span className="font-bold">{item.created_by}</span> {item.firstname} {item.lastname} */}
                                                 </p>
                                             </div>
                                         </div>
@@ -631,6 +662,7 @@ export const Viewer = ({
     onApprove,
     onReject,
     onStatusChange,
+    onFormDataUpdate,
     role
 }: {
     ticket: Ticket | null;
@@ -640,6 +672,7 @@ export const Viewer = ({
     onApprove: (ticket: Ticket, remark: string) => void;
     onReject: (ticket: Ticket, remark: string) => void;
     onStatusChange?: (ticket: Ticket, newStatus: string) => void;
+    onFormDataUpdate?: (ticket: Ticket) => void;
     role?: string | null;
 }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -703,24 +736,54 @@ export const Viewer = ({
         setErrors({});
     };
 
-    const handleSubmitEdit = () => {
-        if (!formStructure?.questions || !ticket) return;
+    const handleSubmitEdit = async () => {
+        try {
+            if (!formStructure?.questions || !ticket) return;
 
-        const values = buildSubmitValues(formStructure.questions, formValues);
+            const values = buildSubmitValues(formStructure.questions, formValues);
 
-        const user = localStorage.getItem('user')
-            ? JSON.parse(localStorage.getItem('user') || '{}')
-            : {};
+            const user = localStorage.getItem('user')
+                ? JSON.parse(localStorage.getItem('user') || '{}')
+                : {};
 
-        const result = {
-            updated_by: user.employee_id || user.email || 'unknown',
-            values: values
-        };
-
-        console.log('Submit Edit Result:', result);
-        console.log('JSON:', JSON.stringify(result, null, 2));
-
-        handleCancelEdit();
+            const result = {
+                updated_by: user.employee_id || user.email || 'unknown',
+                values: values
+            };
+            console.log('json result to submit:', JSON.stringify(result));
+            const res = await fetch(`/api/formsubmit?form_id=${ticket.form_id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(result),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาดในการอัปเดตแบบฟอร์ม',
+                    text: data?.error || 'Unknown error',
+                });
+                return;
+            }
+            handleCancelEdit();
+            Swal.fire({
+                icon: 'success',
+                title: 'อัปเดตข้อมูลสำเร็จ',
+                timer: 1500,
+                showConfirmButton: false,
+            });
+           
+            if (onFormDataUpdate && ticket) {
+                onFormDataUpdate(ticket);
+            }
+        } catch (error) {
+            console.error('Error submitting edited form:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาดในการส่งข้อมูลที่แก้ไข',
+                text: 'โปรดลองอีกครั้งภายหลัง',
+            });
+        }
     };
 
     const handleConfirmApprove = () => {
@@ -793,8 +856,8 @@ export const Viewer = ({
                                 {[
                                     { label: 'รหัสแบบฟอร์ม', value: ticket.form_code },
                                     { label: 'รหัสคำร้อง', value: ticket.form_id },
-                                    { label: 'ชื่อแบบฟอร์ม', value: ticket.form_name },
-                                    { label: 'ระดับอนุมัติปัจจุบัน', value: ticket.current_level },
+                                    // { label: 'ชื่อแบบฟอร์ม', value: ticket.form_name },
+                                    // { label: 'ระดับอนุมัติปัจจุบัน', value: ticket.current_level },
                                 ].map(({ label, value }) => (
                                     <div key={label} className="flex items-center justify-between">
                                         <span className="text-sm text-gray-500">{label}</span>
@@ -820,8 +883,8 @@ export const Viewer = ({
                                     <User size={18} /> ข้อมูลผู้สร้าง
                                 </h4>
                                 {[
-                                    { label: 'ผู้สร้าง', value: `${ticket.created_by} ${ticket.firstname} ${ticket.lastname}` },
-                                    { label: 'อีเมล', value: ticket.email },
+                                    // { label: 'ผู้สร้าง', value: `${ticket.created_by} ${ticket.firstname} ${ticket.lastname}` },
+                                    // { label: 'อีเมล', value: ticket.email },
                                     { label: 'วันที่สร้าง', value: formatDatetime(ticket.created_at) },
                                 ].map(({ label, value }) => (
                                     <div key={label} className="flex items-center justify-between">
@@ -883,16 +946,16 @@ export const Viewer = ({
                                                     formValues,
                                                     errors,
                                                     onInputChange: handleInputChange,
-                                                    compact: true
+                                                    compact: true,
+                                                    allQuestions: formStructure.questions
                                                 })
                                             )}
                                         </div>
                                     ) : (
-                                        /* Show read-only values when not editing */
                                         <div className="space-y-2 max-h-60 overflow-y-auto grid grid-cols-2 gap-4">
                                             {formData.values.map((val: any, idx: number) => (
                                                 <div key={idx} className="border-b border-gray-200 pb-2 last:border-0">
-                                                    <p className="text-xs text-gray-500">{val.question_label || val.question_name}</p>
+                                                    <p className="text-xs text-gray-500">{val.question_label}</p>
                                                     <p className="font-medium text-gray-800">
                                                         {val.value_text || val.value_number || val.value_date || (val.value_boolean !== null ? (val.value_boolean ? 'ใช่' : 'ไม่') : '-')}
                                                     </p>

@@ -3,6 +3,8 @@ import { Navbar } from '@/components/navbar';
 import { TicketComponent } from './tickets/ticketscontent';
 import { useEffect, useState, useCallback } from 'react';
 import { type TabType } from "@/app/mytickets/tickets/ticketstable"
+;
+
 
 const showSuccessAlert = (title: string) => import('sweetalert2').then(({ default: Swal }) =>
     Swal.fire({
@@ -14,20 +16,19 @@ const showSuccessAlert = (title: string) => import('sweetalert2').then(({ defaul
 );
 
 export type Ticket = {
-    form_id: string;
-    current_level: number;
-    submission_id: string;
-    form_code: string;
-    form_name: string;
-    status: string;
-    status_approve: string;
-    firstname: string;
-    lastname: string;
-    email: string;
-    created_by: string;
-    created_by_email: string;
-    created_at: string;
-    image_url?: string;
+    drivercode: string,
+    status_approve: string,
+    form_code: string,
+    title: string,
+    description: string,
+    img_url: string | null,
+    category: string,
+    complaint_id: string,
+    status: string,
+    form_id: string,
+    created_at: string,
+    updated_at: string | null,
+    admin_note: string | null
 };
 
 
@@ -57,7 +58,7 @@ export default function TicketsPage() {
         if (!employeeId) return;
         setIsLoading(true);
         try {
-            const response = await fetch(`/api/tickets?employee_id=${employeeId}&tab=${tab}&role=${role}`, {
+            const response = await fetch(`https://main-api-mena-548129382487.asia-southeast1.run.app/driver-complaints/?offset=0&limit=10`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -76,7 +77,12 @@ export default function TicketsPage() {
 
     useEffect(() => {
         if (!employeeId) return;
-        fetchTickets(activeTab);
+        if( activeTab === 'apv') {
+            fetchTickets(activeTab);
+        } else if( activeTab === 'my') {
+            fetchTickets(activeTab);
+        }
+        
     }, [employeeId, activeTab, fetchTickets]);
 
     const handleTabChange = useCallback((tab: TabType) => {
@@ -165,7 +171,7 @@ export default function TicketsPage() {
 
     if (isLoading) {
         return (
-            <Navbar isHome={false} title="ติดตามสถานะคำร้อง">
+            <Navbar isHome={false} title="ติดตามคำร้องพจส.">
                 <main className="flex-1 min-h-0 bg-[#f0fafa] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
                     <div className="flex items-center justify-center h-64">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#026a75]"></div>
@@ -184,7 +190,7 @@ export default function TicketsPage() {
     };
 
     return (
-        <Navbar isHome={false} title="ติดตามสถานะคำร้อง">
+        <Navbar isHome={false} title="ติดตามคำร้องพจส." pagelock={true}>
             <TicketComponent
                 tickets={tickets}
                 formData={selectedTicket}

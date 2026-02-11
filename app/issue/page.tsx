@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Navbar } from '@/components/navbar';
-import { IssueComponent } from '@/components/issuecontent';
+import { IssueComponent } from './issuecontent';
 import { useRouter } from 'next/navigation';
 
 const showAlert = (options: { icon: 'success' | 'error'; title: string; text: string; confirmButtonText: string }) =>

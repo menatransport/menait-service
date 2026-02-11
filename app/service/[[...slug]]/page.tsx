@@ -2,10 +2,8 @@
 import { useState, useEffect, useTransition, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Navbar } from "@/components/navbar";
-import { ServiceComponent } from "@/components/servicecontent";
-import Loading from "@/components/loading";
+import { ServiceComponent } from "./servicecontent";
 
-// Dynamic import for sweetalert2 (bundle-defer-third-party)
 const showSuccessAlert = () => import('sweetalert2').then(({ default: Swal }) => 
     Swal.fire({
         icon: 'success',
@@ -78,7 +76,7 @@ export default function ServicePage() {
         const getForm = async () => {
             setIsLoadingForms(true);
             try {
-                const query = `SELECT id, form_code, form_name FROM form_masters WHERE form_type = 'Service' ORDER BY created_at DESC`;
+                const query = `SELECT id, form_code, form_name FROM form_masters WHERE form_type = 'Service' AND form_status = 'Active' ORDER BY created_at DESC`;
                 const res = await fetch("/api/form/?query=" + encodeURIComponent(query), {
                     method: "GET",
                 });

@@ -1,44 +1,38 @@
 'use client'
 
-import { Card, CardContent } from "./ui/card";
-import { Search, Loader2, Send, ClipboardList } from "lucide-react";
-import { DropdownSearch } from "./ui/dropdown/issue";
+import { useState, useCallback, useMemo } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Send, ClipboardList } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Question, type formSetup } from "@/app/service/[[...slug]]/page";
-import { Button } from "./ui/button";
-import { buildSubmitValues, renderFormField } from "./renderForm";
-import { useEffect, useState, useCallback, useMemo } from "react";
-import Loading from "./loading";
-
+import { buildSubmitValues, renderFormField } from "@/components/renderForm";
+import Loading from "@/components/loading";
 
 type FormDataType = {
     form_code: string;
     values: any[];
 }
 
-interface ServiceComponentProps {
-    form: formSetup[];
-    selectedFormId: string;
+interface IssueComponentProps {
     formData: formSetup | null;
-    handleSearch: (value: string) => void;
     onSubmit: (data: FormDataType) => void;
-    isLoadingForms: boolean;
     isLoadingFormData: boolean;
 }
 
-export const ServiceComponent = ({
-    form,
-    selectedFormId,
+export const IssueComponent = ({
     formData,
-    handleSearch,
     onSubmit,
-    isLoadingForms,
     isLoadingFormData
-}: ServiceComponentProps) => {
+}: IssueComponentProps) => {
 
     const [formValues, setFormValues] = useState<Record<string, any>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    // Use useCallback for stable function reference (rerender-functional-setstate)
+    const sortedQuestions = useMemo(() =>
+        formData?.questions?.slice().sort((a, b) => a.id - b.id) || [],
+        [formData?.questions]
+    );
+
     const handleInputChange = useCallback((name: string, value: any) => {
         setFormValues(prev => ({ ...prev, [name]: value }));
         setErrors(prev => {
@@ -50,20 +44,10 @@ export const ServiceComponent = ({
         });
     }, []);
 
-    // Memoize form options to prevent unnecessary recalculations
-    const formOptions = useMemo(() =>
-        form.map(f => ({
-            option_value: f.form_code,
-            option_label: `${f.form_code} ${f.form_name}`
-        })),
-        [form]
-    );
-
-    // Memoize sorted questions
-    const sortedQuestions = useMemo(() =>
-        formData?.questions?.slice().sort((a: Question, b: Question) => a.id - b.id) || [],
-        [formData?.questions]
-    );
+    // Clear form handler with useCallback
+    const handleClearForm = useCallback(() => {
+        setFormValues({});
+    }, []);
 
     const handleFormSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
@@ -96,50 +80,18 @@ export const ServiceComponent = ({
         onSubmit(dataToSubmit);
     }, [formData, formValues, onSubmit]);
 
-    // Clear form handler with useCallback
-    const handleClearForm = useCallback(() => {
-        setFormValues({});
-    }, []);
-
-
     return (
         <main className="flex-1 min-h-0 bg-[#f0fafa] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
-                <Card className="border-0 shadow-lg mb-6">
-                    <CardContent className="p-5">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 bg-linear-to-br from-[#026a75] to-[#03969a] rounded-xl flex items-center justify-center shadow-md">
-                                <Search className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                                <h2 className="font-semibold text-xl text-[#055058]">ค้นหาแบบฟอร์มบริการ</h2>
-                                <p className="text-xs text-gray-500">พิมพ์ชื่อหรือรหัสฟอร์มเพื่อค้นหา</p>
-                            </div>
-                        </div>
-
-                        <div className="relative">
-                            {isLoadingForms ? (
-                                <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
-                        <Loading />
-                    </div>
-                            ) : (
-                                <DropdownSearch
-                                    options={formOptions}
-                                    onChange={handleSearch}
-                                    value={selectedFormId}
-                                />
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-
+                {/* Form Content */}
                 {isLoadingFormData ? (
-                    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
-                        <Loading />
-                    </div>
+                 
+                <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
+                    <Loading />
+                </div>
+           
                 ) : formData ? (
-
                     <Card className="border-0 shadow-xl rounded-2xl sm:rounded-3xl overflow-hidden">
                         <CardContent className="p-4 sm:p-6 lg:p-8">
                             {/* Form Header */}
@@ -149,8 +101,10 @@ export const ServiceComponent = ({
                                         <ClipboardList className="w-5 h-5 text-white" />
                                     </div>
                                     <div>
-                                        <h2 className="text-xl sm:text-xl font-semibold text-[#055058] mb-1">แบบฟอร์ม: {formData.form_code} {formData.form_name}</h2>
-                                        <p className="text-xs text-gray-500">พิมพ์ชื่อหรือรหัสฟอร์มเพื่อค้นหา</p>
+                                        <h2 className="text-xl sm:text-xl font-semibold text-[#055058] mb-1">
+                                           แจ้งปัญหาการใช้งาน
+                                        </h2>
+                                        <p className="text-xs text-gray-500">กรุณากรอกข้อมูลให้ครบถ้วน</p>
                                     </div>
                                 </div>
 
@@ -161,17 +115,18 @@ export const ServiceComponent = ({
                                 )}
                             </div>
 
+                            {/* Form */}
                             <form onSubmit={handleFormSubmit} className="space-y-5">
-
                                 <div className="space-y-5">
-                                    {sortedQuestions.map((question: Question, index: number) =>
+                                    {sortedQuestions.map((question, index) =>
                                         renderFormField({
                                             question,
                                             index,
                                             formValues,
                                             errors,
                                             onInputChange: handleInputChange,
-                                            compact: false
+                                            compact: false,
+                                            allQuestions: sortedQuestions
                                         })
                                     )}
                                 </div>
@@ -205,14 +160,13 @@ export const ServiceComponent = ({
                             </form>
                         </CardContent>
                     </Card>
-
-                ) : selectedFormId ? (
+                ) : (
                     <Card className="border-0 shadow-lg">
                         <CardContent className="p-8 text-center text-gray-500">
                             ไม่พบข้อมูลแบบฟอร์ม
                         </CardContent>
                     </Card>
-                ) : null}
+                )}
 
             </div>
         </main>

@@ -2,7 +2,7 @@
 import { TriangleAlert, CheckCircle, ClipboardList, Headphones } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/navbar";
-import { ServicesMenu, InformationMenu } from "@/components/homecontent";
+import { ServicesMenu, InformationMenu } from "./homecontent";
 import { useEffect } from 'react';
 
 // Hoist static data outside component (rendering-hoist-jsx)
@@ -13,7 +13,6 @@ const MENU_ITEMS = [
         icon: TriangleAlert,
         href: "/issue",
         color: "bg-gradient-to-br from-blue-500 to-blue-600",
-        shadowColor: "shadow-blue-200",
     },
     {
         title: "คำร้องขอบริการ",
@@ -21,7 +20,6 @@ const MENU_ITEMS = [
         icon: ClipboardList,
         href: "/service",
         color: "bg-gradient-to-br from-amber-500 to-amber-600",
-        shadowColor: "shadow-amber-200",
     },
     {
         title: "ติดตามคำร้องและอนุมัติ",
@@ -29,7 +27,6 @@ const MENU_ITEMS = [
         icon: CheckCircle,
         href: "/mytickets",
         color: "bg-gradient-to-br from-emerald-500 to-emerald-600",
-        shadowColor: "shadow-emerald-200",
     },
 ];
 
@@ -112,7 +109,7 @@ export default function HomePage() {
 
                         <ServicesMenu menuItems={MENU_ITEMS} />
 
-                            <InformationMenu newsItems={NEWS_ITEMS} />
+                            {/* <InformationMenu newsItems={NEWS_ITEMS} /> */}
 
 
                             {/* Help Banner */}

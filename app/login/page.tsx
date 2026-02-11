@@ -16,11 +16,9 @@ function LoginForm() {
     const [password, setPassword] = useState("");
     const [rememberMe, setRememberMe] = useState(false);
     const searchParams = useSearchParams();
-    // Lazy state initialization (rerender-lazy-state-init)
     const [isLoading, setIsLoading] = useState(() => searchParams.get('google') === 'true');
     const router = useRouter();
 
-    // Memoize processLogin with useCallback
     const processLogin = useCallback(async (body: object, saveToken = false): Promise<boolean> => {
         setIsLoading(true);
         try {
@@ -36,7 +34,6 @@ function LoginForm() {
                 return false;
             }
             const data = await res.json();
-            console.log('Login response:', data);
         
             if (data.user) {
                 data.user.role = ['IT', 'Operation Support'].includes(data.user.department) ? 'a' : 'u';

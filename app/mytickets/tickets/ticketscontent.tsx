@@ -13,6 +13,7 @@ export const TicketComponent = ({
     activeTab,
     onTabChange,
     onStatusChange,
+    onFormDataUpdate,
     loading,
     role
 }: {
@@ -24,6 +25,7 @@ export const TicketComponent = ({
     activeTab: TabType;
     onTabChange: (tab: TabType) => void;
     onStatusChange?: (ticket: Ticket, newStatus: string) => void;
+    onFormDataUpdate?: (ticket: Ticket) => void;
     loading: boolean;
     role?: string | null;
 }) => {
@@ -78,6 +80,7 @@ export const TicketComponent = ({
                 onApprove={onApprove || (() => {})}
                 onReject={onReject || (() => {})}
                 onStatusChange={onStatusChange}
+                onFormDataUpdate={onFormDataUpdate}
                 role={role}
             />
 

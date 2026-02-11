@@ -1,8 +1,8 @@
 'use client';
 
 import { ArrowRight, ChevronRight } from "lucide-react";
-import { Button } from "./ui/button";
-import { Card, CardContent } from "./ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 type MenuItem = {
     title: string;
@@ -10,7 +10,6 @@ type MenuItem = {
     icon: React.ElementType;
     href: string;
     color: string;
-    shadowColor: string;
 }
 
 type ServicesMenuProps = {
@@ -44,7 +43,7 @@ export const ServicesMenu = ({ menuItems }: ServicesMenuProps) => {
                     <Card
                         key={item.title}
                         onClick={() => window.location.href = item.href}
-                        className={`group bg-white border-0 shadow-lg ${item.shadowColor} hover:shadow-2xl transition-all duration-500 cursor-pointer hover:-translate-y-2 overflow-hidden animate-fade-in-up stagger-${index + 1}`}
+                        className={`group bg-white border-0 shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer hover:-translate-y-2 overflow-hidden animate-fade-in-up stagger-${index + 1}`}
                     >
                         <CardContent className="p-3 sm:p-4 lg:p-6 flex flex-col items-center text-center">
                             <div className={`w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 ${item.color} rounded-2xl sm:rounded-2xl flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-lg`}>

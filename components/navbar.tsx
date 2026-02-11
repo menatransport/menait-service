@@ -11,6 +11,7 @@ interface NavbarProps {
     isHome?: boolean;
     title?: string;
     children?: React.ReactNode;
+    pagelock?: boolean;
 }
 
 interface UserInfo {
@@ -44,7 +45,7 @@ const COMPONENT_ADMIN = [
 ] as const;
 
 
-export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title }) => {
+export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title, pagelock = false }) => {
     const router = useRouter();
     const [user, setUserInfo] = useState<UserInfo | null>(null);
     const [isClient, setIsClient] = useState(false);
@@ -74,7 +75,7 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title 
         <div className="h-screen flex flex-col overflow-hidden bg-linear-to-br from-[#026a75] via-[#037a86] to-[#025f68]">
             <div className="shrink-0">
                 <header className={`relative z-20 px-4 sm:px-6 lg:px-8 ${isHome ? 'pt-2 sm:pt-6 pb-2 animate-fade-in-down' : 'pt-3 sm:pt-6 pb-3'}`}>
-                    <div className={`${isHome ? 'max-w-full sm:mx-10' : 'w-full'} flex items-center justify-between`}>
+                    <div className={`${isHome ? 'max-w-full sm:mx-10' : 'w-full'} flex items-center ${pagelock ? 'justify-end' : 'justify-between'}`}>
 
                         {isHome ? (
                             <div className="flex items-center gap-2 sm:gap-3">
@@ -86,7 +87,8 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title 
                                 </span>
                             </div>
                         ) : (
-                            <Button
+                           pagelock ? null : 
+                           <Button
                                 onClick={handleGoHome}
                                 variant="ghost"
                                 className="text-white cursor-pointer hover:bg-white/20 rounded-xl h-10 w-auto px-3 sm:h-11 sm:px-4 transition-all duration-300 hover:scale-105 flex items-center gap-2"
@@ -113,7 +115,7 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title 
                                 </button>
                             )}
                             {/* Hover NavigationMenu */}
-                            <div className="relative group">
+                            <div className={`relative ${pagelock ? null : 'group'}`}>
                                 <div className="flex items-center gap-2 sm:gap-3 p-1.5 sm:px-4 sm:py-2 bg-white/10 backdrop-blur-sm rounded-xl cursor-pointer hover:bg-white/20 transition-all duration-300 hover:scale-105">
                                     <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#8ce4cb] rounded-full flex items-center justify-center">
                                         <User className="w-4 h-4 sm:w-5 sm:h-5 text-[#026a75]" />
