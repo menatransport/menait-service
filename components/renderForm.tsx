@@ -205,9 +205,8 @@ export const FormField = memo(({
                         <PopoverTrigger asChild>
                             <Button
                                 variant="outline"
-                                className={`w-full h-11 justify-start text-left font-normal bg-white border rounded-xl transition-all duration-200 hover:border-[#026a75]/40 ${
-                                    hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
-                                } ${!currentValue && "text-gray-400"}`}
+                                className={`w-full h-11 justify-start text-left font-normal bg-white border rounded-xl transition-all duration-200 hover:border-[#026a75]/40 ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
+                                    } ${!currentValue && "text-gray-400"}`}
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
                                 {currentValue
@@ -274,9 +273,8 @@ export const FormField = memo(({
             return (
                 <div className="space-y-1.5">
                     <FieldLabel index={index} label={question.label} required={question.required} />
-                    <div className={`space-y-2 p-3 bg-white border rounded-xl ${
-                        hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
-                    }`}>
+                    <div className={`space-y-2 p-3 bg-white border rounded-xl ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
+                        }`}>
                         {filteredOptions.map((option) => (
                             <label key={option.value} htmlFor={`${question.name}-${option.value}`} className="flex items-center space-x-2.5 py-1 px-1 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
                                 <Checkbox
@@ -309,9 +307,8 @@ export const FormField = memo(({
                         onChange={handleTextChange}
                         placeholder="กรุณาระบุรายละเอียดเพิ่มเติม..."
                         rows={4}
-                        className={`w-full px-4 py-3 bg-white border rounded-xl text-sm resize-none transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/40 ${
-                            hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
-                        }`}
+                        className={`w-full px-4 py-3 bg-white border rounded-xl text-sm resize-none transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/40 ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
+                            }`}
                     />
                     <FieldError message={errorMsg} />
                 </div>
@@ -405,7 +402,7 @@ export const prefillFormValues = (
     existingValues: any[]
 ): Record<string, any> => {
     const initialValues: Record<string, any> = {};
-    
+
     existingValues.forEach((val: any) => {
         const question = questions.find(q => q.id === val.question_id);
         if (question) {
@@ -424,6 +421,6 @@ export const prefillFormValues = (
             }
         }
     });
-    
+
     return initialValues;
 };

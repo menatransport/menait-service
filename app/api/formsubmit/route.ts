@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
     }
     const version = searchParams.get('version');
     const versionQuery = version ? `?version=${version}` : '';
+
+    console.log(`Fetching form data for path: https://api-ncac.onrender.com/forms/${path}${versionQuery}`);
    
     try {
         const res = await fetch(`https://api-ncac.onrender.com/forms/${path}${versionQuery}`, {

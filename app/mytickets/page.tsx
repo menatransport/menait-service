@@ -90,7 +90,7 @@ export default function TicketsPage() {
         setSelectedTicket(data[0]);
     }
 
-    const handleApprove = async (ticket: Ticket) => {
+    const handleApprove = async (ticket: Ticket, remark: string) => {
         console.log('Approving ticket:', ticket);
         try {
             const res = await fetch('/api/tickets', {
@@ -101,6 +101,7 @@ export default function TicketsPage() {
                 body: JSON.stringify({
                     form_id: ticket.form_id,
                     employee_id: employeeId,
+                    remark: remark || '',
                     action: 'approve',
                 }),
             });
@@ -127,7 +128,7 @@ export default function TicketsPage() {
         }
     };
 
-    const handleReject = async (ticket: Ticket) => {
+    const handleReject = async (ticket: Ticket, remark: string) => {
         try {
             const response = await fetch('/api/tickets', {
                 method: 'POST',
@@ -137,6 +138,7 @@ export default function TicketsPage() {
                 body: JSON.stringify({
                     form_id: ticket.form_id,
                     employee_id: employeeId,
+                    remark: remark || '',
                     action: 'reject',
                 }),
             });

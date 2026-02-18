@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST (request: NextRequest) {
     const { form_id, employee_id, action, remark } = await request.json();
+    console.log('Received POST data:', { form_id, employee_id, action, remark });
+    console.log('link : ', `https://api-ncac.onrender.com/forms/${form_id}/${action}?employee_id=${employee_id}&remark=${remark || ''}`);
     const res = await fetch(`https://api-ncac.onrender.com/forms/${form_id}/${action}?employee_id=${employee_id}&remark=${remark || ''}`, {
         method: 'POST',
         headers: {

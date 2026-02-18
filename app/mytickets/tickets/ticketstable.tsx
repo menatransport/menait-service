@@ -702,9 +702,8 @@ export const Viewer = ({
     const handlePullForm = async () => {
         if (!ticket) return;
         setIsLoadingForm(true);
-
         try {
-            const response = await fetch(`/api/formsubmit?path=${ticket.form_code}?version=${ticket.form_version}`, {
+            const response = await fetch(`/api/formsubmit?path=${ticket.form_code}?version=${formData.form_version}`, {
                 method: "GET",
             });
             const data = await response.json();
@@ -714,9 +713,7 @@ export const Viewer = ({
                 setFormStructure(form);
 
                 if (formData?.values && form.questions) {
-                    console.log('Original form data values:', [form.questions, formData.values]);
                     const initialValues = prefillFormValues(form.questions, formData.values);
-                    console.log('Prefilled form values:', initialValues);
                     setFormValues(initialValues);
                 }
 
@@ -774,7 +771,7 @@ export const Viewer = ({
                 timer: 1500,
                 showConfirmButton: false,
             });
-           
+
             if (onFormDataUpdate && ticket) {
                 onFormDataUpdate(ticket);
             }
