@@ -2,7 +2,14 @@
 import { useState, useEffect, useTransition, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Navbar } from "@/components/navbar";
-import { ServiceComponent } from "./servicecontent";
+import dynamic from 'next/dynamic';
+import { useSessionContext } from "@/app/context/SessionContext";
+
+// bundle-dynamic-imports: Lazy load heavy form component
+const ServiceComponent = dynamic(
+    () => import('./servicecontent').then(mod => ({ default: mod.ServiceComponent })),
+    { ssr: false }
+);
 
 const showSuccessAlert = () => import('sweetalert2').then(({ default: Swal }) => 
     Swal.fire({
@@ -62,6 +69,7 @@ export type formDataType = {
 export default function ServicePage() {
     const router = useRouter();
     const params = useParams();
+    const { user } = useSessionContext();
     const [isPending, startTransition] = useTransition();
 
     
@@ -72,59 +80,52 @@ export default function ServicePage() {
     const [isLoadingForms, setIsLoadingForms] = useState(true);
     const [isLoadingFormData, setIsLoadingFormData] = useState(false);
 
+    // async-parallel: Fetch form list and form data in parallel
     useEffect(() => {
-        const getForm = async () => {
+        const formId = params?.slug?.[0] as string | undefined;
+        
+        const fetchFormList = async () => {
+            const query = `SELECT id, form_code, form_name FROM form_masters WHERE form_type = 'Service' AND form_status = 'Active' AND is_latest = true ORDER BY created_at DESC`;
+            const res = await fetch("/api/form/?query=" + encodeURIComponent(query));
+            return res.json();
+        };
+
+        const fetchFormData = async (id: string) => {
+            const res = await fetch(`/api/formsubmit?path=${id}`);
+            if (!res.ok) throw new Error(`Error: ${res.status}`);
+            return res.json();
+        };
+
+        const loadData = async () => {
             setIsLoadingForms(true);
+            if (formId) {
+                setSelectedFormId(formId);
+                setIsLoadingFormData(true);
+            }
+
             try {
-                const query = `SELECT id, form_code, form_name FROM form_masters WHERE form_type = 'Service' AND form_status = 'Active' ORDER BY created_at DESC`;
-                const res = await fetch("/api/form/?query=" + encodeURIComponent(query), {
-                    method: "GET",
-                });
-                const data = await res.json();
-                console.log('data : ', data);
-                setForm(data);
+                if (formId) {
+                    // async-parallel: Run both fetches simultaneously
+                    const [formList, formDetail] = await Promise.all([
+                        fetchFormList(),
+                        fetchFormData(formId),
+                    ]);
+                    setForm(formList);
+                    if (formDetail) setFormData(formDetail);
+                } else {
+                    const formList = await fetchFormList();
+                    setForm(formList);
+                    setFormData(null);
+                }
             } catch (error) {
-                console.error("Error fetching forms:", error);
+                console.error("Error fetching data:", error);
             } finally {
                 setIsLoadingForms(false);
-            }
-        }
-        getForm();
-    }, []);
-
-    useEffect(() => {
-        const fetchFormData = async () => {
-            const formId = params?.slug?.[0];
-            if (formId) {
-                setSelectedFormId(formId as string);
-                setIsLoadingFormData(true);
-                try {
-                    const res = await fetch(`/api/formsubmit?path=${formId}`, {
-                        method: "GET",
-                    });
-
-                    if (!res.ok) {
-                        throw new Error(`Error: ${res.status}`);
-                    }
-
-                    const data = await res.json();
-                    console.log('Data fetched:', data);
-                    if (data) {
-                        setFormData(data);
-                    }
-                } catch (error) {
-                    console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error);
-                } finally {
-                    setIsLoadingFormData(false);
-                }
-            } else {
-                console.log('ไม่มี ID (เป็นการสร้างใหม่)');
-                setFormData(null);
                 setIsLoadingFormData(false);
             }
         };
 
-        fetchFormData();
+        loadData();
     }, [params]);
 
     const handleSearch = useCallback((value: string) => {
@@ -135,7 +136,7 @@ export default function ServicePage() {
 
     const handleSubmit = useCallback(async (data: formDataType) => {
         console.log('Submitting data:', data);
-        const employee_id = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').employee_id : null;
+        const employee_id = user?.employee_id ?? null;
         setIsLoadingForms(true);
         try {
             const res = await fetch('/api/formsubmit', {

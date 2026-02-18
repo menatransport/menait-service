@@ -320,3 +320,16 @@
 .swal-on-sheet {
   z-index: 99999 !important;
 }
+
+/* rendering-content-visibility: Improve rendering performance for long scrollable areas */
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+/* Optimize scroll containers */
+[class*="overflow-y-auto"],
+[class*="overflow-auto"] {
+  will-change: scroll-position;
+  -webkit-overflow-scrolling: touch;
+}

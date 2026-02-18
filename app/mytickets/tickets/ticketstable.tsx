@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import type { formSetup } from "@/app/service/[[...slug]]/page";
 import { renderFormField, buildSubmitValues, prefillFormValues, formatDatetime } from "@/components/renderForm";
 import { SelectStatus } from "@/components/ui/selectstatus"
-import Swal from "sweetalert2";
+// bundle-dynamic-imports: Load sweetalert2 only when needed
+const showSwal = (options: any) => import('sweetalert2').then(({ default: Swal }) => Swal.fire(options));
+import { useSessionContext } from "@/app/context/SessionContext";
 
 // ===================== CONSTANTS =====================
 const ITEMS_PER_PAGE = 10;
@@ -674,6 +676,7 @@ export const Viewer = ({
     onFormDataUpdate?: (ticket: Ticket) => void;
     role?: string | null;
 }) => {
+    const { user: sessionUser } = useSessionContext();
     const [isEditing, setIsEditing] = useState(false);
     const [formStructure, setFormStructure] = useState<formSetup | null>(null);
     const [formValues, setFormValues] = useState<Record<string, any>>({});
@@ -701,7 +704,7 @@ export const Viewer = ({
         setIsLoadingForm(true);
 
         try {
-            const response = await fetch(`/api/formsubmit?path=${ticket.form_code}`, {
+            const response = await fetch(`/api/formsubmit?path=${ticket.form_code}?version=${ticket.form_version}`, {
                 method: "GET",
             });
             const data = await response.json();
@@ -711,7 +714,9 @@ export const Viewer = ({
                 setFormStructure(form);
 
                 if (formData?.values && form.questions) {
+                    console.log('Original form data values:', [form.questions, formData.values]);
                     const initialValues = prefillFormValues(form.questions, formData.values);
+                    console.log('Prefilled form values:', initialValues);
                     setFormValues(initialValues);
                 }
 
@@ -741,12 +746,10 @@ export const Viewer = ({
 
             const values = buildSubmitValues(formStructure.questions, formValues);
 
-            const user = localStorage.getItem('user')
-                ? JSON.parse(localStorage.getItem('user') || '{}')
-                : {};
+            const user = sessionUser ?? {};
 
             const result = {
-                updated_by: user.employee_id || user.email || 'unknown',
+                updated_by: (user as any).employee_id || (user as any).email || 'unknown',
                 values: values
             };
             console.log('json result to submit:', JSON.stringify(result));
@@ -757,7 +760,7 @@ export const Viewer = ({
             });
             const data = await res.json();
             if (!res.ok) {
-                Swal.fire({
+                showSwal({
                     icon: 'error',
                     title: 'เกิดข้อผิดพลาดในการอัปเดตแบบฟอร์ม',
                     text: data?.error || 'Unknown error',
@@ -765,7 +768,7 @@ export const Viewer = ({
                 return;
             }
             handleCancelEdit();
-            Swal.fire({
+            showSwal({
                 icon: 'success',
                 title: 'อัปเดตข้อมูลสำเร็จ',
                 timer: 1500,
@@ -777,7 +780,7 @@ export const Viewer = ({
             }
         } catch (error) {
             console.error('Error submitting edited form:', error);
-            Swal.fire({
+            showSwal({
                 icon: 'error',
                 title: 'เกิดข้อผิดพลาดในการส่งข้อมูลที่แก้ไข',
                 text: 'โปรดลองอีกครั้งภายหลัง',
@@ -814,7 +817,7 @@ export const Viewer = ({
                 body: JSON.stringify({
                     form_id: ticket.form_id,
                     new_status: pendingStatusChange,
-                    employee_id: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').employee_id : 'unknown',
+                    employee_id: sessionUser?.employee_id ?? 'unknown',
                 }),
             });
             if (!response.ok) {
@@ -823,7 +826,7 @@ export const Viewer = ({
             } else {
                 onStatusChange?.(ticket, pendingStatusChange);
                 onClose();
-                Swal.fire({
+                showSwal({
                     icon: 'success',
                     title: 'อัปเดตสถานะสำเร็จ',
                     timer: 1500,
@@ -873,6 +876,10 @@ export const Viewer = ({
                                     ) : (
                                         <StatusBadge status={ticket.status} />
                                     )}
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-500">หมายเหตุ:</span>
+                                    <span className="font-medium text-gray-800">{ticket.remark || '-'}</span>
                                 </div>
                             </div>
 

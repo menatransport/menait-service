@@ -1,8 +1,7 @@
 "use client"
- 
-import * as React from "react"
+
+import React from "react"
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react"
- 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -81,7 +80,7 @@ export const DropdownSearch = ({
                     onChange(option.option_value === value ? "" : option.option_value)
                     setOpen(false)
                   }}
-                  className=" cursor-pointer"
+                  className="cursor-pointer"
                 >
                   <CheckIcon
                     className={cn(

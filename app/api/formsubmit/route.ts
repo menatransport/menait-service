@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 const formCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 5 * 60 * 1000; 
 
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
@@ -16,9 +16,11 @@ export async function GET(request: NextRequest) {
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
         return NextResponse.json(cached.data);
     }
-
+    const version = searchParams.get('version');
+    const versionQuery = version ? `?version=${version}` : '';
+   
     try {
-        const res = await fetch(`https://api-ncac.onrender.com/forms/${path}`, {
+        const res = await fetch(`https://api-ncac.onrender.com/forms/${path}${versionQuery}`, {
             method: "GET",
             next: { revalidate: 300 }
         });

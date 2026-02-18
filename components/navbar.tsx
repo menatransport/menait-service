@@ -4,7 +4,9 @@ import { ArrowLeft, Bell, HomeIcon, Search, Shield, User, ChevronDown, LayoutDas
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useState, useCallback, memo } from "react";
+import { signOut } from "next-auth/react";
+import { useSessionContext } from "@/app/context/SessionContext";
 
 
 interface NavbarProps {
@@ -14,28 +16,14 @@ interface NavbarProps {
     pagelock?: boolean;
 }
 
-interface UserInfo {
-    id: number;
-    role: string;
-    username: string;
-    firstname: string;
-    lastname: string;
-    employee_id: string;
-    site: string;
-    department: string;
-    position: string;
-    position_level: string;
-    position_level_id: number;
-}
-
 
 const COMPONENT_DEFAULT = [
     { title: 'หน้าหลัก', href: '/home', icon: HomeIcon },
     { title: 'แจ้งปัญหา', href: '/issue', icon: TriangleAlert },
     { title: 'ขอบริการ', href: '/service', icon: ClipboardList },
     { title: 'ติดตามคำขอ', href: '/mytickets', icon: CircleCheck },
-    { title: 'ข่าวสารและประกาศ', href: '/inform', icon: MessageCircle },
-    { title: 'ติดต่อเรา', href: '/contact', icon: Phone },
+    // { title: 'ข่าวสารและประกาศ', href: '/inform', icon: MessageCircle },
+    // { title: 'ติดต่อเรา', href: '/contact', icon: Phone },
 ] as const;
 
 const COMPONENT_ADMIN = [
@@ -45,30 +33,35 @@ const COMPONENT_ADMIN = [
 ] as const;
 
 
-export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title, pagelock = false }) => {
+// rerender-memo: Memoize Navbar to avoid unnecessary re-renders
+export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, title, pagelock = false }) => {
     const router = useRouter();
-    const [user, setUserInfo] = useState<UserInfo | null>(null);
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-        const storedUserData = localStorage.getItem("user");
-        if (storedUserData) {
-            try {
-                setUserInfo(JSON.parse(storedUserData));
-            } catch {
-                router.push('/login');
-            }
-        }
-    }, []);
+    const { user, loading } = useSessionContext();
+    const isClient = !loading;
 
 
     const handleNavigate = useCallback((path: string) => {
         router.push(path);
-    }, []);
+    }, [router]);
 
     const handleGoHome = useCallback(() => {
         router.push('/home');
+    }, [router]);
+
+    const handleLogout = useCallback(async () => {
+        try {
+            localStorage.clear();
+            sessionStorage.clear();
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+            }
+            await signOut({ redirect: false });
+            router.push('/login');
+        } catch (error) {
+            console.error('Logout error:', error);
+            router.push('/login');
+        }
     }, [router]);
 
     return (
@@ -87,15 +80,15 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title,
                                 </span>
                             </div>
                         ) : (
-                           pagelock ? null : 
-                           <Button
-                                onClick={handleGoHome}
-                                variant="ghost"
-                                className="text-white cursor-pointer hover:bg-white/20 rounded-xl h-10 w-auto px-3 sm:h-11 sm:px-4 transition-all duration-300 hover:scale-105 flex items-center gap-2"
-                            >
-                                <ArrowLeft className="w-5 h-5" />
-                                <span className="text-sm font-medium">ย้อนกลับ</span>
-                            </Button>
+                            pagelock ? null :
+                                <Button
+                                    onClick={handleGoHome}
+                                    variant="ghost"
+                                    className="text-white cursor-pointer hover:bg-white/20 rounded-xl h-10 w-auto px-3 sm:h-11 sm:px-4 transition-all duration-300 hover:scale-105 flex items-center gap-2"
+                                >
+                                    <ArrowLeft className="w-5 h-5" />
+                                    <span className="text-sm font-medium">ย้อนกลับ</span>
+                                </Button>
                         )}
 
                         {!isHome && title && (
@@ -139,7 +132,7 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title,
                                             <div className="flex-1">
                                                 <h3 className="text-xs font-semibold text-gray-500 mb-2 px-2">ทั่วไป</h3>
                                                 <div className="grid grid-cols-3 gap-2">
-                                                {COMPONENT_DEFAULT.map((item, index) => {
+                                                    {COMPONENT_DEFAULT.map((item, index) => {
                                                         const IconComponent = item.icon;
                                                         return (
                                                             <button
@@ -210,7 +203,7 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title,
                                                 </div>
 
                                                 {/* Request Status Cards */}
-                                                <div className="grid grid-cols-3 gap-2">
+                                                <div className="hidden grid grid-cols-3 gap-2">
                                                     <div className="flex flex-col justify-center items-center cursor-pointer group">
                                                         <span className="text-lg text-amber-400 font-bold">5</span>
                                                         <span className="text-[10px] text-gray-600 text-center leading-tight">รออนุมัติ</span>
@@ -231,14 +224,14 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title,
                                             {/* Action Buttons */}
                                             <div className="grid grid-cols-2 gap-2">
                                                 <button
-                                                    onClick={() => handleNavigate('/settings')}
+                                                    onClick={() => handleNavigate('/settings/' + (isClient ? user?.employee_id : ''))}
                                                     className="group flex items-center cursor-pointer justify-center gap-2 py-3 px-4 bg-[#026a75] hover:bg-[#035f69] rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
                                                 >
                                                     <Settings className="w-4 h-4 text-white transition-colors duration-300" />
                                                     <span className="text-sm font-medium text-white transition-colors duration-300">ตั้งค่า</span>
                                                 </button>
                                                 <button
-                                                    onClick={() => handleNavigate('/login')}
+                                                    onClick={handleLogout}
                                                     className="group flex items-center cursor-pointer justify-center gap-2 py-3 px-4 bg-rose-500 hover:bg-rose-600 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
                                                 >
                                                     <LogOut className="w-4 h-4 text-white transition-colors duration-300" />
@@ -284,4 +277,5 @@ export const Navbar: React.FC<NavbarProps> = ({ children, isHome = false, title,
             {children}
         </div>
     );
-}
+});
+Navbar.displayName = 'Navbar';

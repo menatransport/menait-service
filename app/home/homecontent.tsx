@@ -3,6 +3,8 @@
 import { ArrowRight, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type MenuItem = {
     title: string;
@@ -30,6 +32,8 @@ type InformationMenuProps = {
 }
 
 export const ServicesMenu = ({ menuItems }: ServicesMenuProps) => {
+    // Use router.push for client-side navigation (avoids full page reload)
+    const router = useRouter();
 
     return (
         <div className="shrink-0">
@@ -38,11 +42,10 @@ export const ServicesMenu = ({ menuItems }: ServicesMenuProps) => {
             </div>
 
             {/* Service Menu Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8 lg:mb-12">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8 lg:mb-12">
                 {menuItems.map((item, index) => (
+                    <Link key={item.title} href={item.href} prefetch={true} className="block">
                     <Card
-                        key={item.title}
-                        onClick={() => window.location.href = item.href}
                         className={`group bg-white border-0 shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer hover:-translate-y-2 overflow-hidden animate-fade-in-up stagger-${index + 1}`}
                     >
                         <CardContent className="p-3 sm:p-4 lg:p-6 flex flex-col items-center text-center">
@@ -61,11 +64,13 @@ export const ServicesMenu = ({ menuItems }: ServicesMenuProps) => {
                             </Button>
                         </CardContent>
                     </Card>
+                    </Link>
                 ))}
             </div>
         </div>
     );
 }
+
 
 export const InformationMenu = ({ newsItems }: InformationMenuProps) => {
 

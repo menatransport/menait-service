@@ -1,8 +1,15 @@
 'use client';
 import { Navbar } from '@/components/navbar';
-import { TicketComponent } from './tickets/ticketscontent';
+import dynamic from 'next/dynamic';
 import { useEffect, useState, useCallback } from 'react';
 import { type TabType } from "@/app/mytickets/tickets/ticketstable"
+import { useSessionContext } from '@/app/context/SessionContext';
+
+// bundle-dynamic-imports: Lazy load heavy ticket components
+const TicketComponent = dynamic(
+    () => import('./tickets/ticketscontent').then(mod => ({ default: mod.TicketComponent })),
+    { ssr: false }
+);
 
 const showSuccessAlert = (title: string) => import('sweetalert2').then(({ default: Swal }) =>
     Swal.fire({
@@ -15,6 +22,7 @@ const showSuccessAlert = (title: string) => import('sweetalert2').then(({ defaul
 
 export type Ticket = {
     form_id: string;
+    form_version: number;
     current_level: number;
     submission_id: string;
     form_code: string;
@@ -28,30 +36,19 @@ export type Ticket = {
     created_by_email: string;
     created_at: string;
     image_url?: string;
+    remark?: string;
 };
 
 
 export default function TicketsPage() {
+    const { user } = useSessionContext();
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<TabType>('apv');
-    const [employeeId, setEmployeeId] = useState<string | null>(null);
-    const [role, setRole] = useState<string | null>(null);
 
-    useEffect(() => {
-        const user = localStorage.getItem('user');
-        if (user) {
-            try {
-                const parsed = JSON.parse(user);
-                setEmployeeId(parsed.employee_id || null);
-                setRole(parsed.role || null);
-            } catch {
-                setEmployeeId(null);
-                setRole(null);
-            }
-        }
-    }, []);
+    const employeeId = user?.employee_id ?? null;
+    const role = user?.role ?? null;
 
     const fetchTickets = useCallback(async (tab: TabType) => {
         if (!employeeId) return;
@@ -87,7 +84,9 @@ export default function TicketsPage() {
         const res = await fetch(`/api/formselect?path=${ticket.form_id}`, {
             method: "GET",
         });
+
         const data = await res.json();
+        console.log('Selected ticket data[0]:', data[0]);
         setSelectedTicket(data[0]);
     }
 

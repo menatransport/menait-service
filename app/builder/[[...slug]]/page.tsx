@@ -35,7 +35,9 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-import Swal from 'sweetalert2'
+// bundle-dynamic-imports: Load sweetalert2 only when needed
+const showSwal = (options: any) => import('sweetalert2').then(({ default: Swal }) => Swal.fire(options));
+const showSwalConfirm = (options: any) => import('sweetalert2').then(({ default: Swal }) => Swal.fire(options));
 import { useParams } from 'next/navigation'
 
 interface Option {
@@ -123,45 +125,41 @@ export default function BuilderPage() {
         { option_value: "false", option_label: "ไม่ต้องอนุมัติ" }
     ]
 
+    // async-parallel: Fetch position and form data in parallel
     useEffect(() => {
-        const getPosition = async () => {
-            console.log('get position _1')
-            const res = await fetch("/api/position", {
-                method: "GET",
-            });
+        const formId = params?.slug?.[0] as string | undefined;
 
+        const fetchPosition = async () => {
+            const res = await fetch("/api/position");
             const data = await res.json();
-            const sortedData = data.sort((a: PositionSetup, b: PositionSetup) => a.position_level_id - b.position_level_id);
-            setPosition(sortedData)
-        }
-        getPosition();
-    }, [])
+            // js-tosorted: Use toSorted for immutability
+            return data.toSorted((a: PositionSetup, b: PositionSetup) => a.position_level_id - b.position_level_id);
+        };
 
+        const fetchFormData = async (id: string) => {
+            const res = await fetch(`/api/builder?form_code=${id}`);
+            return res.json();
+        };
 
-
-    useEffect(() => {
-        const fetchFormData = async () => {
-            const formId = params?.slug?.[0];
-
-            if (formId) {
-                console.log('เจอ ID แก้ไข:', formId);
-
-                try {
-                    const res = await fetch(`/api/builder?form_code=${formId}`, {
-                        method: "GET",
-                    });
-
-              
-                    const data = await res.json();
-                    console.log('Data fetched:', data);
-                    if (data.form && data.rule) {
+        const loadData = async () => {
+            try {
+                if (formId) {
+                    // async-parallel: Run both fetches simultaneously
+                    const [positionData, builderData] = await Promise.all([
+                        fetchPosition(),
+                        fetchFormData(formId),
+                    ]);
+                    
+                    setPosition(positionData);
+                    
+                    if (builderData.form && builderData.rule) {
                         setFormData({
-                            form_type: data.form.form_type || "",
-                            form_code: data.form.form_code || "",
-                            form_name: data.form.form_name || "",
-                            need_approval: data.form.need_approval,
-                            form_status: data.form.form_status || "",
-                            questions: data.form.questions?.map((q: any, index: number) => ({
+                            form_type: builderData.form.form_type || "",
+                            form_code: builderData.form.form_code || "",
+                            form_name: builderData.form.form_name || "",
+                            need_approval: builderData.form.need_approval,
+                            form_status: builderData.form.form_status || "",
+                            questions: builderData.form.questions?.map((q: any, index: number) => ({
                                 id: `q_${Date.now()}_${index}`,
                                 question_name: q.name || "",
                                 question_label: q.label || "",
@@ -176,8 +174,8 @@ export default function BuilderPage() {
                             })) || []
                         });
 
-                        setFormRule(data.rule.rules?.map((r: any) => ({
-                            form_code: data.rule.form_code || data.form.form_code || "",
+                        setFormRule(builderData.rule.rules?.map((r: any) => ({
+                            form_code: builderData.rule.form_code || builderData.form.form_code || "",
                             level_no: r.level_no || 1,
                             creator_min: r.creator_min || 0,
                             creator_max: r.creator_max || 0,
@@ -190,17 +188,17 @@ export default function BuilderPage() {
 
                         setBuilderMode("edit");
                     }
-
-                } catch (error) {
-                    console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error);
+                } else {
+                    const positionData = await fetchPosition();
+                    setPosition(positionData);
+                    setBuilderMode("create");
                 }
-            } else {
-                console.log('ไม่มี ID (เป็นการสร้างใหม่)');
-                setBuilderMode("create");
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error);
             }
         };
 
-        fetchFormData();
+        loadData();
     }, [params]);
 
 
@@ -235,10 +233,56 @@ export default function BuilderPage() {
     }
 
     const handleonChange = (field: keyof FormSetup, value: any) => {
-        setFormData((prev) => ({
-            ...prev,
-            [field]: value
-        }))
+        if (field === "form_status") {
+            console.log('เปลี่ยนสถานะเป็น:', [field, value])
+            showSwalConfirm({
+                title: 'ยืนยันการเปลี่ยนสถานะฟอร์ม',
+                text: `คุณกำลังจะเปลี่ยนสถานะฟอร์มเป็น ${value} คุณแน่ใจหรือไม่?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#026a75',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'ยืนยัน',
+                cancelButtonText: 'ยกเลิก'
+            }).then(async (result: any) => {
+                if (result.isConfirmed) {
+                    const res = await fetch("/api/builder-status", {
+                        method: "PATCH",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ formCode: formData.form_code, newStatus: value })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+
+                        showSwal({
+                            icon: 'error',
+                            title: 'เกิดข้อผิดพลาด',
+                            text: data?.error || 'ไม่สามารถเปลี่ยนสถานะได้',
+                        });
+                    } else {
+                        setFormData((prev) => ({
+                            ...prev,
+                            form_status: value
+                        }))
+                        showSwal({
+                            icon: 'success',
+                            title: 'สำเร็จ',
+                            text: data?.message || 'เปลี่ยนสถานะเป็นแบบร่างเรียบร้อยแล้ว',
+                        });
+                    }
+                }
+
+            })
+
+        } else {
+            setFormData((prev) => ({
+                ...prev,
+                [field]: value
+            }))
+        }
+
     }
 
     const addQuestion = (type: string) => {
@@ -369,6 +413,45 @@ export default function BuilderPage() {
         })
     }
 
+    const handleEditForm = async () => {
+        try {
+            const editData = {
+                ...formData,
+                questions: formData.questions.map(({ id, ...rest }) => rest),
+            };
+            console.log('Data to update:', { formData: editData });
+            const res = await fetch("/api/builder", {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    formData: editData,
+                }),
+            });
+            const responseData = await res.json();
+
+            if (!res.ok) {
+                throw new Error(responseData?.message || "ไม่สามารถบันทึกข้อมูลได้");
+            }
+
+            showSwal({
+                icon: "success",
+                title: "สำเร็จ",
+                text: "แก้ไขข้อมูลเรียบร้อยแล้ว (หากพร้อมใช้งานให้เปลี่ยนสถานะเป็นเปิดใช้งาน)",
+                confirmButtonText: "ตกลง",
+            });
+
+        } catch (error) {
+            console.error("Save form error:", error);
+            showSwal({
+                icon: "error",
+                title: "เกิดข้อผิดพลาด",
+                text: error instanceof Error ? error.message : "เกิดข้อผิดพลาดบางอย่าง",
+                confirmButtonText: "ปิด",
+            });
+        }
+    }
 
     const handleSaveForm = async () => {
         try {
@@ -394,7 +477,7 @@ export default function BuilderPage() {
                 throw new Error(responseData?.message || "ไม่สามารถบันทึกข้อมูลได้");
             }
             handleClear();
-            Swal.fire({
+            showSwal({
                 icon: "success",
                 title: "สำเร็จ",
                 text: responseData?.message || "บันทึกข้อมูลเรียบร้อยแล้ว",
@@ -403,7 +486,7 @@ export default function BuilderPage() {
         } catch (error: any) {
             console.error("Save form error:", error);
 
-            Swal.fire({
+            showSwal({
                 icon: "error",
                 title: "เกิดข้อผิดพลาด",
                 text: error.message || "เกิดข้อผิดพลาดบางอย่าง",
@@ -424,8 +507,6 @@ export default function BuilderPage() {
         setFormRule([])
     }
 
-
-    // ดูตัวอย่างฟอร์ม
     const handlePreview = () => {
         setIsPreviewOpen(true)
     }
@@ -689,6 +770,7 @@ export default function BuilderPage() {
     return (
         <Navbar isHome={false} title={builderMode == "create" ? "สร้างฟอร์มแจ้งปัญหา และบริการ" : "แก้ไขฟอร์มแจ้งปัญหา และบริการ"}>
             {/* Main Content */}
+
             <main className="flex-1 min-h-0 rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto" style={{ background: 'radial-gradient(circle, #c3ddde 1.5px, #f0fafa 1.5px)', backgroundSize: '20px 20px' }}>
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
                     <div className="flex flex-col gap-4">
@@ -697,7 +779,9 @@ export default function BuilderPage() {
                             <div className="bg-[#026a75] text-white w-auto h-auto p-4 text-xl">1</div>
                             <div className="bg-white w-full border border- p-4">
                                 <h3 className="font-bold text-gray-800 text-md">{builderMode == "create" ? "สร้างฟอร์มใหม่" : "แก้ไขฟอร์ม"}</h3>
-
+                                {builderMode === "edit" && formData.form_status !== "Draft" && (
+                                    <label className="flex font-semibold text-blue-700 items-center gap-2 mt-3">(ต้องปรับสถานะฟอร์มเป็น 'แบบร่าง' เพื่อแก้ไขข้อมูล)</label>
+                                )}
                             </div>
                         </div>
 
@@ -952,11 +1036,11 @@ export default function BuilderPage() {
                             {/* <Button type="button" variant="outline" className="gap-2 cursor-pointer" onClick={()=>console.log('ทดสอบกฏ : ',formRule)}>
                                 <Eye className="w-4 h-4" /> ทดสอบกฏ
                             </Button> */}
-                            {/* {builderMode === "edit" && (
-                                <Button type="button" className="gap-2 bg-[#026a75] hover:bg-[#025f68] cursor-pointer" onClick={handleSaveForm}>
+                            {builderMode === "edit" && formData.form_status === "Draft" && (
+                                <Button type="button" className="gap-2 bg-[#026a75] hover:bg-[#025f68] cursor-pointer" onClick={handleEditForm}>
                                     <Pencil className="w-4 h-4" /> แก้ไขฟอร์ม
                                 </Button>
-                            )} */}
+                            )}
                             {builderMode === "create" && (
                                 <Button type="button" className="gap-2 bg-[#026a75] hover:bg-[#025f68] cursor-pointer" onClick={handleSaveForm}>
                                     <Save className="w-4 h-4" /> บันทึกฟอร์ม

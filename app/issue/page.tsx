@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Navbar } from '@/components/navbar';
 import { IssueComponent } from './issuecontent';
 import { useRouter } from 'next/navigation';
+import { useSessionContext } from '@/app/context/SessionContext';
 
 const showAlert = (options: { icon: 'success' | 'error'; title: string; text: string; confirmButtonText: string }) =>
     import('sweetalert2').then(({ default: Swal }) => Swal.fire(options));
@@ -19,6 +20,7 @@ type formDataType = {
 
 export default function IssuePage() {
     const router = useRouter();
+    const { user } = useSessionContext();
     const [formData, setFormData] = useState<any>(null);
     const [isLoadingFormData, setIsLoadingFormData] = useState<boolean>(true);
 
@@ -50,7 +52,7 @@ export default function IssuePage() {
     }, []);
 
     const handleSubmit = useCallback(async (data: formDataType) => {
-        const employee_id = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').employee_id : null;
+        const employee_id = user?.employee_id ?? null;
         setIsLoadingFormData(true);
         try {
             const res = await fetch('/api/formsubmit', {
@@ -61,7 +63,7 @@ export default function IssuePage() {
                 body: JSON.stringify({ ...data, created_by: employee_id }),
             });
             const resData = await res.json();
-            console.log('resData : ', resData);
+            // console.log('resData : ', resData);
             setIsLoadingFormData(false);
             if (res.ok) {
                 await showAlert({

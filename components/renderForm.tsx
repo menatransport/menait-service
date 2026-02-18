@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { memo, useMemo, useCallback } from 'react';
 import { AlertCircle, Clock, Calendar as CalendarIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,14 @@ export interface SubmitValue {
 }
 
 // ===================== HELPER FUNCTIONS =====================
+
+// rendering-hoist-jsx: Hoist static arrays outside component
+const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+
+// rendering-hoist-jsx: Static base class
+const INPUT_BASE_CLASS = `w-full h-11 px-4 bg-white border rounded-xl text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/40`;
+
 export const formatDatetime = (dateString: string): string => {
     if (!dateString) return '-';
     try {
@@ -48,8 +56,7 @@ export const formatDatetime = (dateString: string): string => {
     }
 };
 
-// ===================== RENDER FIELD FUNCTION =====================
-
+// ===================== FILTER OPTIONS =====================
 const getFilteredOptions = (
     options: Option[],
     allQuestions: Question[] | undefined,
@@ -57,29 +64,65 @@ const getFilteredOptions = (
     formValues: Record<string, any>
 ): Option[] => {
     if (!options || options.length === 0) return [];
+    // js-length-check-first: Early exit before expensive work
     const hasFilter = options.some(opt => !!opt.filter);
     if (!hasFilter || !allQuestions) return options;
 
+    // js-set-map-lookups: Use Set for O(1) lookups
     const previousValues = new Set<string>();
     for (let i = 0; i < currentIndex; i++) {
         const q = allQuestions[i];
         const val = formValues[q.name];
         if (val !== undefined && val !== null && val !== '') {
             if (Array.isArray(val)) {
-                val.forEach((v: string) => previousValues.add(v));
+                for (const v of val) previousValues.add(v);
             } else {
                 previousValues.add(String(val));
             }
         }
     }
 
-    return options.filter(opt => {
-        if (!opt.filter) return true;
-        return previousValues.has(opt.filter);
-    });
+    return options.filter(opt => !opt.filter || previousValues.has(opt.filter));
 };
 
-export const renderFormField = ({
+// Sort options with "อื่นๆ" / "Other" last (reusable, hoisted)
+const sortOptions = (opts: Option[]): Option[] =>
+    opts.slice().sort((a, b) => {
+        const aIsOther = a.label === 'อื่นๆ' || a.value === 'Other';
+        const bIsOther = b.label === 'อื่นๆ' || b.value === 'Other';
+        if (aIsOther && !bIsOther) return 1;
+        if (!aIsOther && bIsOther) return -1;
+        return a.label.localeCompare(b.label, 'th');
+    });
+
+// ===================== FIELD LABEL (rerender-memo) =====================
+const FieldLabel = memo(({ index, label, required }: { index: number; label: string; required: boolean }) => (
+    <div className="flex items-center gap-2 mb-1.5">
+        <div className="flex items-center justify-center w-5 h-5 rounded-md bg-[#026a75]/10 text-[#026a75] text-[10px] font-bold shrink-0">
+            {index + 1}
+        </div>
+        <Label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+            {label}
+            {required && <span className="text-rose-400 text-xs">*</span>}
+        </Label>
+    </div>
+));
+FieldLabel.displayName = 'FieldLabel';
+
+// ===================== ERROR MESSAGE =====================
+const FieldError = memo(({ message }: { message?: string }) => {
+    if (!message) return null;
+    return (
+        <p className="text-rose-500 text-xs flex items-center gap-1 mt-1 animate-fade-in-up">
+            <AlertCircle className="w-3 h-3 shrink-0" />
+            {message}
+        </p>
+    );
+});
+FieldError.displayName = 'FieldError';
+
+// ===================== FORM FIELD COMPONENT (rerender-memo) =====================
+export const FormField = memo(({
     question,
     index,
     formValues,
@@ -87,49 +130,27 @@ export const renderFormField = ({
     onInputChange,
     compact = false,
     allQuestions
-}: RenderFieldProps): React.ReactNode => {
-    const widthClass = compact ? '' : 'w-full sm:w-1/2';
-
-    const renderLabel = () => (
-        <div className="flex items-center gap-2 mb-2">
-            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[#026a75] text-white text-xs font-bold">
-                {index + 1}
-            </div>
-            <Label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-                {question.label}
-                {question.required && <span className="text-rose-500">*</span>}
-            </Label>
-        </div>
-    );
-
-    const renderError = () => (
-        errors[question.name] && (
-            <p className="text-rose-500 text-xs flex items-center gap-1 mt-1">
-                <AlertCircle className="w-3 h-3" />
-                {errors[question.name]}
-            </p>
-        )
-    );
-
-    const inputBaseClass = `w-full h-12 px-4 bg-white border-2 rounded-xl text-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/50`;
-    const getInputClass = (hasError: boolean) => 
-        `${inputBaseClass} ${hasError ? 'border-rose-300 bg-rose-50' : 'border-gray-200'}`;
-
-    const filteredOptions = getFilteredOptions(question.options, allQuestions, index, formValues)
-        .slice()
-        .sort((a, b) => {
-            const aIsOther = a.label === 'อื่นๆ' || a.value === 'Other';
-            const bIsOther = b.label === 'อื่นๆ' || b.value === 'Other';
-            if (aIsOther && !bIsOther) return 1;
-            if (!aIsOther && bIsOther) return -1;
-            return a.label.localeCompare(b.label, 'th');
-        });
-
+}: RenderFieldProps) => {
+    const widthClass = compact ? '' : 'w-full';
+    const hasError = !!errors[question.name];
     const currentValue = formValues[question.name];
-    if (currentValue && filteredOptions.length > 0 && (question.type === 'dropdown' || question.type === 'multiselect')) {
+    const errorMsg = errors[question.name];
+
+    const inputClass = `${INPUT_BASE_CLASS} ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'}`;
+
+    // Memoize filtered + sorted options
+    const filteredOptions = useMemo(() => {
+        const filtered = getFilteredOptions(question.options, allQuestions, index, formValues);
+        return sortOptions(filtered);
+    }, [question.options, allQuestions, index, formValues]);
+
+    // Auto-clear invalid values when options change
+    useMemo(() => {
+        if (!currentValue || filteredOptions.length === 0) return;
         if (question.type === 'dropdown') {
             const isValid = filteredOptions.some(opt => opt.value === currentValue);
             if (!isValid) {
+                // Use setTimeout to avoid setState during render
                 setTimeout(() => onInputChange(question.name, ''), 0);
             }
         } else if (question.type === 'multiselect' && Array.isArray(currentValue)) {
@@ -138,43 +159,59 @@ export const renderFormField = ({
                 setTimeout(() => onInputChange(question.name, validValues), 0);
             }
         }
-    }
+    }, [filteredOptions, currentValue, question.type, question.name, onInputChange]);
+
+    // Memoize dropdown options mapping (avoid creating new array each render)
+    const dropdownOptions = useMemo(() =>
+        filteredOptions.map(opt => ({
+            option_value: opt.value,
+            option_label: opt.label
+        })),
+        [filteredOptions]
+    );
+
+    // Stable callback for text/number input
+    const handleTextChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        onInputChange(question.name, e.target.value);
+    }, [question.name, onInputChange]);
+
+    // Stable callback for dropdown
+    const handleDropdownChange = useCallback((value: string) => {
+        onInputChange(question.name, value);
+    }, [question.name, onInputChange]);
 
     switch (question.type) {
         case 'dropdown':
             return (
-                <div key={question.name} className={`space-y-2 ${widthClass}`}>
-                    {renderLabel()}
+                <div className={`space-y-1.5 ${widthClass}`}>
+                    <FieldLabel index={index} label={question.label} required={question.required} />
                     <DropdownSearch
-                        value={formValues[question.name] as string || ''}
-                        onChange={(value: string) => onInputChange(question.name, value)}
-                        options={filteredOptions.map(opt => ({
-                            option_value: opt.value,
-                            option_label: opt.label
-                        }))}
+                        value={currentValue}
+                        onChange={handleDropdownChange}
+                        options={dropdownOptions}
                         placeholder="-- กรุณาเลือก --"
                         searchPlaceholder="ค้นหา..."
-                        error={!!errors[question.name]}
+                        error={hasError}
                     />
-                    {renderError()}
+                    <FieldError message={errorMsg} />
                 </div>
             );
 
         case 'datetime':
             return (
-                <div key={question.name} className={`space-y-2 ${widthClass}`}>
-                    {renderLabel()}
+                <div className={`space-y-1.5 ${widthClass}`}>
+                    <FieldLabel index={index} label={question.label} required={question.required} />
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button
                                 variant="outline"
-                                className={`w-full h-12 justify-start text-left font-normal bg-white border-2 rounded-xl transition-all duration-300 hover:border-[#026a75]/50 ${
-                                    errors[question.name] ? 'border-rose-300 bg-rose-50' : 'border-gray-200'
-                                } ${!formValues[question.name] && "text-gray-500"}`}
+                                className={`w-full h-11 justify-start text-left font-normal bg-white border rounded-xl transition-all duration-200 hover:border-[#026a75]/40 ${
+                                    hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
+                                } ${!currentValue && "text-gray-400"}`}
                             >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {formValues[question.name] 
-                                    ? format(new Date(formValues[question.name] as string), "d MMM yyyy, HH:mm น.", { locale: th })
+                                <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                                {currentValue
+                                    ? format(new Date(currentValue as string), "d MMM yyyy, HH:mm น.", { locale: th })
                                     : <span>เลือกวันที่และเวลา</span>
                                 }
                             </Button>
@@ -182,11 +219,11 @@ export const renderFormField = ({
                         <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
                                 mode="single"
-                                selected={formValues[question.name] ? new Date(formValues[question.name] as string) : undefined}
+                                selected={currentValue ? new Date(currentValue as string) : undefined}
                                 onSelect={(date) => {
                                     if (date) {
-                                        const currentTime = formValues[question.name]
-                                            ? new Date(formValues[question.name] as string)
+                                        const currentTime = currentValue
+                                            ? new Date(currentValue as string)
                                             : new Date();
                                         date.setHours(currentTime.getHours());
                                         date.setMinutes(currentTime.getMinutes());
@@ -195,144 +232,129 @@ export const renderFormField = ({
                                 }}
                                 initialFocus
                             />
-                            <div className="p-3 border-t border-gray-200">
-                                <Label className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1">
+                            <div className="p-3 border-t border-gray-100">
+                                <Label className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1">
                                     <Clock className="w-3 h-3" />
                                     เวลา
                                 </Label>
                                 <div className="flex gap-2 items-center">
                                     <select
-                                        value={formValues[question.name]
-                                            ? format(new Date(formValues[question.name] as string), "HH")
-                                            : "00"}
+                                        value={currentValue ? format(new Date(currentValue as string), "HH") : "00"}
                                         onChange={(e) => {
-                                            const date = formValues[question.name]
-                                                ? new Date(formValues[question.name] as string)
-                                                : new Date();
+                                            const date = currentValue ? new Date(currentValue as string) : new Date();
                                             date.setHours(parseInt(e.target.value));
                                             onInputChange(question.name, date.toISOString());
                                         }}
-                                        className="flex-1 h-9 px-3 text-sm border-2 border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75]"
+                                        className="flex-1 h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75]"
                                     >
-                                        {Array.from({ length: 24 }, (_, i) => (
-                                            <option key={i} value={i.toString().padStart(2, '0')}>
-                                                {i.toString().padStart(2, '0')}
-                                            </option>
-                                        ))}
+                                        {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
                                     </select>
-                                    <span className="text-gray-500 font-medium">:</span>
+                                    <span className="text-gray-400 font-medium">:</span>
                                     <select
-                                        value={formValues[question.name]
-                                            ? format(new Date(formValues[question.name] as string), "mm")
-                                            : "00"}
+                                        value={currentValue ? format(new Date(currentValue as string), "mm") : "00"}
                                         onChange={(e) => {
-                                            const date = formValues[question.name]
-                                                ? new Date(formValues[question.name] as string)
-                                                : new Date();
+                                            const date = currentValue ? new Date(currentValue as string) : new Date();
                                             date.setMinutes(parseInt(e.target.value));
                                             onInputChange(question.name, date.toISOString());
                                         }}
-                                        className="flex-1 h-9 px-3 text-sm border-2 border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75]"
+                                        className="flex-1 h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75]"
                                     >
-                                        {Array.from({ length: 60 }, (_, i) => (
-                                            <option key={i} value={i.toString().padStart(2, '0')}>
-                                                {i.toString().padStart(2, '0')}
-                                            </option>
-                                        ))}
+                                        {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
                                     </select>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-2">ชั่วโมง : นาที</p>
+                                <p className="text-[10px] text-gray-400 mt-1.5">ชั่วโมง : นาที</p>
                             </div>
                         </PopoverContent>
                     </Popover>
-                    {renderError()}
+                    <FieldError message={errorMsg} />
                 </div>
             );
 
         case 'multiselect':
             return (
-                <div key={question.name} className="space-y-2">
-                    {renderLabel()}
-                    <div className={`space-y-3 p-4 bg-white border-2 rounded-xl ${
-                        errors[question.name] ? 'border-rose-300 bg-rose-50' : 'border-gray-200'
+                <div className="space-y-1.5">
+                    <FieldLabel index={index} label={question.label} required={question.required} />
+                    <div className={`space-y-2 p-3 bg-white border rounded-xl ${
+                        hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
                     }`}>
                         {filteredOptions.map((option) => (
-                            <div key={option.value} className="flex items-center space-x-3">
+                            <label key={option.value} htmlFor={`${question.name}-${option.value}`} className="flex items-center space-x-2.5 py-1 px-1 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
                                 <Checkbox
                                     id={`${question.name}-${option.value}`}
-                                    checked={((formValues[question.name] as string[]) || []).includes(option.value)}
+                                    checked={((currentValue as string[]) || []).includes(option.value)}
                                     onCheckedChange={(checked) => {
-                                        const currentValues = (formValues[question.name] as string[]) || [];
+                                        const currentValues = (currentValue as string[]) || [];
                                         if (checked) {
                                             onInputChange(question.name, [...currentValues, option.value]);
                                         } else {
                                             onInputChange(question.name, currentValues.filter(v => v !== option.value));
                                         }
                                     }}
-                                    className="border-2 border-gray-300 data-[state=checked]:bg-[#026a75] data-[state=checked]:border-[#026a75]"
+                                    className="border-gray-300 data-[state=checked]:bg-[#026a75] data-[state=checked]:border-[#026a75]"
                                 />
-                                <Label
-                                    htmlFor={`${question.name}-${option.value}`}
-                                    className="text-sm font-medium text-gray-700 cursor-pointer"
-                                >
-                                    {option.label}
-                                </Label>
-                            </div>
+                                <span className="text-sm text-gray-700">{option.label}</span>
+                            </label>
                         ))}
                     </div>
-                    {renderError()}
+                    <FieldError message={errorMsg} />
                 </div>
             );
 
         case 'longtext':
             return (
-                <div key={question.name} className="space-y-2">
-                    {renderLabel()}
+                <div className="space-y-1.5">
+                    <FieldLabel index={index} label={question.label} required={question.required} />
                     <textarea
-                        value={formValues[question.name] as string || ''}
-                        onChange={(e) => onInputChange(question.name, e.target.value)}
+                        value={currentValue as string || ''}
+                        onChange={handleTextChange}
                         placeholder="กรุณาระบุรายละเอียดเพิ่มเติม..."
                         rows={4}
-                        className={`w-full px-4 py-3 bg-white border-2 rounded-xl text-sm resize-none transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/50 ${
-                            errors[question.name] ? 'border-rose-300 bg-rose-50' : 'border-gray-200'
+                        className={`w-full px-4 py-3 bg-white border rounded-xl text-sm resize-none transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/40 ${
+                            hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
                         }`}
                     />
-                    {renderError()}
+                    <FieldError message={errorMsg} />
                 </div>
             );
 
         case 'number':
             return (
-                <div key={question.name} className={`space-y-2 ${widthClass}`}>
-                    {renderLabel()}
+                <div className={`space-y-1.5 ${widthClass}`}>
+                    <FieldLabel index={index} label={question.label} required={question.required} />
                     <input
                         type="number"
-                        value={formValues[question.name] as string || ''}
-                        onChange={(e) => onInputChange(question.name, e.target.value)}
+                        value={currentValue as string || ''}
+                        onChange={handleTextChange}
                         placeholder=""
-                        className={getInputClass(!!errors[question.name])}
+                        className={inputClass}
                     />
-                    {renderError()}
+                    <FieldError message={errorMsg} />
                 </div>
             );
 
         case 'text':
         default:
             return (
-                <div key={question.name} className={`space-y-2 ${widthClass}`}>
-                    {renderLabel()}
+                <div className={`space-y-1.5 ${widthClass}`}>
+                    <FieldLabel index={index} label={question.label} required={question.required} />
                     <input
                         type="text"
-                        value={formValues[question.name] as string || ''}
-                        onChange={(e) => onInputChange(question.name, e.target.value)}
+                        value={currentValue as string || ''}
+                        onChange={handleTextChange}
                         placeholder=""
-                        className={getInputClass(!!errors[question.name])}
+                        className={inputClass}
                     />
-                    {renderError()}
+                    <FieldError message={errorMsg} />
                 </div>
             );
     }
-};
+});
+FormField.displayName = 'FormField';
+
+// ===================== BACKWARD COMPAT: renderFormField function =====================
+export const renderFormField = (props: RenderFieldProps): React.ReactNode => (
+    <FormField {...props} />
+);
 
 // ===================== BUILD SUBMIT VALUES =====================
 export const buildSubmitValues = (
@@ -388,7 +410,6 @@ export const prefillFormValues = (
         const question = questions.find(q => q.id === val.question_id);
         if (question) {
             if (val.value_text) {
-                // Handle multiselect stored as comma-separated
                 if (question.type === 'multiselect') {
                     initialValues[question.name] = val.value_text.split(',');
                 } else {

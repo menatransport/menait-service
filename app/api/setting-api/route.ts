@@ -3,9 +3,8 @@ import type { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
-    const path = searchParams.get('path');
-    // console.log('path : ',"https://api-ncac.onrender.com/forms?form_id=" + path)
-    const res = await fetch("https://api-ncac.onrender.com/forms?form_id=" + path, {
+    const employeeId = searchParams.get('employee_id');
+    const res = await fetch(`https://api-ncac.onrender.com/users/${employeeId}`, {
         method: "GET",
     });
     const data = await res.json();

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import Loading from "@/components/loading";
+import { useSessionContext } from "@/app/context/SessionContext";
 
 function LoginForm() {
     const [username, setUsername] = useState("");
@@ -18,8 +19,9 @@ function LoginForm() {
     const searchParams = useSearchParams();
     const [isLoading, setIsLoading] = useState(() => searchParams.get('google') === 'true');
     const router = useRouter();
+    const { setUser } = useSessionContext();
 
-    const processLogin = useCallback(async (body: object, saveToken = false): Promise<boolean> => {
+    const processLogin = useCallback(async (body: object, saveToken = false, isGoogle = false): Promise<boolean> => {
         setIsLoading(true);
         try {
             const res = await fetch('/api/login', {
@@ -31,21 +33,22 @@ function LoginForm() {
                 const err = await res.json().catch(() => ({}));
                 alert('Login failed: ' + (err?.error || err?.detail || 'Try again.'));
                 setIsLoading(false);
+                if (isGoogle) localStorage.removeItem('google-auth');
                 return false;
             }
             const data = await res.json();
-        
+
             if (data.user) {
                 data.user.role = ['IT', 'Operation Support'].includes(data.user.department) ? 'a' : 'u';
-                localStorage.setItem('user', JSON.stringify(data.user));
+                setUser(data.user);
             }
             if (saveToken && data.access_token) {
                 localStorage.setItem('auth-token', data.access_token);
             }
             setTimeout(() => {
-            sessionStorage.setItem("showWelcome", "true")
-            router.push("/home");
-            }, 3000)
+                sessionStorage.setItem("showWelcome", "true")
+                router.push("/home");
+            }, 1000)
             return true;
         } catch (error) {
             console.error('Login error:', error);
@@ -53,7 +56,7 @@ function LoginForm() {
             setIsLoading(false);
             return false;
         }
-    }, [router]);
+    }, [router, setUser]);
 
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
@@ -62,11 +65,11 @@ function LoginForm() {
 
     useEffect(() => {
         if (searchParams.get('google') !== 'true') return;
-        
+
         const checkGoogleSession = async () => {
             const session = await getSession() as any;
             if (session?.id_token) {
-                await processLogin({ id_token: session.id_token }, true);
+                await processLogin({ id_token: session.id_token }, true, true);
             }
         };
         checkGoogleSession();
@@ -96,53 +99,16 @@ function LoginForm() {
                 </div>
 
                 <Card className="shadow-2xl border-0 relative overflow-visible">
+                    {/* rendering-svg-precision: Reduced SVG precision and simplified decorative element */}
                     <div className="absolute -right-8 -top-16 sm:-right-8 sm:-top-10 opacity-90">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="140" height="120" version="1.1" viewBox="0 0 285.75 190.5">
-                            <defs>
-                                <filter id="shadow">
-                                    <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
-                                    <feOffset dx="0" dy="2" result="offsetblur" />
-                                    <feComponentTransfer>
-                                        <feFuncA type="linear" slope="0.3" />
-                                    </feComponentTransfer>
-                                    <feMerge>
-                                        <feMergeNode />
-                                        <feMergeNode in="SourceGraphic" />
-                                    </feMerge>
-                                </filter>
-                            </defs>
-                            <g transform="translate(0 -106.5)">
-                                <path d="m101.74 119.25v75l17.321 9.9998 43.301 25 21.65 12.5v-75l-43.301-25-21.65-12.5zm4.3301 7.5 73.612 42.5v65l-73.612-42.5z" fill="#999" />
-                                <path d="m101.74 194.25-8.6599 5.0002h-5.2e-4l-38.971 22.5-17.321 9.9999 82.273 47.5 64.952-37.5z" fill="#666" />
-                                <path d="m106.07 191.75v-65l73.612 42.5v65z" fill="#d7f9fc" />
-                                <path d="m36.787 231.75v5l82.272 47.5 64.952-37.5v-5l-64.952 37.5z" fill="#999" />
-                                <path d="m67.098 224.25 30.311-17.5 64.952 37.5-30.311 17.5z" fill="#e6e6e6" />
-                                <g transform="translate(2.146 69.75)" fill="#b3b3b3">
-                                    <path d="m95.263 142 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m103.92 147 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m112.58 152 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m121.24 157 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m86.603 147 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m95.263 152 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m103.92 157 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m112.58 162 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m77.942 152 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m95.263 162 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m103.92 167 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m99.593 164.5 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m129.9 162 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m138.56 167 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m147.22 172 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m121.24 167 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m129.9 172 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m138.56 177 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m112.58 172 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m121.24 177 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m129.9 182 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                    <path d="m86.603 157 4.3301 2.5-4.3301 2.5-4.3301-2.5z" />
-                                </g>
-                                <path d="m97.409 246.75-12.99 7.5-17.321-10 12.99-7.5z" fill="#b3b3b3" />
-                                <ellipse cx="106" cy="306.5" rx="40" ry="8" fill="#000000" opacity="0.15" filter="url(#shadow)" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="140" height="120" viewBox="0 0 286 191">
+                            <g transform="translate(0 -107)">
+                                <path d="m102 119v75l17 10 43 25 22 13v-75l-43-25-22-13zm4 8 74 42v65l-74-42z" fill="#999"/>
+                                <path d="m102 194-9 5h0l-39 23-17 10 82 47 65-37z" fill="#666"/>
+                                <path d="m106 192v-65l74 42v65z" fill="#d7f9fc"/>
+                                <path d="m37 232v5l82 47 65-37v-5l-65 37z" fill="#999"/>
+                                <path d="m67 224 30-17 65 37-30 18z" fill="#e6e6e6"/>
+                                <path d="m97 247-13 7-17-10 13-7z" fill="#b3b3b3"/>
                             </g>
                         </svg>
                     </div>

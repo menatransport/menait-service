@@ -9,24 +9,11 @@ import { Button } from '@/components/ui/button';
 import { SubmitSuccess } from '@/components/ui/submit-success';
 import Loading from '@/components/loading';
 import { Send, User, Building2, Briefcase, Monitor } from 'lucide-react';
+import { useSessionContext, type UserInfo } from '@/app/context/SessionContext';
 
 interface RatingQuestion {
     id: number;
     question: string;
-}
-
-interface UserInfo {
-    id: number;
-    role: string;
-    username: string;
-    firstname: string;
-    lastname: string;
-    employee_id: string;
-    site: string;
-    department: string;
-    position: string;
-    position_level: string;
-    position_level_id: number;
 }
 
 const SECTION_2_QUESTIONS: RatingQuestion[] = [
@@ -132,7 +119,7 @@ const SectionHeader = ({
 );
 
 export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string; system: string }> }) {
-    const [user, setUser] = useState<UserInfo | null>(null);
+    const { user } = useSessionContext();
     const [formData, setFormData] = useState<FormData>({
         fullName: '',
         department: '',
@@ -146,22 +133,15 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
     const [isSubmitted, setIsSubmitted] = useState(false);
 
     useEffect(() => {
-        const storedUserData = localStorage.getItem('user');
-        if (storedUserData) {
-            try {
-                const userData: UserInfo = JSON.parse(storedUserData);
-                setUser(userData);
-                setFormData(prev => ({
-                    ...prev,
-                    fullName: `${userData.firstname} ${userData.lastname}`,
-                    department: userData.department,
-                    position: userData.position,
-                }));
-            } catch (error) {
-                console.error('Error parsing user data:', error);
-            }
+        if (user) {
+            setFormData(prev => ({
+                ...prev,
+                fullName: `${user.firstname} ${user.lastname}`,
+                department: user.department,
+                position: user.position,
+            }));
         }
-    }, []);
+    }, [user]);
 
     useEffect(() => {
         if (systems.length === 1 && !formData.system) {
