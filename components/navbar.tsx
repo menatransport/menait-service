@@ -1,10 +1,9 @@
 'use client';
 
-import { ArrowLeft, Bell, HomeIcon, Search, Shield, User, ChevronDown, LayoutDashboard, Building, Database, Settings, LogOut, TriangleAlert, ClipboardList, CircleCheck, MessageCircle, Phone } from "lucide-react";
-import { Input } from "./ui/input";
+import { ArrowLeft, Bell, HomeIcon, Shield, User, ChevronDown, LayoutDashboard, Building, Database, Settings, LogOut, TriangleAlert, ClipboardList, CircleCheck } from "lucide-react";
 import { Button } from "./ui/button";
 import { useRouter } from 'next/navigation';
-import { useState, useCallback, memo } from "react";
+import { useCallback, memo } from "react";
 import { signOut } from "next-auth/react";
 import { useSessionContext } from "@/app/context/SessionContext";
 
@@ -31,7 +30,6 @@ const COMPONENT_ADMIN = [
     { title: 'ผู้สร้าง', href: '/builder', style: 'font-semibold text-[#026a75] bg-[#8ce4cb]/10', icon: Building },
     { title: 'ฐานข้อมูล', href: '/master', style: 'font-semibold text-[#026a75] bg-[#8ce4cb]/10', icon: Database },
 ] as const;
-
 
 // rerender-memo: Memoize Navbar to avoid unnecessary re-renders
 export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, title, pagelock = false }) => {
@@ -100,7 +98,7 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
                         <div className="flex items-center gap-2 sm:gap-4">
 
                             {isHome && (
-                                <button className="relative p-2 sm:p-3 bg-white/10 backdrop-blur-sm rounded-xl hover:bg-white/20 transition-all duration-300 hover:scale-105">
+                                <button className="hidden relative p-2 sm:p-3 bg-white/10 backdrop-blur-sm rounded-xl hover:bg-white/20 transition-all duration-300 hover:scale-105">
                                     <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                     <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-rose-500 rounded-full text-[10px] sm:text-xs text-white flex items-center justify-center font-medium animate-pulse">
                                         5
@@ -245,33 +243,6 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
                         </div>
                     </div>
                 </header>
-
-                {isHome && (
-                    <section className="relative z-10 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 animate-fade-in-up">
-                        <div className="max-w-7xl mx-auto">
-                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6">
-
-                                <div className="animate-slide-in-left">
-                                    <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-1 sm:mb-2">
-                                        สวัสดี, {isClient ? user?.firstname : ''} 👋
-                                    </h1>
-                                    <p className="text-white/80 text-sm sm:text-base lg:text-lg">
-                                        วันนี้คุณต้องการความช่วยเหลืออะไร?
-                                    </p>
-                                </div>
-
-                                <div className="relative w-full lg:w-96 animate-fade-in-up">
-                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400 z-10" />
-                                    <Input
-                                        placeholder="ค้นหาบริการ..."
-                                        className="w-full h-11 sm:h-12 lg:h-14 bg-white/95 backdrop-blur-sm border-0 shadow-xl hover:shadow-2xl rounded-xl sm:rounded-2xl pl-10 sm:pl-12 pr-4 text-sm sm:text-base placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-[#8ce4cb] transition-all duration-300"
-                                    />
-                                </div>
-
-                            </div>
-                        </div>
-                    </section>
-                )}
 
             </div>
             {children}
