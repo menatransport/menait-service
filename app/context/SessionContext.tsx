@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useRouter, usePathname } from "next/navigation";
 
 export interface UserInfo {
   id: number;
@@ -25,6 +26,9 @@ interface SessionContextType {
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export const SessionProvider = ({ children }: { children: React.ReactNode }) => {
+  const router = useRouter();
+  const pathname = usePathname();
+
   // rerender-lazy-state-init: Pass function to useState for expensive localStorage read
   const [user, setUserState] = useState<UserInfo | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -42,6 +46,15 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     // Only needed for SSR hydration — client already has data from lazy init
     setLoading(false);
   }, []);
+
+  // Redirect to login if no user data found (except on login page itself)
+  useEffect(() => {
+    if (loading) return;
+    if (!user && pathname !== '/login') {
+      localStorage.removeItem("user");
+      router.replace('/login');
+    }
+  }, [user, loading, pathname, router]);
 
   const setUser = useCallback((newUser: UserInfo | null) => {
     setUserState(newUser);
