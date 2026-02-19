@@ -21,7 +21,7 @@ const COMPONENT_DEFAULT = [
     { title: 'หน้าหลัก', href: '/home', icon: HomeIcon },
     { title: 'แจ้งปัญหา', href: '/issue', icon: TriangleAlert },
     { title: 'ขอบริการ', href: '/service', icon: ClipboardList },
-    { title: 'ติดตามคำขอ', href: '/mytickets', icon: CircleCheck },
+    { title: 'ติดตามคำขอ', href: '/mytickets/all', icon: CircleCheck },
     // { title: 'ข่าวสารและประกาศ', href: '/inform', icon: MessageCircle },
     // { title: 'ติดต่อเรา', href: '/contact', icon: Phone },
 ] as const;

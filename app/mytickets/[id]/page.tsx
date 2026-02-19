@@ -2,8 +2,9 @@
 import { Navbar } from '@/components/navbar';
 import dynamic from 'next/dynamic';
 import { useEffect, useState, useCallback } from 'react';
-import { type TabType } from "@/app/mytickets/tickets/ticketstable"
+import { type TabType } from "@/app/mytickets/[id]/tickets/ticketstable"
 import { useSessionContext } from '@/app/context/SessionContext';
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 // bundle-dynamic-imports: Lazy load heavy ticket components
 const TicketComponent = dynamic(
@@ -42,11 +43,15 @@ export type Ticket = {
 
 export default function TicketsPage() {
     const { user } = useSessionContext();
+    const { id: formIdFromUrl } = useParams<{ id: string }>();
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<TabType>('apv');
-
+    const [autoOpenAttemptedTabs, setAutoOpenAttemptedTabs] = useState<Set<TabType>>(new Set());
+    const [autoOpenId, setAutoOpenId] = useState<string | undefined>(formIdFromUrl);
+    const param = useSearchParams()
+    const router = useRouter();
     const employeeId = user?.employee_id ?? null;
     const role = user?.role ?? null;
 
@@ -75,6 +80,25 @@ export default function TicketsPage() {
         if (!employeeId) return;
         fetchTickets(activeTab);
     }, [employeeId, activeTab, fetchTickets]);
+
+    // Auto-switch tab when autoOpenId ticket is not found in current tab
+    useEffect(() => {
+        if (!autoOpenId || isLoading) return;
+        const found = tickets.find(t => t.form_id === autoOpenId);
+        if (!found && !autoOpenAttemptedTabs.has(activeTab)) {
+            setAutoOpenAttemptedTabs(prev => new Set(prev).add(activeTab));
+            const otherTab: TabType = activeTab === 'apv' ? 'my' : 'apv';
+            if (!autoOpenAttemptedTabs.has(otherTab)) {
+                setActiveTab(otherTab);
+            }
+        }
+    }, [autoOpenId, tickets, isLoading, activeTab, autoOpenAttemptedTabs]);
+
+    // Clear auto-open state and remove form_id from URL
+    const handleAutoOpenClose = useCallback(() => {
+        setAutoOpenId(undefined);
+        router.replace('/mytickets/all', { scroll: false });
+    }, [router]);
 
     const handleTabChange = useCallback((tab: TabType) => {
         setActiveTab(tab);
@@ -198,6 +222,8 @@ export default function TicketsPage() {
                 onFormDataUpdate={(ticket) => handleSelected(ticket)}
                 loading={isLoading}
                 role={role}
+                autoOpenFormId={autoOpenId}
+                onAutoOpenClose={handleAutoOpenClose}
             />
         </Navbar>
     );

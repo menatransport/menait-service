@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState, useCallback, useEffect } from "react";
-import { type Ticket } from "@/app/mytickets/page";
+import { type Ticket } from "@/app/mytickets/[id]/page";
 import { DataTable, Viewer, type TabType } from "./ticketstable";
 
 // ===================== MAIN COMPONENT =====================
@@ -15,7 +15,9 @@ export const TicketComponent = ({
     onStatusChange,
     onFormDataUpdate,
     loading,
-    role
+    role,
+    autoOpenFormId,
+    onAutoOpenClose
 }: {
     tickets: Ticket[];
     onSelect: (ticket: Ticket) => void;
@@ -28,10 +30,27 @@ export const TicketComponent = ({
     onFormDataUpdate?: (ticket: Ticket) => void;
     loading: boolean;
     role?: string | null;
+    autoOpenFormId?: string;
+    onAutoOpenClose?: () => void;
 }) => {
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [filterStatus, setFilterStatus] = useState<string>('all');
+    const [autoOpened, setAutoOpened] = useState(false);
+    const [autoOpenDialogOpen, setAutoOpenDialogOpen] = useState(false);
+    const [autoOpenTicket, setAutoOpenTicket] = useState<Ticket | null>(null);
+
+    // =================== AUTO-OPEN VIEWER (Dialog modal) ===================
+    useEffect(() => {
+        if (autoOpened || !autoOpenFormId || loading || tickets.length === 0) return;
+        const match = tickets.find(t => t.form_id === autoOpenFormId);
+        if (match) {
+            setAutoOpenTicket(match);
+            onSelect(match); // triggers formData fetch
+            setAutoOpenDialogOpen(true);
+            setAutoOpened(true);
+        }
+    }, [autoOpenFormId, tickets, loading, autoOpened, onSelect]);
 
     // =================== COMPUTED VALUES ===================
 
@@ -84,6 +103,25 @@ export const TicketComponent = ({
                 role={role}
             />
 
+            {/* Dialog modal for auto-open from URL */}
+            {autoOpenFormId && (
+                <Viewer
+                    ticket={autoOpenTicket}
+                    formData={formData}
+                    isOpen={autoOpenDialogOpen}
+                    onClose={() => {
+                        setAutoOpenDialogOpen(false);
+                        onAutoOpenClose?.();
+                    }}
+                    onApprove={onApprove || (() => {})}
+                    onReject={onReject || (() => {})}
+                    onStatusChange={onStatusChange}
+                    onFormDataUpdate={onFormDataUpdate}
+                    role={role}
+                    mode="dialog"
+                />
+            )}
+{/* Viewer Navigate link like mytickets/{form_id} */}
         </main>
     );
 };

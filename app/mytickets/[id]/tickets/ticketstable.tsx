@@ -1,8 +1,9 @@
 'use client';
-import { Ticket } from "@/app/mytickets/page";
+import { Ticket } from "@/app/mytickets/[id]/page";
 import { FileSpreadsheet, User, Calendar, Eye, FileText, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { STATUS_CONFIG } from "./types";
@@ -664,7 +665,8 @@ export const Viewer = ({
     onReject,
     onStatusChange,
     onFormDataUpdate,
-    role
+    role,
+    mode = 'sheet'
 }: {
     ticket: Ticket | null;
     formData: any | null;
@@ -675,6 +677,7 @@ export const Viewer = ({
     onStatusChange?: (ticket: Ticket, newStatus: string) => void;
     onFormDataUpdate?: (ticket: Ticket) => void;
     role?: string | null;
+    mode?: 'sheet' | 'dialog';
 }) => {
     const { user: sessionUser } = useSessionContext();
     const [isEditing, setIsEditing] = useState(false);
@@ -838,177 +841,176 @@ export const Viewer = ({
         }
     };
 
-    return (
-        <Sheet open={isOpen} onOpenChange={onClose}>
-            <SheetContent side="right" className="w-full p-0 sm:max-w-lg flex flex-col h-full">
-                <SheetHeader className="border-b p-4 sm:p-6 shrink-0">
-                    <SheetTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</SheetTitle>
-                    <SheetDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</SheetDescription>
-                </SheetHeader>
+    const isDialog = mode === 'dialog';
 
-                {/* Content - Scrollable */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                    {ticket && (
-                        <div className="space-y-5">
-                            {/* Ticket Info */}
-                            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                                {[
-                                    { label: 'รหัสแบบฟอร์ม', value: ticket.form_code },
-                                    { label: 'รหัสคำร้อง', value: ticket.form_id },
-                                    { label: 'ชื่อแบบฟอร์ม', value: ticket.form_name },
-                                    { label: 'ระดับอนุมัติปัจจุบัน', value: ticket.current_level },
-                                ].map(({ label, value }) => (
-                                    <div key={label} className="flex items-center justify-between">
-                                        <span className="text-sm text-gray-500">{label}</span>
-                                        <span className="font-medium text-gray-800">{value}</span>
-                                    </div>
-                                ))}
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-500">สถานะ</span>
-                                    {role === 'a' && ticket.status !== "In Progress" ? (
-                                        <SelectStatus
-                                            status={ticket.status}
-                                            onChange={handleStatusChange}
-                                        />
-                                    ) : (
-                                        <StatusBadge status={ticket.status} />
-                                    )}
+    // =================== SHARED CONTENT ===================
+    const innerContent = (
+        <>
+            {/* Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                {ticket && (
+                    <div className="space-y-5">
+                        {/* Ticket Info */}
+                        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                            {[
+                                { label: 'รหัสแบบฟอร์ม', value: ticket.form_code },
+                                { label: 'รหัสคำร้อง', value: ticket.form_id },
+                                { label: 'ชื่อแบบฟอร์ม', value: ticket.form_name },
+                                { label: 'ระดับอนุมัติปัจจุบัน', value: ticket.current_level },
+                            ].map(({ label, value }) => (
+                                <div key={label} className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-500">{label}</span>
+                                    <span className="font-medium text-gray-800">{value}</span>
                                 </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-500">หมายเหตุ:</span>
-                                    <span className="font-medium text-gray-800">{ticket.remark || '-'}</span>
-                                </div>
+                            ))}
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-500">สถานะ</span>
+                                {role === 'a' && ticket.status !== "In Progress" ? (
+                                    <SelectStatus
+                                        status={ticket.status}
+                                        onChange={handleStatusChange}
+                                    />
+                                ) : (
+                                    <StatusBadge status={ticket.status} />
+                                )}
                             </div>
-
-                            {/* Creator Info */}
-                            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                                <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                                    <User size={18} /> ข้อมูลผู้สร้าง
-                                </h4>
-                                {[
-                                    { label: 'ผู้สร้าง', value: `${ticket.created_by} ${ticket.firstname} ${ticket.lastname}` },
-                                    { label: 'อีเมล', value: ticket.email },
-                                    { label: 'วันที่สร้าง', value: formatDatetime(ticket.created_at) },
-                                ].map(({ label, value }) => (
-                                    <div key={label} className="flex items-center justify-between">
-                                        <span className="text-sm text-gray-500">{label}</span>
-                                        <span className="font-medium text-gray-800 text-sm">{value}</span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Form Data */}
-                            {formData?.values && (
-                                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                                    <div className="flex justify-between items-center">
-                                        <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                                            <FileText size={18} /> ข้อมูลที่กรอก
-                                        </h4>
-                                        <div className="flex gap-2">
-                                            {!isEditing && (ticket.status === 'In Progress' || role == 'a') && (
-                                                <Button
-                                                    variant="default"
-                                                    className="cursor-pointer"
-                                                    onClick={handlePullForm}
-                                                    size="sm"
-                                                    disabled={isLoadingForm}
-                                                >
-                                                    {isLoadingForm ? 'กำลังโหลด...' : 'แก้ไขข้อมูล'}
-                                                </Button>
-                                            )}
-                                            {isEditing && (
-                                                <>
-                                                    <Button
-                                                        variant="secondary"
-                                                        className="cursor-pointer"
-                                                        onClick={handleCancelEdit}
-                                                        size="sm"
-                                                    >
-                                                        ยกเลิก
-                                                    </Button>
-                                                    <Button
-                                                        variant="default"
-                                                        className="cursor-pointer bg-emerald-600 hover:bg-emerald-700"
-                                                        onClick={handleSubmitEdit}
-                                                        size="sm"
-                                                    >
-                                                        ยืนยัน
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Show form fields when editing */}
-                                    {isEditing && formStructure?.questions ? (
-                                        <div className="space-y-4 max-h-96 overflow-y-auto">
-                                            {formStructure.questions.map((question, idx) =>
-                                                renderFormField({
-                                                    question,
-                                                    index: idx,
-                                                    formValues,
-                                                    errors,
-                                                    onInputChange: handleInputChange,
-                                                    compact: true,
-                                                    allQuestions: formStructure.questions
-                                                })
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2 max-h-60 overflow-y-auto grid grid-cols-2 gap-4">
-                                            {formData.values.map((val: any, idx: number) => (
-                                                <div key={idx} className="border-b border-gray-200 pb-2 last:border-0">
-                                                    <p className="text-xs text-gray-500">{val.question_label}</p>
-                                                    <p className="font-medium text-gray-800">
-                                                        {val.value_text || val.value_number || val.value_date || (val.value_boolean !== null ? (val.value_boolean ? 'ใช่' : 'ไม่') : '-')}
-                                                    </p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Timeline */}
-                            <div className="bg-gray-50 rounded-xl p-4">
-                                <h4 className="font-semibold text-gray-800 flex items-center gap-2 mb-4">
-                                    <Clock size={18} /> ประวัติการดำเนินการ
-                                </h4>
-                                <div className="flex items-start gap-3">
-                                    <div className="w-3 h-3 bg-[#026a75] rounded-full mt-1" />
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-800">สร้างคำร้อง</p>
-                                        <p className="text-xs text-gray-500">{formatDatetime(ticket.created_at)}</p>
-                                    </div>
-                                </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-500">หมายเหตุ:</span>
+                                <span className="font-medium text-gray-800">{ticket.remark || '-'}</span>
                             </div>
                         </div>
-                    )}
-                </div>
 
-                {ticket && ticket.status == "In Progress" && !isEditing && (
-                    <div className="border-t p-4 sm:p-6 shrink-0 bg-white">
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowRejectDialog(true)}
-                                className="flex-1 cursor-pointer bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition-colors font-medium"
-                            >
-                                <XCircle size={20} />
-                                ปฏิเสธ
-                            </button>
-                            <button
-                                onClick={() => setShowApproveDialog(true)}
-                                className="flex-1 cursor-pointer bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition-colors font-medium"
-                            >
-                                <CheckCircle size={20} />
-                                อนุมัติ
-                            </button>
+                        {/* Creator Info */}
+                        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                            <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                                <User size={18} /> ข้อมูลผู้สร้าง
+                            </h4>
+                            {[
+                                { label: 'ผู้สร้าง', value: `${ticket.created_by} ${ticket.firstname} ${ticket.lastname}` },
+                                { label: 'อีเมล', value: ticket.email },
+                                { label: 'วันที่สร้าง', value: formatDatetime(ticket.created_at) },
+                            ].map(({ label, value }) => (
+                                <div key={label} className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-500">{label}</span>
+                                    <span className="font-medium text-gray-800 text-sm">{value}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Form Data */}
+                        {formData?.values && (
+                            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                                        <FileText size={18} /> ข้อมูลที่กรอก
+                                    </h4>
+                                    <div className="flex gap-2">
+                                        {!isEditing && (ticket.status === 'In Progress' || role == 'a') && (
+                                            <Button
+                                                variant="default"
+                                                className="cursor-pointer"
+                                                onClick={handlePullForm}
+                                                size="sm"
+                                                disabled={isLoadingForm}
+                                            >
+                                                {isLoadingForm ? 'กำลังโหลด...' : 'แก้ไขข้อมูล'}
+                                            </Button>
+                                        )}
+                                        {isEditing && (
+                                            <>
+                                                <Button
+                                                    variant="secondary"
+                                                    className="cursor-pointer"
+                                                    onClick={handleCancelEdit}
+                                                    size="sm"
+                                                >
+                                                    ยกเลิก
+                                                </Button>
+                                                <Button
+                                                    variant="default"
+                                                    className="cursor-pointer bg-emerald-600 hover:bg-emerald-700"
+                                                    onClick={handleSubmitEdit}
+                                                    size="sm"
+                                                >
+                                                    ยืนยัน
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Show form fields when editing */}
+                                {isEditing && formStructure?.questions ? (
+                                    <div className="space-y-4 max-h-96 overflow-y-auto">
+                                        {formStructure.questions.map((question, idx) =>
+                                            renderFormField({
+                                                question,
+                                                index: idx,
+                                                formValues,
+                                                errors,
+                                                onInputChange: handleInputChange,
+                                                compact: true,
+                                                allQuestions: formStructure.questions
+                                            })
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2 max-h-60 overflow-y-auto grid grid-cols-2 gap-4">
+                                        {formData.values.map((val: any, idx: number) => (
+                                            <div key={idx} className="border-b border-gray-200 pb-2 last:border-0">
+                                                <p className="text-xs text-gray-500">{val.question_label}</p>
+                                                <p className="font-medium text-gray-800">
+                                                    {val.value_text || val.value_number || val.value_date || (val.value_boolean !== null ? (val.value_boolean ? 'ใช่' : 'ไม่') : '-')}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Timeline */}
+                        <div className="bg-gray-50 rounded-xl p-4">
+                            <h4 className="font-semibold text-gray-800 flex items-center gap-2 mb-4">
+                                <Clock size={18} /> ประวัติการดำเนินการ
+                            </h4>
+                            <div className="flex items-start gap-3">
+                                <div className="w-3 h-3 bg-[#026a75] rounded-full mt-1" />
+                                <div>
+                                    <p className="text-sm font-medium text-gray-800">สร้างคำร้อง</p>
+                                    <p className="text-xs text-gray-500">{formatDatetime(ticket.created_at)}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
+            </div>
 
-            </SheetContent>
+            {ticket && ticket.status == "In Progress" && !isEditing && (
+                <div className="border-t p-4 sm:p-6 shrink-0 bg-white">
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => setShowRejectDialog(true)}
+                            className="flex-1 cursor-pointer bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition-colors font-medium"
+                        >
+                            <XCircle size={20} />
+                            ปฏิเสธ
+                        </button>
+                        <button
+                            onClick={() => setShowApproveDialog(true)}
+                            className="flex-1 cursor-pointer bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition-colors font-medium"
+                        >
+                            <CheckCircle size={20} />
+                            อนุมัติ
+                        </button>
+                    </div>
+                </div>
+            )}
+        </>
+    );
 
+    const alertDialogs = (
+        <>
             {/* Approve Dialog */}
             <AlertDialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
                 <AlertDialogContent className="swal-on-sheet">
@@ -1105,6 +1107,36 @@ export const Viewer = ({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+        </>
+    );
+
+    if (isDialog) {
+        return (
+            <>
+                <Dialog open={isOpen} onOpenChange={onClose}>
+                    <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0" showCloseButton>
+                        <DialogHeader className="border-b p-4 sm:p-6 shrink-0">
+                            <DialogTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</DialogTitle>
+                            <DialogDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</DialogDescription>
+                        </DialogHeader>
+                        {innerContent}
+                    </DialogContent>
+                </Dialog>
+                {alertDialogs}
+            </>
+        );
+    }
+
+    return (
+        <Sheet open={isOpen} onOpenChange={onClose}>
+            <SheetContent side="right" className="w-full p-0 sm:max-w-lg flex flex-col h-full">
+                <SheetHeader className="border-b p-4 sm:p-6 shrink-0">
+                    <SheetTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</SheetTitle>
+                    <SheetDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</SheetDescription>
+                </SheetHeader>
+                {innerContent}
+            </SheetContent>
+            {alertDialogs}
         </Sheet>
     );
 }

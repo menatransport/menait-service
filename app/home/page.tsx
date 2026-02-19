@@ -25,7 +25,7 @@ const MENU_ITEMS = [
         title: "ติดตามคำร้องและอนุมัติ",
         description: "ตรวจสอบคำร้อง และการอนุมัติ",
         icon: CheckCircle,
-        href: "/mytickets",
+        href: "/mytickets/all",
         color: "bg-gradient-to-br from-emerald-500 to-emerald-600",
     },
 ];
