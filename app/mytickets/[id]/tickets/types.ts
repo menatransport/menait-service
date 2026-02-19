@@ -23,7 +23,7 @@ export interface FormData {
 }
 
 // Status configuration for badges
-export type StatusType = 'Open' | 'Closed' | 'In Progress' | 'Pending' | 'Approved' | 'Rejected';
+export type StatusType = 'Open' | 'Closed' | 'In-Progress' | 'Pending' | 'Approved' | 'Rejected';
 
 export interface StatusConfig {
     label: string;
@@ -42,7 +42,7 @@ export const STATUS_CONFIG: Record<string, StatusConfig> = {
         variant: 'secondary',
         className: 'bg-gray-500 hover:bg-gray-600 text-white border-gray-500'
     },
-    'In Progress': {
+    'In-Progress': {
         label: 'In Progress',
         variant: 'default',
         className: 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500'

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useSessionContext } from "@/app/context/SessionContext";
 import { Input } from "@/components/ui/input";
 import { Robot } from "@/components/robot";
+import { WaveBackground } from "@/components/wave-background";
 
 export default function HomePage() {
     const router = useRouter();
@@ -64,7 +65,6 @@ export default function HomePage() {
         router.push(path);
     }, [router]);
 
-    // Greeting based on time of day
     const greeting = useMemo(() => {
         const hour = new Date().getHours();
         if (hour < 12) return 'สวัสดีตอนเช้า';
@@ -89,7 +89,7 @@ export default function HomePage() {
 
     return (
         <Navbar isHome={true} title={''}>
-            <section className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-10 lg:py-14 animate-fade-in-up shrink-0 flex items-center justify-center min-h-[60vh] sm:min-h-0" aria-label="MenaIT Service">
+            <section className="relative z-50 px-4 sm:px-6 lg:px-8 py-6 sm:py-10 lg:py-14 animate-fade-in-up shrink-0 flex items-center justify-center min-h-[60vh] sm:min-h-0" aria-label="MenaIT Service">
                 {/* Modern decorative background */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
                     {/* Mesh gradient blobs */}
@@ -97,7 +97,6 @@ export default function HomePage() {
                     <div className="absolute -bottom-24 -left-24 w-60 h-60 sm:w-80 sm:h-80 bg-[#0ea5e9]/10 rounded-full blur-3xl animate-hero-glow" style={{ animationDelay: '2s' }} />
                     <div className="absolute top-1/4 right-1/3 w-40 h-40 sm:w-56 sm:h-56 bg-[#8b5cf6]/8 rounded-full blur-3xl animate-hero-glow" style={{ animationDelay: '4s' }} />
                     <div className="absolute bottom-1/3 left-1/4 w-32 h-32 sm:w-44 sm:h-44 bg-[#f59e0b]/6 rounded-full blur-3xl animate-hero-glow" style={{ animationDelay: '3s' }} />
-
 
                     {/* Radial gradient center glow */}
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[60%] bg-[#8ce4cb]/5 rounded-full blur-3xl" />
@@ -191,9 +190,10 @@ export default function HomePage() {
             </section>
                     
              {/* Robot Assistant Section */}
-            <section className="flex justify-center z-50 animate-fade-in-up sm:mt-5" aria-label="Robot Assistant">
+            <section className="flex justify-center z-40 animate-fade-in-up" aria-label="Robot Assistant">
                 <Robot greeting={"สวัสดี"} />
             </section>
+            <WaveBackground />
         </Navbar>
     );
 }

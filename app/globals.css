@@ -224,6 +224,19 @@
   animation: scaleIn 0.5s ease-out forwards;
 }
 
+/* Wave Animations */
+.animate-wave-slow {
+  animation: wave-move 12s ease-in-out infinite;
+}
+
+.animate-wave-medium {
+  animation: wave-move 8s ease-in-out infinite reverse;
+}
+
+.animate-wave-fast {
+  animation: wave-move 6s ease-in-out infinite;
+}
+
 /* Robot Assistant Animations */
 @keyframes bounceGentle {
   0%, 100% { transform: translateY(0); }
