@@ -2,7 +2,7 @@
 
 export const WaveBackground = () => {
     return (
-        <div className="w-full overflow-hidden pointer-events-none absolute bottom-0 left-0">
+        <div className="w-full overflow-hidden pointer-events-none fixed bottom-0 left-0 z-0">
             <svg className="w-full h-24 xs:h-28 sm:h-36 md:h-44 lg:h-52 xl:h-60" viewBox="0 0 1440 320" preserveAspectRatio="none">
                 <defs>
                     <linearGradient id="waveGradient1" x1="0%" y1="0%" x2="100%" y2="0%">

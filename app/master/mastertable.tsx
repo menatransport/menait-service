@@ -1,113 +1,46 @@
 'use client';
-import React, { useState, useMemo, useCallback, memo } from "react";
-import { Button } from "@/components/ui/button";
-import { TableSkeleton } from "@/components/ui/loading";
+
+import React, { useState, useMemo, useCallback, memo } from 'react';
+import { Button } from '@/components/ui/button';
+import { TableSkeleton } from '@/components/ui/loading';
 import {
-    FileSpreadsheet, Search, X, Users, ChevronDown, ChevronRight,
-    Building2, MapPin, Briefcase, AlertCircle, RotateCcw,
-    ChevronLeft, ChevronRight as ChevronRightNav,
-    CaseUpper, Eye
-} from "lucide-react";
+    FileSpreadsheet, Users, ChevronDown, ChevronRight,
+    Building2, MapPin, Briefcase, Eye, ExternalLink
+} from 'lucide-react';
 import { UserDetailSheet } from './user-detail-sheet';
-import type { UserData } from '@/components/profile-form';
-export type { UserData } from '@/components/profile-form';
 
-interface MasterTableProps {
-    data: UserData[];
-    isLoading: boolean;
-    error: string | null;
-    onRetry: () => void;
-}
+// Local imports - bundle-barrel-imports: Import directly
+import {
+    USER_COLUMNS, FORM_COLUMNS,
+    parseLevelNum, formatThaiDate, getUserInitials
+} from './constants';
+import {
+    StatusBadge, UserEmptyState, FormEmptyState, ErrorState,
+    TableHeader, TableWrapper, TableHead, ExcelButton
+} from './shared-components';
+import type {
+    UserData, FormData, DepartmentGroup,
+    MasterTableProps, TableFormProps
+} from './types';
 
-interface DepartmentGroup {
+// Re-export types for external use
+export type { UserData, FormData } from './types';
+
+// ===================== USER TABLE SUB-COMPONENTS =====================
+
+const DepartmentHeaderRow = memo(({
+    department, count, isOpen, onToggle
+}: {
     department: string;
-    users: UserData[];
-}
-
-// rendering-hoist-jsx: Hoist static constants outside component
-const ITEMS_PER_PAGE = 20;
-
-// Columns for grouped table (no department column — it's in group header)
-const GROUP_COLUMNS: { key: string; label: string }[] = [
-    { key: 'employee_id', label: 'รหัสพนักงาน' },
-    { key: 'firstname', label: 'ชื่อ-นามสกุล' },
-    { key: 'site', label: 'สาขา' },
-    { key: 'position', label: 'ตำแหน่ง' },
-    { key: 'position_level', label: 'ระดับ' },
-    { key: 'employee_status', label: 'สถานะ' },
-    { key: 'actions', label: 'จัดการ' },
-];
-
-// rendering-hoist-jsx: Static status config
-const STATUS_STYLES: Record<string, string> = {
-    active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    inactive: 'bg-red-50 text-red-700 border-red-200',
-    probation: 'bg-amber-50 text-amber-700 border-amber-200',
-};
-
-const getStatusStyle = (status: string | null): string => {
-    if (!status) return 'bg-gray-50 text-gray-500 border-gray-200';
-    return STATUS_STYLES[status.toLowerCase()] || 'bg-gray-50 text-gray-600 border-gray-200';
-};
-
-// rendering-hoist-jsx: Static position level ranking map
-const POSITION_LEVEL_MAP: Record<string, number> = {
-    'Chief Executive Officer': 9,
-    'C-Level': 8,
-    'Deputy C-level': 7,
-    'Senior Manager': 6,
-    'Manager': 5,
-    'Assistant Manager': 4,
-    'Supervisor': 3,
-    'Assistant Supervisor': 2,
-    'Officer': 1,
-};
-
-// Parse position_level to number for sorting (higher = first)
-const parseLevelNum = (level: string | null): number => {
-    if (!level) return -1;
-    const mapped = POSITION_LEVEL_MAP[level];
-    if (mapped !== undefined) return mapped;
-    // Fallback: try case-insensitive match
-    const lower = level.toLowerCase();
-    for (const [key, val] of Object.entries(POSITION_LEVEL_MAP)) {
-        if (key.toLowerCase() === lower) return val;
-    }
-    // Fallback: try parsing as number
-    const num = parseFloat(level);
-    return isNaN(num) ? 0 : num;
-};
-
-// ===================== SUB COMPONENTS (rerender-memo) =====================
-
-const StatusBadge = memo(({ status }: { status: string | null }) => (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border ${getStatusStyle(status)}`}>
-        <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" />
-        {status || '-'}
-    </span>
-));
-StatusBadge.displayName = 'StatusBadge';
-
-const EmptyState = memo(() => (
-    <div className="flex flex-col items-center gap-3 py-16">
-        <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center">
-            <Users className="w-6 h-6 text-gray-400" />
-        </div>
-        <p className="text-sm text-gray-500 font-medium">ไม่พบข้อมูลพนักงาน</p>
-        <p className="text-xs text-gray-400">ลองปรับเงื่อนไขการค้นหา</p>
-    </div>
-));
-EmptyState.displayName = 'EmptyState';
-
-// Department group header row (desktop)
-const DepartmentHeaderRow = memo(({ department, count, isOpen, onToggle }: {
-    department: string; count: number; isOpen: boolean; onToggle: () => void;
+    count: number;
+    isOpen: boolean;
+    onToggle: () => void;
 }) => (
     <tr
         className="bg-[#026a75]/5 cursor-pointer hover:bg-[#026a75]/10 transition-colors select-none"
         onClick={onToggle}
     >
-        <td colSpan={GROUP_COLUMNS.length} className="px-4 py-2.5">
+        <td colSpan={USER_COLUMNS.length} className="px-4 py-2.5">
             <div className="flex items-center gap-2.5">
                 {isOpen
                     ? <ChevronDown className="w-4 h-4 text-[#026a75] shrink-0" />
@@ -126,8 +59,12 @@ const DepartmentHeaderRow = memo(({ department, count, isOpen, onToggle }: {
 ));
 DepartmentHeaderRow.displayName = 'DepartmentHeaderRow';
 
-// User row in desktop table
-const UserRow = memo(({ user, onView }: { user: UserData; onView: (u: UserData) => void }) => (
+const UserRow = memo(({
+    user, onView
+}: {
+    user: UserData;
+    onView: (u: UserData) => void
+}) => (
     <tr className="transition-colors hover:bg-gray-50/80 even:bg-gray-50/40">
         <td className="whitespace-nowrap px-4 py-2.5 pl-11">
             <span className="font-mono text-xs font-semibold text-[#026a75]">
@@ -137,10 +74,12 @@ const UserRow = memo(({ user, onView }: { user: UserData; onView: (u: UserData) 
         <td className="whitespace-nowrap px-4 py-2.5">
             <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 bg-[#026a75]/10 text-[#026a75]">
-                    {(user.email?.charAt(0)).toUpperCase()}{(user.email?.charAt(user.email.indexOf('@') - 1)).toUpperCase()}
+                    {getUserInitials(user.email)}
                 </div>
                 <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{user.firstname} {user.lastname}</p>
+                    <p className="text-sm font-medium text-gray-800 truncate">
+                        {user.firstname} {user.lastname}
+                    </p>
                     <p className="text-[11px] text-gray-400 truncate">{user.email}</p>
                 </div>
             </div>
@@ -148,7 +87,7 @@ const UserRow = memo(({ user, onView }: { user: UserData; onView: (u: UserData) 
         <td className="whitespace-nowrap px-4 py-2.5 text-sm text-gray-600">
             {user.site || '-'}
         </td>
-        <td className="max-w-50 px-4 py-2.5 text-sm text-gray-600 truncate" title={user.position}>
+        <td className="max-w-50 px-4 py-2.5 text-sm text-gray-600 truncate" title={user.position ?? undefined}>
             {user.position || '-'}
         </td>
         <td className="whitespace-nowrap px-4 py-2.5">
@@ -177,16 +116,22 @@ const UserRow = memo(({ user, onView }: { user: UserData; onView: (u: UserData) 
 ));
 UserRow.displayName = 'UserRow';
 
-
-const UserMobileCard = memo(({ user, onView }: { user: UserData; onView: (u: UserData) => void }) => (
+const UserMobileCard = memo(({
+    user, onView
+}: {
+    user: UserData;
+    onView: (u: UserData) => void
+}) => (
     <div className="bg-white border border-gray-100 rounded-xl p-3.5 space-y-2">
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 bg-[#026a75]/10 text-[#026a75]">
-                    {(user.email?.charAt(0)).toUpperCase()}{(user.email?.charAt(user.email.indexOf('@') - 1)).toUpperCase()}
+                    {getUserInitials(user.email)}
                 </div>
                 <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{user.firstname} {user.lastname}</p>
+                    <p className="text-sm font-semibold text-gray-800 truncate">
+                        {user.firstname} {user.lastname}
+                    </p>
                     <p className="text-[11px] text-gray-400 font-mono">{user.employee_id}</p>
                 </div>
             </div>
@@ -213,9 +158,13 @@ const UserMobileCard = memo(({ user, onView }: { user: UserData; onView: (u: Use
 ));
 UserMobileCard.displayName = 'UserMobileCard';
 
-// Mobile department group
-const MobileDepartmentGroup = memo(({ group, isOpen, onToggle, onViewUser }: {
-    group: DepartmentGroup; isOpen: boolean; onToggle: () => void; onViewUser: (u: UserData) => void;
+const MobileDepartmentGroup = memo(({
+    group, isOpen, onToggle, onViewUser
+}: {
+    group: DepartmentGroup;
+    isOpen: boolean;
+    onToggle: () => void;
+    onViewUser: (u: UserData) => void;
 }) => (
     <div className="border border-gray-100 rounded-xl overflow-hidden">
         <button
@@ -245,13 +194,15 @@ const MobileDepartmentGroup = memo(({ group, isOpen, onToggle, onViewUser }: {
 ));
 MobileDepartmentGroup.displayName = 'MobileDepartmentGroup';
 
-// ===================== MAIN COMPONENT =====================
+// ===================== MASTER TABLE (USER) =====================
+
 export const MasterTable = memo(({ data, isLoading, error, onRetry }: MasterTableProps) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [collapsedDeps, setCollapsedDeps] = useState<Set<string>>(new Set());
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
 
+    // rerender-functional-setstate: Use callbacks for stable handlers
     const handleViewUser = useCallback((user: UserData) => {
         setSelectedUser(user);
         setSheetOpen(true);
@@ -261,48 +212,44 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry }: MasterTabl
         setSearchTerm(e.target.value);
     }, []);
 
-    const handleClearSearch = useCallback(() => {
-        setSearchTerm('');
-    }, []);
+    const handleClearSearch = useCallback(() => setSearchTerm(''), []);
 
     const toggleDepartment = useCallback((dept: string) => {
         setCollapsedDeps(prev => {
             const next = new Set(prev);
-            if (next.has(dept)) {
-                next.delete(dept);
-            } else {
-                next.add(dept);
-            }
+            next.has(dept) ? next.delete(dept) : next.add(dept);
             return next;
         });
     }, []);
 
     const expandAll = useCallback(() => setCollapsedDeps(new Set()), []);
+
     const collapseAll = useCallback(() => {
-        setCollapsedDeps(prev => {
-            const allDeps = new Set(data.map(u => u.department || ''));
-            return allDeps;
-        });
+        const allDeps = new Set(data.map(u => u.department || ''));
+        setCollapsedDeps(allDeps);
     }, [data]);
 
+    // js-combine-iterations: Single pass for filter + group
     const { groups, totalFiltered } = useMemo(() => {
-        let filtered = data;
-
-        if (searchTerm.trim()) {
-            const term = searchTerm.toLowerCase();
-            filtered = data.filter(u =>
-                u.employee_id?.toLowerCase().includes(term) ||
-                u.firstname?.toLowerCase().includes(term) ||
-                u.lastname?.toLowerCase().includes(term) ||
-                u.department?.toLowerCase().includes(term) ||
-                u.site?.toLowerCase().includes(term) ||
-                u.position?.toLowerCase().includes(term) ||
-                u.email?.toLowerCase().includes(term)
-            );
-        }
-
+        const term = searchTerm.trim().toLowerCase();
         const groupMap = new Map<string, UserData[]>();
-        for (const user of filtered) {
+        let count = 0;
+
+        for (const user of data) {
+            // Filter
+            if (term) {
+                const matches =
+                    user.employee_id?.toLowerCase().includes(term) ||
+                    user.firstname?.toLowerCase().includes(term) ||
+                    user.lastname?.toLowerCase().includes(term) ||
+                    user.department?.toLowerCase().includes(term) ||
+                    user.site?.toLowerCase().includes(term) ||
+                    user.position?.toLowerCase().includes(term) ||
+                    user.email?.toLowerCase().includes(term);
+                if (!matches) continue;
+            }
+
+            // Group
             const dept = user.department || '';
             const arr = groupMap.get(dept);
             if (arr) {
@@ -310,86 +257,39 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry }: MasterTabl
             } else {
                 groupMap.set(dept, [user]);
             }
+            count++;
         }
 
+        // Sort and build result
         const result: DepartmentGroup[] = [];
         for (const [dept, users] of groupMap) {
             users.sort((a, b) => parseLevelNum(b.position_level) - parseLevelNum(a.position_level));
             result.push({ department: dept, users });
         }
-
-        // Sort departments alphabetically
         result.sort((a, b) => a.department.localeCompare(b.department, 'th'));
 
-        return { groups: result, totalFiltered: filtered.length };
+        return { groups: result, totalFiltered: count };
     }, [data, searchTerm]);
 
-    // Error state
+    // js-early-exit: Handle error state first
     if (error) {
-        return (
-            <div className="overflow-hidden rounded-2xl border border-red-100 bg-white shadow-sm">
-                <div className="flex flex-col items-center gap-4 p-12">
-                    <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center">
-                        <AlertCircle className="w-6 h-6 text-red-400" />
-                    </div>
-                    <div className="text-center">
-                        <p className="text-sm font-medium text-gray-700">{error}</p>
-                        <p className="text-xs text-gray-400 mt-1">กรุณาลองใหม่อีกครั้ง</p>
-                    </div>
-                    <Button variant="outline" onClick={onRetry} className="gap-2 rounded-xl">
-                        <RotateCcw className="w-4 h-4" />
-                        ลองใหม่
-                    </Button>
-                </div>
-            </div>
-        );
+        return <ErrorState message={error} onRetry={onRetry} />;
     }
 
     return (
-        <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+        <TableWrapper>
+            <TableHeader
+                icon={<Users className="w-5 h-5" />}
+                title="ข้อมูลองค์กร"
+                subtitle={`${groups.length} แผนก · ${totalFiltered.toLocaleString()} คน (จาก ${data.length.toLocaleString()} รายการ)`}
+                actions={<ExcelButton />}
+                searchValue={searchTerm}
+                onSearchChange={handleSearchChange}
+                onSearchClear={handleClearSearch}
+                searchPlaceholder="ค้นหาชื่อ, รหัส, แผนก, สาขา..."
+            />
 
-            {/* ── Header ── */}
-            <div className="bg-linear-to-r from-[#026a75] to-[#037a86] px-4 sm:px-6 py-4 sm:py-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                            <Users className="w-5 h-5" />
-                            ข้อมูลองค์กร
-                        </h2>
-                        <p className="text-white/60 text-xs mt-0.5">
-                            {groups.length} แผนก · {totalFiltered.toLocaleString()} คน (จาก {data.length.toLocaleString()} รายการ)
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <button
-                            className="bg-emerald-500/20 border border-emerald-300/30 hover:bg-emerald-500/30 text-white px-3 py-2 rounded-xl flex items-center gap-2 text-sm font-medium transition-all duration-200 cursor-pointer"
-                        >
-                            <FileSpreadsheet className="w-4 h-4" />
-                            <span className="hidden sm:inline">Excel</span>
-                        </button>
-                    </div>
-                </div>
-
-                {/* Search */}
-                <div className="relative mt-3">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={handleSearchChange}
-                        placeholder="ค้นหาชื่อ, รหัส, แผนก, สาขา..."
-                        className="w-1/3 h-10 pl-10 pr-10 bg-[#f6fefffd] border border-white/15 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#026a75] focus:ring-opacity-50 transition-all"
-                    />
-                    {searchTerm && (
-                        <button onClick={handleClearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
-                            <X className="w-4 h-4" />
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            {/* ── Toolbar ── */}
+            {/* Toolbar */}
             {!isLoading && groups.length > 0 && (
                 <div className="px-4 sm:px-6 py-2.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                     <p className="text-[11px] text-gray-400">
@@ -407,31 +307,17 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry }: MasterTabl
                 </div>
             )}
 
-            {/* Card Stat : พนักงานทั้งหมด ,  */}
-
+            {/* Content */}
             {isLoading ? (
-                <div className="p-4">
-                    <TableSkeleton rows={8} />
-                </div>
+                <div className="p-4"><TableSkeleton rows={8} /></div>
             ) : groups.length === 0 ? (
-                <EmptyState />
+                <UserEmptyState />
             ) : (
                 <>
-                    {/* ── Desktop Grouped Table ── */}
+                    {/* Desktop Table */}
                     <div className="hidden lg:block overflow-x-auto">
                         <table className="w-full">
-                            <thead>
-                                <tr className="bg-gray-50 border-b border-gray-100">
-                                    {GROUP_COLUMNS.map(col => (
-                                        <th
-                                            key={col.key}
-                                            className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider select-none"
-                                        >
-                                            {col.label}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
+                            <TableHead columns={USER_COLUMNS} />
                             <tbody>
                                 {groups.map(group => {
                                     const isOpen = !collapsedDeps.has(group.department);
@@ -453,7 +339,7 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry }: MasterTabl
                         </table>
                     </div>
 
-                    {/* ── Mobile Grouped Cards ── */}
+                    {/* Mobile Cards */}
                     <div className="lg:hidden p-3 space-y-2.5">
                         {groups.map(group => (
                             <MobileDepartmentGroup
@@ -468,13 +354,163 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry }: MasterTabl
                 </>
             )}
 
-            {/* ── User Detail Sheet ── */}
             <UserDetailSheet
                 user={selectedUser}
                 open={sheetOpen}
                 onOpenChange={setSheetOpen}
             />
-        </div>
+        </TableWrapper>
     );
 });
 MasterTable.displayName = 'MasterTable';
+
+// ===================== FORM TABLE SUB-COMPONENTS =====================
+
+const FormRow = memo(({ form }: { form: FormData }) => {
+    const handleOpenBuilder = useCallback(() => {
+        window.open(`/builder/${form.form_code}`, '_blank');
+    }, [form.form_code]);
+
+    return (
+        <tr className="transition-colors hover:bg-gray-50/80 even:bg-gray-50/40">
+            <td className="whitespace-nowrap px-4 py-3">
+                <span className="font-mono text-xs font-semibold text-[#026a75] bg-[#026a75]/10 px-2 py-1 rounded">
+                    {form.form_code}
+                </span>
+            </td>
+            <td className="px-4 py-3">
+                <p className="text-sm font-medium text-gray-800">{form.form_name}</p>
+            </td>
+            <td className="whitespace-nowrap px-4 py-3">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 text-blue-700">
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    {form.form_type}
+                </span>
+            </td>
+            <td className="whitespace-nowrap px-4 py-3">
+                <StatusBadge status={form.form_status} />
+            </td>
+            <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                {formatThaiDate(form.created_at)}
+            </td>
+            <td className="whitespace-nowrap px-4 py-3">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleOpenBuilder}
+                    className="cursor-pointer hover:scale-110 h-8 px-3 text-xs font-medium text-[#026a75] border-[#026a75]/30 hover:bg-[#026a75]/10 hover:border-[#026a75] transition-colors"
+                >
+                    <ExternalLink className="w-3.5 h-3.5 text-[#026a75]" />
+                </Button>
+            </td>
+        </tr>
+    );
+});
+FormRow.displayName = 'FormRow';
+
+const FormMobileCard = memo(({ form }: { form: FormData }) => {
+    const handleOpenBuilder = useCallback(() => {
+        window.open(`/builder/${form.form_code}`, '_blank');
+    }, [form.form_code]);
+
+    return (
+        <div className="bg-white border border-gray-100 rounded-xl p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-semibold text-[#026a75] bg-[#026a75]/10 px-2 py-1 rounded">
+                    {form.form_code}
+                </span>
+                <StatusBadge status={form.form_status} />
+            </div>
+            <p className="text-sm font-semibold text-gray-800">{form.form_name}</p>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <span className="inline-flex items-center gap-1">
+                        <FileSpreadsheet className="w-3 h-3" />
+                        {form.form_type}
+                    </span>
+                    <span>{formatThaiDate(form.created_at)}</span>
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleOpenBuilder}
+                    className="h-7 px-2.5 text-xs font-medium text-[#026a75] border-[#026a75]/30 hover:bg-[#026a75]/10"
+                >
+                    <ExternalLink className="w-3 h-3" />
+                </Button>
+            </div>
+        </div>
+    );
+});
+FormMobileCard.displayName = 'FormMobileCard';
+
+// ===================== TABLE FORM =====================
+
+export const TableForm = memo(({ data, isLoading, error, onRetry }: TableFormProps) => {
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchTerm(e.target.value);
+    }, []);
+
+    const handleClearSearch = useCallback(() => setSearchTerm(''), []);
+
+    const filteredData = useMemo(() => {
+        if (!searchTerm.trim()) return data;
+        const term = searchTerm.toLowerCase();
+        return data.filter(form =>
+            form.form_code?.toLowerCase().includes(term) ||
+            form.form_name?.toLowerCase().includes(term) ||
+            form.form_type?.toLowerCase().includes(term)
+        );
+    }, [data, searchTerm]);
+
+    // js-early-exit: Handle error state first
+    if (error) {
+        return <ErrorState message={error} onRetry={onRetry} />;
+    }
+
+    return (
+        <TableWrapper>
+            <TableHeader
+                icon={<FileSpreadsheet className="w-5 h-5" />}
+                title="รายการแบบฟอร์ม"
+                subtitle={`${filteredData.length.toLocaleString()} รายการ (จาก ${data.length.toLocaleString()} รายการ)`}
+                actions={<ExcelButton />}
+                searchValue={searchTerm}
+                onSearchChange={handleSearchChange}
+                onSearchClear={handleClearSearch}
+                searchPlaceholder="ค้นหารหัสฟอร์ม, ชื่อ, ประเภท..."
+            />
+
+            {/* Content */}
+            {isLoading ? (
+                <div className="p-4"><TableSkeleton rows={8} /></div>
+            ) : filteredData.length === 0 ? (
+                <FormEmptyState />
+            ) : (
+                <>
+                    {/* Desktop Table */}
+                    <div className="hidden lg:block overflow-x-auto">
+                        <table className="w-full">
+                            <TableHead columns={FORM_COLUMNS} />
+                            <tbody>
+                                {filteredData.map(form => (
+                                    <FormRow key={form.id} form={form} />
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Mobile Cards */}
+                    <div className="lg:hidden p-3 space-y-2.5">
+                        {filteredData.map(form => (
+                            <FormMobileCard key={form.id} form={form} />
+                        ))}
+                    </div>
+                </>
+            )}
+        </TableWrapper>
+    );
+});
+TableForm.displayName = 'TableForm';
