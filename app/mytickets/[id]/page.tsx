@@ -4,7 +4,8 @@ import dynamic from 'next/dynamic';
 import { useEffect, useState, useCallback } from 'react';
 import { type TabType } from "@/app/mytickets/[id]/tickets/ticketstable"
 import { useSessionContext } from '@/app/context/SessionContext';
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { WaveBackground } from '@/components/wave-background';
 
 // bundle-dynamic-imports: Lazy load heavy ticket components
 const TicketComponent = dynamic(
@@ -35,6 +36,7 @@ export type Ticket = {
     email: string;
     created_by: string;
     created_by_email: string;
+    department_name_th: string;
     created_at: string;
     image_url?: string;
     remark?: string;
@@ -48,12 +50,15 @@ export default function TicketsPage() {
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<TabType>('apv');
-    const [autoOpenAttemptedTabs, setAutoOpenAttemptedTabs] = useState<Set<TabType>>(new Set());
-    const [autoOpenId, setAutoOpenId] = useState<string | undefined>(formIdFromUrl);
-    const param = useSearchParams()
     const router = useRouter();
     const employeeId = user?.employee_id ?? null;
     const role = user?.role ?? null;
+
+    // State for auto-open from URL
+    const [autoOpenTicket, setAutoOpenTicket] = useState<Ticket | null>(null);
+    const [autoOpenFormData, setAutoOpenFormData] = useState<any>(null);
+    const [isAutoOpenSheetOpen, setIsAutoOpenSheetOpen] = useState(false);
+    const [isAutoOpenLoading, setIsAutoOpenLoading] = useState(false);
 
     const fetchTickets = useCallback(async (tab: TabType) => {
         if (!employeeId) return;
@@ -81,22 +86,39 @@ export default function TicketsPage() {
         fetchTickets(activeTab);
     }, [employeeId, activeTab, fetchTickets]);
 
-    // Auto-switch tab when autoOpenId ticket is not found in current tab
+    // Fetch ticket directly by form_id from URL (for /mytickets/{form_id})
     useEffect(() => {
-        if (!autoOpenId || isLoading) return;
-        const found = tickets.find(t => t.form_id === autoOpenId);
-        if (!found && !autoOpenAttemptedTabs.has(activeTab)) {
-            setAutoOpenAttemptedTabs(prev => new Set(prev).add(activeTab));
-            const otherTab: TabType = activeTab === 'apv' ? 'my' : 'apv';
-            if (!autoOpenAttemptedTabs.has(otherTab)) {
-                setActiveTab(otherTab);
-            }
-        }
-    }, [autoOpenId, tickets, isLoading, activeTab, autoOpenAttemptedTabs]);
+        if (!formIdFromUrl || formIdFromUrl === 'all' || !employeeId) return;
 
-    // Clear auto-open state and remove form_id from URL
+        const fetchTicketById = async () => {
+            setIsAutoOpenLoading(true);
+            try {
+                // Fetch ticket data by form_id
+                const ticketRes = await fetch(`/api/formselect?path=${formIdFromUrl}`);
+                const ticketData = await ticketRes.json();
+
+                if (ticketRes.ok && ticketData?.[0]) {
+                    setAutoOpenTicket(ticketData[0]);
+                    setAutoOpenFormData(ticketData[0]);
+                    setIsAutoOpenSheetOpen(true);
+                } else {
+                    console.error('Ticket not found for form_id:', formIdFromUrl);
+                }
+            } catch (error) {
+                console.error('Error fetching ticket by ID:', error);
+            } finally {
+                setIsAutoOpenLoading(false);
+            }
+        };
+
+        fetchTicketById();
+    }, [formIdFromUrl, employeeId]);
+
+    // Close auto-open sheet and navigate to /mytickets/all
     const handleAutoOpenClose = useCallback(() => {
-        setAutoOpenId(undefined);
+        setIsAutoOpenSheetOpen(false);
+        setAutoOpenTicket(null);
+        setAutoOpenFormData(null);
         router.replace('/mytickets/all', { scroll: false });
     }, [router]);
 
@@ -191,9 +213,10 @@ export default function TicketsPage() {
     if (isLoading) {
         return (
             <Navbar isHome={false} title="ติดตามสถานะคำร้อง">
-                <main className="flex-1 min-h-0 bg-[#f0fafa] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
-                    <div className="flex items-center justify-center h-64">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#026a75]"></div>
+                <main className="flex-1 min-h-0 bg-[#026a75] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto relative">
+                    <WaveBackground />
+                    <div className="flex items-center justify-center h-64 relative z-10">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
                     </div>
                 </main>
             </Navbar>
@@ -212,7 +235,7 @@ export default function TicketsPage() {
         <Navbar isHome={false} title="ติดตามสถานะคำร้อง">
             <TicketComponent
                 tickets={tickets}
-                formData={selectedTicket}
+                selectTicketBack={selectedTicket}
                 onSelect={(e) => handleSelected(e)}
                 onApprove={handleApprove}
                 onReject={handleReject}
@@ -222,7 +245,11 @@ export default function TicketsPage() {
                 onFormDataUpdate={(ticket) => handleSelected(ticket)}
                 loading={isLoading}
                 role={role}
-                autoOpenFormId={autoOpenId}
+                // Auto-open Sheet from URL
+                autoOpenTicket={autoOpenTicket}
+                autoOpenFormData={autoOpenFormData}
+                isAutoOpenSheetOpen={isAutoOpenSheetOpen}
+                isAutoOpenLoading={isAutoOpenLoading}
                 onAutoOpenClose={handleAutoOpenClose}
             />
         </Navbar>

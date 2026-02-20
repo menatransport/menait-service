@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { buildSubmitValues, FormField } from "@/components/renderForm";
 import { useState, useCallback, useMemo, memo } from "react";
 import Loading from "@/components/loading";
+import { WaveBackground } from "@/components/wave-background";
 
 
 type FormDataType = {
@@ -88,7 +89,6 @@ export const ServiceComponent = ({
         e.preventDefault();
         if (!formData) return;
 
-        // js-combine-iterations: Single loop for validation
         const newErrors: Record<string, string> = {};
         for (const q of formData.questions) {
             if (q.required) {
@@ -101,7 +101,6 @@ export const ServiceComponent = ({
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
-            // Scroll to first error
             const firstErrorKey = Object.keys(newErrors)[0];
             const el = document.querySelector(`[data-field="${firstErrorKey}"]`);
             el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -130,8 +129,9 @@ export const ServiceComponent = ({
 
 
     return (
-        <main className="flex-1 min-h-0 bg-[#f5f7fa] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
-            <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+       <main className="flex-1 min-h-0 bg-[#026a75] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto relative">
+            <WaveBackground />
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 z-10 relative">
 
                 {/* ── Search Card ── */}
                 <Card className="border border-gray-100 shadow-sm rounded-2xl mb-5 sm:mb-6">

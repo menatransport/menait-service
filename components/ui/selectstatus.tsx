@@ -24,7 +24,7 @@ export const SelectStatus = ({ status, onChange }: SelectStatusProps) => {
                             <span className='truncate'>Backlog</span>
                         </span>
                     </SelectItem>
-                    <SelectItem value='In Progress'>
+                    <SelectItem value='In-Progress'>
                         <span className='flex items-center gap-2'>
                             <CircleIcon className='size-2 fill-amber-500 text-amber-500' />
                             <span className='truncate'>In Progress</span>

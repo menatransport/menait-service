@@ -1,7 +1,7 @@
 'use client';
 import { Ticket } from "@/app/mytickets/[id]/page";
-import { FileSpreadsheet, User, Calendar, Eye, FileText, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X } from "lucide-react";
-import { useState, useMemo } from "react";
+import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import type { formSetup } from "@/app/service/[[...slug]]/page";
 import { renderFormField, buildSubmitValues, prefillFormValues, formatDatetime } from "@/components/renderForm";
 import { SelectStatus } from "@/components/ui/selectstatus"
-// bundle-dynamic-imports: Load sweetalert2 only when needed
+
 const showSwal = (options: any) => import('sweetalert2').then(({ default: Swal }) => Swal.fire(options));
 import { useSessionContext } from "@/app/context/SessionContext";
 
@@ -249,23 +249,6 @@ export const DataTable = ({
     return (
         <section className="bg-white rounded-2xl shadow-xl border border-white/30 overflow-hidden relative">
             <div className="p-4 lg:p-5 bg-[#04555e]">
-                <div className="lg:hidden mb-4">
-                    <div className="flex bg-white/10 rounded-xl p-1">
-                        {TAB_OPTIONS.map(({ value, label }) => (
-                            <button
-                                key={value}
-                                onClick={() => onTabChange(value)}
-                                className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all cursor-pointer ${activeTab === value
-                                    ? 'bg-white text-[#04555e] shadow-md'
-                                    : 'text-white/80 hover:text-white'
-                                    }`}
-                            >
-                                {label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
                 {/* Top Row - Title and Actions */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                     <div className="flex items-center justify-between lg:justify-start gap-4">
@@ -565,18 +548,7 @@ export const DataTable = ({
                         <tr>
                             <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 w-[45%]">
                                 <div className="flex gap-1 bg-gray-200 rounded-lg p-1 w-fit">
-                                    {TAB_OPTIONS.map(({ value, label }) => (
-                                        <button
-                                            key={value}
-                                            onClick={() => onTabChange(value)}
-                                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer ${activeTab === value
-                                                ? 'bg-white text-[#026a75] shadow-sm'
-                                                : 'text-gray-600 hover:text-gray-800'
-                                                }`}
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
+                                    <span>หัวข้อคำร้อง</span>
                                 </div>
                             </th>
                             <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[15%]">สถานะ</th>
@@ -611,7 +583,7 @@ export const DataTable = ({
                                                 </p>
                                                 <p className="text-xs text-[#026a75] font-medium">{item.form_id}</p>
                                                 <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                                                    <User size={11} /> <span className="font-bold">{item.created_by}</span> {item.firstname} {item.lastname}
+                                                    <User size={11} /> <span className="font-bold">{item.created_by}</span> {item.firstname} {item.lastname} ฝ่าย: {item.department_name_th}
                                                 </p>
                                             </div>
                                         </div>
@@ -658,7 +630,7 @@ export const DataTable = ({
 // ===================== VIEWER COMPONENT =====================
 export const Viewer = ({
     ticket,
-    formData,
+    selectTicketBack,
     isOpen,
     onClose,
     onApprove,
@@ -669,7 +641,7 @@ export const Viewer = ({
     mode = 'sheet'
 }: {
     ticket: Ticket | null;
-    formData: any | null;
+    selectTicketBack: any | null;
     isOpen: boolean;
     onClose: () => void;
     onApprove: (ticket: Ticket, remark: string) => void;
@@ -706,7 +678,7 @@ export const Viewer = ({
         if (!ticket) return;
         setIsLoadingForm(true);
         try {
-            const response = await fetch(`/api/formsubmit?path=${ticket.form_code}?version=${formData.form_version}`, {
+            const response = await fetch(`/api/formsubmit?path=${ticket.form_code}?version=${selectTicketBack?.form_version}`, {
                 method: "GET",
             });
             const data = await response.json();
@@ -715,12 +687,11 @@ export const Viewer = ({
                 const form = data as formSetup;
                 setFormStructure(form);
 
-                if (formData?.values && form.questions) {
-                    const initialValues = prefillFormValues(form.questions, formData.values);
+                if (selectTicketBack?.values && form.questions) {
+                    const initialValues = prefillFormValues(form.questions, selectTicketBack.values);
                     setFormValues(initialValues);
                 }
 
-                setIsEditing(true);
                 console.log('Fetched form structure:', form);
             } else {
                 alert('เกิดข้อผิดพลาดในการดึงข้อมูลแบบฟอร์ม');
@@ -733,10 +704,35 @@ export const Viewer = ({
         }
     };
 
+    useEffect(() => {
+        if (selectTicketBack && ticket && !formStructure) {
+            setIsLoadingForm(true);
+            const timer = setTimeout(() => {
+                handlePullForm();
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [selectTicketBack, ticket]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setIsEditing(false);
+            setFormStructure(null);
+            setFormValues({});
+            setErrors({});
+        }
+    }, [isOpen]);
+
+    const handleStartEdit = () => {
+        setIsEditing(true);
+    };
+
     const handleCancelEdit = () => {
         setIsEditing(false);
-        setFormStructure(null);
-        setFormValues({});
+        if (formStructure?.questions && selectTicketBack?.values) {
+            const initialValues = prefillFormValues(formStructure.questions, selectTicketBack.values);
+            setFormValues(initialValues);
+        }
         setErrors({});
     };
 
@@ -793,6 +789,7 @@ export const Viewer = ({
         onApprove(ticket, remark);
         setShowApproveDialog(false);
         setRemark('');
+        onClose();
     };
 
     const handleConfirmReject = () => {
@@ -800,6 +797,7 @@ export const Viewer = ({
         onReject(ticket, remark);
         setShowRejectDialog(false);
         setRemark('');
+        onClose();
     };
 
     const handleStatusChange = (newStatus: string) => {
@@ -841,174 +839,170 @@ export const Viewer = ({
         }
     };
 
-    return (
-        <Sheet open={isOpen} onOpenChange={onClose}>
-            <SheetContent side="right" className="w-full p-0 sm:max-w-lg flex flex-col h-full">
-                <SheetHeader className="border-b p-4 sm:p-6 shrink-0">
-                    <SheetTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</SheetTitle>
-                    <SheetDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</SheetDescription>
-                </SheetHeader>
+    const isDialog = mode === 'dialog';
 
-                {/* Content - Scrollable */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                    {ticket && (
-                        <div className="space-y-5">
-                            {/* Ticket Info */}
-                            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                                {[
-                                    { label: 'รหัสแบบฟอร์ม', value: ticket.form_code, color: '#026a75' },
-                                    { label: 'รหัสคำร้อง', value: ticket.form_id },
-                                    { label: 'ชื่อแบบฟอร์ม', value: ticket.form_name },
-                                    { label: 'สถานะอนุมัติ', value: ticket.status_approve === "" ? "ยังไม่อนุมัติ" : ticket.status_approve === "Approved" ? "อนุมัติแล้ว" : "ถูกปฏิเสธ", color: ticket.status_approve === "Approved" ? '#16a34a' : ticket.status_approve === "Rejected" ? '#dc2626' : '#6b7280' },
-                                    { label: 'หมายเหตุการอนุมัติ', value: ticket.remark || '-' },
-                                ].map(({ label, value, color }) => (
-                                    <div key={label} className="flex items-center justify-between">
-                                        <span className="text-sm text-gray-500">{label}</span>
-                                        <span className="font-medium" style={{ color: color || '#1f2937' }}>{value}</span>
-                                    </div>
-                                ))}
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-500">สถานะคำร้อง</span>
-                                    {role === 'a' && ticket.status !== "In Progress" ? (
-                                        <SelectStatus
-                                            status={ticket.status}
-                                            onChange={handleStatusChange}
-                                        />
-                                    ) : (
-                                        <StatusBadge status={ticket.status} />
-                                    )}
+
+    const viewerContent = (
+        <>
+            {/* Content - Scrollable */}
+            <div className={`flex-1 overflow-y-auto p-4 sm:p-6 ${isDialog ? 'h-full' : ''}`}>
+                {ticket && (
+                    <div className="space-y-5">
+                        {/* Ticket Info */}
+                        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                            {[
+                                { label: 'รหัสแบบฟอร์ม', value: ticket.form_code, color: '#026a75' },
+                                { label: 'รหัสคำร้อง', value: ticket.form_id },
+                                { label: 'ชื่อแบบฟอร์ม', value: ticket.form_name },
+                                { label: 'สถานะอนุมัติ', value: selectTicketBack?.status_approve === "In Progress" ? "ยังไม่อนุมัติ" : selectTicketBack?.status_approve === "Approved" ? "อนุมัติแล้ว" : "ถูกปฏิเสธ", color: selectTicketBack?.status_approve === "Approved" ? '#16a34a' : selectTicketBack?.status_approve === "Rejected" ? '#dc2626' : '#6b7280' },
+                                { label: 'หมายเหตุการอนุมัติ', value: selectTicketBack?.remark || '-' },
+                            ].map(({ label, value, color }) => (
+                                <div key={label} className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-500">{label}</span>
+                                    <span className="font-medium" style={{ color: color || '#1f2937' }}>{value}</span>
                                 </div>
-                            </div>
-
-                            {/* Creator Info */}
-                            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                                <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                                    <User size={18} /> ข้อมูลผู้สร้าง
-                                </h4>
-                                {[
-                                    { label: 'ผู้สร้าง', value: `${ticket.created_by} ${ticket.firstname} ${ticket.lastname}` },
-                                    { label: 'อีเมล', value: ticket.email },
-                                    { label: 'วันที่สร้าง', value: formatDatetime(ticket.created_at) },
-                                ].map(({ label, value }) => (
-                                    <div key={label} className="flex items-center justify-between">
-                                        <span className="text-sm text-gray-500">{label}</span>
-                                        <span className="font-medium text-gray-800 text-sm">{value}</span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Form Data */}
-                            {formData?.values && (
-                                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                                    <div className="flex justify-between items-center">
-                                        <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                                            <FileText size={18} /> ข้อมูลที่กรอก
-                                        </h4>
-                                        <div className="flex gap-2">
-                                            {!isEditing && (ticket.status === 'In Progress' || role == 'a') && (
-                                                <Button
-                                                    variant="default"
-                                                    className="cursor-pointer"
-                                                    onClick={handlePullForm}
-                                                    size="sm"
-                                                    disabled={isLoadingForm}
-                                                >
-                                                    {isLoadingForm ? 'กำลังโหลด...' : 'แก้ไขข้อมูล'}
-                                                </Button>
-                                            )}
-                                            {isEditing && (
-                                                <>
-                                                    <Button
-                                                        variant="secondary"
-                                                        className="cursor-pointer"
-                                                        onClick={handleCancelEdit}
-                                                        size="sm"
-                                                    >
-                                                        ยกเลิก
-                                                    </Button>
-                                                    <Button
-                                                        variant="default"
-                                                        className="cursor-pointer bg-emerald-600 hover:bg-emerald-700"
-                                                        onClick={handleSubmitEdit}
-                                                        size="sm"
-                                                    >
-                                                        ยืนยัน
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Show form fields when editing */}
-                                    {isEditing && formStructure?.questions ? (
-                                        <div className="space-y-4 max-h-96 overflow-y-auto">
-                                            {formStructure.questions.map((question, idx) =>
-                                                renderFormField({
-                                                    question,
-                                                    index: idx,
-                                                    formValues,
-                                                    errors,
-                                                    onInputChange: handleInputChange,
-                                                    compact: true,
-                                                    allQuestions: formStructure.questions
-                                                })
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2 max-h-60 overflow-y-auto grid grid-cols-2 gap-4">
-                                            {formData.values.map((val: any, idx: number) => (
-                                                <div key={idx} className="border-b border-gray-200 pb-2 last:border-0">
-                                                    <p className="text-xs text-gray-500">{val.question_label}</p>
-                                                    <p className="font-medium text-gray-800">
-                                                        {val.value_text || val.value_number || val.value_date || (val.value_boolean !== null ? (val.value_boolean ? 'ใช่' : 'ไม่') : '-')}
-                                                    </p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Timeline */}
-                            <div className="bg-gray-50 rounded-xl p-4">
-                                <h4 className="font-semibold text-gray-800 flex items-center gap-2 mb-4">
-                                    <Clock size={18} /> ประวัติการดำเนินการ
-                                </h4>
-                                <div className="flex items-start gap-3">
-                                    <div className="w-3 h-3 bg-[#026a75] rounded-full mt-1" />
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-800">สร้างคำร้อง</p>
-                                        <p className="text-xs text-gray-500">{formatDatetime(ticket.created_at)}</p>
-                                    </div>
-                                </div>
+                            ))}
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-500">สถานะคำร้อง</span>
+                                {role === 'a' && selectTicketBack?.status_approve !== "In Progress" && ticket.status !== "Done" ? (
+                                    <SelectStatus
+                                        status={ticket.status}
+                                        onChange={handleStatusChange}
+                                    />
+                                ) : (
+                                    <StatusBadge status={ticket.status} />
+                                )}
                             </div>
                         </div>
-                    )}
-                </div>
 
-                {ticket && ticket.status == "In Progress" && !isEditing && (
-                    <div className="border-t p-4 sm:p-6 shrink-0 bg-white">
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowRejectDialog(true)}
-                                className="flex-1 cursor-pointer bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition-colors font-medium"
-                            >
-                                <XCircle size={20} />
-                                ปฏิเสธ
-                            </button>
-                            <button
-                                onClick={() => setShowApproveDialog(true)}
-                                className="flex-1 cursor-pointer bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition-colors font-medium"
-                            >
-                                <CheckCircle size={20} />
-                                อนุมัติ
-                            </button>
+                        {/* Creator Info */}
+                        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                            <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                                <User size={18} /> ข้อมูลผู้สร้าง
+                            </h4>
+                            {[
+                                { label: 'ผู้สร้าง', value: `${ticket.created_by} ${ticket.firstname} ${ticket.lastname}` },
+                                { label: 'ฝ่าย', value: ticket.department_name_th },
+                                { label: 'อีเมล', value: ticket.email },
+                                { label: 'วันที่สร้าง', value: formatDatetime(ticket.created_at) },
+                            ].map(({ label, value }) => (
+                                <div key={label} className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-500">{label}</span>
+                                    <span className="font-medium text-gray-800 text-sm">{value}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Form Data */}
+                        {ticket && selectTicketBack && (
+                            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                                        <FileText size={18} /> ข้อมูลที่กรอก
+                                    </h4>
+                                    <div className="flex gap-2">
+                                        {!isEditing && (ticket.status === 'In Progress' || role == 'a') && (
+                                            <Button
+                                                variant="default"
+                                                className="cursor-pointer"
+                                                onClick={handleStartEdit}
+                                                size="sm"
+                                            >
+                                                แก้ไขข้อมูล
+                                            </Button>
+                                        )}
+                                        {isEditing && (
+                                            <>
+                                                <Button
+                                                    variant="secondary"
+                                                    className="cursor-pointer"
+                                                    onClick={handleCancelEdit}
+                                                    size="sm"
+                                                >
+                                                    ยกเลิก
+                                                </Button>
+                                                <Button
+                                                    variant="default"
+                                                    className="cursor-pointer bg-emerald-600 hover:bg-emerald-700"
+                                                    onClick={handleSubmitEdit}
+                                                    size="sm"
+                                                >
+                                                    ยืนยัน
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Show form - readonly by default, editable when isEditing */}
+                                {isLoadingForm ? (
+                                    <div className="flex items-center justify-center gap-2 text-gray-500">
+                                        <Loader2 size={25} className="animate-spin" />
+                                    </div>
+                                ) : formStructure?.questions ? (
+                                    <div className="space-y-4 max-h-96 overflow-y-auto">
+                                        {formStructure.questions.map((question, idx) =>
+                                            renderFormField({
+                                                question,
+                                                index: idx,
+                                                formValues,
+                                                errors,
+                                                onInputChange: handleInputChange,
+                                                compact: true,
+                                                allQuestions: formStructure.questions,
+                                                readOnly: !isEditing
+                                            })
+                                        )}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-gray-500">ไม่พบข้อมูลแบบฟอร์ม</p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Timeline */}
+                        <div className="bg-gray-50 rounded-xl p-4">
+                            <h4 className="font-semibold text-gray-800 flex items-center gap-2 mb-4">
+                                <Clock size={18} /> ประวัติการดำเนินการ
+                            </h4>
+                            <div className="flex items-start gap-3">
+                                <div className="w-3 h-3 bg-[#026a75] rounded-full mt-1" />
+                                <div>
+                                    <p className="text-sm font-medium text-gray-800">สร้างคำร้อง</p>
+                                    <p className="text-xs text-gray-500">{formatDatetime(ticket.created_at)}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
+            </div>
 
-            </SheetContent>
+            {selectTicketBack && selectTicketBack.status_approve === 'In Progress' && !isEditing && (
+                <div className="border-t p-4 sm:p-6 shrink-0 bg-white">
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => setShowRejectDialog(true)}
+                            className="flex-1 cursor-pointer bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition-colors font-medium"
+                        >
+                            <XCircle size={20} />
+                            ปฏิเสธ
+                        </button>
+                        <button
+                            onClick={() => setShowApproveDialog(true)}
+                            className="flex-1 cursor-pointer bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition-colors font-medium"
+                        >
+                            <CheckCircle size={20} />
+                            อนุมัติ
+                        </button>
+                    </div>
+                </div>
+            )}
+        </>
+    );
 
+    // Shared Alert Dialogs
+    const alertDialogs = (
+        <>
             {/* Approve Dialog */}
             <AlertDialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
                 <AlertDialogContent className="swal-on-sheet">
@@ -1105,6 +1099,40 @@ export const Viewer = ({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </Sheet>
+        </>
+    );
+
+    // Render Dialog mode (for opening from URL link)
+    if (isDialog) {
+        return (
+            <>
+                <Dialog open={isOpen} onOpenChange={onClose}>
+                    <DialogContent className="sm:max-w-2xl p-0 flex flex-col max-h-[90vh]">
+                        <DialogHeader className="border-b p-4 sm:p-6 shrink-0">
+                            <DialogTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</DialogTitle>
+                            <DialogDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</DialogDescription>
+                        </DialogHeader>
+                        {viewerContent}
+                    </DialogContent>
+                </Dialog>
+                {alertDialogs}
+            </>
+        );
+    }
+
+    // Render Sheet mode (default)
+    return (
+        <>
+            <Sheet open={isOpen} onOpenChange={onClose}>
+                <SheetContent side="right" className="w-full p-0 sm:max-w-lg flex flex-col h-full">
+                    <SheetHeader className="border-b p-4 sm:p-6 shrink-0">
+                        <SheetTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</SheetTitle>
+                        <SheetDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</SheetDescription>
+                    </SheetHeader>
+                    {viewerContent}
+                </SheetContent>
+            </Sheet>
+            {alertDialogs}
+        </>
     );
 }

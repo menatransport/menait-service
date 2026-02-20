@@ -70,12 +70,9 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
 
                         {isHome ? (
                             <div className="flex items-center gap-2 sm:gap-3">
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center animate-pulse-glow">
-                                    <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                                </div>
-                                <span className="text-white font-bold text-base sm:text-xl">
-                                    Mena IT Service
-                                </span>
+                               <div className="w-14 h-12 rounded-xl flex items-center justify-center bg-white/80 shadow-sm my-3">
+                                <img alt="Logo" className="w-16 h-8 text-white drop-shadow-sm" src="/mena.png" />
+                               </div>
                             </div>
                         ) : (
                             pagelock ? null :

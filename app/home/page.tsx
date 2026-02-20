@@ -167,9 +167,9 @@ export default function HomePage() {
 
                     <div className="flex flex-wrap justify-center gap-3 sm:gap-3 w-full">
                         {[
-                            { label: 'แจ้งปัญหา', href: '/issue', icon: TriangleAlert },
-                            { label: 'ขอบริการ', href: '/service', icon: ClipboardList },
-                            { label: 'ติดตามคำขอ', href: '/mytickets/all', icon: CircleCheck },
+                            { label: 'แจ้งปัญหา', href: '/issue', icon: '/megaphone.png' },
+                            { label: 'ขอบริการ', href: '/service', icon: '/contract.png' },
+                            { label: 'ติดตามคำร้อง', href: '/mytickets/all', icon: '/person.png' },
                         ].map((item) => {
                             const Icon = item.icon;
                             return (
@@ -178,7 +178,7 @@ export default function HomePage() {
                                     onClick={() => handleNavigate(item.href)}
                                     className="flex items-center gap-2 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full text-white text-md sm:text-md font-medium transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
                                 >
-                                    <Icon className="w-4 h-4 sm:w-5.5 sm:h-5.5" />
+                                    <img src={item.icon} alt={item.label} className={`w-4 h-4 sm:w-6.5 sm:h-6`} />
                                     {item.label}
                                 </button>
                             );
@@ -190,7 +190,7 @@ export default function HomePage() {
             </section>
                     
              {/* Robot Assistant Section */}
-            <section className="flex justify-center z-40 animate-fade-in-up" aria-label="Robot Assistant">
+            <section className="flex justify-center z-0 animate-fade-in-up" aria-label="Robot Assistant">
                 <Robot greeting={"สวัสดี"} />
             </section>
             <WaveBackground />

@@ -1,13 +1,15 @@
 'use client'
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { type Ticket } from "@/app/mytickets/[id]/page";
 import { DataTable, Viewer, type TabType } from "./ticketstable";
+import { WaveBackground } from "@/components/wave-background";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // ===================== MAIN COMPONENT =====================
 export const TicketComponent = ({
     tickets,
     onSelect,
-    formData,
+    selectTicketBack,
     onApprove,
     onReject,
     activeTab,
@@ -16,12 +18,15 @@ export const TicketComponent = ({
     onFormDataUpdate,
     loading,
     role,
-    autoOpenFormId,
+    autoOpenTicket,
+    autoOpenFormData,
+    isAutoOpenSheetOpen,
+    isAutoOpenLoading,
     onAutoOpenClose
 }: {
     tickets: Ticket[];
     onSelect: (ticket: Ticket) => void;
-    formData: any | null;
+    selectTicketBack: Ticket | null;
     onApprove?: (ticket: Ticket, remark: string) => Promise<void> | void;
     onReject?: (ticket: Ticket, remark: string) => Promise<void> | void;
     activeTab: TabType;
@@ -30,27 +35,16 @@ export const TicketComponent = ({
     onFormDataUpdate?: (ticket: Ticket) => void;
     loading: boolean;
     role?: string | null;
-    autoOpenFormId?: string;
+    // New props types
+    autoOpenTicket?: Ticket | null;
+    autoOpenFormData?: any;
+    isAutoOpenSheetOpen?: boolean;
+    isAutoOpenLoading?: boolean;
     onAutoOpenClose?: () => void;
 }) => {
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [filterStatus, setFilterStatus] = useState<string>('all');
-    const [autoOpened, setAutoOpened] = useState(false);
-    const [autoOpenDialogOpen, setAutoOpenDialogOpen] = useState(false);
-    const [autoOpenTicket, setAutoOpenTicket] = useState<Ticket | null>(null);
-
-    // =================== AUTO-OPEN VIEWER (Dialog modal) ===================
-    useEffect(() => {
-        if (autoOpened || !autoOpenFormId || loading || tickets.length === 0) return;
-        const match = tickets.find(t => t.form_id === autoOpenFormId);
-        if (match) {
-            setAutoOpenTicket(match);
-            onSelect(match); // triggers formData fetch
-            setAutoOpenDialogOpen(true);
-            setAutoOpened(true);
-        }
-    }, [autoOpenFormId, tickets, loading, autoOpened, onSelect]);
 
     // =================== COMPUTED VALUES ===================
 
@@ -74,9 +68,30 @@ export const TicketComponent = ({
         console.log('Export to Excel - Coming soon');
     }, []);
 
+    // =================== TAB CHANGE HANDLER ===================
+    const handleTabChange = useCallback((value: string) => {
+        onTabChange(value as TabType);
+    }, [onTabChange]);
+
     return (
-        <main className="flex-1 min-h-0 bg-[#f0fafa] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
-            <div className="w-full max-w-screen-2xl mx-auto px-3 py-6 sm:px-6 lg:px-10 sm:py-8">
+        <main className="flex-1 min-h-0 bg-[#026a75] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto relative">
+            <WaveBackground />
+            <div className="w-full max-w-screen-2xl mx-auto px-3 py-6 sm:px-6 lg:px-10 sm:py-8 relative z-10">
+                <Tabs value={activeTab} onValueChange={handleTabChange}>
+                    <TabsList className="mb-6 bg-gray-800/50 backdrop-blur-sm p-1 rounded-full">
+                        <TabsTrigger
+                            value="apv"
+                            className="px-5 py-2 rounded-full text-white/70 font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-md hover:text-white"
+                        >
+                            งานรออนุมัติ
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="my"
+                            className="px-5 py-2 rounded-full text-white/70 font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-md hover:text-white"
+                        >
+                            งานของฉัน
+                        </TabsTrigger>
+                    </TabsList>
 
                     <DataTable
                         data={filteredTickets}
@@ -88,40 +103,36 @@ export const TicketComponent = ({
                         onTabChange={onTabChange}
                         role={role}
                     />
-
+                </Tabs>
             </div>
 
             <Viewer
                 ticket={selectedTicket}
-                formData={formData}
+                selectTicketBack={selectTicketBack}
                 isOpen={isDrawerOpen}
                 onClose={handleCloseDrawer}
-                onApprove={onApprove || (() => {})}
-                onReject={onReject || (() => {})}
+                onApprove={onApprove || (() => { })}
+                onReject={onReject || (() => { })}
                 onStatusChange={onStatusChange}
                 onFormDataUpdate={onFormDataUpdate}
                 role={role}
             />
 
-            {/* Dialog modal for auto-open from URL */}
-            {autoOpenFormId && (
+            {/* Dialog modal for auto-open from URL (/mytickets/{form_id}) */}
+            {autoOpenTicket && (
                 <Viewer
                     ticket={autoOpenTicket}
-                    formData={formData}
-                    isOpen={autoOpenDialogOpen}
-                    onClose={() => {
-                        setAutoOpenDialogOpen(false);
-                        onAutoOpenClose?.();
-                    }}
-                    onApprove={onApprove || (() => {})}
-                    onReject={onReject || (() => {})}
+                    selectTicketBack={autoOpenFormData}
+                    isOpen={isAutoOpenSheetOpen ?? false}
+                    onClose={() => onAutoOpenClose?.()}
+                    onApprove={onApprove || (() => { })}
+                    onReject={onReject || (() => { })}
                     onStatusChange={onStatusChange}
                     onFormDataUpdate={onFormDataUpdate}
                     role={role}
                     mode="dialog"
                 />
             )}
-{/* Viewer Navigate link like mytickets/{form_id} */}
         </main>
     );
 };

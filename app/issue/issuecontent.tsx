@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Question, type formSetup } from "@/app/service/[[...slug]]/page";
 import { buildSubmitValues, renderFormField } from "@/components/renderForm";
 import Loading from "@/components/loading";
+import { WaveBackground } from "@/components/wave-background";
 
 type FormDataType = {
     form_code: string;
@@ -81,7 +82,8 @@ export const IssueComponent = ({
     }, [formData, formValues, onSubmit]);
 
     return (
-        <main className="flex-1 min-h-0 bg-[#f0fafa] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
+        <main className="flex-1 min-h-0 bg-[#026a75] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto relative">
+            <WaveBackground />
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
                 {/* Form Content */}
