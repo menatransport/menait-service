@@ -233,7 +233,7 @@ export default function BuilderPage() {
     }
 
     const handleonChange = (field: keyof FormSetup, value: any) => {
-        if (field === "form_status") {
+        if (field === "form_status" && builderMode === "edit") {
             console.log('เปลี่ยนสถานะเป็น:', [field, value])
             showSwalConfirm({
                 title: 'ยืนยันการเปลี่ยนสถานะฟอร์ม',

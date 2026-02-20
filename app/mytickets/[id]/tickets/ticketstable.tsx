@@ -856,18 +856,19 @@ export const Viewer = ({
                             {/* Ticket Info */}
                             <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                                 {[
-                                    { label: 'รหัสแบบฟอร์ม', value: ticket.form_code },
+                                    { label: 'รหัสแบบฟอร์ม', value: ticket.form_code, color: '#026a75' },
                                     { label: 'รหัสคำร้อง', value: ticket.form_id },
                                     { label: 'ชื่อแบบฟอร์ม', value: ticket.form_name },
-                                    { label: 'ระดับอนุมัติปัจจุบัน', value: ticket.current_level },
-                                ].map(({ label, value }) => (
+                                    { label: 'สถานะอนุมัติ', value: ticket.status_approve === "" ? "ยังไม่อนุมัติ" : ticket.status_approve === "Approved" ? "อนุมัติแล้ว" : "ถูกปฏิเสธ", color: ticket.status_approve === "Approved" ? '#16a34a' : ticket.status_approve === "Rejected" ? '#dc2626' : '#6b7280' },
+                                    { label: 'หมายเหตุการอนุมัติ', value: ticket.remark || '-' },
+                                ].map(({ label, value, color }) => (
                                     <div key={label} className="flex items-center justify-between">
                                         <span className="text-sm text-gray-500">{label}</span>
-                                        <span className="font-medium text-gray-800">{value}</span>
+                                        <span className="font-medium" style={{ color: color || '#1f2937' }}>{value}</span>
                                     </div>
                                 ))}
                                 <div className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-500">สถานะ</span>
+                                    <span className="text-sm text-gray-500">สถานะคำร้อง</span>
                                     {role === 'a' && ticket.status !== "In Progress" ? (
                                         <SelectStatus
                                             status={ticket.status}
@@ -876,10 +877,6 @@ export const Viewer = ({
                                     ) : (
                                         <StatusBadge status={ticket.status} />
                                     )}
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-500">หมายเหตุ:</span>
-                                    <span className="font-medium text-gray-800">{ticket.remark || '-'}</span>
                                 </div>
                             </div>
 

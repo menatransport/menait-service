@@ -89,7 +89,7 @@ export default function HomePage() {
 
     return (
         <Navbar isHome={true} title={''}>
-            <section className="relative z-50 px-4 sm:px-6 lg:px-8 py-6 sm:py-10 lg:py-14 animate-fade-in-up shrink-0 flex items-center justify-center min-h-[60vh] sm:min-h-0" aria-label="MenaIT Service">
+            <section className="relative z-10 px-4 sm:px-6 lg:px-8 py-6 sm:py-10 lg:py-14 animate-fade-in-up shrink-0 flex items-center justify-center min-h-[60vh] sm:min-h-0" aria-label="MenaIT Service">
                 {/* Modern decorative background */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
                     {/* Mesh gradient blobs */}
@@ -176,9 +176,9 @@ export default function HomePage() {
                                 <button
                                     key={item.href}
                                     onClick={() => handleNavigate(item.href)}
-                                    className="flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-2.5 sm:py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full text-white text-sm sm:text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
+                                    className="flex items-center gap-2 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full text-white text-md sm:text-md font-medium transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
                                 >
-                                    <Icon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                                    <Icon className="w-4 h-4 sm:w-5.5 sm:h-5.5" />
                                     {item.label}
                                 </button>
                             );

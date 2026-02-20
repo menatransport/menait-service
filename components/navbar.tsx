@@ -123,7 +123,7 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
                                 </div>
 
                                 {/* Dropdown Menu */}
-                                <div className="absolute right-0 top-full mt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 z-50">
+                                <div className="absolute right-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 z-50">
                                     <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-2 min-w-xl">
 
                                         <div className="flex gap-2 p-2">
