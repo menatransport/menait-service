@@ -39,6 +39,7 @@ function LoginForm() {
             const data = await res.json();
 
             if (data.user) {
+                console.log('Login successful, user data:', data.user);
                 data.user.role = ['IT', 'Operation Support'].includes(data.user.department) ? 'a' : 'u';
                 setUser(data.user);
             }

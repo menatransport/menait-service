@@ -854,8 +854,12 @@ export const Viewer = ({
                                 { label: 'รหัสแบบฟอร์ม', value: ticket.form_code, color: '#026a75' },
                                 { label: 'รหัสคำร้อง', value: ticket.form_id },
                                 { label: 'ชื่อแบบฟอร์ม', value: ticket.form_name },
-                                { label: 'สถานะอนุมัติ', value: selectTicketBack?.status_approve === "In Progress" ? "ยังไม่อนุมัติ" : selectTicketBack?.status_approve === "Approved" ? "อนุมัติแล้ว" : "ถูกปฏิเสธ", color: selectTicketBack?.status_approve === "Approved" ? '#16a34a' : selectTicketBack?.status_approve === "Rejected" ? '#dc2626' : '#6b7280' },
-                                { label: 'หมายเหตุการอนุมัติ', value: selectTicketBack?.remark || '-' },
+                                ...(selectTicketBack?.form_type !== 'Issue' ? [
+                                    { label: 'ผู้อนุมัติ', value: `${ticket.action_by_firstname} ${ticket.action_by_lastname}` || '-' },
+                                    { label: 'วันที่อนุมัติ', value: formatDatetime(ticket.action_at) || '-' },
+                                    { label: 'สถานะอนุมัติ', value: selectTicketBack?.status_approve === "In Progress" ? "ยังไม่อนุมัติ" : selectTicketBack?.status_approve === "Approved" ? "อนุมัติแล้ว" : "ถูกปฏิเสธ", color: selectTicketBack?.status_approve === "Approved" ? '#16a34a' : selectTicketBack?.status_approve === "Rejected" ? '#dc2626' : '#6b7280' },
+                                    { label: 'หมายเหตุการอนุมัติ', value: selectTicketBack?.remark || '-' },
+                                ] : []),
                             ].map(({ label, value, color }) => (
                                 <div key={label} className="flex items-center justify-between">
                                     <span className="text-sm text-gray-500">{label}</span>
@@ -977,7 +981,7 @@ export const Viewer = ({
                 )}
             </div>
 
-            {selectTicketBack && selectTicketBack.status_approve === 'In Progress' && !isEditing && (
+            {selectTicketBack && selectTicketBack.form_type !== 'Issue' && selectTicketBack.status_approve === 'In Progress' && !isEditing && (
                 <div className="border-t p-4 sm:p-6 shrink-0 bg-white">
                     <div className="flex gap-3">
                         <button

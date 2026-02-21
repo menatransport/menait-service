@@ -36,8 +36,11 @@ export type Ticket = {
     email: string;
     created_by: string;
     created_by_email: string;
+    action_by_firstname: string;
+    action_by_lastname: string;
     department_name_th: string;
     created_at: string;
+    action_at: string;
     image_url?: string;
     remark?: string;
 };
