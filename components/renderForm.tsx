@@ -1,5 +1,5 @@
 'use client';
-import React, { memo, useMemo, useCallback } from 'react';
+import { memo, useMemo, useCallback, useState } from 'react';
 import { AlertCircle, Clock, Calendar as CalendarIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -139,6 +139,7 @@ export const FormField = memo(({
     const errorMsg = errors[question.name];
 
     const inputClass = `${INPUT_BASE_CLASS} ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'}`;
+    const [calendarOpen, setCalendarOpen] = useState(false);
 
     // Memoize filtered + sorted options
     const filteredOptions = useMemo(() => {
@@ -204,13 +205,13 @@ export const FormField = memo(({
             return (
                 <div className={`space-y-1.5 ${widthClass}`}>
                     <FieldLabel index={index} label={question.label} required={question.required} />
-                    <Popover>
+                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                         <PopoverTrigger asChild>
                             <Button
                                 variant="outline"
                                 disabled={readOnly}
                                 className={`w-full h-11 justify-start text-left font-normal bg-white border rounded-xl transition-all duration-200 hover:border-[#026a75]/40 ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
-                                    } ${!currentValue && "text-gray-400"} ${readOnly && 'cursor-not-allowed hover:border-gray-200 focus:border-gray-200'}`}
+                                    } ${!currentValue && "text-gray-400"} ${readOnly && 'cursor-not-allowed hover:border-gray-200 opacity-50 focus:border-gray-200'}`}
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
                                 {currentValue
@@ -227,10 +228,12 @@ export const FormField = memo(({
                                     if (date) {
                                         const currentTime = currentValue
                                             ? new Date(currentValue as string)
-                                            : new Date();
-                                        date.setHours(currentTime.getHours());
-                                        date.setMinutes(currentTime.getMinutes());
+                                            : null;
+                                        date.setHours(currentTime ? currentTime.getHours() : 0);
+                                        date.setMinutes(currentTime ? currentTime.getMinutes() : 0);
+                                        date.setSeconds(0, 0);
                                         onInputChange(question.name, date.toISOString());
+                                        setCalendarOpen(false);
                                     }
                                 }}
                                 initialFocus
@@ -244,7 +247,7 @@ export const FormField = memo(({
                                     <select
                                         value={currentValue ? format(new Date(currentValue as string), "HH") : "00"}
                                         onChange={(e) => {
-                                            const date = currentValue ? new Date(currentValue as string) : new Date();
+                                            const date = currentValue ? new Date(currentValue as string) : new Date(new Date().setHours(0, 0, 0, 0));
                                             date.setHours(parseInt(e.target.value));
                                             onInputChange(question.name, date.toISOString());
                                         }}
@@ -256,7 +259,7 @@ export const FormField = memo(({
                                     <select
                                         value={currentValue ? format(new Date(currentValue as string), "mm") : "00"}
                                         onChange={(e) => {
-                                            const date = currentValue ? new Date(currentValue as string) : new Date();
+                                            const date = currentValue ? new Date(currentValue as string) : new Date(new Date().setHours(0, 0, 0, 0));
                                             date.setMinutes(parseInt(e.target.value));
                                             onInputChange(question.name, date.toISOString());
                                         }}
@@ -278,7 +281,7 @@ export const FormField = memo(({
                 <div className="space-y-1.5">
                     <FieldLabel index={index} label={question.label} required={question.required} />
                     <div className={`space-y-2 p-3 bg-white border rounded-xl ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
-                        } ${readOnly && 'cursor-not-allowed hover:border-gray-200 focus:border-gray-200'}`}>
+                        } ${readOnly && 'cursor-not-allowed opacity-50 hover:border-gray-200 focus:border-gray-200'}`}>
                         {filteredOptions.map((option) => (
                             <label key={option.value} htmlFor={`${question.name}-${option.value}`} className={`flex items-center space-x-2.5 py-1 px-1 rounded-lg transition-colors ${readOnly ? 'cursor-not-allowed' : 'hover:bg-gray-50 cursor-pointer'}`}>
                                 <Checkbox
@@ -314,7 +317,7 @@ export const FormField = memo(({
                         rows={4}
                         readOnly={readOnly}
                         className={`w-full px-4 py-3 bg-white border rounded-xl text-sm resize-none transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/40 ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
-                            } ${readOnly && 'cursor-not-allowed hover:border-gray-200 focus:border-gray-200'}`}
+                            } ${readOnly && 'cursor-not-allowed opacity-50 hover:border-gray-200 focus:border-gray-200'}`}
                     />
                     <FieldError message={errorMsg} />
                 </div>
@@ -330,7 +333,7 @@ export const FormField = memo(({
                         onChange={handleTextChange}
                         placeholder=""
                         readOnly={readOnly}
-                        className={`${inputClass} ${readOnly && 'cursor-not-allowed hover:border-gray-200 focus:border-gray-200'}`}
+                        className={`${inputClass} ${readOnly && 'cursor-not-allowed opacity-50 hover:border-gray-200 focus:border-gray-200'}`}
                     />
                     <FieldError message={errorMsg} />
                 </div>
@@ -347,7 +350,7 @@ export const FormField = memo(({
                         onChange={handleTextChange}
                         placeholder=""
                         readOnly={readOnly}
-                        className={`${inputClass} ${readOnly && 'cursor-not-allowed hover:border-gray-200 focus:border-gray-200'}`}
+                        className={`${inputClass} ${readOnly && 'cursor-not-allowed opacity-50 hover:border-gray-200 focus:border-gray-200'}`}
                     />
                     <FieldError message={errorMsg} />
                 </div>
