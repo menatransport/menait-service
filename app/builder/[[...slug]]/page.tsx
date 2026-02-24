@@ -21,7 +21,8 @@ import {
     Type,
     RotateCcw,
     Pencil,
-    SquareFunction
+    SquareFunction,
+    Form
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { DropdownSearch } from "@/components/ui/dropdown/issue"
@@ -75,6 +76,7 @@ interface RuleSetup {
     approve_by_max: number
     same_department: boolean
     is_active: boolean
+    version?: number
 }
 
 interface PositionSetup {
@@ -183,7 +185,8 @@ export default function BuilderPage() {
                             approve_by_min: r.approve_by_min || 0,
                             approve_by_max: r.approve_by_max || 0,
                             same_department: r.same_department ?? true,
-                            is_active: r.is_active ?? true
+                            is_active: r.is_active ?? true,
+                            version: 0
                         })) || []);
 
                         setBuilderMode("edit");
@@ -213,7 +216,8 @@ export default function BuilderPage() {
             approve_by_min: 0,
             approve_by_max: 0,
             same_department: true,
-            is_active: true
+            is_active: true,
+            version: 1
         }
         setFormRule((prev) => [...prev, newRule])
     }
@@ -419,14 +423,15 @@ export default function BuilderPage() {
                 ...formData,
                 questions: formData.questions.map(({ id, ...rest }) => rest),
             };
-            console.log('Data to update:', { formData: editData });
+            console.log('Data to update:', { formData: editData , FormRule: formRule });
             const res = await fetch("/api/builder", {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    formData: editData,
+                    formData: editData
+                    // formRule,
                 }),
             });
             const responseData = await res.json();

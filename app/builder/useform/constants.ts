@@ -1,6 +1,5 @@
 import type { QuestionTypeConfig, FormTypeConfig } from './types'
 
-// Question Types Configuration
 export const QUESTION_TYPES: QuestionTypeConfig[] = [
     { 
         value: "shorttext", 
@@ -74,7 +73,6 @@ export const QUESTION_TYPES: QuestionTypeConfig[] = [
     },
 ]
 
-// Form Types Configuration
 export const FORM_TYPES: FormTypeConfig[] = [
     { value: "issue", label: "แจ้งปัญหา", icon: "AlertCircle", color: "bg-red-500" },
     { value: "service", label: "ขอบริการ", icon: "Wrench", color: "bg-blue-500" },
@@ -82,7 +80,6 @@ export const FORM_TYPES: FormTypeConfig[] = [
     { value: "feedback", label: "ข้อเสนอแนะ", icon: "MessageSquare", color: "bg-purple-500" },
 ]
 
-// Initial Form State
 export const INITIAL_FORM_STATE = {
     form_type: "",
     form_code: "",

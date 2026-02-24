@@ -16,23 +16,26 @@ export async function POST(request: NextRequest) {
     if (!resData.ok) {
         return NextResponse.json({ error: dataForm?.detail }, { status: resData.status });
     }
-    const resRule = await fetch("https://api-ncac.onrender.com/forms/rules", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formRule[0]),
-    });
-    const dataRule = await resRule.json();
-    if (!resRule.ok) {
-        return NextResponse.json({ error: dataRule?.detail }, { status: resRule.status });
-    }
+    for (const rule of formRule) {
+        const resRule = await fetch("https://api-ncac.onrender.com/forms/rules", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(rule),
+        });
+        const dataRule = await resRule.json();
 
+        if (!resRule.ok) {
+            return NextResponse.json({ error: dataRule?.detail }, { status: resRule.status });
+        }
+
+    }
     return NextResponse.json({
         message: "บันทึกฟอร์มและกฎเรียบร้อย",
         data: {
             form: dataForm,
-            rule: dataRule,
+            rule: formRule,
         },
     });
 }
@@ -83,7 +86,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
     const body = await request.json();
-    const { formData } = body;
+    const { formData, formRule } = body;
     const resData = await fetch("https://api-ncac.onrender.com/forms/master/" + formData.form_code, {
         method: "PATCH",
         headers: {
@@ -97,7 +100,39 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: dataForm?.detail }, { status: resData.status });
     }
 
+    // for (const rule of formRule) {
+    //     console.log('Processing rule:', rule);
+    //     if (rule.version === 1) {
+    //         const resRule = await fetch("https://api-ncac.onrender.com/forms/rules", {
+    //             method: "POST",
+    //             headers: {
+    //                 "Content-Type": "application/json",
+    //             },
+    //             body: JSON.stringify(rule),
+    //         });
+    //         const dataRule = await resRule.json();
+    //         if (!resRule.ok) {
+    //             console.error('Error creating rule:', dataRule);
+    //             return NextResponse.json({ error: dataRule?.detail }, { status: resRule.status });
+    //         }
+    //     } else {
+    //         const resRule = await fetch("https://api-ncac.onrender.com/forms/rules/" + rule.form_code, {
+    //             method: "PUT",
+    //             headers: {
+    //                 "Content-Type": "application/json",
+    //             },
+    //             body: JSON.stringify(rule),
+    //         });
+    //         const dataRule = await resRule.json();
+    //         if (!resRule.ok) {
+    //             console.error('Error updating rule:', dataRule);
+    //             return NextResponse.json({ error: dataRule?.detail }, { status: resRule.status });
+    //         }
+    //     }
+    // }
+
     return NextResponse.json({
         message: "อัปเดตฟอร์มเรียบร้อย",
     });
+
 }
