@@ -243,6 +243,22 @@ export const ServiceComponent = ({
                                     </div>
                                 ))}
 
+                                {/* FORM-MNT-IT-020 ข้อความ */}
+                                {formData.form_code === "FORM-MNT-IT-020" && (
+                                    <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-3">
+                                        <p className="text-sm font-semibold text-gray-700">
+                                            เงื่อนไขการใช้ระบบ VPN ของบริษัทมีนาทรานสปอร์ต
+                                        </p>
+                                        <ul className="list-disc list-inside space-y-1.5 text-sm text-gray-600">
+                                            <li>ผู้ใช้บริการต้องรับผิดชอบตาม พ.ร.บ. คอมพิวเตอร์ พ.ศ. 2560</li>
+                                            <li>ผู้ดูแลระบบสามารถยกเลิกการให้บริการ หากตรวจพบว่าผู้ใช้บริการสร้างความเสียหายต่อระบบเทคโนโลยีสารสนเทศของบริษัทมีนาทรานสปอร์ต</li>
+                                        </ul>
+                                        <p className="text-sm text-gray-500 leading-relaxed pt-1 border-t border-indigo-200/60">
+                                            ข้าพเจ้ายินดีจะรับผิดชอบต่อรหัสผู้ใช้และรหัสผ่านที่ได้ และจะปฏิบัติตามข้อกำหนดเกี่ยวกับการขอใช้งานรหัสผ่านอย่างเคร่งครัดทุกประการ จึงเรียนมาเพื่อโปรดพิจารณาดำเนินการ
+                                        </p>
+                                    </div>
+                                )}
+
                                 {/* Action buttons */}
                                 <div className="pt-5 sm:pt-6 border-t border-gray-100 flex flex-col sm:flex-row gap-2.5">
                                     <Button

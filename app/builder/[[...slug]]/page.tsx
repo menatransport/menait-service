@@ -67,6 +67,7 @@ interface FormSetup {
 }
 
 interface RuleSetup {
+    id?: number
     form_code: string
     level_no: number
     creator_min: number
@@ -76,7 +77,7 @@ interface RuleSetup {
     approve_by_max: number
     same_department: boolean
     is_active: boolean
-    version?: number
+    version: number
 }
 
 interface PositionSetup {
@@ -146,7 +147,7 @@ export default function BuilderPage() {
         const loadData = async () => {
             try {
                 if (formId) {
-                    // async-parallel: Run both fetches simultaneously
+                    console.log('Fetching data for form ID:', formId);
                     const [positionData, builderData] = await Promise.all([
                         fetchPosition(),
                         fetchFormData(formId),
@@ -178,6 +179,7 @@ export default function BuilderPage() {
 
                         setFormRule(builderData.rule.rules?.map((r: any) => ({
                             form_code: builderData.rule.form_code || builderData.form.form_code || "",
+                            id: r.id || "",
                             level_no: r.level_no || 1,
                             creator_min: r.creator_min || 0,
                             creator_max: r.creator_max || 0,
@@ -223,10 +225,48 @@ export default function BuilderPage() {
     }
 
     // ลบ Rule
-    const removeRule = (index: number) => {
+    const removeRule =  (index: number, version: number, id: number) => {
+        if(version === 1) {
         setFormRule((prev) =>
-            prev.filter((_, i) => i !== index).map((rule, i) => ({ ...rule, level_no: i + 1 }))
-        )
+            prev.filter((_, i) => i !== index).map((rule, i) => ({ ...rule, level_no: i + 1, version: version })))
+        } else {
+            showSwalConfirm({
+                title: 'ยืนยันการลบเงื่อนไข',
+                text: 'คุณแน่ใจหรือไม่ว่าต้องการลบเงื่อนไขนี้? หากลบแล้วจะนำออกจากระบบทันที',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#026a75',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'ยืนยัน',
+                cancelButtonText: 'ยกเลิก'
+            }).then(async (result: any) => {
+                if (result.isConfirmed) {
+                    const res = await fetch("/api/builder", {
+                        method: "DELETE",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ id })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        showSwal({
+                            icon: 'error',
+                            title: 'เกิดข้อผิดพลาด',
+                            text: data?.error || 'ไม่สามารถลบเงื่อนไขได้',
+                        });
+                    } else {
+                        setFormRule((prev) =>
+                            prev.filter((_, i) => i !== index).map((rule, i) => ({ ...rule, level_no: i + 1 })))
+                        showSwal({
+                            icon: 'success',
+                            title: 'สำเร็จ',
+                            text: data?.message || 'ลบเงื่อนไขเรียบร้อยแล้ว',
+                        });
+                    }
+                }
+            })
+        }
     }
 
     // อัปเดต Rule
@@ -238,7 +278,6 @@ export default function BuilderPage() {
 
     const handleonChange = (field: keyof FormSetup, value: any) => {
         if (field === "form_status" && builderMode === "edit") {
-            console.log('เปลี่ยนสถานะเป็น:', [field, value])
             showSwalConfirm({
                 title: 'ยืนยันการเปลี่ยนสถานะฟอร์ม',
                 text: `คุณกำลังจะเปลี่ยนสถานะฟอร์มเป็น ${value} คุณแน่ใจหรือไม่?`,
@@ -423,7 +462,7 @@ export default function BuilderPage() {
                 ...formData,
                 questions: formData.questions.map(({ id, ...rest }) => rest),
             };
-            console.log('Data to update:', { formData: editData , FormRule: formRule });
+            // console.log('Data to update:', { formData: editData , FormRule: formRule });
             const res = await fetch("/api/builder", {
                 method: "PATCH",
                 headers: {
@@ -475,7 +514,6 @@ export default function BuilderPage() {
                     formRule,
                 }),
             });
-            console.log('res: ', res)
             const responseData = await res.json();
 
             if (!res.ok) {
@@ -893,7 +931,7 @@ export default function BuilderPage() {
                                     variant="outline"
                                     size="sm"
                                     onClick={addRule}
-                                    className="gap-1 cursor-pointer bg-white hover:bg-gray-50"
+                                    className={`gap-1 cursor-pointer bg-white hover:bg-gray-50 ${builderMode === "edit" ? "hidden" : ""}`}
                                 >
                                     <Plus className="w-4 h-4" /> เพิ่มกฎ
                                 </Button>
@@ -926,8 +964,8 @@ export default function BuilderPage() {
                                                         type="button"
                                                         variant="ghost"
                                                         size="sm"
-                                                        onClick={() => removeRule(index)}
-                                                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                                                        onClick={() => removeRule(index, rule.version, rule.id || 0)}
+                                                        className={`h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 cursor-pointer ${builderMode === "edit" ? "hidden" : ""}`}
                                                     >
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
@@ -958,6 +996,7 @@ export default function BuilderPage() {
                                                                 }))}
                                                                 value={rule.creator_min.toString()}
                                                                 onChange={(value) => updateRule(index, "creator_min", parseInt(value))}
+                                                                disabled={builderMode === "edit"}
                                                             />
                                                             <span className="text-[#026a75] text-md font-semibold ml-2">ถึง </span>
                                                             <DropdownSearch
@@ -967,6 +1006,7 @@ export default function BuilderPage() {
                                                                 }))}
                                                                 value={rule.creator_max.toString()}
                                                                 onChange={(value) => updateRule(index, "creator_max", parseInt(value))}
+                                                                disabled={builderMode === "edit"}
                                                             />
                                                         </div>
                                                     </div>
@@ -982,6 +1022,7 @@ export default function BuilderPage() {
                                                                 }))}
                                                                 value={rule.approve_by_min.toString()}
                                                                 onChange={(value) => updateRule(index, "approve_by_min", parseInt(value))}
+                                                                disabled={builderMode === "edit"}
                                                             />
                                                             <span className="text-[#026a75] text-md font-semibold ml-2">ถึง </span>
                                                             <DropdownSearch
@@ -991,6 +1032,7 @@ export default function BuilderPage() {
                                                                 }))}
                                                                 value={rule.approve_by_max.toString()}
                                                                 onChange={(value) => updateRule(index, "approve_by_max", parseInt(value))}
+                                                                disabled={builderMode === "edit"}
                                                             />
                                                         </div>
                                                     </div>
@@ -1001,6 +1043,7 @@ export default function BuilderPage() {
                                                             <Checkbox
                                                                 id={`same_dept_${index}`}
                                                                 checked={rule.same_department}
+                                                                disabled={builderMode === "edit"}
                                                                 onCheckedChange={(checked) => updateRule(index, "same_department", checked)}
                                                                 className="border-[#026a75] data-[state=checked]:bg-[#026a75]"
                                                             />
@@ -1012,6 +1055,7 @@ export default function BuilderPage() {
                                                             <Checkbox
                                                                 id={`is_active_${index}`}
                                                                 checked={rule.is_active}
+                                                                disabled={builderMode === "edit"}
                                                                 onCheckedChange={(checked) => updateRule(index, "is_active", checked)}
                                                                 className="border-[#026a75] data-[state=checked]:bg-[#026a75]"
                                                             />

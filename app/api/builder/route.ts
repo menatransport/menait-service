@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
     const body = await request.json();
-    const { formData, formRule } = body;
+    const { formData } = body;
     const resData = await fetch("https://api-ncac.onrender.com/forms/master/" + formData.form_code, {
         method: "PATCH",
         headers: {
@@ -116,7 +116,7 @@ export async function PATCH(request: NextRequest) {
     //             return NextResponse.json({ error: dataRule?.detail }, { status: resRule.status });
     //         }
     //     } else {
-    //         const resRule = await fetch("https://api-ncac.onrender.com/forms/rules/" + rule.form_code, {
+    //         const resRule = await fetch("https://api-ncac.onrender.com/forms/rules/" + rule.id, {
     //             method: "PUT",
     //             headers: {
     //                 "Content-Type": "application/json",
@@ -136,3 +136,24 @@ export async function PATCH(request: NextRequest) {
     });
 
 }
+
+export async function DELETE(request: NextRequest) {
+    const body = await request.json();
+    const { id } = body;
+    const resData = await fetch("https://api-ncac.onrender.com/forms/rules/" + id, {
+        method: "DELETE",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+    const dataForm = await resData.json();
+    if (!resData.ok) {
+        console.error('Error deleting rule:', dataForm);
+        return NextResponse.json({ error: dataForm?.detail }, { status: resData.status });
+    }
+
+    return NextResponse.json({
+        message: "ลบกฎเรียบร้อย",
+    });
+}
+
