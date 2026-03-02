@@ -6,12 +6,14 @@ import { Send, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Question, type formSetup } from "@/app/service/[[...slug]]/page";
 import { buildSubmitValues, renderFormField } from "@/components/renderForm";
+import { FileDropzone } from "@/components/ui/file-dropzone";
 import Loading from "@/components/loading";
 import { WaveBackground } from "@/components/wave-background";
 
 type FormDataType = {
     form_code: string;
     values: any[];
+    files?: File[];
 }
 
 interface IssueComponentProps {
@@ -28,6 +30,7 @@ export const IssueComponent = ({
 
     const [formValues, setFormValues] = useState<Record<string, any>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [uploadFiles, setUploadFiles] = useState<File[]>([]);
 
     const sortedQuestions = useMemo(() =>
         formData?.questions?.slice().sort((a, b) => a.id - b.id) || [],
@@ -48,6 +51,7 @@ export const IssueComponent = ({
     // Clear form handler with useCallback
     const handleClearForm = useCallback(() => {
         setFormValues({});
+        setUploadFiles([]);
     }, []);
 
     const handleFormSubmit = useCallback((e: React.FormEvent) => {
@@ -78,8 +82,8 @@ export const IssueComponent = ({
             )
         };
 
-        onSubmit(dataToSubmit);
-    }, [formData, formValues, onSubmit]);
+        onSubmit({ ...dataToSubmit, files: uploadFiles });
+    }, [formData, formValues, uploadFiles, onSubmit]);
 
     return (
         <main className="flex-1 min-h-0 bg-[#026a75] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto relative">
@@ -88,11 +92,11 @@ export const IssueComponent = ({
 
                 {/* Form Content */}
                 {isLoadingFormData ? (
-                 
-                <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
-                    <Loading />
-                </div>
-           
+
+                    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
+                        <Loading />
+                    </div>
+
                 ) : formData ? (
                     <Card className="border-0 shadow-xl rounded-2xl sm:rounded-3xl overflow-hidden">
                         <CardContent className="p-4 sm:p-6 lg:p-8">
@@ -104,7 +108,7 @@ export const IssueComponent = ({
                                     </div>
                                     <div>
                                         <h2 className="text-xl sm:text-xl font-semibold text-[#055058] mb-1">
-                                           แจ้งปัญหาการใช้งาน
+                                            แจ้งปัญหาการใช้งาน
                                         </h2>
                                         <p className="text-xs text-gray-500">กรุณากรอกข้อมูลให้ครบถ้วน</p>
                                     </div>
@@ -131,6 +135,20 @@ export const IssueComponent = ({
                                             allQuestions: sortedQuestions
                                         })
                                     )}
+                                    {/* File Upload */}
+
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                        <div className="flex items-center justify-center w-5 h-5 rounded-md bg-[#026a75]/10 text-[#026a75] text-[10px] font-bold shrink-0">
+                                            {sortedQuestions.length + 1}
+                                        </div>
+                                        <label className="text-sm font-medium text-gray-700">แนบรูปภาพ (ถ้ามี)</label>
+                                    </div>
+                                    <FileDropzone
+                                        files={uploadFiles}
+                                        onChange={setUploadFiles}
+                                    />
+
+
                                 </div>
 
                                 {/* Submit Button */}

@@ -16,6 +16,7 @@ type formDataType = {
         question_id: number;
         value_text: string;
     }[];
+    files?: File[];
 }
 
 export default function IssuePage() {
@@ -53,6 +54,7 @@ export default function IssuePage() {
 
     const handleSubmit = useCallback(async (data: formDataType) => {
         const employee_id = user?.employee_id ?? null;
+        const { files, ...formPayload } = data;
         setIsLoadingFormData(true);
         try {
             const res = await fetch('/api/formsubmit', {
@@ -60,12 +62,23 @@ export default function IssuePage() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ ...data, created_by: employee_id }),
+                body: JSON.stringify({ ...formPayload, created_by: employee_id }),
             });
             const resData = await res.json();
-            // console.log('resData : ', resData);
             setIsLoadingFormData(false);
             if (res.ok) {
+                console.log('Form submitted successfully:', resData);
+                if (files && files.length > 0 && resData.form_id) {
+                    try {
+                        const uploadForm = new FormData();
+                        uploadForm.append('form_id', resData.form_id);
+                        uploadForm.append('file', files[0]);
+                        await fetch('/api/uploads3', { method: 'POST', body: uploadForm });
+                    } catch (uploadErr) {
+                        console.error('File upload error:', uploadErr);
+                    }
+                }
+
                 await showAlert({
                     icon: 'success',
                     title: 'ส่งแบบฟอร์มสำเร็จ',

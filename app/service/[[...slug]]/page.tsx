@@ -85,7 +85,7 @@ export default function ServicePage() {
         const formId = params?.slug?.[0] as string | undefined;
         
         const fetchFormList = async () => {
-            const query = `SELECT id, form_code, form_name FROM form_masters WHERE form_type = 'Service' AND form_status = 'Active' AND is_latest = true ORDER BY created_at DESC`;
+            const query = `SELECT id, form_code, form_name FROM form_masters WHERE form_type = 'Service' AND form_status = 'Active' AND is_latest = true ORDER BY form_code DESC`;
             const res = await fetch("/api/form/?query=" + encodeURIComponent(query));
             return res.json();
         };

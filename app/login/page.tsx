@@ -40,7 +40,7 @@ function LoginForm() {
 
             if (data.user) {
                 console.log('Login successful, user data:', data.user);
-                data.user.role = ['IT', 'Operation Support'].includes(data.user.department) ? 'a' : 'u';
+                data.user.role = ['IT'].includes(data.user.department) ? 'a' : 'u';
                 setUser(data.user);
             }
             if (saveToken && data.access_token) {
@@ -104,12 +104,12 @@ function LoginForm() {
                     <div className="absolute -right-8 -top-16 sm:-right-8 sm:-top-10 opacity-90">
                         <svg xmlns="http://www.w3.org/2000/svg" width="140" height="120" viewBox="0 0 286 191">
                             <g transform="translate(0 -107)">
-                                <path d="m102 119v75l17 10 43 25 22 13v-75l-43-25-22-13zm4 8 74 42v65l-74-42z" fill="#999"/>
-                                <path d="m102 194-9 5h0l-39 23-17 10 82 47 65-37z" fill="#666"/>
-                                <path d="m106 192v-65l74 42v65z" fill="#d7f9fc"/>
-                                <path d="m37 232v5l82 47 65-37v-5l-65 37z" fill="#999"/>
-                                <path d="m67 224 30-17 65 37-30 18z" fill="#e6e6e6"/>
-                                <path d="m97 247-13 7-17-10 13-7z" fill="#b3b3b3"/>
+                                <path d="m102 119v75l17 10 43 25 22 13v-75l-43-25-22-13zm4 8 74 42v65l-74-42z" fill="#999" />
+                                <path d="m102 194-9 5h0l-39 23-17 10 82 47 65-37z" fill="#666" />
+                                <path d="m106 192v-65l74 42v65z" fill="#d7f9fc" />
+                                <path d="m37 232v5l82 47 65-37v-5l-65 37z" fill="#999" />
+                                <path d="m67 224 30-17 65 37-30 18z" fill="#e6e6e6" />
+                                <path d="m97 247-13 7-17-10 13-7z" fill="#b3b3b3" />
                             </g>
                         </svg>
                     </div>

@@ -1,6 +1,6 @@
 'use client';
 import { memo, useMemo, useCallback, useState } from 'react';
-import { AlertCircle, Clock, Calendar as CalendarIcon } from "lucide-react";
+import { AlertCircle, Calendar as CalendarIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { DropdownSearch } from "@/components/ui/dropdown/issue";
@@ -36,8 +36,6 @@ export interface SubmitValue {
 // ===================== HELPER FUNCTIONS =====================
 
 // rendering-hoist-jsx: Hoist static arrays outside component
-const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
 
 // rendering-hoist-jsx: Static base class
 const INPUT_BASE_CLASS = `w-full h-11 px-4 bg-white border rounded-xl text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/40`;
@@ -173,12 +171,10 @@ export const FormField = memo(({
         [filteredOptions]
     );
 
-    // Stable callback for text/number input
     const handleTextChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         onInputChange(question.name, e.target.value);
     }, [question.name, onInputChange]);
 
-    // Stable callback for dropdown
     const handleDropdownChange = useCallback((value: string) => {
         onInputChange(question.name, value);
     }, [question.name, onInputChange]);
@@ -215,8 +211,8 @@ export const FormField = memo(({
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
                                 {currentValue
-                                    ? format(new Date(currentValue as string), "d MMM yyyy, HH:mm น.", { locale: th })
-                                    : <span>เลือกวันที่และเวลา</span>
+                                    ? format(new Date(currentValue as string), "d MMM yyyy", { locale: th })
+                                    : <span>เลือกวันที่</span>
                                 }
                             </Button>
                         </PopoverTrigger>
@@ -226,50 +222,16 @@ export const FormField = memo(({
                                 selected={currentValue ? new Date(currentValue as string) : undefined}
                                 onSelect={(date) => {
                                     if (date) {
-                                        const currentTime = currentValue
-                                            ? new Date(currentValue as string)
-                                            : null;
-                                        date.setHours(currentTime ? currentTime.getHours() : 0);
-                                        date.setMinutes(currentTime ? currentTime.getMinutes() : 0);
-                                        date.setSeconds(0, 0);
-                                        onInputChange(question.name, date.toISOString());
+                                        const yyyy = date.getFullYear();
+                                        const mm = String(date.getMonth() + 1).padStart(2, '0');
+                                        const dd = String(date.getDate()).padStart(2, '0');
+                                        onInputChange(question.name, `${yyyy}-${mm}-${dd}`);
                                         setCalendarOpen(false);
                                     }
                                 }}
                                 initialFocus
                             />
-                            <div className="p-3 border-t border-gray-100">
-                                <Label className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    เวลา
-                                </Label>
-                                <div className="flex gap-2 items-center">
-                                    <select
-                                        value={currentValue ? format(new Date(currentValue as string), "HH") : "00"}
-                                        onChange={(e) => {
-                                            const date = currentValue ? new Date(currentValue as string) : new Date(new Date().setHours(0, 0, 0, 0));
-                                            date.setHours(parseInt(e.target.value));
-                                            onInputChange(question.name, date.toISOString());
-                                        }}
-                                        className="flex-1 h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75]"
-                                    >
-                                        {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
-                                    </select>
-                                    <span className="text-gray-400 font-medium">:</span>
-                                    <select
-                                        value={currentValue ? format(new Date(currentValue as string), "mm") : "00"}
-                                        onChange={(e) => {
-                                            const date = currentValue ? new Date(currentValue as string) : new Date(new Date().setHours(0, 0, 0, 0));
-                                            date.setMinutes(parseInt(e.target.value));
-                                            onInputChange(question.name, date.toISOString());
-                                        }}
-                                        className="flex-1 h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75]"
-                                    >
-                                        {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
-                                    </select>
-                                </div>
-                                <p className="text-[10px] text-gray-400 mt-1.5">ชั่วโมง : นาที</p>
-                            </div>
+
                         </PopoverContent>
                     </Popover>
                     <FieldError message={errorMsg} />

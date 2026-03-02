@@ -661,6 +661,7 @@ export const Viewer = ({
     const [showRejectDialog, setShowRejectDialog] = useState(false);
     const [showStatusChangeDialog, setShowStatusChangeDialog] = useState(false);
     const [pendingStatusChange, setPendingStatusChange] = useState<string | null>(null);
+    const [imageUrls, setImageUrls] = useState<string[]>([]);
     const [remark, setRemark] = useState('');
 
     const handleInputChange = (name: string, value: any) => {
@@ -713,6 +714,24 @@ export const Viewer = ({
             return () => clearTimeout(timer);
         }
     }, [selectTicketBack, ticket]);
+
+    useEffect(() => {
+        // GET IMAGE S3 URL
+        if (ticket?.form_code !== "ISSUE_IT_005") return;
+        const fetchImageUrls = async () => {
+            const res = await fetch(`/api/uploads3?form_id=${ticket?.form_id}`);
+            const data = await res.json();
+            if (!res.ok) {
+                console.error('Error fetching image URLs:', data?.error || 'Unknown error');
+                return;
+            }
+            console.log('Fetched image URLs:', data);
+            if (data.files) {
+                setImageUrls(data.files.map((file: any) => file.url));
+            }
+        }
+        fetchImageUrls();
+    }, [ticket?.form_id]);
 
     useEffect(() => {
         if (!isOpen) {
@@ -956,6 +975,38 @@ export const Viewer = ({
                                                 allQuestions: formStructure.questions,
                                                 readOnly: !isEditing
                                             })
+                                        )}
+                                        {imageUrls.length > 0 && (
+                                            <>
+                                            <div className="flex items-center gap-2 mb-1.5">
+                                                <div className="flex items-center justify-center w-5 h-5 rounded-md bg-[#026a75]/10 text-[#026a75] text-[10px] font-bold shrink-0">
+                                                    {formStructure.questions.length + 1}
+                                                </div>
+                                                <label className="text-sm font-medium text-gray-700">แนบรูปภาพ (ถ้ามี)</label>
+                                            </div>
+                                            <div className="w-full">
+                                                {imageUrls.map((url, idx) => (
+                                                    <a
+                                                        key={idx}
+                                                        href={url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="group relative block rounded-xl overflow-hidden border border-gray-200 hover:border-[#026a75]/40 transition-all"
+                                                    >
+                                                        <img
+                                                            src={url}
+                                                            alt={`แนบรูปภาพ ${idx + 1}`}
+                                                            className="w-full h-36 object-cover bg-gray-50"
+                                                        />
+                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-200">
+                                                            <div className="w-9 h-9 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md">
+                                                                <Eye className="w-4 h-4 text-gray-700" />
+                                                            </div>
+                                                        </div>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                            </>
                                         )}
                                     </div>
                                 ) : (
