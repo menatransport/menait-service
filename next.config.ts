@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 import withPWA from "@ducanh2912/next-pwa";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const { version } = require("./package.json");
 
 const nextConfig: NextConfig = withPWA({
   dest: "public",
@@ -10,6 +14,9 @@ const nextConfig: NextConfig = withPWA({
     disableDevLogs: true,
   },
 })({
+  env: {
+    NEXT_PUBLIC_VERSION: version,
+  },
   turbopack: {},
   // Performance optimizations
   reactStrictMode: true,

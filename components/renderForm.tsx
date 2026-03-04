@@ -1,5 +1,5 @@
 'use client';
-import { memo, useMemo, useCallback, useState } from 'react';
+import { memo, useMemo, useCallback, useState, useEffect } from 'react';
 import { AlertCircle, Calendar as CalendarIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import type { Question, Option } from "@/app/service/[[...slug]]/page";
+import type { UserData } from "@/app/master/mastertable"
 
 // ===================== TYPES =====================
 export type FormFieldValue = string | string[] | number | boolean | null;
@@ -138,20 +139,19 @@ export const FormField = memo(({
 
     const inputClass = `${INPUT_BASE_CLASS} ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'}`;
     const [calendarOpen, setCalendarOpen] = useState(false);
+    const [employeeOptions, setEmployeeOptions] = useState<{ option_value: string; option_label: string }[]>([]);
+    const [employeeData, setEmployeeData] = useState<UserData[]>([]);
 
-    // Memoize filtered + sorted options
     const filteredOptions = useMemo(() => {
         const filtered = getFilteredOptions(question.options, allQuestions, index, formValues);
         return sortOptions(filtered);
     }, [question.options, allQuestions, index, formValues]);
 
-    // Auto-clear invalid values when options change
     useMemo(() => {
         if (!currentValue || filteredOptions.length === 0) return;
         if (question.type === 'dropdown') {
             const isValid = filteredOptions.some(opt => opt.value === currentValue);
             if (!isValid) {
-                // Use setTimeout to avoid setState during render
                 setTimeout(() => onInputChange(question.name, ''), 0);
             }
         } else if (question.type === 'multiselect' && Array.isArray(currentValue)) {
@@ -162,14 +162,52 @@ export const FormField = memo(({
         }
     }, [filteredOptions, currentValue, question.type, question.name, onInputChange]);
 
-    // Memoize dropdown options mapping (avoid creating new array each render)
-    const dropdownOptions = useMemo(() =>
-        filteredOptions.map(opt => ({
-            option_value: opt.value,
-            option_label: opt.label
-        })),
-        [filteredOptions]
-    );
+    useEffect(() => {
+        if (question.type === 'dropdown' && question.name === 'รหัสพนักงาน' && employeeData.length === 0) {
+            fetch("/api/organization/user")
+                .then(res => {
+                    if (!res.ok) throw new Error("Failed to fetch");
+                    return res.json();
+                })
+                .then((data: UserData[]) => {
+                    setEmployeeData(data);
+                    setEmployeeOptions(
+                        data.map(opt => ({
+                            option_value: opt.employee_id,
+                            option_label: `${opt.employee_id} - ${opt.firstname} ${opt.lastname}`
+                        }))
+                    );
+                })
+                .catch(err => {
+                    console.error("Error fetching employee data:", err);
+                });
+        }
+    }, [question.type, question.name]);
+
+    // Auto-fill ชื่อ - นามสกุล when employee is selected
+    useEffect(() => {
+        if (question.name === 'รหัสพนักงาน' && currentValue && employeeData.length > 0) {
+            const emp = employeeData.find(e => e.employee_id === currentValue);
+            if (emp) {
+                onInputChange('ชื่อ - นามสกุล (TH)', `${emp.firstname} ${emp.lastname}`);
+                onInputChange('ฝ่าย', `${emp.department}`);
+            }
+        }
+    }, [question.name, currentValue, employeeData, onInputChange]);
+
+    const dropdownOptions = useMemo(() => {
+        if (question.type !== 'dropdown') return [];
+        if (filteredOptions.length > 0) {
+            return filteredOptions.map(opt => ({
+                option_value: opt.value,
+                option_label: opt.label
+            }));
+        } else if (question.name === 'รหัสพนักงาน') {
+            return employeeOptions;
+        } else {
+            return [];
+        }
+    }, [filteredOptions, question.name, question.type, employeeOptions]);
 
     const handleTextChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         onInputChange(question.name, e.target.value);
@@ -303,9 +341,26 @@ export const FormField = memo(({
 
         case 'text':
         default:
+            // if (question.name === 'ชื่อ - นามสกุล (TH)') {
+            //  return (
+            //     <div className={`space-y-1.5 ${widthClass}`}>
+            //         <FieldLabel index={index} label={question.label} required={question.required} />
+            //         <input
+            //             type="text"
+            //             value={currentValue as string || ''}
+            //             onChange={handleTextChange}
+            //             placeholder=""
+            //             readOnly
+            //             className={`${inputClass} cursor-not-allowed opacity-50 hover:border-gray-200 focus:border-gray-200`}
+            //         />
+            //         <FieldError message={errorMsg} />
+            //     </div>
+            // );
+            // } else {
             return (
                 <div className={`space-y-1.5 ${widthClass}`}>
                     <FieldLabel index={index} label={question.label} required={question.required} />
+
                     <input
                         type="text"
                         value={currentValue as string || ''}
@@ -314,10 +369,12 @@ export const FormField = memo(({
                         readOnly={readOnly}
                         className={`${inputClass} ${readOnly && 'cursor-not-allowed opacity-50 hover:border-gray-200 focus:border-gray-200'}`}
                     />
+
                     <FieldError message={errorMsg} />
                 </div>
             );
     }
+
 });
 FormField.displayName = 'FormField';
 

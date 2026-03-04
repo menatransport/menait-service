@@ -39,7 +39,7 @@ function LoginForm() {
             const data = await res.json();
 
             if (data.user) {
-                console.log('Login successful, user data:', data.user);
+                // console.log('Login successful, user data:', data.user);
                 data.user.role = [21].includes(data.user.department_id) ? 'a' : ["680043", "670108"].includes(data.user.employee_id) ? 'a' : 'u';
                 setUser(data.user);
             }
