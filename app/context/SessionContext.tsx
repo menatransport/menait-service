@@ -28,8 +28,6 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 export const SessionProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
-
-  // rerender-lazy-state-init: Pass function to useState for expensive localStorage read
   const [user, setUserState] = useState<UserInfo | null>(() => {
     if (typeof window === 'undefined') return null;
     try {
@@ -39,15 +37,13 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       return null;
     }
   });
-  // js-cache-storage: Avoid re-reading localStorage on mount since lazy init handles it
+
   const [loading, setLoading] = useState(() => typeof window === 'undefined');
 
   useEffect(() => {
-    // Only needed for SSR hydration — client already has data from lazy init
     setLoading(false);
   }, []);
 
-  // Redirect to login if no user data found (except on login page itself)
   useEffect(() => {
     if (loading) return;
     if (!user && pathname !== '/login') {

@@ -7,7 +7,7 @@ export async function PATCH(request: NextRequest) {
     if (!formCode || !newStatus) {
         return NextResponse.json({ error: "กรุณาระบุรหัสฟอร์มและสถานะใหม่" }, { status: 400 });
     }
-    const res = await fetch(`https://api-ncac.onrender.com/forms/${formCode}/status?status=${newStatus}`, {
+    const res = await fetch(`${process.env.URL_API}/forms/${formCode}/status?status=${newStatus}`, {
         method: "PATCH",
         headers: {
             "Content-Type": "application/json",

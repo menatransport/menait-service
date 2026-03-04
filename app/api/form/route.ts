@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const queryParam = searchParams.get('query');
-        console.log('Received query:', queryParam);
+        // console.log('Received query:', queryParam);
         if (!queryParam) {
             return NextResponse.json({ error: "ไม่มีคำสั่ง SQL" }, { status: 400 });
         }

@@ -19,10 +19,8 @@ export async function GET(request: NextRequest) {
     const version = searchParams.get('version');
     const versionQuery = version ? `?version=${version}` : '';
 
-    console.log(`Fetching form data for path: https://api-ncac.onrender.com/forms/${path}${versionQuery}`);
-   
     try {
-        const res = await fetch(`https://api-ncac.onrender.com/forms/${path}${versionQuery}`, {
+        const res = await fetch(`${process.env.URL_API}/forms/${path}${versionQuery}`, {
             method: "GET",
             next: { revalidate: 300 }
         });
@@ -48,7 +46,7 @@ export async function POST(request: NextRequest) {
     try {
         const reqBody = await request.json();
 
-        const res = await fetch("https://api-ncac.onrender.com/forms/submit", {
+        const res = await fetch(`${process.env.URL_API}/forms/submit`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -75,7 +73,7 @@ export async function PUT(request: NextRequest) {
         const reqBody = await request.json();
         const { searchParams } = new URL(request.url);
         const path = searchParams.get('form_id');
-        const res = await fetch(`https://api-ncac.onrender.com/forms/${path}`, {
+        const res = await fetch(`${process.env.URL_API}/forms/${path}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",

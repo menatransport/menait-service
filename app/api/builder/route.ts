@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 export async function POST(request: NextRequest) {
     const body = await request.json();
     const { formData, formRule } = body;
-    const resData = await fetch("https://api-ncac.onrender.com/forms/master", {
+    const resData = await fetch(`${process.env.URL_API}/forms/master`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: dataForm?.detail }, { status: resData.status });
     }
     for (const rule of formRule) {
-        const resRule = await fetch("https://api-ncac.onrender.com/forms/rules", {
+        const resRule = await fetch(`${process.env.URL_AP}/forms/rules`, { //
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -49,14 +49,14 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        const resForm = await fetch(`https://api-ncac.onrender.com/forms/${formCode}`, {
+        const resForm = await fetch(`${process.env.URL_API}/forms/${formCode}`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
             },
         });
 
-        const resRule = await fetch(`https://api-ncac.onrender.com/forms/${formCode}/rules`, {
+        const resRule = await fetch(`${process.env.URL_API}/forms/${formCode}/rules`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { formData } = body;
-    const resData = await fetch("https://api-ncac.onrender.com/forms/master/" + formData.form_code, {
+    const resData = await fetch(`${process.env.URL_API}/forms/master/${formData.form_code}`, {
         method: "PATCH",
         headers: {
             "Content-Type": "application/json",
@@ -100,37 +100,6 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: dataForm?.detail }, { status: resData.status });
     }
 
-    // for (const rule of formRule) {
-    //     console.log('Processing rule:', rule);
-    //     if (rule.version === 1) {
-    //         const resRule = await fetch("https://api-ncac.onrender.com/forms/rules", {
-    //             method: "POST",
-    //             headers: {
-    //                 "Content-Type": "application/json",
-    //             },
-    //             body: JSON.stringify(rule),
-    //         });
-    //         const dataRule = await resRule.json();
-    //         if (!resRule.ok) {
-    //             console.error('Error creating rule:', dataRule);
-    //             return NextResponse.json({ error: dataRule?.detail }, { status: resRule.status });
-    //         }
-    //     } else {
-    //         const resRule = await fetch("https://api-ncac.onrender.com/forms/rules/" + rule.id, {
-    //             method: "PUT",
-    //             headers: {
-    //                 "Content-Type": "application/json",
-    //             },
-    //             body: JSON.stringify(rule),
-    //         });
-    //         const dataRule = await resRule.json();
-    //         if (!resRule.ok) {
-    //             console.error('Error updating rule:', dataRule);
-    //             return NextResponse.json({ error: dataRule?.detail }, { status: resRule.status });
-    //         }
-    //     }
-    // }
-
     return NextResponse.json({
         message: "อัปเดตฟอร์มเรียบร้อย",
     });
@@ -140,7 +109,7 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
     const body = await request.json();
     const { id } = body;
-    const resData = await fetch("https://api-ncac.onrender.com/forms/rules/" + id, {
+    const resData = await fetch(`${process.env.URL_API}/forms/rules/${id}`, {
         method: "DELETE",
         headers: {
             "Content-Type": "application/json",

@@ -1082,9 +1082,6 @@ export default function BuilderPage() {
                             <Button type="button" variant="outline" className="gap-2 cursor-pointer" onClick={handlePreview}>
                                 <Eye className="w-4 h-4" /> ดูตัวอย่าง
                             </Button>
-                            {/* <Button type="button" variant="outline" className="gap-2 cursor-pointer" onClick={()=>console.log('ทดสอบกฏ : ',formRule)}>
-                                <Eye className="w-4 h-4" /> ทดสอบกฏ
-                            </Button> */}
                             {builderMode === "edit" && formData.form_status === "Draft" && (
                                 <Button type="button" className="gap-2 bg-[#026a75] hover:bg-[#025f68] cursor-pointer" onClick={handleEditForm}>
                                     <Pencil className="w-4 h-4" /> แก้ไขฟอร์ม

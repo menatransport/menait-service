@@ -5,8 +5,8 @@ export async function POST(request: NextRequest) {
     const reqBody = await request.json();
     const isGoogleLogin = 'id_token' in reqBody;
     const endpoint = isGoogleLogin 
-        ? "https://api-ncac.onrender.com/auth/login/google"
-        : "https://api-ncac.onrender.com/auth/login";
+        ? `${process.env.URL_API}/auth/login/google`
+        : `${process.env.URL_API}/auth/login`;
     
     const res = await fetch(endpoint, {
         method: "POST",

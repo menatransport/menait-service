@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, useCallback } from "react";
+import { useState, useEffect, Suspense, useCallback, use } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
 import { CircleUserRound, KeyRound } from 'lucide-react';
@@ -40,7 +40,7 @@ function LoginForm() {
 
             if (data.user) {
                 console.log('Login successful, user data:', data.user);
-                data.user.role = ['IT'].includes(data.user.department) ? 'a' : 'u';
+                data.user.role = [21].includes(data.user.department_id) ? 'a' : ["680043", "670108"].includes(data.user.employee_id) ? 'a' : 'u';
                 setUser(data.user);
             }
             if (saveToken && data.access_token) {
@@ -204,7 +204,7 @@ function LoginForm() {
                 <p className="text-center mt-6 text-white/90 text-sm">
                     Mena IT-Service {" "}
                     <a href="#" className="text-white font-semibold hover:underline">
-                        V.0.1.0
+                       {process.env.NEXT_PUBLIC_VERSION}
                     </a>
                 </p>
             </div>

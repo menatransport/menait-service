@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
 
-    const res = await fetch("https://api-ncac.onrender.com/position-levels/", {
+    const res = await fetch(`${process.env.URL_API}/position-levels/`, {
         method: "GET",
     });
     const data = await res.json();

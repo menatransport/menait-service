@@ -88,7 +88,7 @@ export const IssueComponent = ({
     return (
         <main className="flex-1 min-h-0 bg-[#026a75] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto relative">
             <WaveBackground />
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 z-10 relative">
 
                 {/* Form Content */}
                 {isLoadingFormData ? (
@@ -141,13 +141,12 @@ export const IssueComponent = ({
                                         <div className="flex items-center justify-center w-5 h-5 rounded-md bg-[#026a75]/10 text-[#026a75] text-[10px] font-bold shrink-0">
                                             {sortedQuestions.length + 1}
                                         </div>
-                                        <label className="text-sm font-medium text-gray-700">แนบรูปภาพ (ถ้ามี)</label>
+                                        <label className="text-sm font-medium text-gray-700">แนบรูปภาพ <span className="text-gray-400">(ถ้ามี)</span></label>
                                     </div>
                                     <FileDropzone
                                         files={uploadFiles}
                                         onChange={setUploadFiles}
                                     />
-
 
                                 </div>
 

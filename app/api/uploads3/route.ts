@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
   try {
     await s3.send(new PutObjectCommand(uploadParams));
-    console.log(`✅ Uploaded: ${fileName}`);
+    // console.log(`✅ Uploaded: ${fileName}`);
     return NextResponse.json({
       success: true,
       path: fileName,

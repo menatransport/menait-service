@@ -222,7 +222,7 @@ export const ProfileForm = memo(({
 
             {/* ── Save Bar ── */}
             {editable && onSave && (
-                <div className="pt-4 border-t border-gray-200">
+                <div className="hidden pt-4 border-t border-gray-200">
                     <div className={`flex items-center justify-between rounded-xl px-4 sm:px-5 py-3 sm:py-3.5 transition-all duration-300 ${isDirty
                         ? 'bg-[#f0fafa] border border-[#026a75]/20'
                         : 'bg-gray-50 border border-gray-200'

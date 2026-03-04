@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
-    const res = await fetch("https://api-ncac.onrender.com/users", {
+    const res = await fetch(`${process.env.URL_API}/users`, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
