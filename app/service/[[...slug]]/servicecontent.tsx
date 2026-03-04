@@ -51,7 +51,6 @@ export const ServiceComponent = ({
         });
     }, []);
 
-    // js-combine-iterations: Single map instead of filter+map
     const formOptions = useMemo(() =>
         Array.isArray(form) ? form.map(f => ({
             option_value: f.form_code,
@@ -60,7 +59,6 @@ export const ServiceComponent = ({
         [form]
     );
 
-    // Memoize sorted questions
     const sortedQuestions = useMemo(() =>
         formData?.questions?.slice().sort((a: Question, b: Question) => a.id - b.id) || [],
         [formData?.questions]

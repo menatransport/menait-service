@@ -36,9 +36,6 @@ export interface SubmitValue {
 
 // ===================== HELPER FUNCTIONS =====================
 
-// rendering-hoist-jsx: Hoist static arrays outside component
-
-// rendering-hoist-jsx: Static base class
 const INPUT_BASE_CLASS = `w-full h-11 px-4 bg-white border rounded-xl text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/40`;
 
 export const formatDatetime = (dateString: string): string => {
@@ -141,6 +138,7 @@ export const FormField = memo(({
     const [calendarOpen, setCalendarOpen] = useState(false);
     const [employeeOptions, setEmployeeOptions] = useState<{ option_value: string; option_label: string }[]>([]);
     const [employeeData, setEmployeeData] = useState<UserData[]>([]);
+    const [emailOptions, setEmailOptions] = useState<{ option_value: string; option_label: string }[]>([]);
 
     const filteredOptions = useMemo(() => {
         const filtered = getFilteredOptions(question.options, allQuestions, index, formValues);
@@ -163,7 +161,7 @@ export const FormField = memo(({
     }, [filteredOptions, currentValue, question.type, question.name, onInputChange]);
 
     useEffect(() => {
-        if (question.type === 'dropdown' && question.name === 'รหัสพนักงาน' && employeeData.length === 0) {
+        if (question.type === 'dropdown' && employeeData.length === 0) {
             fetch("/api/organization/user")
                 .then(res => {
                     if (!res.ok) throw new Error("Failed to fetch");
@@ -175,6 +173,12 @@ export const FormField = memo(({
                         data.map(opt => ({
                             option_value: opt.employee_id,
                             option_label: `${opt.employee_id} - ${opt.firstname} ${opt.lastname}`
+                        }))
+                    );
+                    setEmailOptions(
+                        data.map(opt => ({
+                            option_value: opt.email,
+                            option_label: `${opt.email}`
                         }))
                     );
                 })
@@ -204,10 +208,12 @@ export const FormField = memo(({
             }));
         } else if (question.name === 'รหัสพนักงาน') {
             return employeeOptions;
+        } else if (question.name === 'ผู้ดูแลสิทธิ Email ต่อจากพนักงานที่ลาออก') {
+            return emailOptions;
         } else {
             return [];
         }
-    }, [filteredOptions, question.name, question.type, employeeOptions]);
+    }, [filteredOptions, question.name, question.type, employeeOptions, emailOptions]);
 
     const handleTextChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         onInputChange(question.name, e.target.value);

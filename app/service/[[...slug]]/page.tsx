@@ -72,15 +72,12 @@ export default function ServicePage() {
     const { user } = useSessionContext();
     const [isPending, startTransition] = useTransition();
 
-    
-    // Lazy state initialization (rerender-lazy-state-init)
     const [form, setForm] = useState<formSetup[]>([]);
     const [formData, setFormData] = useState<formSetup | null>(null);
     const [selectedFormId, setSelectedFormId] = useState<string>("");
     const [isLoadingForms, setIsLoadingForms] = useState(true);
     const [isLoadingFormData, setIsLoadingFormData] = useState(false);
 
-    // async-parallel: Fetch form list and form data in parallel
     useEffect(() => {
         const formId = params?.slug?.[0] as string | undefined;
         
@@ -135,7 +132,7 @@ export default function ServicePage() {
     }, [router, startTransition]);
 
     const handleSubmit = useCallback(async (data: formDataType) => {
-        console.log('Submitting data:', data);
+        // console.log('Submitting data:', data);
         const employee_id = user?.employee_id ?? null;
         setIsLoadingForms(true);
         try {

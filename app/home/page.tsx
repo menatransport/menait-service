@@ -25,7 +25,7 @@ export default function HomePage() {
         if (formsFetched || isLoadingForms) return;
         setIsLoadingForms(true);
         try {
-            const q = `SELECT id, form_code, form_name FROM form_masters WHERE form_type = 'Service' AND form_status = 'Active' AND is_latest = true ORDER BY created_at DESC`;
+            const q = `SELECT id, form_code, form_name FROM form_masters WHERE form_type = 'Service' AND form_status = 'Active' AND is_latest = true ORDER BY form_code DESC`;
             const res = await fetch('/api/form/?query=' + encodeURIComponent(q));
             const data = await res.json();
             setServiceForms(Array.isArray(data) ? data : []);
@@ -185,11 +185,11 @@ export default function HomePage() {
                         })}
                     </div>
 
-                    
+
                 </div>
             </section>
-                    
-             {/* Robot Assistant Section */}
+
+            {/* Robot Assistant Section */}
             <section className="flex justify-center z-0 animate-fade-in-up" aria-label="Robot Assistant">
                 <Robot greeting={"สวัสดี"} />
             </section>
