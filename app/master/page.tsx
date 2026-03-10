@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import type { UserData, FormData } from "./mastertable"
 import { WaveBackground } from "@/components/wave-background";
 
+
 const MasterTable = dynamic(
     () => import('./mastertable').then(mod => ({ default: mod.MasterTable })),
     { ssr: false }
@@ -23,6 +24,7 @@ export default function MasterPage() {
     const [error, setError] = useState<string | null>(null);
     const [forms, setForms] = useState<FormData[]>([]);
     const [activeTab, setActiveTab] = useState('user' as 'user' | 'form');
+    
 
     const fetchUsers = useCallback(async () => {
         setIsLoading(true);
@@ -50,7 +52,7 @@ export default function MasterPage() {
             const q = `SELECT id, form_type, form_code, form_name, form_status, created_at FROM form_masters WHERE is_latest = true ORDER BY id DESC`;
             const res = await fetch('/api/form/?query=' + encodeURIComponent(q));
             const data = await res.json();
-            console.log("Fetched form data:", data);
+            // console.log("Fetched form data:", data);
             if (res.ok) {
                 setForms(data);
             }
@@ -59,6 +61,21 @@ export default function MasterPage() {
             setError("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
         } finally {
             setIsLoading(false);
+        }
+    }, []);
+
+    const handleUpdate = useCallback(async (userData: UserData): Promise<boolean> => {
+        try {
+            const res = await fetch('/api/organization/user', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData),
+            });
+            if (!res.ok) return false;
+            setUsers(prev => prev.map(u => u.id === userData.id ? userData : u));
+            return true;
+        } catch {
+            return false;
         }
     }, []);
 
@@ -93,7 +110,7 @@ export default function MasterPage() {
                             </TabsTrigger>
                         </TabsList>
                         <TabsContent value="user">
-                            <MasterTable data={users} isLoading={isLoading} error={error} onRetry={fetchUsers} />
+                            <MasterTable data={users} isLoading={isLoading} error={error} onRetry={fetchUsers} onUpdate={handleUpdate} />
                         </TabsContent>
                         <TabsContent value="form">
                             <TableForm data={forms} isLoading={isLoading} error={error} onRetry={fetchForms} />

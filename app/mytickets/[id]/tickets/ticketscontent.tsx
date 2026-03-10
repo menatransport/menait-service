@@ -91,11 +91,18 @@ export const TicketComponent = ({
                         >
                             งานของฉัน
                         </TabsTrigger>
+                        {role == "a" && (<TabsTrigger
+                            value="suv"
+                            className="px-5 py-2 rounded-full text-white/70 font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-md hover:text-white"
+                        >
+                            แบบประเมิน
+                        </TabsTrigger>
+                        )}
                     </TabsList>
 
                     <DataTable
                         data={filteredTickets}
-                        title={activeTab === 'my' ? 'รายการคำร้องของฉัน' : 'รายการรออนุมัติ'}
+                        title={activeTab === 'my' ? 'รายการคำร้องของฉัน' : activeTab === 'apv' ? 'รายการรออนุมัติ' : 'รายการแบบประเมิน'}
                         loading={loading}
                         handleExportExcel={handleExportExcel}
                         onViewTicket={handleView}

@@ -12,6 +12,7 @@ export interface MasterTableProps {
     isLoading: boolean;
     error: string | null;
     onRetry: () => void;
+    onUpdate?: (data: import('@/components/profile-form').UserData) => Promise<boolean>;
 }
 
 // ===================== FORM TABLE TYPES =====================

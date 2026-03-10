@@ -29,7 +29,7 @@ export default function IssuePage() {
         const fetchFormData = async () => {
             setIsLoadingFormData(true);
             try {
-                const res = await fetch(`/api/formsubmit?path=ISSUE_IT_005`, {
+                const res = await fetch(`/api/formsubmit?path=ISSUE_IT`, {
                     method: "GET",
                 });
 
@@ -38,7 +38,7 @@ export default function IssuePage() {
                 }
 
                 const data = await res.json();
-                console.log('Data fetched:', data);
+                // console.log('Data fetched:', data);
                 if (data) {
                     setFormData(data);
                 }
@@ -67,7 +67,7 @@ export default function IssuePage() {
             const resData = await res.json();
             setIsLoadingFormData(false);
             if (res.ok) {
-                console.log('Form submitted successfully:', resData);
+                // console.log('Form submitted successfully:', resData);
                 if (files && files.length > 0 && resData.form_id) {
                     try {
                         const uploadForm = new FormData();

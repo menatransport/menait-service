@@ -1,6 +1,6 @@
 'use client';
 import { Ticket } from "@/app/mytickets/[id]/page";
-import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X } from "lucide-react";
+import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X, Star, ExternalLink } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -160,9 +160,10 @@ const EmptyState = ({ colSpan }: { colSpan?: number }) => (
 const TAB_OPTIONS = [
     { value: 'apv', label: 'งานรออนุมัติ' },
     { value: 'my', label: 'งานของฉัน' },
+    { value: 'suv', label: 'แบบประเมิน' },
 ] as const;
 
-export type TabType = 'my' | 'apv';
+export type TabType = 'my' | 'apv' | 'suv';
 export type SortOrder = 'asc' | 'desc';
 
 // Filter status options
@@ -551,7 +552,10 @@ export const DataTable = ({
                                     <span>หัวข้อคำร้อง</span>
                                 </div>
                             </th>
-                            <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[15%]">สถานะ</th>
+                           { activeTab !== "suv" ? <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[15%]">สถานะ</th>
+                            : <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[15%]">คะแนน</th>}
+                            { activeTab == "suv" &&(<th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[15%]">หมายเหตุ</th>
+                        )}
                             <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[20%]">
                                 <span className="flex items-center gap-1">
                                     วันที่สร้าง
@@ -562,7 +566,7 @@ export const DataTable = ({
                                     )}
                                 </span>
                             </th>
-                            <th className="px-4 py-4 text-center text-sm font-semibold text-gray-700 w-[15%]">Action</th>
+                            <th className="px-4 py-4 text-center text-sm font-semibold text-gray-700 w-[15%]">จัดการ</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -572,7 +576,7 @@ export const DataTable = ({
                             <EmptyState colSpan={4} />
                         ) : (
                             paginatedTickets.map((item) => (
-                                <tr key={item.submission_id} className="hover:bg-gray-50 transition-colors">
+                                <tr key={activeTab == "suv" ? item.form_id : item.submission_id } className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-4">
                                             <UserAvatar email={item.email} imageUrl={item.image_url} />
@@ -588,17 +592,32 @@ export const DataTable = ({
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-4 py-4">
-                                        <StatusBadge status={item.status} />
-                                    </td>
+                                    {activeTab !== "suv" ? (
+                                        <td className="px-4 py-4">
+                                            <StatusBadge status={item.status} />
+                                        </td>
+                                    ) : (
+                                        <td className="px-4 py-4">
+                                            <span className="text-sm font-medium text-gray-800">
+                                                {item.point ? `${item.point} / 5` : 'ยังไม่ให้คะแนน'}
+                                            </span>
+                                        </td>
+                                    )}
+                                    {activeTab === "suv" && (
+                                        <td className="px-4 py-4">
+                                            <span className="text-sm text-gray-600">
+                                            {item.comment || '-'}
+                                            </span>
+                                        </td>
+                                    )}
                                     <td className="px-4 py-4">
                                         <span className="text-sm text-gray-600 flex items-center gap-2">
                                             <Calendar size={14} className="text-gray-400" />
-                                            {formatDatetime(item.created_at)}
+                                            {activeTab == "suv" ? formatDatetime(item.survey_at) : formatDatetime(item.created_at)}
                                         </span>
                                     </td>
                                     <td className="px-4 py-4">
-                                        <div className="flex justify-center">
+                                        <div className="flex justify-center gap-2">
                                             <button
                                                 onClick={() => onViewTicket(item)}
                                                 className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white p-2.5 rounded-lg transition-colors"
@@ -606,6 +625,17 @@ export const DataTable = ({
                                             >
                                                 <Eye size={16} />
                                             </button>
+                                          {/* {item.status === "Done" && (
+                                            <a
+                                                href={`https://menait-service.vercel.app/survey-it/${item.form_id}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="cursor-pointer p-2.5 rounded-lg bg-yellow-500 text-white hover:bg-yellow-600 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 group"
+                                                title="ให้คะแนนประเมิน"
+                                            >
+                                                <Star size={16} className="fill-white text-white group-hover:animate-pulse" />
+                                            </a>
+                                          )} */}
                                         </div>
                                     </td>
                                 </tr>
@@ -683,7 +713,7 @@ export const Viewer = ({
                 method: "GET",
             });
             const data = await response.json();
-            console.log('Fetched form data for editing:', data);
+            // console.log('Fetched form data for editing:', data);
             if (response.ok && data) {
                 const form = data as formSetup;
                 setFormStructure(form);
@@ -693,7 +723,7 @@ export const Viewer = ({
                     setFormValues(initialValues);
                 }
 
-                console.log('Fetched form structure:', form);
+                // console.log('Fetched form structure:', form);
             } else {
                 alert('เกิดข้อผิดพลาดในการดึงข้อมูลแบบฟอร์ม');
             }
@@ -708,6 +738,7 @@ export const Viewer = ({
     useEffect(() => {
         if (selectTicketBack && ticket && !formStructure) {
             setIsLoadingForm(true);
+            setFormStructure(null);
             const timer = setTimeout(() => {
                 handlePullForm();
             }, 1000);
@@ -725,7 +756,7 @@ export const Viewer = ({
                 console.error('Error fetching image URLs:', data?.error || 'Unknown error');
                 return;
             }
-            console.log('Fetched image URLs:', data);
+            // console.log('Fetched image URLs:', data);
             if (data.files) {
                 setImageUrls(data.files.map((file: any) => file.url));
             }
@@ -767,7 +798,7 @@ export const Viewer = ({
                 updated_by: (user as any).employee_id || (user as any).email || 'unknown',
                 values: values
             };
-            console.log('json result to submit:', JSON.stringify(result));
+            // console.log('json result to submit:', JSON.stringify(result));
             const res = await fetch(`/api/formsubmit?form_id=${ticket.form_id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -1164,8 +1195,25 @@ export const Viewer = ({
                 <Dialog open={isOpen} onOpenChange={onClose}>
                     <DialogContent className="sm:max-w-2xl p-0 flex flex-col max-h-[90vh]">
                         <DialogHeader className="border-b p-4 sm:p-6 shrink-0">
-                            <DialogTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</DialogTitle>
-                            <DialogDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</DialogDescription>
+                            <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <SheetTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</SheetTitle>
+                                <SheetDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</SheetDescription>
+                            </div>
+                            {/* Button Survey-it */}
+                            {ticket?.status == "Done" && (
+                            <a
+                                href={`https://menait-service.vercel.app/survey-it/${ticket?.form_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-2 py-2.5 mr-5 rounded-xl bg-linear-to-r from-[#026a75] to-[#038a96] text-white text-sm font-semibold shadow-md hover:shadow-lg hover:from-[#025f68] hover:to-[#026a75] transition-all duration-300 hover:scale-[1.02] shrink-0 group"
+                            >
+                                <Star size={16} className="fill-yellow-300 text-yellow-300 group-hover:animate-pulse" />
+                                <span className="hidden sm:inline">ให้คะแนนประเมิน</span>
+                                <ExternalLink size={14} className="opacity-60 group-hover:opacity-100 transition-opacity" />
+                            </a>
+                            )}
+                        </div>
                         </DialogHeader>
                         {viewerContent}
                     </DialogContent>
@@ -1181,8 +1229,25 @@ export const Viewer = ({
             <Sheet open={isOpen} onOpenChange={onClose}>
                 <SheetContent side="right" className="w-full p-0 sm:max-w-lg flex flex-col h-full">
                     <SheetHeader className="border-b p-4 sm:p-6 shrink-0">
-                        <SheetTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</SheetTitle>
-                        <SheetDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</SheetDescription>
+                        <div className="flex items-center justify-between gap-2">
+                            <div>
+                                <SheetTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</SheetTitle>
+                                <SheetDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</SheetDescription>
+                            </div>
+                            {/* Button Survey-it */}
+                           {ticket?.status == "Done" && (
+                            <a
+                                href={`https://menait-service.vercel.app/survey-it/${ticket?.form_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-2 py-2.5 mr-5 rounded-xl bg-linear-to-r from-[#026a75] to-[#038a96] text-white text-sm font-semibold shadow-md hover:shadow-lg hover:from-[#025f68] hover:to-[#026a75] transition-all duration-300 hover:scale-[1.02] shrink-0 group"
+                            >
+                                <Star size={16} className="fill-yellow-300 text-yellow-300 group-hover:animate-pulse" />
+                                <span className="hidden sm:inline">ให้คะแนนประเมิน</span>
+                                <ExternalLink size={14} className="opacity-60 group-hover:opacity-100 transition-opacity" />
+                            </a>
+                            )}
+                        </div>
                     </SheetHeader>
                     {viewerContent}
                 </SheetContent>

@@ -146,30 +146,19 @@ export const ProfileForm = memo(({
     }, [editable, isDirty, onSave, data, editData]);
 
     const isCompact = variant === 'compact';
-    const gridClass = isCompact ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 gap-4';
+    const gridClass = isCompact ? 'grid grid-cols-1 gap-2' : 'grid grid-cols-1 sm:grid-cols-2 gap-4';
 
     return (
-        <div className="space-y-6">
-
-            {/* ── Non-admin notice ── */}
-            {!editable && (
-                <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200/60 px-4 py-3 text-amber-800">
-                    <Shield className="h-4 w-4 shrink-0 mt-0.5 text-amber-500" />
-                    <p className="text-xs leading-relaxed">
-                        <span className="font-medium">สิทธิ์จำกัด — </span>
-                        คุณไม่สามารถแก้ไขข้อมูลได้ หากต้องการเปลี่ยนแปลงกรุณาติดต่อ IT
-                    </p>
-                </div>
-            )}
+        <div className={isCompact ? 'space-y-3' : 'space-y-6'}>
 
             {/* ── System Info ── */}
-            <div className={isCompact ? 'pb-4 border-b border-gray-100' : 'pb-6 border-b border-gray-200'}>
+            <div className={isCompact ? 'pb-3 border-b border-gray-100' : 'pb-6 border-b border-gray-200'}>
                 <SectionHeader
                     icon={IdCard}
                     title="ข้อมูลระบบ"
                     subtitle="รหัสพนักงาน ชื่อผู้ใช้ และสิทธิ์ (ไม่สามารถแก้ไขได้)"
                 />
-                <div className={isCompact ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 sm:grid-cols-3 gap-4'}>
+                <div className={isCompact ? 'grid grid-cols-1 gap-2' : 'grid grid-cols-1 sm:grid-cols-3 gap-4'}>
                     <FormField label="รหัสพนักงาน" icon={IdCard} value={String(data.employee_id)} readonly />
                     <FormField label="ชื่อผู้ใช้งาน" icon={User} value={String(data.username)} readonly />
                     {role !== undefined && (
@@ -179,7 +168,7 @@ export const ProfileForm = memo(({
             </div>
 
             {/* ── Personal Info ── */}
-            <div className={isCompact ? 'pb-4 border-b border-gray-100' : 'pb-6 border-b border-gray-200'}>
+            <div className={isCompact ? 'pb-3 border-b border-gray-100' : 'pb-6 border-b border-gray-200'}>
                 <SectionHeader
                     icon={User}
                     title="ข้อมูลส่วนตัว"
@@ -222,7 +211,7 @@ export const ProfileForm = memo(({
 
             {/* ── Save Bar ── */}
             {editable && onSave && (
-                <div className="hidden pt-4 border-t border-gray-200">
+                <div className="pt-4 border-t border-gray-200">
                     <div className={`flex items-center justify-between rounded-xl px-4 sm:px-5 py-3 sm:py-3.5 transition-all duration-300 ${isDirty
                         ? 'bg-[#f0fafa] border border-[#026a75]/20'
                         : 'bg-gray-50 border border-gray-200'

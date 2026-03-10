@@ -50,13 +50,11 @@ export const parseLevelNum = (level: string | null): number => {
     const mapped = POSITION_LEVEL_MAP[level];
     if (mapped !== undefined) return mapped;
     
-    // Fallback: case-insensitive match
     const lower = level.toLowerCase();
     for (const [key, val] of Object.entries(POSITION_LEVEL_MAP)) {
         if (key.toLowerCase() === lower) return val;
     }
     
-    // Fallback: parse as number
     const num = parseFloat(level);
     return isNaN(num) ? 0 : num;
 };

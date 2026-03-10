@@ -5,13 +5,12 @@ import { Navbar } from "@/components/navbar";
 import dynamic from 'next/dynamic';
 import { useSessionContext } from "@/app/context/SessionContext";
 
-// bundle-dynamic-imports: Lazy load heavy form component
 const ServiceComponent = dynamic(
     () => import('./servicecontent').then(mod => ({ default: mod.ServiceComponent })),
     { ssr: false }
 );
 
-const showSuccessAlert = () => import('sweetalert2').then(({ default: Swal }) => 
+const showSuccessAlert = () => import('sweetalert2').then(({ default: Swal }) =>
     Swal.fire({
         icon: 'success',
         title: 'ส่งแบบฟอร์มสำเร็จ',
@@ -20,7 +19,7 @@ const showSuccessAlert = () => import('sweetalert2').then(({ default: Swal }) =>
     })
 );
 
-const showErrorAlert = (message: string) => import('sweetalert2').then(({ default: Swal }) => 
+const showErrorAlert = (message: string) => import('sweetalert2').then(({ default: Swal }) =>
     Swal.fire({
         icon: 'error',
         title: 'เกิดข้อผิดพลาด',
@@ -80,7 +79,7 @@ export default function ServicePage() {
 
     useEffect(() => {
         const formId = params?.slug?.[0] as string | undefined;
-        
+
         const fetchFormList = async () => {
             const query = `SELECT id, form_code, form_name FROM form_masters WHERE form_type = 'Service' AND form_status = 'Active' AND is_latest = true ORDER BY form_code DESC`;
             const res = await fetch("/api/form/?query=" + encodeURIComponent(query));
@@ -132,8 +131,8 @@ export default function ServicePage() {
     }, [router, startTransition]);
 
     const handleSubmit = useCallback(async (data: formDataType) => {
-        // console.log('Submitting data:', data);
         const employee_id = user?.employee_id ?? null;
+        // console.log('Submitting data:', JSON.stringify({ ...data, created_by: employee_id }));
         setIsLoadingForms(true);
         try {
             const res = await fetch('/api/formsubmit', {
@@ -149,7 +148,7 @@ export default function ServicePage() {
             } else {
                 await showErrorAlert(resData.error);
             }
-            
+
         } catch (error) {
             setIsLoadingForms(false);
             console.error('Submit error:', error);

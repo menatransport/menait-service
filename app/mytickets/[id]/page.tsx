@@ -34,6 +34,9 @@ export type Ticket = {
     firstname: string;
     lastname: string;
     email: string;
+    point: number;
+    comment: string;
+    survey_at: string;
     created_by: string;
     created_by_email: string;
     action_by_firstname: string;
@@ -45,6 +48,11 @@ export type Ticket = {
     remark?: string;
 };
 
+export type Survey = {
+    point: number;
+    comment: string;
+    create_at: string;
+}
 
 export default function TicketsPage() {
     const { user } = useSessionContext();
@@ -66,15 +74,16 @@ export default function TicketsPage() {
     const fetchTickets = useCallback(async (tab: TabType) => {
         if (!employeeId) return;
         setIsLoading(true);
+        const api = tab === "suv" ? `/api/survey-it?employee_id=${employeeId}&tab=${tab}&role=${role}` : `/api/tickets?employee_id=${employeeId}&tab=${tab}&role=${role}`;
         try {
-            const response = await fetch(`/api/tickets?employee_id=${employeeId}&tab=${tab}&role=${role}`, {
+            const response = await fetch(api, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
                 },
             });
             const data = await response.json();
-            console.log('Fetched tickets data:', data);
+            // console.log('Fetched tickets data:', data);
             setTickets(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching tickets data:', error);
@@ -135,12 +144,12 @@ export default function TicketsPage() {
         });
 
         const data = await res.json();
-        console.log('Selected ticket data[0]:', data[0]);
+        // console.log('Selected ticket data[0]:', data[0]);
         setSelectedTicket(data[0]);
     }
 
     const handleApprove = async (ticket: Ticket, remark: string) => {
-        console.log('Approving ticket:', ticket);
+        // console.log('Approving ticket:', ticket);
         try {
             const res = await fetch('/api/tickets', {
                 method: 'POST',
