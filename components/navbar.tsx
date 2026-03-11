@@ -34,7 +34,7 @@ const COMPONENT_ADMIN = [
 // rerender-memo: Memoize Navbar to avoid unnecessary re-renders
 export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, title, pagelock = false }) => {
     const router = useRouter();
-    const { user, loading } = useSessionContext();
+    const { user, loading, setUser } = useSessionContext();
     const isClient = !loading;
 
 
@@ -48,7 +48,7 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
 
     const handleLogout = useCallback(async () => {
         try {
-            localStorage.clear();
+            setUser(null); // Clear JWT cookie via API
             sessionStorage.clear();
             if ('caches' in window) {
                 const cacheNames = await caches.keys();
@@ -60,7 +60,7 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
             console.error('Logout error:', error);
             router.push('/login');
         }
-    }, [router]);
+    }, [router, setUser]);
 
     return (
         <div className="h-screen flex flex-col overflow-hidden bg-linear-to-br from-[#026a75] via-[#037a86] to-[#025f68]">

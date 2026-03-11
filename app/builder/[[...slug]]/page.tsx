@@ -147,14 +147,14 @@ export default function BuilderPage() {
         const loadData = async () => {
             try {
                 if (formId) {
-                    console.log('Fetching data for form ID:', formId);
+                    // console.log('Fetching data for form ID:', formId);
                     const [positionData, builderData] = await Promise.all([
                         fetchPosition(),
                         fetchFormData(formId),
                     ]);
-                    
+
                     setPosition(positionData);
-                    
+
                     if (builderData.form && builderData.rule) {
                         setFormData({
                             form_type: builderData.form.form_type || "",
@@ -225,10 +225,10 @@ export default function BuilderPage() {
     }
 
     // ลบ Rule
-    const removeRule =  (index: number, version: number, id: number) => {
-        if(version === 1) {
-        setFormRule((prev) =>
-            prev.filter((_, i) => i !== index).map((rule, i) => ({ ...rule, level_no: i + 1, version: version })))
+    const removeRule = (index: number, version: number, id: number) => {
+        if (version === 1) {
+            setFormRule((prev) =>
+                prev.filter((_, i) => i !== index).map((rule, i) => ({ ...rule, level_no: i + 1, version: version })))
         } else {
             showSwalConfirm({
                 title: 'ยืนยันการลบเงื่อนไข',
@@ -462,15 +462,20 @@ export default function BuilderPage() {
                 ...formData,
                 questions: formData.questions.map(({ id, ...rest }) => rest),
             };
-            // console.log('Data to update:', { formData: editData , FormRule: formRule });
+
+            // แยก rules: อันใหม่ (version === 1, ไม่มี id) → POST, อันเก่า (มี id) → PUT
+            const newRules = formRule.filter(r => r.version === 1 && !r.id);
+            const updatedRules = formRule.filter(r => r.id);
+
             const res = await fetch("/api/builder", {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    formData: editData
-                    // formRule,
+                    formData: editData,
+                    newRules,
+                    updatedRules,
                 }),
             });
             const responseData = await res.json();
@@ -503,6 +508,8 @@ export default function BuilderPage() {
                 ...formData,
                 questions: formData.questions.map(({ id, ...rest }) => rest),
             };
+
+            // console.log('Data to save:', { formData: saveData, formRule });
 
             const res = await fetch("/api/builder", {
                 method: "POST",
@@ -931,7 +938,7 @@ export default function BuilderPage() {
                                     variant="outline"
                                     size="sm"
                                     onClick={addRule}
-                                    className={`gap-1 cursor-pointer bg-white hover:bg-gray-50 ${builderMode === "edit" ? "hidden" : ""}`}
+                                    className={`gap-1 cursor-pointer bg-white hover:bg-gray-50 ${builderMode === "edit" ? "" : ""}`}
                                 >
                                     <Plus className="w-4 h-4" /> เพิ่มกฎ
                                 </Button>
@@ -965,7 +972,7 @@ export default function BuilderPage() {
                                                         variant="ghost"
                                                         size="sm"
                                                         onClick={() => removeRule(index, rule.version, rule.id || 0)}
-                                                        className={`h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 cursor-pointer ${builderMode === "edit" ? "hidden" : ""}`}
+                                                        className={`h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 cursor-pointer ${builderMode === "edit" ? "" : ""}`}
                                                     >
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
@@ -996,7 +1003,7 @@ export default function BuilderPage() {
                                                                 }))}
                                                                 value={rule.creator_min.toString()}
                                                                 onChange={(value) => updateRule(index, "creator_min", parseInt(value))}
-                                                                disabled={builderMode === "edit"}
+                                                            // disabled={builderMode === "edit"}
                                                             />
                                                             <span className="text-[#026a75] text-md font-semibold ml-2">ถึง </span>
                                                             <DropdownSearch
@@ -1006,7 +1013,7 @@ export default function BuilderPage() {
                                                                 }))}
                                                                 value={rule.creator_max.toString()}
                                                                 onChange={(value) => updateRule(index, "creator_max", parseInt(value))}
-                                                                disabled={builderMode === "edit"}
+                                                            // disabled={builderMode === "edit"}
                                                             />
                                                         </div>
                                                     </div>
@@ -1022,7 +1029,7 @@ export default function BuilderPage() {
                                                                 }))}
                                                                 value={rule.approve_by_min.toString()}
                                                                 onChange={(value) => updateRule(index, "approve_by_min", parseInt(value))}
-                                                                disabled={builderMode === "edit"}
+                                                            // disabled={builderMode === "edit"}
                                                             />
                                                             <span className="text-[#026a75] text-md font-semibold ml-2">ถึง </span>
                                                             <DropdownSearch
@@ -1032,7 +1039,7 @@ export default function BuilderPage() {
                                                                 }))}
                                                                 value={rule.approve_by_max.toString()}
                                                                 onChange={(value) => updateRule(index, "approve_by_max", parseInt(value))}
-                                                                disabled={builderMode === "edit"}
+                                                            // disabled={builderMode === "edit"}
                                                             />
                                                         </div>
                                                     </div>

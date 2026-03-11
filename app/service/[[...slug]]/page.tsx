@@ -131,7 +131,8 @@ export default function ServicePage() {
     }, [router, startTransition]);
 
     const handleSubmit = useCallback(async (data: formDataType) => {
-        const employee_id = user?.employee_id ?? null;
+        if (!user?.employee_id ) return showErrorAlert('ไม่พบข้อมูลผู้ใช้ โปรดติดต่อเจ้าหน้าที่');
+        const employee_id = user?.employee_id 
         // console.log('Submitting data:', JSON.stringify({ ...data, created_by: employee_id }));
         setIsLoadingForms(true);
         try {

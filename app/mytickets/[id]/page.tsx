@@ -46,6 +46,7 @@ export type Ticket = {
     action_at: string;
     image_url?: string;
     remark?: string;
+    admin_comment?: string;
 };
 
 export type Survey = {

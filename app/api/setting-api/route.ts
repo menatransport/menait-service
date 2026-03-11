@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
         method: "GET",
     });
     const data = await res.json();
-    console.log('data : ',data)
+    // console.log('data : ',data)
     if (!res.ok) {
         return NextResponse.json({ error: data?.detail }, { status: res.status });
     }

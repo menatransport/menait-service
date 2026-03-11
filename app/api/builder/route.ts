@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
     const body = await request.json();
-    const { formData } = body;
+    const { formData, newRules, updatedRules } = body;
     const resData = await fetch(`${process.env.URL_API}/forms/master/${formData.form_code}`, {
         method: "PATCH",
         headers: {
@@ -100,8 +100,38 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: dataForm?.detail }, { status: resData.status });
     }
 
+    // POST new rules
+    if (newRules?.length) {
+        for (const rule of newRules) {
+            const res = await fetch(`${process.env.URL_API}/forms/rules`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(rule),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                return NextResponse.json({ error: data?.detail || "ไม่สามารถเพิ่มกฎใหม่ได้" }, { status: res.status });
+            }
+        }
+    }
+
+    // PUT updated rules
+    if (updatedRules?.length) {
+        for (const rule of updatedRules) {
+            const res = await fetch(`${process.env.URL_API}/forms/rules/${rule.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(rule),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                return NextResponse.json({ error: data?.detail || "ไม่สามารถอัปเดตกฎได้" }, { status: res.status });
+            }
+        }
+    }
+
     return NextResponse.json({
-        message: "อัปเดตฟอร์มเรียบร้อย",
+        message: "อัปเดตฟอร์มและกฎเรียบร้อย",
     });
 
 }

@@ -39,17 +39,11 @@ function LoginForm() {
             const data = await res.json();
 
             if (data.user) {
-                // console.log('Login successful, user data:', data.user);
-                data.user.role = [21].includes(data.user.department_id) ? 'a' : ["680043", "670108"].includes(data.user.employee_id) ? 'a' : 'u';
                 setUser(data.user);
             }
-            if (saveToken && data.access_token) {
-                localStorage.setItem('auth-token', data.access_token);
-            }
-            setTimeout(() => {
-                sessionStorage.setItem("showWelcome", "true")
-                router.push("/home");
-            }, 1000)
+            sessionStorage.setItem("showWelcome", "true")
+            router.push("/home");
+
             return true;
         } catch (error) {
             console.error('Login error:', error);
@@ -204,7 +198,7 @@ function LoginForm() {
                 <p className="text-center mt-6 text-white/90 text-sm">
                     Mena IT-Service {" "}
                     <a href="#" className="text-white font-semibold hover:underline">
-                       {process.env.NEXT_PUBLIC_VERSION}
+                        {process.env.NEXT_PUBLIC_VERSION}
                     </a>
                 </p>
             </div>

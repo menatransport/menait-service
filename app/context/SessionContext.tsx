@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
 export interface UserInfo {
@@ -25,40 +25,62 @@ interface SessionContextType {
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
+const showSwal = (options: any) => import('sweetalert2').then(({ default: Swal }) => Swal.fire(options));
+
 export const SessionProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUserState] = useState<UserInfo | null>(() => {
-    if (typeof window === 'undefined') return null;
-    try {
-      const storedUser = localStorage.getItem("user");
-      return storedUser ? JSON.parse(storedUser) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const [loading, setLoading] = useState(() => typeof window === 'undefined');
+  const [user, setUserState] = useState<UserInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const isLoggingOut = useRef(false);
 
   useEffect(() => {
-    setLoading(false);
+    const fetchSession = async () => {
+      try {
+        const res = await fetch('/api/session');
+        if (res.ok) {
+          const data = await res.json();
+          setUserState(data.user);
+        } else {
+          setUserState(null);
+        }
+      } catch {
+        setUserState(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSession();
   }, []);
 
   useEffect(() => {
     if (loading) return;
     if (!user && pathname !== '/login') {
-      localStorage.removeItem("user");
-      router.replace('/login');
+      if (isLoggingOut.current) {
+        isLoggingOut.current = false;
+        router.replace('/login');
+        return;
+      }
+      showSwal({
+        icon: 'warning',
+        title: 'เซสชันหมดอายุ',
+        text: 'กรุณาเข้าสู่ระบบใหม่อีกครั้ง',
+        confirmButtonColor: '#026a75',
+        confirmButtonText: 'ไปหน้าเข้าสู่ระบบ',
+        allowOutsideClick: false,
+      }).then(() => {
+        localStorage.clear()
+        router.replace('/login');
+      });
     }
   }, [user, loading, pathname, router]);
 
   const setUser = useCallback((newUser: UserInfo | null) => {
-    setUserState(newUser);
-    if (newUser) {
-      localStorage.setItem("user", JSON.stringify(newUser));
-    } else {
-      localStorage.removeItem("user");
+    if (!newUser) {
+      isLoggingOut.current = true;
+      fetch('/api/session', { method: 'DELETE' });
     }
+    setUserState(newUser);
   }, []);
 
   return (

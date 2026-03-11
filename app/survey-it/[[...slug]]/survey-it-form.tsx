@@ -116,7 +116,6 @@ export function SurveyITForm({ id }: { id?: string }) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Submitting form with data:', formData);
         setIsSubmitting(true);
 
         try {

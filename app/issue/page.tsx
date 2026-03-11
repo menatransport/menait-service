@@ -9,6 +9,7 @@ import { useSessionContext } from '@/app/context/SessionContext';
 const showAlert = (options: { icon: 'success' | 'error'; title: string; text: string; confirmButtonText: string }) =>
     import('sweetalert2').then(({ default: Swal }) => Swal.fire(options));
 
+
 type formDataType = {
     created_by?: string;
     form_code: string;
@@ -53,7 +54,13 @@ export default function IssuePage() {
     }, []);
 
     const handleSubmit = useCallback(async (data: formDataType) => {
-        const employee_id = user?.employee_id ?? null;
+        if (!user?.employee_id ) return showAlert({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด',
+            text: 'ไม่พบข้อมูลผู้ใช้ โปรดติดต่อเจ้าหน้าที่',
+            confirmButtonText: 'ตกลง',
+        });
+        const employee_id = user?.employee_id 
         const { files, ...formPayload } = data;
         setIsLoadingFormData(true);
         try {

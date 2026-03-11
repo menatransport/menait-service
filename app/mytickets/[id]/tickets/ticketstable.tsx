@@ -1,6 +1,6 @@
 'use client';
 import { Ticket } from "@/app/mytickets/[id]/page";
-import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X, Star, ExternalLink } from "lucide-react";
+import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X, Star, ExternalLink, Computer, Laptop } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -77,7 +77,7 @@ const UserAvatar = ({ email, imageUrl }: { email: string; imageUrl?: string }) =
             />
         ) :
             <div className={`w-11 h-11 bg-linear-to-br from-[#026a75] to-[#034d54] rounded-full flex items-center justify-center text-white font-semibold text-base shadow-md ring-2 ring-white`}>
-                {email.charAt(0).toUpperCase()}
+                {(email || '?').charAt(0).toUpperCase()}
             </div>
         }
     </div>
@@ -201,6 +201,7 @@ export const DataTable = ({
     const [filterStatus, setFilterStatus] = useState<string>('all');
     const [searchText, setSearchText] = useState<string>('');
     const [showFilters, setShowFilters] = useState(false);
+
 
     const processedData = useMemo(() => {
         let result = [...data];
@@ -552,10 +553,10 @@ export const DataTable = ({
                                     <span>หัวข้อคำร้อง</span>
                                 </div>
                             </th>
-                           { activeTab !== "suv" ? <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[15%]">สถานะ</th>
-                            : <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[15%]">คะแนน</th>}
-                            { activeTab == "suv" &&(<th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[15%]">หมายเหตุ</th>
-                        )}
+                            {activeTab !== "suv" ? <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[15%]">สถานะ</th>
+                                : <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[15%]">คะแนน</th>}
+                            {activeTab == "suv" && (<th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[15%]">หมายเหตุ</th>
+                            )}
                             <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[20%]">
                                 <span className="flex items-center gap-1">
                                     วันที่สร้าง
@@ -576,7 +577,7 @@ export const DataTable = ({
                             <EmptyState colSpan={4} />
                         ) : (
                             paginatedTickets.map((item) => (
-                                <tr key={activeTab == "suv" ? item.form_id : item.submission_id } className="hover:bg-gray-50 transition-colors">
+                                <tr key={activeTab == "suv" ? item.form_id : item.submission_id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-4">
                                             <UserAvatar email={item.email} imageUrl={item.image_url} />
@@ -606,7 +607,7 @@ export const DataTable = ({
                                     {activeTab === "suv" && (
                                         <td className="px-4 py-4">
                                             <span className="text-sm text-gray-600">
-                                            {item.comment || '-'}
+                                                {item.comment || '-'}
                                             </span>
                                         </td>
                                     )}
@@ -625,7 +626,7 @@ export const DataTable = ({
                                             >
                                                 <Eye size={16} />
                                             </button>
-                                          {/* {item.status === "Done" && (
+                                            {/* {item.status === "Done" && (
                                             <a
                                                 href={`https://menait-service.vercel.app/survey-it/${item.form_id}`}
                                                 target="_blank"
@@ -693,6 +694,9 @@ export const Viewer = ({
     const [pendingStatusChange, setPendingStatusChange] = useState<string | null>(null);
     const [imageUrls, setImageUrls] = useState<string[]>([]);
     const [remark, setRemark] = useState('');
+    const [displayBtnNote, setDisplayBtnNote] = useState(false);
+    const [adminComment, setAdminComment] = useState(selectTicketBack?.admin_comment || '');
+    const [loadBtn, setLoadBtn] = useState(false);
 
     const handleInputChange = (name: string, value: any) => {
         setFormValues(prev => ({ ...prev, [name]: value }));
@@ -765,6 +769,11 @@ export const Viewer = ({
     }, [ticket?.form_id]);
 
     useEffect(() => {
+        setAdminComment(selectTicketBack?.admin_comment || '');
+        setDisplayBtnNote(false);
+    }, [selectTicketBack]);
+
+    useEffect(() => {
         if (!isOpen) {
             setIsEditing(false);
             setFormStructure(null);
@@ -831,6 +840,53 @@ export const Viewer = ({
                 title: 'เกิดข้อผิดพลาดในการส่งข้อมูลที่แก้ไข',
                 text: 'โปรดลองอีกครั้งภายหลัง',
             });
+        }
+    };
+
+    const handleChangeNote = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const newValue = e.target.value;
+        setAdminComment(newValue);
+        setDisplayBtnNote(newValue.trim().length > 0);
+    }
+
+    const handleSubmitNote = async () => {
+        try {
+            setLoadBtn(true);
+            if (!ticket) return;
+            const res = await fetch(`/api/admincomment`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    form_id: ticket.form_id,
+                    admin_comment: adminComment,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                showSwal({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาดในการอัปเดตหมายเหตุ',
+                    text: data?.error || 'Unknown error',
+                });
+                setLoadBtn(false);
+                return;
+            }
+            showSwal({
+                icon: 'success',
+                title: 'อัปเดตสำเร็จ',
+                timer: 1500,
+                showConfirmButton: false,
+            });
+            setDisplayBtnNote(false);
+            setLoadBtn(false);
+        } catch (error) {
+            console.error('Error submitting note:', error);
+            showSwal({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาดในการส่งหมายเหตุ',
+                text: 'โปรดลองอีกครั้งภายหลัง',
+            });
+            setLoadBtn(false);
         }
     };
 
@@ -1009,34 +1065,34 @@ export const Viewer = ({
                                         )}
                                         {imageUrls.length > 0 && (
                                             <>
-                                            <div className="flex items-center gap-2 mb-1.5">
-                                                <div className="flex items-center justify-center w-5 h-5 rounded-md bg-[#026a75]/10 text-[#026a75] text-[10px] font-bold shrink-0">
-                                                    {formStructure.questions.length + 1}
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <div className="flex items-center justify-center w-5 h-5 rounded-md bg-[#026a75]/10 text-[#026a75] text-[10px] font-bold shrink-0">
+                                                        {formStructure.questions.length + 1}
+                                                    </div>
+                                                    <label className="text-sm font-medium text-gray-700">แนบรูปภาพ (ถ้ามี)</label>
                                                 </div>
-                                                <label className="text-sm font-medium text-gray-700">แนบรูปภาพ (ถ้ามี)</label>
-                                            </div>
-                                            <div className="w-full">
-                                                {imageUrls.map((url, idx) => (
-                                                    <a
-                                                        key={idx}
-                                                        href={url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="group relative block rounded-xl overflow-hidden border border-gray-200 hover:border-[#026a75]/40 transition-all"
-                                                    >
-                                                        <img
-                                                            src={url}
-                                                            alt={`แนบรูปภาพ ${idx + 1}`}
-                                                            className="w-full h-36 object-cover bg-gray-50"
-                                                        />
-                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-200">
-                                                            <div className="w-9 h-9 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md">
-                                                                <Eye className="w-4 h-4 text-gray-700" />
+                                                <div className="w-full">
+                                                    {imageUrls.map((url, idx) => (
+                                                        <a
+                                                            key={idx}
+                                                            href={url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="group relative block rounded-xl overflow-hidden border border-gray-200 hover:border-[#026a75]/40 transition-all"
+                                                        >
+                                                            <img
+                                                                src={url}
+                                                                alt={`แนบรูปภาพ ${idx + 1}`}
+                                                                className="w-full h-36 object-cover bg-gray-50"
+                                                            />
+                                                            <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-200">
+                                                                <div className="w-9 h-9 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md">
+                                                                    <Eye className="w-4 h-4 text-gray-700" />
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    </a>
-                                                ))}
-                                            </div>
+                                                        </a>
+                                                    ))}
+                                                </div>
                                             </>
                                         )}
                                     </div>
@@ -1045,6 +1101,38 @@ export const Viewer = ({
                                 )}
                             </div>
                         )}
+
+                        {/* Comment Admin */}
+                        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                            <div className="flex justify-between">
+                                <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                                    <Laptop size={18} /> หมายเหตุจากฝ่าย IT
+                                </h4>
+                                {displayBtnNote && (
+                                    !loadBtn ? <Button
+                                        variant="default"
+                                        className="cursor-pointer bg-emerald-600 hover:bg-emerald-700"
+                                        onClick={handleSubmitNote as any}
+                                        size="sm"
+                                    >
+                                        บันทึก
+                                    </Button>
+                                        : <div className="flex items-center gap-2 text-gray-500">
+                                            <Loader2 size={20} className="animate-spin" />
+                                            กำลังบันทึก...
+                                        </div>
+                                )}
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <textarea className="text-sm bg-white text-gray-700 border overflow-x-hidden border-gray-300 rounded-md p-3 w-full min-h-20 resize-none focus:ring-2 focus:ring-[#026a75]/50 focus:outline-none"
+                                    value={adminComment}
+                                    onChange={(e) => {
+                                        handleChangeNote(e);
+                                    }}
+                                    readOnly={role !== 'a'}
+                                />
+                            </div>
+                        </div>
 
                         {/* Timeline */}
                         <div className="bg-gray-50 rounded-xl p-4">
@@ -1196,24 +1284,24 @@ export const Viewer = ({
                     <DialogContent className="sm:max-w-2xl p-0 flex flex-col max-h-[90vh]">
                         <DialogHeader className="border-b p-4 sm:p-6 shrink-0">
                             <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <SheetTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</SheetTitle>
-                                <SheetDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</SheetDescription>
+                                <div>
+                                    <SheetTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</SheetTitle>
+                                    <SheetDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</SheetDescription>
+                                </div>
+                                {/* Button Survey-it */}
+                                {ticket?.status == "Done" && (
+                                    <a
+                                        href={`https://menait-service.vercel.app/survey-it/${ticket?.form_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 px-2 py-2.5 mr-5 rounded-xl bg-linear-to-r from-[#026a75] to-[#038a96] text-white text-sm font-semibold shadow-md hover:shadow-lg hover:from-[#025f68] hover:to-[#026a75] transition-all duration-300 hover:scale-[1.02] shrink-0 group"
+                                    >
+                                        <Star size={16} className="fill-yellow-300 text-yellow-300 group-hover:animate-pulse" />
+                                        <span className="hidden sm:inline">ให้คะแนนประเมิน</span>
+                                        <ExternalLink size={14} className="opacity-60 group-hover:opacity-100 transition-opacity" />
+                                    </a>
+                                )}
                             </div>
-                            {/* Button Survey-it */}
-                            {ticket?.status == "Done" && (
-                            <a
-                                href={`https://menait-service.vercel.app/survey-it/${ticket?.form_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 px-2 py-2.5 mr-5 rounded-xl bg-linear-to-r from-[#026a75] to-[#038a96] text-white text-sm font-semibold shadow-md hover:shadow-lg hover:from-[#025f68] hover:to-[#026a75] transition-all duration-300 hover:scale-[1.02] shrink-0 group"
-                            >
-                                <Star size={16} className="fill-yellow-300 text-yellow-300 group-hover:animate-pulse" />
-                                <span className="hidden sm:inline">ให้คะแนนประเมิน</span>
-                                <ExternalLink size={14} className="opacity-60 group-hover:opacity-100 transition-opacity" />
-                            </a>
-                            )}
-                        </div>
                         </DialogHeader>
                         {viewerContent}
                     </DialogContent>
@@ -1235,17 +1323,17 @@ export const Viewer = ({
                                 <SheetDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</SheetDescription>
                             </div>
                             {/* Button Survey-it */}
-                           {ticket?.status == "Done" && (
-                            <a
-                                href={`https://menait-service.vercel.app/survey-it/${ticket?.form_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 px-2 py-2.5 mr-5 rounded-xl bg-linear-to-r from-[#026a75] to-[#038a96] text-white text-sm font-semibold shadow-md hover:shadow-lg hover:from-[#025f68] hover:to-[#026a75] transition-all duration-300 hover:scale-[1.02] shrink-0 group"
-                            >
-                                <Star size={16} className="fill-yellow-300 text-yellow-300 group-hover:animate-pulse" />
-                                <span className="hidden sm:inline">ให้คะแนนประเมิน</span>
-                                <ExternalLink size={14} className="opacity-60 group-hover:opacity-100 transition-opacity" />
-                            </a>
+                            {ticket?.status == "Done" && (
+                                <a
+                                    href={`https://menait-service.vercel.app/survey-it/${ticket?.form_id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 px-2 py-2.5 mr-5 rounded-xl bg-linear-to-r from-[#026a75] to-[#038a96] text-white text-sm font-semibold shadow-md hover:shadow-lg hover:from-[#025f68] hover:to-[#026a75] transition-all duration-300 hover:scale-[1.02] shrink-0 group"
+                                >
+                                    <Star size={16} className="fill-yellow-300 text-yellow-300 group-hover:animate-pulse" />
+                                    <span className="hidden sm:inline">ให้คะแนนประเมิน</span>
+                                    <ExternalLink size={14} className="opacity-60 group-hover:opacity-100 transition-opacity" />
+                                </a>
                             )}
                         </div>
                     </SheetHeader>
