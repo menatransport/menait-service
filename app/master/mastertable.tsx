@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/ui/loading';
 import {
     FileSpreadsheet, Users, ChevronDown, ChevronRight,
-    Building2, MapPin, Briefcase, Eye, ExternalLink
+    Building2, MapPin, Briefcase, Eye, ExternalLink, UserPlus
 } from 'lucide-react';
 import { UserDetailSheet } from './user-detail-sheet';
+import { AddUserDialog } from './add-user-dialog';
 
 // Local imports - bundle-barrel-imports: Import directly
 import {
@@ -196,11 +197,12 @@ MobileDepartmentGroup.displayName = 'MobileDepartmentGroup';
 
 // ===================== MASTER TABLE (USER) =====================
 
-export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate }: MasterTableProps) => {
+export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, onAdd }: MasterTableProps) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [collapsedDeps, setCollapsedDeps] = useState<Set<string>>(new Set());
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [addDialogOpen, setAddDialogOpen] = useState(false);
 
     // rerender-functional-setstate: Use callbacks for stable handlers
     const handleViewUser = useCallback((user: UserData) => {
@@ -282,7 +284,20 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate }: 
                 icon={<Users className="w-5 h-5" />}
                 title="ข้อมูลองค์กร"
                 subtitle={`${groups.length} แผนก · ${totalFiltered.toLocaleString()} คน (จาก ${data.length.toLocaleString()} รายการ)`}
-                actions={<ExcelButton />}
+                actions={
+                    <>
+                        {onAdd && (
+                            <button
+                                onClick={() => setAddDialogOpen(true)}
+                                className="bg-indigo-600/30 border border-white/30 hover:bg-indigo-600/50 text-white px-3 py-2 rounded-xl flex items-center gap-2 text-sm font-medium transition-all duration-200 cursor-pointer"
+                            >
+                                <UserPlus className="w-4 h-4" />
+                                <span className="hidden sm:inline">เพิ่มผู้ใช้</span>
+                            </button>
+                        )}
+                        <ExcelButton />
+                    </>
+                }
                 searchValue={searchTerm}
                 onSearchChange={handleSearchChange}
                 onSearchClear={handleClearSearch}
@@ -361,6 +376,14 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate }: 
                 onUpdate={onUpdate}
                 allUsers={data}
             />
+
+            {onAdd && (
+                <AddUserDialog
+                    open={addDialogOpen}
+                    onOpenChange={setAddDialogOpen}
+                    onAdd={onAdd}
+                />
+            )}
         </TableWrapper>
     );
 });

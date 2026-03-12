@@ -9,14 +9,11 @@ export async function GET(request: NextRequest) {
         },
     });
     const data = await res.json();
-    data.map((item: any) => {
-        return item.employee_status = "Active";
-    });
-   
+    const filteredData = data.filter((user: any) => user.employee_status === "Active");
     if (!res.ok) {
         return NextResponse.json({ error: data?.detail }, { status: res.status });
     }
-    return NextResponse.json(data);
+    return NextResponse.json(filteredData);
 }
 
 export async function PUT(request: NextRequest) {
@@ -29,6 +26,20 @@ export async function PUT(request: NextRequest) {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        return NextResponse.json({ error: data?.detail }, { status: res.status });
+    }
+    return NextResponse.json(data);
+}
+
+export async function POST(request: NextRequest) {
+    const body = await request.json();
+    const res = await fetch(`${process.env.URL_API}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) {

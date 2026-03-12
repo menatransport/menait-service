@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import type { UserData, FormData } from "./mastertable"
 import { WaveBackground } from "@/components/wave-background";
+import { UserCreate } from "@/components/profile-form";
 
 
 const MasterTable = dynamic(
@@ -24,14 +25,20 @@ export default function MasterPage() {
     const [error, setError] = useState<string | null>(null);
     const [forms, setForms] = useState<FormData[]>([]);
     const [activeTab, setActiveTab] = useState('user' as 'user' | 'form');
-    
+
 
     const fetchUsers = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch("/api/organization/user");
+            const res = await fetch("/api/organization/user", {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
             const data = await res.json();
+            // console.log("Fetched user data:", data);
             if (res.ok) {
                 setUsers(Array.isArray(data) ? data : [data]);
             } else {
@@ -55,6 +62,8 @@ export default function MasterPage() {
             // console.log("Fetched form data:", data);
             if (res.ok) {
                 setForms(data);
+            } else {
+                setError(data?.error || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
             }
         } catch (err) {
             console.error("Error fetching form data:", err);
@@ -78,6 +87,30 @@ export default function MasterPage() {
             return false;
         }
     }, []);
+
+    const handleAdd = useCallback(async (userData: Omit<UserCreate, 'id'>): Promise<boolean> => {
+        try {
+            const payload = {
+                ...userData,
+                department_id: Number(userData.department_id),
+                site_id: Number(userData.site_id),
+                position_id: Number(userData.position_id),
+                employee_status: 'Active',
+                password: 'Mnt@' + userData.employee_id.slice(-4),
+            };
+            // console.log("Adding user with payload:", payload);
+            const res = await fetch('/api/organization/user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) return false;
+            await fetchUsers();
+            return true;
+        } catch {
+            return false;
+        }
+    }, [fetchUsers]);
 
 
     useEffect(() => {
@@ -110,7 +143,7 @@ export default function MasterPage() {
                             </TabsTrigger>
                         </TabsList>
                         <TabsContent value="user">
-                            <MasterTable data={users} isLoading={isLoading} error={error} onRetry={fetchUsers} onUpdate={handleUpdate} />
+                            <MasterTable data={users} isLoading={isLoading} error={error} onRetry={fetchUsers} onUpdate={handleUpdate} onAdd={handleAdd} />
                         </TabsContent>
                         <TabsContent value="form">
                             <TableForm data={forms} isLoading={isLoading} error={error} onRetry={fetchForms} />

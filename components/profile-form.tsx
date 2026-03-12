@@ -24,6 +24,22 @@ export interface UserData {
     position_level: string;
 }
 
+export interface UserCreate {
+  username: string;
+  employee_id: string;
+  department_id: number;
+  site_id: number;
+  position_id: number;
+  email: string;
+  employee_status: string;
+  firstname: string;
+  lastname: string;
+  password: string;
+
+}
+
+
+
 // ===================== FIELD CONFIG (rendering-hoist-jsx) =====================
 interface ProfileField {
     label: string;

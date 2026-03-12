@@ -24,7 +24,7 @@ interface Option {
 }
 
 interface DropdownSearchProps {
-  value: string;
+  value: string | number;
   onChange: (value: string) => void;
   options: Option[];
   placeholder?: string;
@@ -64,7 +64,7 @@ export const DropdownSearch = ({
           <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0 rounded-xl border-2 border-gray-200 shadow-xl" align="start">
+      <PopoverContent className="w-full p-0 rounded-xl border-2 border-gray-200 shadow-xl" align="start" onWheel={(e) => e.stopPropagation()}>
         <Command>
           <CommandInput placeholder={searchPlaceholder} className="h-10" />
           <CommandList>

@@ -13,6 +13,7 @@ export interface MasterTableProps {
     error: string | null;
     onRetry: () => void;
     onUpdate?: (data: import('@/components/profile-form').UserData) => Promise<boolean>;
+    onAdd?: (data: Omit<import('@/components/profile-form').UserCreate, 'id'>) => Promise<boolean>;
 }
 
 // ===================== FORM TABLE TYPES =====================
