@@ -3,13 +3,15 @@ import type { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
     const param = request.nextUrl.searchParams.get('employee_id');
-    const tab = request.nextUrl.searchParams.get('tab') || 'pending'; // 'my' or 'pending'
+    const tab = request.nextUrl.searchParams.get('tab') || 'pending';
     const role = request.nextUrl.searchParams.get('role') || '';
-    
-    const endpoint = tab === 'my' 
+    const status = request.nextUrl.searchParams.get('status') || '';
+
+    const endpoint = tab === 'my'
         ? `${process.env.URL_API}/forms${role === 'a' ? '' : `?employee_id=${param}`}`
-        : `${process.env.URL_API}/forms/pending-approvals?employee_id=${param}`;
-    
+        : status === 'Done' ? `${process.env.URL_API}/forms${role === 'a' ? '?status=Done' : `?employee_id=${param}`}`
+            : `${process.env.URL_API}/forms/pending-approvals?employee_id=${param}`;
+
     const res = await fetch(endpoint, {
         method: "GET",
     });
@@ -21,7 +23,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data);
 }
 
-export async function POST (request: NextRequest) {
+export async function POST(request: NextRequest) {
     const { form_id, employee_id, action, remark } = await request.json();
 
     const res = await fetch(`${process.env.URL_API}/forms/${form_id}/${action}?employee_id=${employee_id}&remark=${remark || ''}`, {
@@ -36,4 +38,3 @@ export async function POST (request: NextRequest) {
     }
     return NextResponse.json({ message: 'Action completed successfully' });
 }
-    

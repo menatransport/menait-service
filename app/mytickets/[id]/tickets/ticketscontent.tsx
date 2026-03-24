@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState, useCallback } from "react";
 import { type Ticket } from "@/app/mytickets/[id]/page";
-import { DataTable, Viewer, type TabType } from "./ticketstable";
+import { DataTable, Viewer, type TabType, type SurveyFilter } from "./ticketstable";
 import { WaveBackground } from "@/components/wave-background";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { exportToExcel } from "@/lib/exportExcel";
@@ -23,7 +23,9 @@ export const TicketComponent = ({
     autoOpenFormData,
     isAutoOpenSheetOpen,
     isAutoOpenLoading,
-    onAutoOpenClose
+    onAutoOpenClose,
+    surveyFilter,
+    onSurveyFilterChange
 }: {
     tickets: Ticket[];
     onSelect: (ticket: Ticket) => void;
@@ -42,6 +44,8 @@ export const TicketComponent = ({
     isAutoOpenSheetOpen?: boolean;
     isAutoOpenLoading?: boolean;
     onAutoOpenClose?: () => void;
+    surveyFilter?: SurveyFilter;
+    onSurveyFilterChange?: (filter: SurveyFilter) => void;
 }) => {
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -151,6 +155,8 @@ export const TicketComponent = ({
                         activeTab={activeTab}
                         onTabChange={onTabChange}
                         role={role}
+                        surveyFilter={surveyFilter}
+                        onSurveyFilterChange={onSurveyFilterChange}
                     />
                 </Tabs>
             </div>

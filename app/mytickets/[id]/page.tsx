@@ -2,7 +2,7 @@
 import { Navbar } from '@/components/navbar';
 import dynamic from 'next/dynamic';
 import { useEffect, useState, useCallback } from 'react';
-import { type TabType } from "@/app/mytickets/[id]/tickets/ticketstable"
+import { type TabType, type SurveyFilter } from "@/app/mytickets/[id]/tickets/ticketstable"
 import { useSessionContext } from '@/app/context/SessionContext';
 import { useParams, useRouter } from "next/navigation";
 import { WaveBackground } from '@/components/wave-background';
@@ -71,21 +71,28 @@ export default function TicketsPage() {
     const [autoOpenFormData, setAutoOpenFormData] = useState<any>(null);
     const [isAutoOpenSheetOpen, setIsAutoOpenSheetOpen] = useState(false);
     const [isAutoOpenLoading, setIsAutoOpenLoading] = useState(false);
+    const [surveyFilter, setSurveyFilter] = useState<SurveyFilter>('evaluated');
+    const [surveyEvaluated, setSurveyEvaluated] = useState<Ticket[]>([]);
+    const [surveyNotEvaluated, setSurveyNotEvaluated] = useState<Ticket[]>([]);
 
     const fetchTickets = useCallback(async (tab: TabType) => {
         if (!employeeId) return;
         setIsLoading(true);
-        const api = tab === "suv" ? `/api/survey-it?employee_id=${employeeId}&tab=${tab}&role=${role}` : `/api/tickets?employee_id=${employeeId}&tab=${tab}&role=${role}`;
         try {
-            const response = await fetch(api, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-            const data = await response.json();
-            // console.log('Fetched tickets data:', data);
-            setTickets(Array.isArray(data) ? data : []);
+            if (tab === 'suv') {
+                const [evalRes, notEvalRes] = await Promise.all([
+                    fetch(`/api/survey-it?employee_id=${employeeId}&tab=${tab}&role=${role}`),
+                    fetch(`/api/tickets?employee_id=${employeeId}&tab=suv&role=${role}&status=Done`),
+                ]);
+                const [evalData, notEvalData] = await Promise.all([evalRes.json(), notEvalRes.json()]);
+                setSurveyEvaluated(Array.isArray(evalData) ? evalData : []);
+                setSurveyNotEvaluated(Array.isArray(notEvalData) ? notEvalData : []);
+                setTickets(Array.isArray(evalData) ? evalData : []);
+            } else {
+                const response = await fetch(`/api/tickets?employee_id=${employeeId}&tab=${tab}&role=${role}`);
+                const data = await response.json();
+                setTickets(Array.isArray(data) ? data : []);
+            }
         } catch (error) {
             console.error('Error fetching tickets data:', error);
             setTickets([]);
@@ -137,7 +144,19 @@ export default function TicketsPage() {
 
     const handleTabChange = useCallback((tab: TabType) => {
         setActiveTab(tab);
+        if (tab === 'suv') setSurveyFilter('evaluated');
     }, []);
+
+    const handleSurveyFilterChange = useCallback((filter: SurveyFilter) => {
+        setSurveyFilter(filter);
+        if (filter === 'evaluated') {
+            setTickets(surveyEvaluated);
+        } else if (filter === 'not-evaluated') {
+            setTickets(surveyNotEvaluated);
+        } else {
+            setTickets([...surveyEvaluated, ...surveyNotEvaluated]);
+        }
+    }, [surveyEvaluated, surveyNotEvaluated]);
 
     const handleSelected = async (ticket: Ticket) => {
         const res = await fetch(`/api/formselect?path=${ticket.form_id}`, {
@@ -264,6 +283,8 @@ export default function TicketsPage() {
                 isAutoOpenSheetOpen={isAutoOpenSheetOpen}
                 isAutoOpenLoading={isAutoOpenLoading}
                 onAutoOpenClose={handleAutoOpenClose}
+                surveyFilter={surveyFilter}
+                onSurveyFilterChange={handleSurveyFilterChange}
             />
         </Navbar>
     );

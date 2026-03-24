@@ -165,6 +165,7 @@ const TAB_OPTIONS = [
 
 export type TabType = 'my' | 'apv' | 'suv';
 export type SortOrder = 'asc' | 'desc';
+export type SurveyFilter = 'evaluated' | 'not-evaluated' | 'all';
 
 // Filter status options
 const STATUS_OPTIONS = [
@@ -185,7 +186,9 @@ export const DataTable = ({
     onViewTicket,
     activeTab,
     onTabChange,
-    role
+    role,
+    surveyFilter,
+    onSurveyFilterChange
 }: {
     data: Ticket[];
     title: string;
@@ -195,12 +198,15 @@ export const DataTable = ({
     activeTab: TabType;
     onTabChange: (tab: TabType) => void;
     role?: string | null;
+    surveyFilter?: SurveyFilter;
+    onSurveyFilterChange?: (filter: SurveyFilter) => void;
 }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
     const [filterStatus, setFilterStatus] = useState<string>('all');
     const [searchText, setSearchText] = useState<string>('');
     const [showFilters, setShowFilters] = useState(false);
+    const currentSurveyFilter = surveyFilter ?? 'evaluated';
 
 
     const processedData = useMemo(() => {
@@ -208,6 +214,10 @@ export const DataTable = ({
 
         if (filterStatus !== 'all') {
             result = result.filter(item => item.status === filterStatus);
+        }
+
+        if (activeTab === 'suv' && currentSurveyFilter === 'evaluated') {
+            result = result.filter(item => !!item.point);
         }
 
         if (searchText.trim()) {
@@ -227,7 +237,7 @@ export const DataTable = ({
         });
 
         return result;
-    }, [data, sortOrder, filterStatus, searchText]);
+    }, [data, sortOrder, filterStatus, searchText, activeTab, currentSurveyFilter]);
 
     const totalPages = Math.ceil(processedData.length / ITEMS_PER_PAGE);
 
@@ -240,13 +250,19 @@ export const DataTable = ({
         setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
     };
 
+    const handleSurveyFilter = (filter: SurveyFilter) => {
+        onSurveyFilterChange?.(filter);
+        setCurrentPage(1);
+    };
+
     const clearFilters = () => {
         setFilterStatus('all');
+        if (activeTab === 'suv') handleSurveyFilter('evaluated');
         setSearchText('');
         setCurrentPage(1);
     };
 
-    const hasActiveFilters = filterStatus !== 'all' || searchText.trim() !== '';
+    const hasActiveFilters = filterStatus !== 'all' || searchText.trim() !== '' || (activeTab === 'suv' && currentSurveyFilter !== 'evaluated');
 
     return (
         <section className="bg-white rounded-2xl shadow-xl border border-white/30 overflow-hidden relative">
@@ -325,8 +341,7 @@ export const DataTable = ({
                             <Filter size={14} />
                             <span>ตัวกรอง</span>
                             {hasActiveFilters && (
-                                <span className="bg-emerald-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                                    {(filterStatus !== 'all' ? 1 : 0) + (searchText.trim() ? 1 : 0)}
+                                <span className="bg-blue-400 animate-pulse text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
                                 </span>
                             )}
                         </button>
@@ -418,20 +433,35 @@ export const DataTable = ({
                             )}
                         </div>
 
-                        {/* Status Pills - Scrollable on Mobile */}
+                        {/* Status / Survey Filter Pills - Scrollable on Mobile */}
                         <div className="flex overflow-x-auto pb-1 lg:pb-0 -mx-3 px-3 lg:mx-0 lg:px-0 gap-2 scrollbar-hide">
-                            {STATUS_OPTIONS.map(({ value, label }) => (
-                                <button
-                                    key={value}
-                                    onClick={() => { setFilterStatus(value); setCurrentPage(1); }}
-                                    className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${filterStatus === value
-                                        ? 'bg-[#026a75] text-white border-[#026a75] shadow-sm'
-                                        : 'bg-white text-gray-600 border-gray-300 hover:border-[#026a75] hover:text-[#026a75]'
-                                        }`}
-                                >
-                                    {label}
-                                </button>
-                            ))}
+                            {activeTab === 'suv' ? (
+                                [{ value: 'evaluated' as const, label: 'ประเมินแล้ว' }, { value: 'not-evaluated' as const, label: 'ยังไม่ประเมิน' }].map(({ value, label }) => (
+                                    <button
+                                        key={value}
+                                        onClick={() => handleSurveyFilter(value)}
+                                        className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${currentSurveyFilter === value
+                                            ? 'bg-[#026a75] text-white border-[#026a75] shadow-sm'
+                                            : 'bg-white text-gray-600 border-gray-300 hover:border-[#026a75] hover:text-[#026a75]'
+                                            }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))
+                            ) : (
+                                STATUS_OPTIONS.map(({ value, label }) => (
+                                    <button
+                                        key={value}
+                                        onClick={() => { setFilterStatus(value); setCurrentPage(1); }}
+                                        className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${filterStatus === value
+                                            ? 'bg-[#026a75] text-white border-[#026a75] shadow-sm'
+                                            : 'bg-white text-gray-600 border-gray-300 hover:border-[#026a75] hover:text-[#026a75]'
+                                            }`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))
+                            )}
                         </div>
 
                         {/* Spacer - Desktop */}
@@ -473,7 +503,7 @@ export const DataTable = ({
                     <div className="divide-y divide-gray-100">
                         {paginatedTickets.map((item) => (
                             <div
-                                key={item.submission_id}
+                                key={activeTab === "suv" ? item.form_id : item.submission_id}
                                 onClick={() => onViewTicket(item)}
                                 className="p-4 active:bg-gray-100 transition-colors cursor-pointer"
                             >
