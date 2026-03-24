@@ -67,7 +67,7 @@ const INFO_FIELDS: InfoField[] = [
     { label: 'นามสกุล', field: 'lastname', icon: User, editable: true, editType: 'input' },
     { label: 'สถานะ', field: 'employee_status', icon: BadgeCheck, editable: true, editType: 'dropdown' },
     { label: 'อีเมล', field: 'email', icon: Mail, editable: true, editType: 'input' },
-    { label: 'แผนก', field: 'department', icon: Building, editable: true, editType: 'dropdown' },
+    { label: 'ฝ่าย', field: 'department', icon: Building, editable: true, editType: 'dropdown' },
     { label: 'สถานที่', field: 'site', icon: MapPin, editable: true, editType: 'dropdown' },
     { label: 'ตำแหน่ง', field: 'position', icon: Briefcase, editable: true, editType: 'dropdown' },
     { label: 'ระดับ', field: 'position_level', icon: Shield, editable: true, editType: 'dropdown' },

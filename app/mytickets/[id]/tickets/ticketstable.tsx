@@ -697,7 +697,7 @@ export const Viewer = ({
     const [displayBtnNote, setDisplayBtnNote] = useState(false);
     const [adminComment, setAdminComment] = useState(selectTicketBack?.admin_comment || '');
     const [loadBtn, setLoadBtn] = useState(false);
-
+    // console.log('SelectTicketBack:', selectTicketBack);
     const handleInputChange = (name: string, value: any) => {
         setFormValues(prev => ({ ...prev, [name]: value }));
         if (errors[name]) {
@@ -752,7 +752,7 @@ export const Viewer = ({
 
     useEffect(() => {
         // GET IMAGE S3 URL
-        if (ticket?.form_code !== "ISSUE_IT_005") return;
+        if (ticket?.form_code !== "ISSUE_IT") return;
         const fetchImageUrls = async () => {
             const res = await fetch(`/api/uploads3?form_id=${ticket?.form_id}`);
             const data = await res.json();

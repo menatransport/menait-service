@@ -4,6 +4,7 @@ import { type Ticket } from "@/app/mytickets/[id]/page";
 import { DataTable, Viewer, type TabType } from "./ticketstable";
 import { WaveBackground } from "@/components/wave-background";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { exportToExcel } from "@/lib/exportExcel";
 
 // ===================== MAIN COMPONENT =====================
 export const TicketComponent = ({
@@ -53,6 +54,7 @@ export const TicketComponent = ({
         [tickets, filterStatus]
     );
 
+    // console.log('Filtered Tickets:', filteredTickets);
     // =================== EVENT HANDLERS ===================
     const handleView = useCallback((ticket: Ticket) => {
         setSelectedTicket(ticket);
@@ -65,8 +67,48 @@ export const TicketComponent = ({
     }, []);
 
     const handleExportExcel = useCallback(() => {
-        console.log('Export to Excel - Coming soon');
-    }, []);
+        if (activeTab === 'suv') {
+            exportToExcel<Ticket>({
+                data: filteredTickets,
+                fileName: 'แบบประเมิน',
+                sheetName: 'แบบประเมิน',
+                columns: [
+                    { header: 'รหัสฟอร์ม', key: 'form_code', width: 16 },
+                    { header: 'ชื่อฟอร์ม', key: 'form_name', width: 30 },
+                    { header: 'รหัสคำร้อง', key: 'form_id', width: 22 },
+                    { header: 'รหัสพนักงาน', key: 'created_by', width: 22 },
+                    { header: 'ผู้สร้าง', key: (r) => `${r.firstname || ''} ${r.lastname || ''}`.trim() || r.created_by || '', width: 22 },
+                    { header: 'อีเมล', key: 'email', width: 26 },
+                    { header: 'แผนก', key: 'department_name_th', width: 22 },
+                    { header: 'คะแนน (5)', key: (r) => r.point ? `${r.point}` : 'ยังไม่ให้คะแนน', width: 14 },
+                    { header: 'ความคิดเห็น', key: (r) => r.comment || '-', width: 30 },
+                    { header: 'วันที่ประเมิน', key: (r) => r.survey_at ? new Date(r.survey_at).toLocaleDateString('th-TH') : '', width: 16 },
+                ],
+            });
+        } else {
+            exportToExcel<Ticket>({
+                data: filteredTickets,
+                fileName: activeTab === 'my' ? 'คำร้องของฉัน' : 'รายการรออนุมัติ',
+                sheetName: activeTab === 'my' ? 'คำร้องของฉัน' : 'รออนุมัติ',
+                columns: [
+                    { header: 'รหัสฟอร์ม', key: 'form_code', width: 16 },
+                    { header: 'ชื่อฟอร์ม', key: 'form_name', width: 30 },
+                    { header: 'รหัสคำร้อง', key: 'form_id', width: 22 },
+                    { header: 'รหัสพนักงาน', key: 'created_by', width: 22 },
+                    { header: 'ผู้สร้าง', key: (r) => `${r.firstname || ''} ${r.lastname || ''}`.trim() || r.created_by || '', width: 22 },
+                    { header: 'อีเมล', key: 'email', width: 26 },
+                    { header: 'แผนก', key: 'department_name_th', width: 22 },
+                    { header: 'สถานะ', key: 'status', width: 14 },
+                    { header: 'ผู้อนุมัติ', key: (r) => `${r.action_by_firstname || ''} ${r.action_by_lastname || ''}`.trim() || '-', width: 22 },
+                    { header: 'สถานะอนุมัติ', key: (r) => r.status_approve || '-', width: 14 },
+                    { header: 'หมายเหตุผู้อนุมัติ', key: 'remark', width: 30 },
+                    { header: 'วันที่อนุมัติ', key: (r) => r.action_at ? new Date(r.action_at).toLocaleDateString('th-TH') : '', width: 16 },
+                    { header: 'วันที่สร้าง', key: (r) => r.created_at ? new Date(r.created_at).toLocaleDateString('th-TH') : '', width: 16 },
+                    { header: 'หมายเหตุไอที', key: 'admin_comment', width: 30 },
+                ],
+            });
+        }
+    }, [filteredTickets, activeTab]);
 
     // =================== TAB CHANGE HANDLER ===================
     const handleTabChange = useCallback((value: string) => {

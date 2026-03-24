@@ -36,7 +36,7 @@ export async function PUT(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     const body = await request.json();
-    const res = await fetch(`${process.env.URL_API}/users`, {
+    const res = await fetch(`${process.env.URL_API}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
