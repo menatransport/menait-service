@@ -1,7 +1,7 @@
 'use client';
 import { Ticket } from "@/app/mytickets/[id]/page";
 import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X, Star, ExternalLink, Computer, Laptop } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -725,39 +725,39 @@ export const Viewer = ({
     const [imageUrls, setImageUrls] = useState<string[]>([]);
     const [remark, setRemark] = useState('');
     const [displayBtnNote, setDisplayBtnNote] = useState(false);
-    const [adminComment, setAdminComment] = useState(selectTicketBack?.admin_comment || '');
+    const [adminComment, setAdminComment] = useState('');
     const [loadBtn, setLoadBtn] = useState(false);
-    // console.log('SelectTicketBack:', selectTicketBack);
-    const handleInputChange = (name: string, value: any) => {
+    const selectTicketBackRef = useRef(selectTicketBack);
+    selectTicketBackRef.current = selectTicketBack;
+
+    const handleInputChange = useCallback((name: string, value: any) => {
         setFormValues(prev => ({ ...prev, [name]: value }));
-        if (errors[name]) {
-            setErrors(prev => {
-                const newErrors = { ...prev };
-                delete newErrors[name];
-                return newErrors;
-            });
-        }
-    };
+        setErrors(prev => {
+            if (!prev[name]) return prev;
+            const newErrors = { ...prev };
+            delete newErrors[name];
+            return newErrors;
+        });
+    }, []);
 
     const handlePullForm = async () => {
         if (!ticket) return;
         setIsLoadingForm(true);
         try {
-            const response = await fetch(`/api/formsubmit?path=${ticket.form_code}?version=${selectTicketBack?.form_version}`, {
+            const currentBack = selectTicketBackRef.current;
+            const response = await fetch(`/api/formsubmit?path=${ticket.form_code}?version=${currentBack?.form_version}`, {
                 method: "GET",
             });
             const data = await response.json();
-            // console.log('Fetched form data for editing:', data);
             if (response.ok && data) {
                 const form = data as formSetup;
                 setFormStructure(form);
 
-                if (selectTicketBack?.values && form.questions) {
-                    const initialValues = prefillFormValues(form.questions, selectTicketBack.values);
+                const latestBack = selectTicketBackRef.current;
+                if (latestBack?.values && form.questions) {
+                    const initialValues = prefillFormValues(form.questions, latestBack.values);
                     setFormValues(initialValues);
                 }
-
-                // console.log('Fetched form structure:', form);
             } else {
                 alert('เกิดข้อผิดพลาดในการดึงข้อมูลแบบฟอร์ม');
             }
@@ -770,19 +770,17 @@ export const Viewer = ({
     };
 
     useEffect(() => {
-        if (selectTicketBack && ticket && !formStructure) {
-            setIsLoadingForm(true);
-            setFormStructure(null);
-            const timer = setTimeout(() => {
-                handlePullForm();
-            }, 1000);
-            return () => clearTimeout(timer);
-        }
-    }, [selectTicketBack, ticket]);
+        if (!isOpen || !selectTicketBack || !ticket || formStructure) return;
+        setIsLoadingForm(true);
+        const timer = setTimeout(() => {
+            handlePullForm();
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, [isOpen, selectTicketBack?.form_version, ticket?.form_id]);
 
     useEffect(() => {
         // GET IMAGE S3 URL
-        if (ticket?.form_code !== "ISSUE_IT") return;
+        if (!isOpen || ticket?.form_code !== "ISSUE_IT" || !ticket?.form_id) return;
         const fetchImageUrls = async () => {
             const res = await fetch(`/api/uploads3?form_id=${ticket?.form_id}`);
             const data = await res.json();
@@ -790,18 +788,26 @@ export const Viewer = ({
                 console.error('Error fetching image URLs:', data?.error || 'Unknown error');
                 return;
             }
-            // console.log('Fetched image URLs:', data);
             if (data.files) {
                 setImageUrls(data.files.map((file: any) => file.url));
             }
         }
         fetchImageUrls();
-    }, [ticket?.form_id]);
+    }, [isOpen, ticket?.form_id, ticket?.form_code]);
+
+    // Prefill form values เมื่อ selectTicketBack.values มาถึงหลัง formStructure โหลดเสร็จแล้ว
+    useEffect(() => {
+        if (!isOpen || !formStructure?.questions || !selectTicketBack?.values) return;
+        if (Object.keys(formValues).length > 0) return; // already prefilled
+        const initialValues = prefillFormValues(formStructure.questions, selectTicketBack.values);
+        setFormValues(initialValues);
+    }, [isOpen, selectTicketBack?.values, formStructure]);
 
     useEffect(() => {
+        if (!isOpen) return;
         setAdminComment(selectTicketBack?.admin_comment || '');
         setDisplayBtnNote(false);
-    }, [selectTicketBack]);
+    }, [isOpen, selectTicketBack?.admin_comment]);
 
     useEffect(() => {
         if (!isOpen) {
@@ -809,6 +815,7 @@ export const Viewer = ({
             setFormStructure(null);
             setFormValues({});
             setErrors({});
+            setImageUrls([]);
         }
     }, [isOpen]);
 
@@ -818,8 +825,9 @@ export const Viewer = ({
 
     const handleCancelEdit = () => {
         setIsEditing(false);
-        if (formStructure?.questions && selectTicketBack?.values) {
-            const initialValues = prefillFormValues(formStructure.questions, selectTicketBack.values);
+        const currentBack = selectTicketBackRef.current;
+        if (formStructure?.questions && currentBack?.values) {
+            const initialValues = prefillFormValues(formStructure.questions, currentBack.values);
             setFormValues(initialValues);
         }
         setErrors({});

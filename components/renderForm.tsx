@@ -145,20 +145,21 @@ export const FormField = memo(({
         return sortOptions(filtered);
     }, [question.options, allQuestions, index, formValues]);
 
-    useMemo(() => {
-        if (!currentValue || filteredOptions.length === 0) return;
+    useEffect(() => {
+        if (readOnly || !currentValue || filteredOptions.length === 0) return;
         if (question.type === 'dropdown') {
             const isValid = filteredOptions.some(opt => opt.value === currentValue);
             if (!isValid) {
-                setTimeout(() => onInputChange(question.name, ''), 0);
+                onInputChange(question.name, '');
             }
         } else if (question.type === 'multiselect' && Array.isArray(currentValue)) {
             const validValues = currentValue.filter((v: string) => filteredOptions.some(opt => opt.value === v));
             if (validValues.length !== currentValue.length) {
-                setTimeout(() => onInputChange(question.name, validValues), 0);
+                onInputChange(question.name, validValues);
             }
         }
-    }, [filteredOptions, currentValue, question.type, question.name, onInputChange]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filteredOptions, readOnly]);
 
     useEffect(() => {
         if (question.type === 'dropdown' && employeeData.length === 0) {
