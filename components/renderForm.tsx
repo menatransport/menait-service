@@ -319,11 +319,21 @@ export const FormField = memo(({
                     <FieldLabel index={index} label={question.label} required={question.required} />
                     <textarea
                         value={currentValue as string || ''}
-                        onChange={handleTextChange}
+                        onChange={(e) => {
+                            handleTextChange(e);
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                        }}
+                        ref={(el) => {
+                            if (el) {
+                                el.style.height = 'auto';
+                                el.style.height = el.scrollHeight + 'px';
+                            }
+                        }}
                         placeholder="กรุณาระบุรายละเอียดเพิ่มเติม..."
-                        rows={4}
+                        rows={2}
                         readOnly={readOnly}
-                        className={`w-full px-4 py-3 bg-white border rounded-xl text-sm resize-none transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/40 ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
+                        className={`w-full px-4 py-3 bg-white border rounded-xl text-sm resize-none transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/40 overflow-hidden ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
                             } ${readOnly && 'cursor-not-allowed opacity-70 hover:border-gray-200 focus:border-gray-200'}`}
                     />
                     <FieldError message={errorMsg} />

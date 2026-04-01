@@ -103,7 +103,7 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
             { key: 'lastname', label: 'นามสกุล' },
             { key: 'username', label: 'ชื่อผู้ใช้' },
             { key: 'email', label: 'อีเมล' },
-            { key: 'department_id', label: 'แผนก' },
+            { key: 'department_id', label: 'ฝ่าย' },
             { key: 'site_id', label: 'สถานที่' },
             { key: 'position_id', label: 'ตำแหน่ง' },
         ] as const;
@@ -222,19 +222,19 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
                     {/* Divider */}
                     <div className="border-t border-gray-100" />
 
-                    {/* Row 4: แผนก + สถานที่ปฏิบัติงาน (Dropdowns) */}
+                    {/* Row 4: ฝ่าย + สถานที่ปฏิบัติงาน (Dropdowns) */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
                                 <Building className="w-3.5 h-3.5 text-[#026a75]" />
-                                แผนก
+                                ฝ่าย
                             </Label>
                             <DropdownSearch
                                 value={form.department_id}
                                 onChange={v => handleChange('department_id', v)}
                                 options={dropdownOptions.department}
-                                placeholder="-- เลือกแผนก --"
-                                searchPlaceholder="ค้นหาแผนก..."
+                                placeholder="-- เลือกฝ่าย --"
+                                searchPlaceholder="ค้นหาฝ่าย..."
                             />
                         </div>
                         <div className="space-y-1.5">

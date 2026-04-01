@@ -65,6 +65,16 @@ export type formDataType = {
     }[];
 }
 
+export type formSubmitLog = {
+    form_id: string;
+    action: string;
+    field_name: string;
+    old_value: string | null;
+    new_value: string;
+    action_by: string;
+    action_at: string;
+}
+
 export default function ServicePage() {
     const router = useRouter();
     const params = useParams();

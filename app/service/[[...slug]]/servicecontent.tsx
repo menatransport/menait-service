@@ -257,6 +257,32 @@ export const ServiceComponent = ({
                                     </div>
                                 )}
 
+                                {formData.form_code === "FORM-MNT-IT-027" && (
+                                    // 1. การขอเปลี่ยนหรือขอเพิ่มอุปกรณ์คอมพิวเตอร์ จะได้รับการพิจารณาตามความจำเป็นและความเหมาะสมในการใช้งาน
+                                    // 2. ฝ่ายเทคโนโลยีสารสนเทศ (IT) จะเป็นผู้พิจารณาความเหมาะสมของสเปค จำนวน และงบประมาณเพิ่มเติม
+                                   <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-3">
+                                    <p className="text-sm font-semibold text-gray-700">
+                                            หมายเหตุการขอเปลี่ยนหรือขอเพิ่มอุปกรณ์คอมพิวเตอร์
+                                        </p>
+                                        <ul className="list-disc list-inside space-y-1.5 text-sm text-gray-600">
+                                            <li>การขอเปลี่ยนหรือขอเพิ่มอุปกรณ์คอมพิวเตอร์ จะได้รับการพิจารณาตามความจำเป็นและความเหมาะสมในการใช้งาน</li>
+                                            <li>ฝ่ายเทคโนโลยีสารสนเทศ (IT) จะเป็นผู้พิจารณาความเหมาะสมของสเปค จำนวน และงบประมาณเพิ่มเติม</li>
+                                        </ul>
+                                    </div>  
+                                )}
+
+                                {formData.form_code === "FORM-MNT-IT-028" && (
+                                   <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-3">
+                                    <p className="text-sm font-semibold text-gray-700">
+                                            หมายเหตุการขอขยายพื้นที่จัดเก็บข้อมูล
+                                        </p>
+                                        <ul className="list-disc list-inside space-y-1.5 text-sm text-gray-600">
+                                            <li>การพิจารณาการเพิ่มพื้นที่จัดเก็บข้อมูล ขึ้นอยู่กับความจำเป็นในการใช้งาน ความเหมาะสมของข้อมูล และนโยบายของฝ่าย IT</li>
+                                        </ul>
+                                    </div>  
+                                )}
+
+
                                 {/* Action buttons */}
                                 <div className="pt-5 sm:pt-6 border-t border-gray-100 flex flex-col sm:flex-row gap-2.5">
                                     <Button

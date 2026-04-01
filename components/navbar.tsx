@@ -3,7 +3,7 @@
 import { ArrowLeft, Bell, HomeIcon, Shield, User, ChevronDown, LayoutDashboard, Building, Database, Settings, LogOut, TriangleAlert, ClipboardList, CircleCheck } from "lucide-react";
 import { Button } from "./ui/button";
 import { useRouter } from 'next/navigation';
-import { useCallback, memo } from "react";
+import { useCallback, memo, useState, useRef, useEffect } from "react";
 import { signOut } from "next-auth/react";
 import { useSessionContext } from "@/app/context/SessionContext";
 
@@ -36,9 +36,26 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
     const router = useRouter();
     const { user, loading, setUser } = useSessionContext();
     const isClient = !loading;
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
 
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, []);
 
     const handleNavigate = useCallback((path: string) => {
+        setMenuOpen(false);
         router.push(path);
     }, [router]);
 
@@ -48,6 +65,7 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
 
     const handleLogout = useCallback(async () => {
         try {
+            setMenuOpen(false);
             setUser(null); // Clear JWT cookie via API
             sessionStorage.clear();
             if ('caches' in window) {
@@ -70,9 +88,9 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
 
                         {isHome ? (
                             <div className="flex items-center gap-2 sm:gap-3">
-                               <div className="w-14 h-12 rounded-xl flex items-center justify-center bg-white/80 shadow-sm my-3">
-                                <img alt="Logo" className="w-16 h-8 text-white drop-shadow-sm" src="/mena.png" />
-                               </div>
+                                <div className="w-14 h-12 rounded-xl flex items-center justify-center bg-white/80 shadow-sm my-3">
+                                    <img alt="Logo" className="w-16 h-8 text-white drop-shadow-sm" src="/mena.png" />
+                                </div>
                             </div>
                         ) : (
                             pagelock ? null :
@@ -102,9 +120,12 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
                                     </span>
                                 </button>
                             )}
-                            {/* Hover NavigationMenu */}
-                            <div className={`relative ${pagelock ? null : 'group'}`}>
-                                <div className="flex items-center gap-2 sm:gap-3 p-1.5 sm:px-4 sm:py-2 bg-white/10 backdrop-blur-sm rounded-xl cursor-pointer hover:bg-white/20 transition-all duration-300 hover:scale-105">
+                            {/* NavigationMenu - click on mobile, hover on desktop */}
+                            <div ref={menuRef} className={`relative ${pagelock ? '' : 'sm:group'}`}>
+                                <div
+                                    onClick={() => !pagelock && setMenuOpen(prev => !prev)}
+                                    className="flex items-center gap-2 sm:gap-3 p-1.5 sm:px-4 sm:py-2 bg-white/10 backdrop-blur-sm rounded-xl cursor-pointer hover:bg-white/20 transition-all duration-300 hover:scale-105"
+                                >
                                     <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#8ce4cb] rounded-full flex items-center justify-center">
                                         <User className="w-4 h-4 sm:w-5 sm:h-5 text-[#026a75]" />
                                     </div>
@@ -116,14 +137,14 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
                                             {isClient ? user?.department : ''}
                                         </p>
                                     </div>
-                                    <ChevronDown className="w-4 h-4 text-white/70 transition-transform duration-300 group-hover:rotate-180" />
+                                    <ChevronDown className={`w-4 h-4 text-white/70 transition-transform duration-300 sm:group-hover:rotate-180 ${menuOpen ? 'rotate-180' : ''}`} />
                                 </div>
 
                                 {/* Dropdown Menu */}
-                                <div className="absolute right-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 z-50">
-                                    <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-2 min-w-xl">
+                                <div className={`absolute right-0 top-full pt-2 transition-all duration-300 transform z-50 ${menuOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-2'} ${!menuOpen ? 'sm:group-hover:opacity-100 sm:group-hover:visible sm:group-hover:translate-y-0' : ''}`}>
+                                    <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-2 w-[calc(100vw-2rem)] sm:min-w-xl sm:w-auto max-h-[80vh] overflow-y-auto">
 
-                                        <div className="flex gap-2 p-2">
+                                        <div className="flex flex-col sm:flex-row gap-2 p-2">
                                             <div className="flex-1">
                                                 <h3 className="text-xs font-semibold text-gray-500 mb-2 px-2">ทั่วไป</h3>
                                                 <div className="grid grid-cols-3 gap-2">
@@ -148,7 +169,7 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
                                             </div>
 
                                             {/* Divider */}
-                                            <div className="w-px bg-gray-200 my-2"></div>
+                                            <div className="h-px sm:h-auto sm:w-px bg-gray-200 mx-2 sm:mx-0 sm:my-2"></div>
                                             {isClient && user?.role === 'a' && (
                                                 <div className="flex-1">
                                                     <h3 className="text-xs font-semibold text-gray-500 mb-2 px-2">ระบบจัดการ</h3>

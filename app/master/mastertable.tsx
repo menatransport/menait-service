@@ -49,7 +49,7 @@ const DepartmentHeaderRow = memo(({
                 }
                 <Building2 className="w-4 h-4 text-[#026a75] shrink-0" />
                 <span className="text-sm font-semibold text-[#026a75]">
-                    {department || 'ไม่ระบุแผนก'}
+                    {department || 'ไม่ระบุฝ่าย'}
                 </span>
                 <span className="text-[11px] text-[#026a75]/60 font-medium bg-[#026a75]/10 px-2 py-0.5 rounded-full">
                     {count} คน
@@ -178,7 +178,7 @@ const MobileDepartmentGroup = memo(({
             }
             <Building2 className="w-4 h-4 text-[#026a75] shrink-0" />
             <span className="text-sm font-semibold text-[#026a75] flex-1 text-left truncate">
-                {group.department || 'ไม่ระบุแผนก'}
+                {group.department || 'ไม่ระบุฝ่าย'}
             </span>
             <span className="text-[11px] text-[#026a75]/60 font-medium bg-[#026a75]/10 px-2 py-0.5 rounded-full shrink-0">
                 {group.users.length} คน
@@ -283,7 +283,7 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
             <TableHeader
                 icon={<Users className="w-5 h-5" />}
                 title="ข้อมูลองค์กร"
-                subtitle={`${groups.length} แผนก · ${totalFiltered.toLocaleString()} คน (จาก ${data.length.toLocaleString()} รายการ)`}
+                subtitle={`${groups.length} ฝ่าย · ${totalFiltered.toLocaleString()} คน (จาก ${data.length.toLocaleString()} รายการ)`}
                 actions={
                     <>
                         {onAdd && (
@@ -301,14 +301,14 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
                 searchValue={searchTerm}
                 onSearchChange={handleSearchChange}
                 onSearchClear={handleClearSearch}
-                searchPlaceholder="ค้นหาชื่อ, รหัส, แผนก, สาขา..."
+                searchPlaceholder="ค้นหาชื่อ, รหัส, ฝ่าย, สาขา..."
             />
 
             {/* Toolbar */}
             {!isLoading && groups.length > 0 && (
                 <div className="px-4 sm:px-6 py-2.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                     <p className="text-[11px] text-gray-400">
-                        จัดกลุ่มตามแผนก · เรียงตามระดับตำแหน่ง (มาก → น้อย)
+                        จัดกลุ่มตามฝ่าย · เรียงตามระดับตำแหน่ง (มาก → น้อย)
                     </p>
                     <div className="flex items-center gap-1.5">
                         <button onClick={expandAll} className="text-[11px] text-[#026a75] hover:underline cursor-pointer px-1.5 py-0.5">

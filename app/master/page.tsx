@@ -7,6 +7,11 @@ import type { UserData, FormData } from "./mastertable"
 import { WaveBackground } from "@/components/wave-background";
 import { UserCreate } from "@/components/profile-form";
 
+interface LookupOption {
+    option_value: string;
+    option_label: string;
+}
+
 
 const MasterTable = dynamic(
     () => import('./mastertable').then(mod => ({ default: mod.MasterTable })),
@@ -25,6 +30,25 @@ export default function MasterPage() {
     const [error, setError] = useState<string | null>(null);
     const [forms, setForms] = useState<FormData[]>([]);
     const [activeTab, setActiveTab] = useState('user' as 'user' | 'form');
+    const [lookups, setLookups] = useState<{
+        departments: LookupOption[];
+        sites: LookupOption[];
+        positions: LookupOption[];
+    }>({ departments: [], sites: [], positions: [] });
+
+    useEffect(() => {
+        Promise.all([
+            fetch('/api/organization/departments').then(r => r.json()),
+            fetch('/api/organization/sites').then(r => r.json()),
+            fetch('/api/organization/positions').then(r => r.json()),
+        ]).then(([departments, sites, positions]) => {
+            setLookups({
+                departments: Array.isArray(departments) ? departments : [],
+                sites: Array.isArray(sites) ? sites : [],
+                positions: Array.isArray(positions) ? positions : [],
+            });
+        }).catch(console.error);
+    }, []);
 
 
     const fetchUsers = useCallback(async () => {
@@ -75,10 +99,29 @@ export default function MasterPage() {
 
     const handleUpdate = useCallback(async (userData: UserData): Promise<boolean> => {
         try {
+            const findId = (options: LookupOption[], name: string) => {
+                const found = options.find(o => o.option_label === name);
+                return found ? Number(found.option_value) : 0;
+            };
+
+            const payload = {
+                id: userData.id,
+                username: userData.username,
+                employee_id: userData.employee_id,
+                department_id: findId(lookups.departments, userData.department),
+                site_id: findId(lookups.sites, userData.site),
+                position_id: findId(lookups.positions, userData.position),
+                email: userData.email,
+                employee_status: userData.employee_status || '',
+                firstname: userData.firstname,
+                lastname: userData.lastname,
+            };
+
+            console.log("Updating user with payload:", payload);
             const res = await fetch('/api/organization/user', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(userData),
+                body: JSON.stringify(payload),
             });
             if (!res.ok) return false;
             setUsers(prev => prev.map(u => u.id === userData.id ? userData : u));
@@ -86,7 +129,7 @@ export default function MasterPage() {
         } catch {
             return false;
         }
-    }, []);
+    }, [lookups]);
 
     const handleAdd = useCallback(async (userData: Omit<UserCreate, 'id'>): Promise<boolean> => {
         try {

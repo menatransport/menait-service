@@ -57,8 +57,7 @@ interface InfoField {
 
 const STATUS_OPTIONS = [
     { option_value: 'Active', option_label: 'Active' },
-    { option_value: 'Inactive', option_label: 'Inactive' },
-    { option_value: 'Probation', option_label: 'Probation' },
+    { option_value: 'Inactive', option_label: 'Inactive' }
 ];
 
 const INFO_FIELDS: InfoField[] = [

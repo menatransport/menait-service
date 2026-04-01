@@ -50,6 +50,18 @@ export const TicketComponent = ({
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [filterStatus, setFilterStatus] = useState<string>('all');
+    const [viewMode, setViewMode] = useState<'sheet' | 'dialog'>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('ticket_view_mode');
+            if (saved === 'sheet' || saved === 'dialog') return saved;
+        }
+        return 'sheet';
+    });
+
+    const handleViewModeChange = useCallback((mode: 'sheet' | 'dialog') => {
+        setViewMode(mode);
+        localStorage.setItem('ticket_view_mode', mode);
+    }, []); 
 
     // =================== COMPUTED VALUES ===================
 
@@ -83,7 +95,7 @@ export const TicketComponent = ({
                     { header: 'รหัสพนักงาน', key: 'created_by', width: 22 },
                     { header: 'ผู้สร้าง', key: (r) => `${r.firstname || ''} ${r.lastname || ''}`.trim() || r.created_by || '', width: 22 },
                     { header: 'อีเมล', key: 'email', width: 26 },
-                    { header: 'แผนก', key: 'department_name_th', width: 22 },
+                    { header: 'ฝ่าย', key: 'department_name_th', width: 22 },
                     { header: 'คะแนน (5)', key: (r) => r.point ? `${r.point}` : 'ยังไม่ให้คะแนน', width: 14 },
                     { header: 'ความคิดเห็น', key: (r) => r.comment || '-', width: 30 },
                     { header: 'วันที่ประเมิน', key: (r) => r.survey_at ? new Date(r.survey_at).toLocaleDateString('th-TH') : '', width: 16 },
@@ -101,7 +113,7 @@ export const TicketComponent = ({
                     { header: 'รหัสพนักงาน', key: 'created_by', width: 22 },
                     { header: 'ผู้สร้าง', key: (r) => `${r.firstname || ''} ${r.lastname || ''}`.trim() || r.created_by || '', width: 22 },
                     { header: 'อีเมล', key: 'email', width: 26 },
-                    { header: 'แผนก', key: 'department_name_th', width: 22 },
+                    { header: 'ฝ่าย', key: 'department_name_th', width: 22 },
                     { header: 'สถานะ', key: 'status', width: 14 },
                     { header: 'ผู้อนุมัติ', key: (r) => `${r.action_by_firstname || ''} ${r.action_by_lastname || ''}`.trim() || '-', width: 22 },
                     { header: 'สถานะอนุมัติ', key: (r) => r.status_approve || '-', width: 14 },
@@ -157,6 +169,8 @@ export const TicketComponent = ({
                         role={role}
                         surveyFilter={surveyFilter}
                         onSurveyFilterChange={onSurveyFilterChange}
+                        viewMode={viewMode}
+                        onViewModeChange={handleViewModeChange}
                     />
                 </Tabs>
             </div>
@@ -171,6 +185,7 @@ export const TicketComponent = ({
                 onStatusChange={onStatusChange}
                 onFormDataUpdate={onFormDataUpdate}
                 role={role}
+                mode={viewMode}
             />
 
             {/* Dialog modal for auto-open from URL (/mytickets/{form_id}) */}

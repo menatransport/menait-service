@@ -1,6 +1,7 @@
 'use client';
 import { Ticket } from "@/app/mytickets/[id]/page";
-import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X, Star, ExternalLink, Computer, Laptop } from "lucide-react";
+import { useRouter, useParams } from "next/navigation";
+import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X, Star, ExternalLink, Computer, Laptop, Copy, ClipboardCheck, Pencil, PanelRight, Maximize2 } from "lucide-react";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -8,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from "@/components/ui/textarea";
 import { STATUS_CONFIG } from "./types";
 import { Button } from "@/components/ui/button";
-import type { formSetup } from "@/app/service/[[...slug]]/page";
+import type { formSetup, formSubmitLog } from "@/app/service/[[...slug]]/page";
 import { renderFormField, buildSubmitValues, prefillFormValues, formatDatetime } from "@/components/renderForm";
 import { SelectStatus } from "@/components/ui/selectstatus"
 
@@ -178,6 +179,8 @@ const STATUS_OPTIONS = [
 ] as const;
 
 // ===================== MAIN COMPONENT =====================
+export type ViewMode = 'sheet' | 'dialog';
+
 export const DataTable = ({
     data,
     title,
@@ -188,7 +191,9 @@ export const DataTable = ({
     onTabChange,
     role,
     surveyFilter,
-    onSurveyFilterChange
+    onSurveyFilterChange,
+    viewMode,
+    onViewModeChange
 }: {
     data: Ticket[];
     title: string;
@@ -200,6 +205,8 @@ export const DataTable = ({
     role?: string | null;
     surveyFilter?: SurveyFilter;
     onSurveyFilterChange?: (filter: SurveyFilter) => void;
+    viewMode?: ViewMode;
+    onViewModeChange?: (mode: ViewMode) => void;
 }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -290,6 +297,17 @@ export const DataTable = ({
                                 {sortOrder === 'desc' ? <ArrowDown size={16} /> : <ArrowUp size={16} />}
                             </button>
 
+                            {/* View Mode Toggle - Mobile */}
+                            {onViewModeChange && (
+                                <button
+                                    onClick={() => onViewModeChange(viewMode === 'sheet' ? 'dialog' : 'sheet')}
+                                    className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-all cursor-pointer"
+                                    title={viewMode === 'sheet' ? 'เปลี่ยนเป็น Dialog' : 'เปลี่ยนเป็น Sheet'}
+                                >
+                                    {viewMode === 'sheet' ? <PanelRight size={16} /> : <Maximize2 size={16} />}
+                                </button>
+                            )}
+
                             {/* Filter Toggle - Mobile */}
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
@@ -345,6 +363,34 @@ export const DataTable = ({
                                 </span>
                             )}
                         </button>
+
+                        {/* View Mode Toggle - Desktop */}
+                        {onViewModeChange && (
+                            <div className="flex items-center bg-white/10 rounded-lg p-0.5 border border-white/20">
+                                <button
+                                    onClick={() => onViewModeChange('sheet')}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${viewMode === 'sheet'
+                                            ? 'bg-white text-[#04555e] shadow-sm'
+                                            : 'text-white/70 hover:text-white'
+                                        }`}
+                                    title="มุมมอง Sheet"
+                                >
+                                    <PanelRight size={14} />
+                                    <span>Sheet</span>
+                                </button>
+                                <button
+                                    onClick={() => onViewModeChange('dialog')}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${viewMode === 'dialog'
+                                            ? 'bg-white text-[#04555e] shadow-sm'
+                                            : 'text-white/70 hover:text-white'
+                                        }`}
+                                    title="มุมมอง Dialog"
+                                >
+                                    <Maximize2 size={14} />
+                                    <span>Dialog</span>
+                                </button>
+                            </div>
+                        )}
 
                         {/* Excel Export */}
                         <button
@@ -715,6 +761,7 @@ export const Viewer = ({
     const { user: sessionUser } = useSessionContext();
     const [isEditing, setIsEditing] = useState(false);
     const [formStructure, setFormStructure] = useState<formSetup | null>(null);
+    const [formlog, setFormLog] = useState<formSubmitLog[]>([]);
     const [formValues, setFormValues] = useState<Record<string, any>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isLoadingForm, setIsLoadingForm] = useState(false);
@@ -727,7 +774,9 @@ export const Viewer = ({
     const [displayBtnNote, setDisplayBtnNote] = useState(false);
     const [adminComment, setAdminComment] = useState('');
     const [loadBtn, setLoadBtn] = useState(false);
+    const [copied, setCopied] = useState(false);
     const selectTicketBackRef = useRef(selectTicketBack);
+    const router = useRouter();
     selectTicketBackRef.current = selectTicketBack;
 
     const handleInputChange = useCallback((name: string, value: any) => {
@@ -740,40 +789,12 @@ export const Viewer = ({
         });
     }, []);
 
-    const handlePullForm = async () => {
-        if (!ticket) return;
-        setIsLoadingForm(true);
-        try {
-            const currentBack = selectTicketBackRef.current;
-            const response = await fetch(`/api/formsubmit?path=${ticket.form_code}?version=${currentBack?.form_version}`, {
-                method: "GET",
-            });
-            const data = await response.json();
-            if (response.ok && data) {
-                const form = data as formSetup;
-                setFormStructure(form);
-
-                const latestBack = selectTicketBackRef.current;
-                if (latestBack?.values && form.questions) {
-                    const initialValues = prefillFormValues(form.questions, latestBack.values);
-                    setFormValues(initialValues);
-                }
-            } else {
-                alert('เกิดข้อผิดพลาดในการดึงข้อมูลแบบฟอร์ม');
-            }
-        } catch (error) {
-            console.error('Error fetching form:', error);
-            alert('เกิดข้อผิดพลาดในการดึงข้อมูลแบบฟอร์ม');
-        } finally {
-            setIsLoadingForm(false);
-        }
-    };
-
     useEffect(() => {
         if (!isOpen || !selectTicketBack || !ticket || formStructure) return;
         setIsLoadingForm(true);
         const timer = setTimeout(() => {
             handlePullForm();
+            handleHistory();
         }, 1000);
         return () => clearTimeout(timer);
     }, [isOpen, selectTicketBack?.form_version, ticket?.form_id]);
@@ -832,6 +853,50 @@ export const Viewer = ({
         }
         setErrors({});
     };
+
+    const handleHistory = async () => {
+        if (!ticket) return;
+        const response = await fetch(`/api/formsubmit-log?form_id=${ticket.form_id}`, {
+            method: "GET",
+        });
+        const data = await response.json();
+        if (response.ok && data) {
+            // console.log('Form submit log:', data);
+            setFormLog(data as formSubmitLog[]);
+        } else {
+            console.error('Error fetching form submit log:', data?.error || 'Unknown error');
+        }
+    }
+
+    const handlePullForm = async () => {
+        if (!ticket) return;
+        setIsLoadingForm(true);
+        try {
+            const currentBack = selectTicketBackRef.current;
+            const response = await fetch(`/api/formsubmit?path=${ticket.form_code}?version=${currentBack?.form_version}`, {
+                method: "GET",
+            });
+            const data = await response.json();
+            if (response.ok && data) {
+                const form = data as formSetup;
+                setFormStructure(form);
+
+                const latestBack = selectTicketBackRef.current;
+                if (latestBack?.values && form.questions) {
+                    const initialValues = prefillFormValues(form.questions, latestBack.values);
+                    setFormValues(initialValues);
+                }
+            } else {
+                alert('เกิดข้อผิดพลาดในการดึงข้อมูลแบบฟอร์ม');
+            }
+        } catch (error) {
+            console.error('Error fetching form:', error);
+            alert('เกิดข้อผิดพลาดในการดึงข้อมูลแบบฟอร์ม');
+        } finally {
+            setIsLoadingForm(false);
+        }
+    };
+
 
     const handleSubmitEdit = async () => {
         try {
@@ -983,6 +1048,27 @@ export const Viewer = ({
         }
     };
 
+    const handleCoply = () => {
+        //   Clipboard copy form values as tab-separated text for Google Sheets / Excel
+        if (!formStructure?.questions || !selectTicketBack?.values) return;
+        const lines = formStructure.questions.map(q => {
+            const val = formValues[q.name];
+            let display = '';
+            if (val === null || val === undefined || val === '') {
+                display = '-';
+            } else if (Array.isArray(val)) {
+                display = val.join(', ');
+            } else {
+                display = String(val);
+            }
+            return `${q.label}\t${display}`;
+        });
+        navigator.clipboard.writeText(lines.join('\n'));
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    }
+
+
     const isDialog = mode === 'dialog';
 
 
@@ -1049,15 +1135,29 @@ export const Viewer = ({
                                         <FileText size={18} /> ข้อมูลที่กรอก
                                     </h4>
                                     <div className="flex gap-2">
+                                        <button
+                                            onClick={handleCoply}
+                                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all duration-300 cursor-pointer ${copied
+                                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                                                }`}
+                                        >
+                                            {copied ? (
+                                                <ClipboardCheck size={14} className="text-emerald-500 animate-[scale_.3s_ease-in-out]" />
+                                            ) : (
+                                                <Copy size={14} />
+                                            )}
+                                            {copied ? 'คัดลอกแล้ว' : 'คัดลอก'}
+                                        </button>
+
                                         {!isEditing && (ticket.status === 'In Progress' || role == 'a') && (
-                                            <Button
-                                                variant="default"
-                                                className="cursor-pointer"
+                                            <button
                                                 onClick={handleStartEdit}
-                                                size="sm"
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 cursor-pointer"
                                             >
-                                                แก้ไขข้อมูล
-                                            </Button>
+                                                <Pencil size={14} />
+                                                แก้ไข
+                                            </button>
                                         )}
                                         {isEditing && (
                                             <>
@@ -1177,13 +1277,72 @@ export const Viewer = ({
                             <h4 className="font-semibold text-gray-800 flex items-center gap-2 mb-4">
                                 <Clock size={18} /> ประวัติการดำเนินการ
                             </h4>
-                            <div className="flex items-start gap-3">
-                                <div className="w-3 h-3 bg-[#026a75] rounded-full mt-1" />
-                                <div>
-                                    <p className="text-sm font-medium text-gray-800">สร้างคำร้อง</p>
-                                    <p className="text-xs text-gray-500">{formatDatetime(ticket.created_at)}</p>
+                            {formlog.length > 0 ? (
+                                <div className="relative ml-1.5">
+                                    <div className="absolute left-1.25 top-1 bottom-1 w-px bg-gray-200" />
+                                    <div className="space-y-4">
+                                        {formlog.map((log, idx) => {
+                                            let label = '';
+                                            let dotColor = 'bg-gray-400';
+
+                                            if (log.action === 'STATUS_CHANGE') {
+                                                switch (log.new_value) {
+                                                    case 'Open':
+                                                        label = 'สร้างคำร้อง';
+                                                        dotColor = 'bg-blue-500';
+                                                        break;
+                                                    case 'In Progress':
+                                                        label = 'กำลังดำเนินการ';
+                                                        dotColor = 'bg-amber-500';
+                                                        break;
+                                                    case 'Done':
+                                                        label = 'ปิดคำร้อง';
+                                                        dotColor = 'bg-emerald-500';
+                                                        break;
+                                                    case 'Backlog':
+                                                        label = 'ย้ายไป Backlog';
+                                                        dotColor = 'bg-purple-500';
+                                                        break;
+                                                    case 'Rejected':
+                                                        label = 'ปฏิเสธคำร้อง';
+                                                        dotColor = 'bg-red-500';
+                                                        break;
+                                                    default:
+                                                        label = `เปลี่ยนสถานะเป็น ${log.new_value}`;
+                                                        dotColor = 'bg-gray-500';
+                                                }
+                                            } else if (log.action === 'UPDATE_VALUE') {
+                                                label = 'แก้ไขข้อมูล';
+                                                dotColor = 'bg-[#026a75]';
+                                            } else {
+                                                label = log.action;
+                                                dotColor = 'bg-gray-400';
+                                            }
+
+                                            return (
+                                                <div key={idx} className="flex items-start gap-3 relative">
+                                                    <div className={`w-3 h-3 ${dotColor} rounded-full mt-1 shrink-0 ring-2 ring-gray-50 z-10`} />
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-medium text-gray-800">{label}</p>
+                                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+                                                            <p className="text-xs text-gray-500">{formatDatetime(log.action_at.endsWith('Z') ? log.action_at : log.action_at + 'Z')}</p>
+                                                            <a href={`/u/${log.action_by}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 cursor-pointer hover:underline">โดย {log.action_by}</a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="flex items-start gap-3">
+                                    <div className="w-3 h-3 bg-[#026a75] rounded-full mt-1" />
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-800">สร้างคำร้อง</p>
+                                        <p className="text-xs text-gray-500">{formatDatetime(ticket.created_at)}</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
