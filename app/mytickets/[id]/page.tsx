@@ -6,6 +6,7 @@ import { type TabType, type SurveyFilter } from "@/app/mytickets/[id]/tickets/ti
 import { useSessionContext } from '@/app/context/SessionContext';
 import { useParams, useRouter } from "next/navigation";
 import { WaveBackground } from '@/components/wave-background';
+import { FormValue } from './tickets/types';
 
 // bundle-dynamic-imports: Lazy load heavy ticket components
 const TicketComponent = dynamic(
@@ -47,6 +48,7 @@ export type Ticket = {
     image_url?: string;
     remark?: string;
     admin_comment?: string;
+    values: FormValue[];
 };
 
 export type Survey = {

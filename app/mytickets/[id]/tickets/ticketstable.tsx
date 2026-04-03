@@ -1,7 +1,7 @@
 'use client';
 import { Ticket } from "@/app/mytickets/[id]/page";
 import { useRouter, useParams } from "next/navigation";
-import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X, Star, ExternalLink, Computer, Laptop, Copy, ClipboardCheck, Pencil, PanelRight, Maximize2 } from "lucide-react";
+import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X, Star, ExternalLink, Computer, Laptop, Copy, ClipboardCheck, Pencil, PanelRight, Maximize2, UserMinus } from "lucide-react";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -370,8 +370,8 @@ export const DataTable = ({
                                 <button
                                     onClick={() => onViewModeChange('sheet')}
                                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${viewMode === 'sheet'
-                                            ? 'bg-white text-[#04555e] shadow-sm'
-                                            : 'text-white/70 hover:text-white'
+                                        ? 'bg-white text-[#04555e] shadow-sm'
+                                        : 'text-white/70 hover:text-white'
                                         }`}
                                     title="มุมมอง Sheet"
                                 >
@@ -381,8 +381,8 @@ export const DataTable = ({
                                 <button
                                     onClick={() => onViewModeChange('dialog')}
                                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${viewMode === 'dialog'
-                                            ? 'bg-white text-[#04555e] shadow-sm'
-                                            : 'text-white/70 hover:text-white'
+                                        ? 'bg-white text-[#04555e] shadow-sm'
+                                        : 'text-white/70 hover:text-white'
                                         }`}
                                     title="มุมมอง Dialog"
                                 >
@@ -665,6 +665,21 @@ export const DataTable = ({
                                                 <p className="text-xs text-[#026a75] font-medium">{item.form_id}</p>
                                                 <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                                                     <User size={11} /> <span className="font-bold">{item.created_by}</span> {item.firstname} {item.lastname} ฝ่าย: {item.department_name_th}
+                                                    {item.form_code === "FORM-MNT-IT-002_DELETE" && (
+                                                        <span className="relative group inline-flex items-center ml-2">
+                                                            <UserMinus size={13} className="text-red-500" />
+                                                            <span className="text-red-500 font-bold ml-1">{item.values[2]?.value_text || '-'}</span>
+                                                            <div className="absolute left-0 bottom-full mb-1 z-9999 hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg shadow-lg p-3 min-w-56 whitespace-nowrap">
+                                                                <p className="font-semibold text-red-300 mb-1.5 flex items-center gap-1"><UserMinus size={12} /> รายละเอียดผู้ออก</p>
+                                                                {item.values?.length > 0 ? item.values.map((v, i) => (
+                                                                    <p key={i} className="py-0.5 border-b border-gray-700 last:border-0">
+                                                                        <span className="text-gray-400">{v.question_label}:</span>{' '}
+                                                                        <span className="text-white font-medium">{v.value_text || v.value_number || v.value_date || (v.value_boolean != null ? (v.value_boolean ? 'Yes' : 'No') : '-')}</span>
+                                                                    </p>
+                                                                )) : <p className="text-gray-400">ไม่มีข้อมูล</p>}
+                                                            </div>
+                                                        </span>
+                                                    )}
                                                 </p>
                                             </div>
                                         </div>
@@ -1138,8 +1153,8 @@ export const Viewer = ({
                                         <button
                                             onClick={handleCoply}
                                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all duration-300 cursor-pointer ${copied
-                                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                                                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
                                                 }`}
                                         >
                                             {copied ? (

@@ -4,7 +4,7 @@ import { type Ticket } from "@/app/mytickets/[id]/page";
 import { DataTable, Viewer, type TabType, type SurveyFilter } from "./ticketstable";
 import { WaveBackground } from "@/components/wave-background";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { exportToExcel } from "@/lib/exportExcel";
+import { exportToExcel, exportToExcel_Submissions } from "@/lib/exportExcel";
 
 // ===================== MAIN COMPONENT =====================
 export const TicketComponent = ({
@@ -102,6 +102,7 @@ export const TicketComponent = ({
                 ],
             });
         } else {
+            if(role !== "a") {
             exportToExcel<Ticket>({
                 data: filteredTickets,
                 fileName: activeTab === 'my' ? 'คำร้องของฉัน' : 'รายการรออนุมัติ',
@@ -123,8 +124,11 @@ export const TicketComponent = ({
                     { header: 'หมายเหตุไอที', key: 'admin_comment', width: 30 },
                 ],
             });
+        } else {
+            exportToExcel_Submissions(filteredTickets as any);
         }
-    }, [filteredTickets, activeTab]);
+    }
+    }, [filteredTickets, activeTab, role]);
 
     // =================== TAB CHANGE HANDLER ===================
     const handleTabChange = useCallback((value: string) => {
