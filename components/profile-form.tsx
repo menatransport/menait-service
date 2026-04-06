@@ -18,6 +18,9 @@ export interface UserData {
     employee_status: string | null;
     firstname: string;
     lastname: string;
+    department_id: number | null;
+    site_id: number | null;
+    position_id: number | null;
     department: string;
     site: string;
     position: string;

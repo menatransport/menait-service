@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import type { UserData, FormData } from "./mastertable"
 import { WaveBackground } from "@/components/wave-background";
 import { UserCreate } from "@/components/profile-form";
+import Swal from "sweetalert2";
 
 interface LookupOption {
     option_value: string;
@@ -99,32 +100,33 @@ export default function MasterPage() {
 
     const handleUpdate = useCallback(async (userData: UserData): Promise<boolean> => {
         try {
-            const findId = (options: LookupOption[], name: string) => {
-                const found = options.find(o => o.option_label === name);
-                return found ? Number(found.option_value) : 0;
-            };
-
             const payload = {
                 id: userData.id,
                 username: userData.username,
                 employee_id: userData.employee_id,
-                department_id: findId(lookups.departments, userData.department),
-                site_id: findId(lookups.sites, userData.site),
-                position_id: findId(lookups.positions, userData.position),
+                department_id: userData.department_id,
+                site_id: userData.site_id,
+                position_id: userData.position_id,
                 email: userData.email,
                 employee_status: userData.employee_status || '',
                 firstname: userData.firstname,
                 lastname: userData.lastname,
             };
 
-            console.log("Updating user with payload:", payload);
             const res = await fetch('/api/organization/user', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
             if (!res.ok) return false;
-            setUsers(prev => prev.map(u => u.id === userData.id ? userData : u));
+            const updatedUser = await res.json();
+            setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+            Swal.fire({
+                icon: 'success',
+                title: 'อัปเดตข้อมูลสำเร็จ',
+                showConfirmButton: false,
+                timer: 1500
+            });
             return true;
         } catch {
             return false;
@@ -141,7 +143,6 @@ export default function MasterPage() {
                 employee_status: 'Active',
                 password: 'Mnt@' + userData.employee_id.slice(-4),
             };
-            // console.log("Adding user with payload:", payload);
             const res = await fetch('/api/organization/user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

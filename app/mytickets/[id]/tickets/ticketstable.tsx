@@ -902,11 +902,10 @@ export const Viewer = ({
                     setFormValues(initialValues);
                 }
             } else {
-                alert('เกิดข้อผิดพลาดในการดึงข้อมูลแบบฟอร์ม');
+                console.error('Error fetching form structure:', data?.error || 'Unknown error');
             }
         } catch (error) {
             console.error('Error fetching form:', error);
-            alert('เกิดข้อผิดพลาดในการดึงข้อมูลแบบฟอร์ม');
         } finally {
             setIsLoadingForm(false);
         }
@@ -1113,7 +1112,7 @@ export const Viewer = ({
                             ))}
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-gray-500">สถานะคำร้อง</span>
-                                {role === 'a' && selectTicketBack?.status_approve !== "In Progress" && ticket.status !== "Done" ? (
+                                {role === 'a' ? (
                                     <SelectStatus
                                         status={ticket.status}
                                         onChange={handleStatusChange}

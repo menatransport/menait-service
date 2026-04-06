@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback, memo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/ui/loading';
 import {
@@ -203,6 +203,14 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
     const [addDialogOpen, setAddDialogOpen] = useState(false);
+
+    // Sync selectedUser with latest data after update
+    useEffect(() => {
+        if (selectedUser) {
+            const updated = data.find(u => u.id === selectedUser.id);
+            if (updated && updated !== selectedUser) setSelectedUser(updated);
+        }
+    }, [data]);
 
     // rerender-functional-setstate: Use callbacks for stable handlers
     const handleViewUser = useCallback((user: UserData) => {
