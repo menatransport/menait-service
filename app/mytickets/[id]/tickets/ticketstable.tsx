@@ -665,10 +665,10 @@ export const DataTable = ({
                                                 <p className="text-xs text-[#026a75] font-medium">{item.form_id}</p>
                                                 <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                                                     <User size={11} /> <span className="font-bold">{item.created_by}</span> {item.firstname} {item.lastname} ฝ่าย: {item.department_name_th}
-                                                    {item.form_code === "FORM-MNT-IT-002_DELETE" && (
+                                                    {item.form_code === "FORM-MNT-IT-002_DELETE" && item.values && (
                                                         <span className="relative group inline-flex items-center ml-2">
                                                             <UserMinus size={13} className="text-red-500" />
-                                                            <span className="text-red-500 font-bold ml-1">{item.values[2]?.value_text || '-'}</span>
+                                                            <span className="text-red-500 font-bold ml-1">{item.values[2]?.value_text}</span>
                                                             <div className="absolute left-0 bottom-full mb-1 z-9999 hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg shadow-lg p-3 min-w-56 whitespace-nowrap">
                                                                 <p className="font-semibold text-red-300 mb-1.5 flex items-center gap-1"><UserMinus size={12} /> รายละเอียดผู้ออก</p>
                                                                 {item.values?.length > 0 ? item.values.map((v, i) => (
