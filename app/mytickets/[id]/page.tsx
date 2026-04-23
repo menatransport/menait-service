@@ -265,6 +265,8 @@ export default function TicketsPage() {
         ));
     };
 
+    // console.log('Rendering TicketsPage with tickets:', tickets);
+
     return (
         <Navbar isHome={false} title="ติดตามสถานะคำร้อง">
             <TicketComponent
