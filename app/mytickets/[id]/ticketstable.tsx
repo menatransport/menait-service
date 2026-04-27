@@ -1,7 +1,7 @@
 'use client';
 import { Ticket } from "@/app/mytickets/[id]/page";
 import { useRouter, useParams } from "next/navigation";
-import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X, Star, ExternalLink, Computer, Laptop, Copy, ClipboardCheck, Pencil, PanelRight, Maximize2, UserMinus } from "lucide-react";
+import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X, Star, ExternalLink, Computer, Laptop, Copy, ClipboardCheck, Pencil, PanelRight, Maximize2, UserMinus, RefreshCcw, Trophy } from "lucide-react";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -215,6 +215,48 @@ export const DataTable = ({
     const [showFilters, setShowFilters] = useState(false);
     const currentSurveyFilter = surveyFilter ?? 'evaluated';
 
+    // ===== Survey status quick-view dialog =====
+    const { user: sessionUserForSurvey } = useSessionContext();
+    const [showSurveyDialog, setShowSurveyDialog] = useState(false);
+    const [surveyDialogTab, setSurveyDialogTab] = useState<'pending' | 'evaluated'>('pending');
+    const [surveyDialogLoading, setSurveyDialogLoading] = useState(false);
+    const [surveyDialogEvaluated, setSurveyDialogEvaluated] = useState<Ticket[]>([]);
+
+    const fetchEvaluatedSurveys = useCallback(async () => {
+        const empId = sessionUserForSurvey?.employee_id;
+        if (!empId) return;
+        setSurveyDialogLoading(true);
+        try {
+            const res = await fetch(`/api/survey-it?employee_id=${empId}&role=${role ?? ''}`, { cache: 'no-store' });
+            const evalData = await res.json();
+            setSurveyDialogEvaluated(Array.isArray(evalData) ? evalData : []);
+        } catch (e) {
+            console.error('Error loading survey status:', e);
+            setSurveyDialogEvaluated([]);
+        } finally {
+            setSurveyDialogLoading(false);
+        }
+    }, [sessionUserForSurvey?.employee_id, role]);
+
+    const openSurveyDialog = useCallback(() => {
+        setShowSurveyDialog(true);
+        setSurveyDialogTab('pending');
+        fetchEvaluatedSurveys();
+    }, [fetchEvaluatedSurveys]);
+
+    const handleSurveyDialogTabChange = useCallback((t: 'pending' | 'evaluated') => {
+        setSurveyDialogTab(t);
+        // Refresh evaluated data on every tab switch so counts/lists stay in sync
+        fetchEvaluatedSurveys();
+    }, [fetchEvaluatedSurveys]);
+
+    // Use the already-loaded `data` (Done tickets in current tab) and compare
+    // against the evaluated list fetched from the survey API.
+    const surveyPendingList = useMemo(() => {
+        const evaluatedIds = new Set(surveyDialogEvaluated.map(t => t.form_id));
+        return data.filter(t => t.status === 'Done' && !evaluatedIds.has(t.form_id));
+    }, [data, surveyDialogEvaluated]);
+
 
     const processedData = useMemo(() => {
         let result = [...data];
@@ -360,6 +402,23 @@ export const DataTable = ({
                             <span>ตัวกรอง</span>
                             {hasActiveFilters && (
                                 <span className="bg-blue-400 animate-pulse text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                                </span>
+                            )}
+                        </button>
+
+                        {/* แบบประเมิน Pending */}
+                        <button
+                            onClick={openSurveyDialog}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer relative
+                                 bg-white/10 text-white hover:bg-white/20 border border-white/20
+                                `}
+                            title="แบบประเมิน"
+                        >
+                            <Pencil size={14} />
+                            <span>แบบประเมิน</span>
+                            {surveyPendingList.length > 0 && (
+                                <span className="bg-rose-400 text-white text-[10px] font-bold rounded-full px-1.5 min-w-5 h-5 flex items-center justify-center">
+                                    {surveyPendingList.length}
                                 </span>
                             )}
                         </button>
@@ -745,9 +804,382 @@ export const DataTable = ({
                     onPageChange={setCurrentPage}
                 />
             </div>
+
+            {/* Survey status quick-view dialog */}
+            <SurveyStatusDialog
+                open={showSurveyDialog}
+                onClose={() => setShowSurveyDialog(false)}
+                tab={surveyDialogTab}
+                onTabChange={handleSurveyDialogTabChange}
+                onRefresh={fetchEvaluatedSurveys}
+                role={role}
+                loading={surveyDialogLoading}
+                pending={surveyPendingList}
+                evaluated={surveyDialogEvaluated}
+            />
         </section>
     );
 }
+
+// ===================== SURVEY STATUS DIALOG =====================
+const SurveyStatusDialog = ({
+    open,
+    onClose,
+    tab,
+    onTabChange,
+    onRefresh,
+    loading,
+    pending,
+    evaluated,
+    role
+}: {
+    open: boolean;
+    onClose: () => void;
+    tab: 'pending' | 'evaluated';
+    onTabChange: (t: 'pending' | 'evaluated') => void;
+    onRefresh: () => void;
+    loading: boolean;
+    pending: Ticket[];
+    evaluated: Ticket[];
+    role?: string | null | undefined;
+}) => {
+    const [search, setSearch] = useState('');
+    const [showTopUsers, setShowTopUsers] = useState(false);
+
+    // Reset search when switching tabs
+    useEffect(() => {
+        setSearch('');
+    }, [tab]);
+
+    const list = tab === 'pending' ? pending : evaluated;
+    const filteredList = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return list;
+        return list.filter(item =>
+            item.form_name?.toLowerCase().includes(q) ||
+            item.form_code?.toLowerCase().includes(q) ||
+            item.form_id?.toLowerCase().includes(q) ||
+            item.firstname?.toLowerCase().includes(q) ||
+            item.lastname?.toLowerCase().includes(q)
+        );
+    }, [list, search]);
+
+    // Top 5 users with the most pending (unevaluated) items
+    const topPendingUsers = useMemo(() => {
+        const map = new Map<string, number>();
+        pending.forEach(item => {
+            const name = `${item.firstname ?? ''} ${item.lastname ?? ''}`.trim() || (item.email ?? '-');
+            map.set(name, (map.get(name) ?? 0) + 1);
+        });
+        return Array.from(map, ([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+    }, [pending]);
+
+    const total = pending.length + evaluated.length;
+    const evaluatedPct = total > 0 ? Math.round((evaluated.length / total) * 100) : 0;
+
+    const handleNavigate = (formId: string) => {
+        window.open(`/survey-it/${formId}`, '_blank', 'noopener,noreferrer');
+    };
+
+    const emptyState = tab === 'pending'
+        ? { Icon: CheckCircle, bg: 'bg-emerald-50', color: 'text-emerald-500', title: 'ประเมินครบทุกรายการแล้ว', sub: 'ขอบคุณสำหรับความร่วมมือ' }
+        : { Icon: Star, bg: 'bg-gray-100', color: 'text-gray-300', title: 'ยังไม่มีการประเมิน', sub: 'รายการที่ประเมินแล้วจะแสดงที่นี่' };
+
+    return (
+        <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+            <DialogContent className="sm:max-w-2xl p-0 flex flex-col max-h-[90vh] gap-0 overflow-hidden">
+                {/* Header with gradient */}
+                <DialogHeader className="bg-linear-to-r from-[#026a75] to-[#038a96] p-5 sm:p-6 shrink-0 text-white">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center shrink-0">
+                                <ClipboardCheck size={22} className="text-white" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-white text-lg font-bold">
+                                    สถานะแบบประเมิน
+                                </DialogTitle>
+                                <DialogDescription className="text-white/80 text-xs mt-0.5">
+                                    ติดตามและทำแบบประเมินคำร้องที่เสร็จสมบูรณ์
+                                </DialogDescription>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {role == 'a' && (
+                                <button
+                                    onClick={() => setShowTopUsers(v => !v)}
+                                    disabled={pending.length === 0}
+                                    className={`relative shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${showTopUsers ? 'bg-white text-[#026a75]' : 'bg-white/15 hover:bg-white/25 text-white'}`}
+                                    title="ดู Top 5 ผู้ใช้ที่ยังไม่ประเมินมากที่สุด"
+                                    aria-label="Top 5 ผู้ใช้ที่ยังไม่ประเมิน"
+                                    aria-pressed={showTopUsers}
+                                >
+                                    <Trophy size={16} />
+                                    {pending.length > 0 && (
+                                        <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-amber-400 text-[9px] font-bold text-amber-900 flex items-center justify-center">
+                                            5
+                                        </span>
+                                    )}
+                                </button>
+                            )}
+                            <button
+                                onClick={onRefresh}
+                                disabled={loading}
+                                className="shrink-0 w-9 h-9 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors disabled:opacity-50 cursor-pointer"
+                                title="รีเฟรชข้อมูล"
+                                aria-label="รีเฟรช"
+                            >
+                                <Loader2 size={16} className={loading ? 'animate-spin' : 'hidden'} />
+                                {!loading && <RefreshCcw size={16} className="rotate-45" />}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Progress bar */}
+                    {total > 0 && (
+                        <div className="mt-4">
+                            <div className="flex items-center justify-between text-xs text-white/90 mb-1.5">
+                                <span>ความคืบหน้าการประเมิน</span>
+                                <span className="font-semibold">{evaluated.length} / {total} ({evaluatedPct}%)</span>
+                            </div>
+                            <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-emerald-400 rounded-full transition-all duration-500"
+                                    style={{ width: `${evaluatedPct}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </DialogHeader>
+
+                {/* Top 5 pending users panel */}
+                {showTopUsers && (
+                    <div className="px-4 sm:px-6 pt-4 pb-3 border-b bg-linear-to-b from-amber-50/60 to-white shrink-0">
+                        {/* Message-box header */}
+                        <div className="flex items-start gap-2.5 p-2.5 mb-3 rounded-lg bg-amber-100/70 border border-amber-200">
+                            <Trophy size={16} className="text-amber-600 mt-0.5 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-amber-900 leading-tight">
+                                    Top 5 ผู้ที่ยังไม่ประเมินมากสุด
+                                </p>
+                                <p className="text-[11px] text-amber-700/80 mt-0.5">
+                                    มีผู้ใช้ {topPendingUsers.length} ราย · รวม {pending.length} รายการคงค้าง
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowTopUsers(false)}
+                                className="text-amber-700/70 hover:text-amber-900 cursor-pointer shrink-0"
+                                aria-label="ปิด"
+                            >
+                                <X size={14} />
+                            </button>
+                        </div>
+                        {topPendingUsers.length === 0 ? (
+                            <div className="text-center py-4 text-xs text-gray-500">
+                                ไม่มีรายการที่ยังไม่ประเมิน
+                            </div>
+                        ) : (
+                            <ol className="space-y-1.5">
+                                {topPendingUsers.map((u, idx) => {
+                                    const rankStyle = idx === 0 ? 'bg-amber-400 text-amber-900'
+                                        : idx === 1 ? 'bg-gray-300 text-gray-800'
+                                            : idx === 2 ? 'bg-orange-300 text-orange-900'
+                                                : 'bg-gray-100 text-gray-600';
+                                    const max = topPendingUsers[0].count;
+                                    const pct = Math.max(8, Math.round((u.count / max) * 100));
+                                    return (
+                                        <li key={`${u.name}-${idx}`} className="flex items-center gap-2.5 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5">
+                                            <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${rankStyle}`}>
+                                                {idx + 1}
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-sm font-medium text-gray-800 truncate">{u.name}</span>
+                                                    <span className="shrink-0 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full">
+                                                        {u.count} รายการ
+                                                    </span>
+                                                </div>
+                                                <div className="mt-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-linear-to-r from-rose-400 to-amber-400 rounded-full transition-all"
+                                                        style={{ width: `${pct}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </li>
+                                    );
+                                })}
+                            </ol>
+                        )}
+                    </div>
+                )}
+
+                {/* Segmented tab control */}
+                <div className="px-4 sm:px-6 pt-4 pb-3 border-b bg-white shrink-0">
+                    <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
+                        <button
+                            onClick={() => onTabChange('pending')}
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${tab === 'pending'
+                                ? 'bg-white text-[#026a75] shadow-sm'
+                                : 'text-gray-600 hover:text-gray-800'
+                                }`}
+                        >
+                            <Clock size={14} />
+                            ยังไม่ประเมิน
+                            <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${tab === 'pending' ? 'bg-rose-100 text-rose-700' : 'bg-gray-200 text-gray-600'
+                                }`}>
+                                {pending.length}
+                            </span>
+                        </button>
+                        <button
+                            onClick={() => onTabChange('evaluated')}
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${tab === 'evaluated'
+                                ? 'bg-white text-[#026a75] shadow-sm'
+                                : 'text-gray-600 hover:text-gray-800'
+                                }`}
+                        >
+                            <CheckCircle size={14} />
+                            ประเมินแล้ว
+                            <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${tab === 'evaluated' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'
+                                }`}>
+                                {evaluated.length}
+                            </span>
+                        </button>
+                    </div>
+
+                    {/* Search */}
+                    {list.length > 0 && (
+                        <div className="relative mt-3">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="ค้นหารหัสคำร้อง, ชื่อแบบฟอร์ม, ผู้สร้าง..."
+                                className="w-full pl-9 pr-9 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:bg-white focus:border-[#026a75]/40 focus:ring-2 focus:ring-[#026a75]/10 transition-all"
+                            />
+                            {search && (
+                                <button
+                                    onClick={() => setSearch('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                                    aria-label="ล้างการค้นหา"
+                                >
+                                    <X size={14} />
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* List */}
+                <div className="flex-1 overflow-y-auto bg-gray-50/50 p-3 sm:p-4">
+                    {loading ? (
+                        <div className="space-y-2">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className="bg-white border border-gray-200 rounded-xl p-3 animate-pulse">
+                                    <div className="h-4 bg-gray-200 rounded w-2/3 mb-2" />
+                                    <div className="h-3 bg-gray-200 rounded w-1/3 mb-3" />
+                                    <div className="flex gap-2">
+                                        <div className="h-3 bg-gray-200 rounded w-20" />
+                                        <div className="h-3 bg-gray-200 rounded w-24" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : filteredList.length === 0 ? (
+                        <div className="text-center py-14 text-gray-500">
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 ${emptyState.bg}`}>
+                                <emptyState.Icon size={32} className={emptyState.color} />
+                            </div>
+                            <p className="text-sm font-medium text-gray-700">
+                                {search ? 'ไม่พบรายการที่ค้นหา' : emptyState.title}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                                {search ? 'ลองเปลี่ยนคำค้นหา' : emptyState.sub}
+                            </p>
+                        </div>
+                    ) : (
+                        <ul className="space-y-2">
+                            {filteredList.map((item) => (
+                                <li
+                                    key={item.form_id}
+                                    className={`group bg-white border rounded-xl p-3 transition-all ${tab === 'pending'
+                                        ? 'border-gray-200 hover:border-[#026a75] hover:shadow-md'
+                                        : 'border-gray-200 hover:border-emerald-300'
+                                        }`}
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-[#026a75] bg-[#026a75]/10 px-1.5 py-0.5 rounded">
+                                                    {item.form_code}
+                                                </span>
+                                                {tab === 'evaluated' && item.point != null && (
+                                                    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                                                        <Star size={10} className="fill-amber-400 text-amber-400" />
+                                                        {item.point}/5
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="font-semibold text-gray-800 text-sm leading-snug line-clamp-2">
+                                                {item.form_name}
+                                            </p>
+                                            <p className="text-[11px] text-gray-400 font-mono mt-1">{item.form_id}</p>
+                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-gray-500">
+                                                <span className="flex items-center gap-1">
+                                                    <User size={11} />
+                                                    {item.firstname} {item.lastname}
+                                                </span>
+                                                <span className="flex items-center gap-1">
+                                                    <Calendar size={11} />
+                                                    {formatDatetime(tab === 'evaluated' ? item.survey_at : item.created_at)}
+                                                </span>
+                                            </div>
+                                            {tab === 'evaluated' && item.comment && (
+                                                <div className="mt-2 px-2.5 py-1.5 bg-gray-50 border-l-2 border-gray-300 rounded-r text-xs text-gray-600 italic line-clamp-2">
+                                                    “{item.comment}”
+                                                </div>
+                                            )}
+                                        </div>
+                                        {tab === 'pending' && (
+                                            <button
+                                                onClick={() => handleNavigate(item.form_id)}
+                                                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-linear-to-r from-[#026a75] to-[#038a96] text-white text-xs font-semibold shadow-sm hover:shadow-md hover:scale-[1.03] transition-all cursor-pointer self-start"
+                                                title="เปิดหน้าประเมินในแท็บใหม่"
+                                            >
+                                                <Star size={12} className="fill-yellow-300 text-yellow-300" />
+                                                ประเมิน
+                                                <ExternalLink size={11} className="opacity-70" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+
+                {/* Footer summary */}
+                <div className="px-4 sm:px-6 py-3 border-t bg-white shrink-0 flex items-center justify-between text-xs text-gray-500">
+                    <span>
+                        แสดง <span className="font-semibold text-gray-700">{filteredList.length}</span>
+                        {search && list.length !== filteredList.length && (
+                            <> จาก <span className="font-semibold text-gray-700">{list.length}</span></>
+                        )} รายการ
+                    </span>
+                    <button
+                        onClick={onClose}
+                        className="px-3 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer font-medium"
+                    >
+                        ปิด
+                    </button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+};
 
 // ===================== VIEWER COMPONENT =====================
 export const Viewer = ({

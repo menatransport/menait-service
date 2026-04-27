@@ -2,19 +2,52 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
-    const param = request.nextUrl.searchParams.get('employee_id');
-    const tab = request.nextUrl.searchParams.get('tab') || 'pending';
-    const role = request.nextUrl.searchParams.get('role') || '';
-    const status = request.nextUrl.searchParams.get('status') || '';
+    const sp = request.nextUrl.searchParams;
+    const param = sp.get('employee_id');
+    const tab = sp.get('tab') || 'pending';
+    const role = sp.get('role') || '';
+    const status = sp.get('status') || '';
+    const start_date = sp.get('start_date') || '';
+    const end_date = sp.get('end_date') || '';
+    const form_id = sp.get('form_id') || '';
 
-    const endpoint = tab === 'my'
-        ? `${process.env.URL_API}/forms${role === 'a' ? '' : `?employee_id=${param}`}`
-        : status === 'Done' ? `${process.env.URL_API}/forms${role === 'a' ? '?status=Done' : `?employee_id=${param}`}`
-            : `${process.env.URL_API}/forms/pending-approvals?employee_id=${param}`;
+    // Build query string from a record, skipping empty values
+    const buildQS = (params: Record<string, string>) => {
+        const usp = new URLSearchParams();
+        Object.entries(params).forEach(([k, v]) => {
+            if (v !== undefined && v !== null && v !== '') usp.set(k, v);
+        });
+        const s = usp.toString();
+        return s ? `?${s}` : '';
+    };
 
-    const res = await fetch(endpoint, {
-        method: "GET",
-    });
+    const baseParams: Record<string, string> = {
+        start_date,
+        end_date,
+        form_id,
+    };
+
+    let endpoint: string;
+    if (tab === 'my') {
+        endpoint = `${process.env.URL_API}/forms${buildQS({
+            ...baseParams,
+            ...(role === 'a' ? {} : { employee_id: param ?? '' }),
+            status,
+        })}`;
+    } else if (status === 'Done') {
+        endpoint = `${process.env.URL_API}/forms${buildQS({
+            ...baseParams,
+            ...(role === 'a' ? { status: 'Done' } : { employee_id: param ?? '', status: 'Done' }),
+        })}`;
+    } else {
+        endpoint = `${process.env.URL_API}/forms/pending-approvals${buildQS({
+            ...baseParams,
+            employee_id: param ?? '',
+            status,
+        })}`;
+    }
+
+    const res = await fetch(endpoint, { method: 'GET' });
     const data = await res.json();
     // console.log('data : ', data);
     if (!res.ok) {
