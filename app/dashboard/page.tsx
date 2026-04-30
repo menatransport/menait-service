@@ -80,7 +80,7 @@ export default function DashboardPage() {
     }, [fetchData]);
 
     return (
-        <Navbar isHome={false} title="แดชบอร์ดสรุปผลรวม">
+        <Navbar isHome={false} title="แดชบอร์ดสรุปภภาพรวม">
             <main className="flex-1 min-h-0 bg-[#026a75] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto relative">
                 <WaveBackground />
                 <div className="w-full max-w-screen-2xl mx-auto px-3 py-6 sm:px-6 lg:px-10 sm:py-8 relative z-10">

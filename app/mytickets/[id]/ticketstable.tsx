@@ -254,7 +254,7 @@ export const DataTable = ({
     // against the evaluated list fetched from the survey API.
     const surveyPendingList = useMemo(() => {
         const evaluatedIds = new Set(surveyDialogEvaluated.map(t => t.form_id));
-        return data.filter(t => t.status === 'Done' && !evaluatedIds.has(t.form_id));
+        return data.filter(t => t.status === 'Done' && t.employee_status === 'Active' && !evaluatedIds.has(t.form_id));
     }, [data, surveyDialogEvaluated]);
 
 
@@ -414,13 +414,8 @@ export const DataTable = ({
                                 `}
                             title="แบบประเมิน"
                         >
-                            <Pencil size={14} />
+                            <Star size={14} />
                             <span>แบบประเมิน</span>
-                            {surveyPendingList.length > 0 && (
-                                <span className="bg-rose-400 text-white text-[10px] font-bold rounded-full px-1.5 min-w-5 h-5 flex items-center justify-center">
-                                    {surveyPendingList.length}
-                                </span>
-                            )}
                         </button>
 
                         {/* View Mode Toggle - Desktop */}
@@ -852,6 +847,7 @@ const SurveyStatusDialog = ({
     }, [tab]);
 
     const list = tab === 'pending' ? pending : evaluated;
+    // console.log('list : ',list);
     const filteredList = useMemo(() => {
         const q = search.trim().toLowerCase();
         if (!q) return list;

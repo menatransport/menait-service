@@ -33,6 +33,7 @@ export type Ticket = {
     status_approve: string;
     firstname: string;
     lastname: string;
+    employee_status: string;
     email: string;
     point: number;
     comment: string;
