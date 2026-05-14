@@ -87,7 +87,38 @@ export function exportToExcel_Submissions(data: Ticket[]) {
 
     // Helper: build a worksheet for a set of tickets
     function buildSheet(tickets: Ticket[]): XLSX.WorkSheet {
-        // Collect all unique question_names in order, with their labels
+        const constantMap = {
+            it_equipment_request: 'เบิกอุปกรณ์ด้าน IT',
+            request_mouse: 'ขอเบิก Mouse',
+            request_keyboard: 'ขอเบิก Keyboard',
+            request_printer_ink: 'ขอเบิก หมึก Printer',
+            install_uninstall_program: 'ขอติดตั้ง/ขอลบ โปรแกรม',
+            ms_office_issue: 'ปัญหาการใช้งาน Microsoft Office',
+            vpn_issue: 'ปัญหาการใช้งาน VPN',
+            grab_access: 'ขอสิทธิ/ปัญหาการใช้งาน Grab',
+            'สร้างคลัง ใน ATMS': 'สร้างคลัง ใน ATMS',
+            'สร้างสินค้า ใน ATMS': 'สร้างสินค้า ใน ATMS',
+            line_issue: 'ปัญหาการใช้งาน LINE',
+            atms_issue: 'ปัญหาการใช้งาน ATMS',
+            winspeed_issue: 'ปัญหาการใช้งาน Winspeed',
+            google_drive_issue: 'ปัญหาการใช้งาน Google Drive (G)',
+            internet_wifi_issue: 'ปัญหาการใช้งาน Internet/WiFi',
+            password_locked: 'Password Locked / ลืมรหัสผ่าน',
+            print_scan_issue: 'ปัญหาการใช้งาน Print/Scan',
+            website_update: 'อัพเดท/แก้ไข Website',
+            group_mail_access: 'ขอสิทธิ Group Mail',
+            meeting_room_setup: 'จัดเตรียมห้องประชุม/อาคารสถานที่',
+            share_drive_issue: 'ปัญหาการใช้งาน Share Drive',
+            ad_system_issue: 'ระบบ AD ขัดข้อง',
+            it_equipment_damage: 'อุปกรณ์ด้าน IT ชำรุดหรือเสียหาย',
+            google_meet_issue: 'ปัญหาการใช้งาน Google Meet',
+            install_print_scan: 'ขอติดตั้ง Print/Scan',
+            atms_add_branch: 'เพิ่มคลัง/สาขา ใน ATMS',
+            atms_add_data: 'สร้าง/เพิ่ม ข้อมูล ใน ATMS',
+            wifi_guest_access: 'ขอสิทธิใช้งาน WiFi Guest',
+            'ปัญหาการใช้งาน  E-Mail': 'ปัญหาการใช้งาน  E-Mail'
+        } as Record<string, string>;
+
         const questionMap = new Map<string, string>(); // question_name -> question_label
         for (const t of tickets) {
             for (const v of (t.values || [])) {
@@ -115,7 +146,11 @@ export function exportToExcel_Submissions(data: Ticket[]) {
             // Dynamic question values
             const valuesMap = new Map<string, string>();
             for (const v of (ticket.values || [])) {
-                valuesMap.set(v.question_name, getFormValueDisplay(v));
+                const raw = getFormValueDisplay(v);
+                const display = v.question_name === 'sub_name'
+                    ? (constantMap[raw] ?? raw)
+                    : raw;
+                valuesMap.set(v.question_name, display);
             }
             const questionRow = questionNames.map(name => valuesMap.get(name) || '');
 
