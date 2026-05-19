@@ -211,6 +211,7 @@ export const DataTable = ({
     const [currentPage, setCurrentPage] = useState(1);
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
     const [filterStatus, setFilterStatus] = useState<string>('all');
+    const [filterFormCode, setFilterFormCode] = useState<string>('all');
     const [searchText, setSearchText] = useState<string>('');
     const [showFilters, setShowFilters] = useState(false);
     const currentSurveyFilter = surveyFilter ?? 'evaluated';
@@ -258,8 +259,24 @@ export const DataTable = ({
     }, [data, surveyDialogEvaluated]);
 
 
+    const formCodeOptions = useMemo(() => {
+        const seen = new Set<string>();
+        const options: { value: string; label: string }[] = [{ value: 'all', label: 'ทุกประเภท' }];
+        data.forEach(item => {
+            if (item.form_code && !seen.has(item.form_code)) {
+                seen.add(item.form_code);
+                options.push({ value: item.form_code, label: item.form_name || item.form_code });
+            }
+        });
+        return options;
+    }, [data]);
+
     const processedData = useMemo(() => {
         let result = [...data];
+
+        if (filterFormCode !== 'all') {
+            result = result.filter(item => item.form_code === filterFormCode);
+        }
 
         if (filterStatus !== 'all') {
             result = result.filter(item => item.status === filterStatus);
@@ -286,7 +303,7 @@ export const DataTable = ({
         });
 
         return result;
-    }, [data, sortOrder, filterStatus, searchText, activeTab, currentSurveyFilter]);
+    }, [data, sortOrder, filterFormCode, filterStatus, searchText, activeTab, currentSurveyFilter]);
 
     const totalPages = Math.ceil(processedData.length / ITEMS_PER_PAGE);
 
@@ -306,12 +323,13 @@ export const DataTable = ({
 
     const clearFilters = () => {
         setFilterStatus('all');
+        setFilterFormCode('all');
         if (activeTab === 'suv') handleSurveyFilter('evaluated');
         setSearchText('');
         setCurrentPage(1);
     };
 
-    const hasActiveFilters = filterStatus !== 'all' || searchText.trim() !== '' || (activeTab === 'suv' && currentSurveyFilter !== 'evaluated');
+    const hasActiveFilters = filterStatus !== 'all' || filterFormCode !== 'all' || searchText.trim() !== '' || (activeTab === 'suv' && currentSurveyFilter !== 'evaluated');
 
     return (
         <section className="bg-white rounded-2xl shadow-xl border border-white/30 overflow-hidden relative">
@@ -361,7 +379,7 @@ export const DataTable = ({
                                 <Filter size={16} />
                                 {hasActiveFilters && (
                                     <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                                        {(filterStatus !== 'all' ? 1 : 0) + (searchText.trim() ? 1 : 0)}
+                                        {(filterStatus !== 'all' ? 1 : 0) + (filterFormCode !== 'all' ? 1 : 0) + (searchText.trim() ? 1 : 0)}
                                     </span>
                                 )}
                             </button>
@@ -516,67 +534,85 @@ export const DataTable = ({
             {/* Filter Panel */}
             {showFilters && (
                 <div className="p-3 lg:p-4 bg-linear-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                    <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-                        {/* Status Filter Label */}
-                        <div className="flex items-center justify-between lg:justify-start">
-                            <span className="text-sm font-medium text-gray-700">เลือกสถานะ:</span>
+                    <div className="flex flex-col gap-3">
 
-                            {/* Clear Filters - Mobile */}
+                        {/* Row 1: Form Code Filter */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <span className="text-xs font-medium text-gray-500 shrink-0 min-w-24">ประเภทฟอร์ม</span>
+                            <select
+                                value={filterFormCode}
+                                onChange={(e) => { setFilterFormCode(e.target.value); setCurrentPage(1); }}
+                                className={`px-3 py-1.5 rounded-lg text-sm border bg-white cursor-pointer focus:outline-none transition-colors ${filterFormCode !== 'all'
+                                    ? 'border-[#026a75] text-[#026a75] font-medium ring-1 ring-[#026a75]/30'
+                                    : 'border-gray-300 text-gray-700 hover:border-gray-400'
+                                    }`}
+                            >
+                                {formCodeOptions.map(({ value, label }) => (
+                                    <option key={value} value={value}>{label}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="border-t border-gray-200" />
+
+                        {/* Row 2: Status / Survey Filter Pills */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <div className="flex items-center justify-between sm:justify-start">
+                                <span className="text-xs font-medium text-gray-500 shrink-0 min-w-24">สถานะ</span>
+                                {hasActiveFilters && (
+                                    <button
+                                        onClick={clearFilters}
+                                        className="sm:hidden flex items-center gap-1 text-xs text-red-500 hover:text-red-600 cursor-pointer"
+                                    >
+                                        <X size={12} />
+                                        ล้าง
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="flex overflow-x-auto pb-1 sm:pb-0 -mx-3 px-3 sm:mx-0 sm:px-0 gap-2 scrollbar-hide">
+                                {activeTab === 'suv' ? (
+                                    [{ value: 'evaluated' as const, label: 'ประเมินแล้ว' }, { value: 'not-evaluated' as const, label: 'ยังไม่ประเมิน' }].map(({ value, label }) => (
+                                        <button
+                                            key={value}
+                                            onClick={() => handleSurveyFilter(value)}
+                                            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${currentSurveyFilter === value
+                                                ? 'bg-[#026a75] text-white border-[#026a75] shadow-sm'
+                                                : 'bg-white text-gray-600 border-gray-300 hover:border-[#026a75] hover:text-[#026a75]'
+                                                }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))
+                                ) : (
+                                    STATUS_OPTIONS.map(({ value, label }) => (
+                                        <button
+                                            key={value}
+                                            onClick={() => { setFilterStatus(value); setCurrentPage(1); }}
+                                            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${filterStatus === value
+                                                ? 'bg-[#026a75] text-white border-[#026a75] shadow-sm'
+                                                : 'bg-white text-gray-600 border-gray-300 hover:border-[#026a75] hover:text-[#026a75]'
+                                                }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+
+                            <div className="hidden sm:block flex-1" />
+
                             {hasActiveFilters && (
                                 <button
                                     onClick={clearFilters}
-                                    className="lg:hidden flex items-center gap-1 text-xs text-red-500 hover:text-red-600 cursor-pointer"
+                                    className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
                                 >
-                                    <X size={12} />
-                                    ล้าง
+                                    <X size={14} />
+                                    ล้างทั้งหมด
                                 </button>
                             )}
                         </div>
 
-                        {/* Status / Survey Filter Pills - Scrollable on Mobile */}
-                        <div className="flex overflow-x-auto pb-1 lg:pb-0 -mx-3 px-3 lg:mx-0 lg:px-0 gap-2 scrollbar-hide">
-                            {activeTab === 'suv' ? (
-                                [{ value: 'evaluated' as const, label: 'ประเมินแล้ว' }, { value: 'not-evaluated' as const, label: 'ยังไม่ประเมิน' }].map(({ value, label }) => (
-                                    <button
-                                        key={value}
-                                        onClick={() => handleSurveyFilter(value)}
-                                        className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${currentSurveyFilter === value
-                                            ? 'bg-[#026a75] text-white border-[#026a75] shadow-sm'
-                                            : 'bg-white text-gray-600 border-gray-300 hover:border-[#026a75] hover:text-[#026a75]'
-                                            }`}
-                                    >
-                                        {label}
-                                    </button>
-                                ))
-                            ) : (
-                                STATUS_OPTIONS.map(({ value, label }) => (
-                                    <button
-                                        key={value}
-                                        onClick={() => { setFilterStatus(value); setCurrentPage(1); }}
-                                        className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${filterStatus === value
-                                            ? 'bg-[#026a75] text-white border-[#026a75] shadow-sm'
-                                            : 'bg-white text-gray-600 border-gray-300 hover:border-[#026a75] hover:text-[#026a75]'
-                                            }`}
-                                    >
-                                        {label}
-                                    </button>
-                                ))
-                            )}
-                        </div>
-
-                        {/* Spacer - Desktop */}
-                        <div className="hidden lg:block flex-1" />
-
-                        {/* Clear Filters - Desktop */}
-                        {hasActiveFilters && (
-                            <button
-                                onClick={clearFilters}
-                                className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
-                            >
-                                <X size={14} />
-                                ล้างทั้งหมด
-                            </button>
-                        )}
                     </div>
                 </div>
             )}
