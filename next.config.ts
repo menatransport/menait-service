@@ -18,6 +18,7 @@ const nextConfig: NextConfig = withPWA({
     NEXT_PUBLIC_VERSION: version,
   },
   turbopack: {},
+  serverExternalPackages: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
   // Performance optimizations
   reactStrictMode: true,
   compress: true,
