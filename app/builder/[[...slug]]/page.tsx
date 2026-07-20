@@ -463,8 +463,8 @@ export default function BuilderPage() {
                 questions: formData.questions.map(({ id, ...rest }) => rest),
             };
 
-            // แยก rules: อันใหม่ (version === 1, ไม่มี id) → POST, อันเก่า (มี id) → PUT
-            const newRules = formRule.filter(r => r.version === 1 && !r.id);
+            // แยก rules: ไม่มี id = ใหม่ → POST, มี id = แก้ไข → PUT
+            const newRules = formRule.filter(r => !r.id);
             const updatedRules = formRule.filter(r => r.id);
 
             const res = await fetch("/api/builder", {

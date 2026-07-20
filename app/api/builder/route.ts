@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: dataForm?.detail }, { status: resData.status });
     }
     for (const rule of formRule) {
-        const resRule = await fetch(`${process.env.URL_AP}/forms/rules`, { //
+        const resRule = await fetch(`${process.env.URL_API}/forms/rules`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
