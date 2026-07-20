@@ -147,8 +147,7 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
         if (systems.length === 1 && !formData.system) {
             setFormData(prev => ({
                 ...prev,
-                system_id: systems[0].system_id,
-                system: systems[0].system,
+                system: systems[0].system_id,
             }));
         }
     }, [systems, formData.system]);
@@ -194,22 +193,24 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
 
         setIsSubmitting(true);
 
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        const res = fetch('api/survey-ops', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(formData),
-        }
-        )
-        if (!res) {
+        try {
+            const res = await fetch('/api/survey-ops', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData),
+            });
+            if (!res.ok) {
+                alert('เกิดข้อผิดพลาดในการส่งแบบประเมิน กรุณาลองใหม่อีกครั้ง');
+                return;
+            }
+            setIsSubmitted(true);
+        } catch {
             alert('เกิดข้อผิดพลาดในการส่งแบบประเมิน กรุณาลองใหม่อีกครั้ง');
+        } finally {
             setIsSubmitting(false);
-            return;
         }
-        setIsSubmitting(false);
-        setIsSubmitted(true);
     };
 
     if (isSubmitted) {

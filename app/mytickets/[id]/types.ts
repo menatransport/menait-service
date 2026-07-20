@@ -22,7 +22,7 @@ export interface FormData {
     values: FormValue[];
 }
 
-// Status configuration for badges
+// Status configuration 
 export type StatusType = 'Open' | 'Closed' | 'In-Progress' | 'Pending' | 'Approved' | 'Rejected';
 
 export interface StatusConfig {

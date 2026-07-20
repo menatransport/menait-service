@@ -3,6 +3,8 @@ import type { NextRequest } from 'next/server';
 
 export async function POST(request: NextRequest) {
     const reqBody = await request.json();
+    console.log('Request body:', reqBody);
+    console.log('System script URL:', process.env.NEXT_PUBLIC_SYSTEM_SCRIPT);
     if (process.env.NEXT_PUBLIC_SYSTEM_SCRIPT === undefined) {
         return NextResponse.json({ error: 'System script URL is not defined' }, { status: 500 });
     }
@@ -13,6 +15,7 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify(reqBody),
     });
+    console.log('Response status:', res);
     if (!res.ok) {
         const errorData = await res.json();
         return NextResponse.json({ error: errorData?.detail || 'Unknown error' }, { status: res.status });
