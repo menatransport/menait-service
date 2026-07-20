@@ -171,7 +171,7 @@ export default function MasterPage() {
             <main className="flex-1 min-h-0 bg-[#026a75] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto relative">
                 <WaveBackground />
                 <div className="w-full max-w-screen-2xl mx-auto px-3 py-6 sm:px-6 lg:px-10 sm:py-8 relative z-10">
-                    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'user' | 'form')}>
+                    <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as 'user' | 'form')}>
                         <TabsList className="mb-6 bg-gray-800/50 backdrop-blur-sm p-1 rounded-full">
                             <TabsTrigger
                                 value="user"
