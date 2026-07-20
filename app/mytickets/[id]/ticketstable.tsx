@@ -167,6 +167,7 @@ const TAB_OPTIONS = [
 export type TabType = 'my' | 'apv' | 'suv';
 export type SortOrder = 'asc' | 'desc';
 export type SurveyFilter = 'evaluated' | 'not-evaluated' | 'all';
+export type ApvView = 'pending' | 'history';
 
 // Filter status options
 const STATUS_OPTIONS = [
@@ -192,6 +193,8 @@ export const DataTable = ({
     role,
     surveyFilter,
     onSurveyFilterChange,
+    apvView,
+    onApvViewChange,
     viewMode,
     onViewModeChange
 }: {
@@ -205,6 +208,8 @@ export const DataTable = ({
     role?: string | null;
     surveyFilter?: SurveyFilter;
     onSurveyFilterChange?: (filter: SurveyFilter) => void;
+    apvView?: ApvView;
+    onApvViewChange?: (view: ApvView) => void;
     viewMode?: ViewMode;
     onViewModeChange?: (mode: ViewMode) => void;
 }) => {
@@ -346,6 +351,32 @@ export const DataTable = ({
                                 }
                             </p>
                         </div>
+
+                        {/* Pending / History toggle - apv tab only */}
+                        {activeTab === 'apv' && onApvViewChange && (
+                            <div className="flex items-center bg-white/10 rounded-full p-0.5 border border-white/20 shrink-0">
+                                <button
+                                    onClick={() => { onApvViewChange('pending'); setCurrentPage(1); }}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${(apvView ?? 'pending') === 'pending'
+                                        ? 'bg-white text-[#04555e] shadow-sm'
+                                        : 'text-white/70 hover:text-white'
+                                        }`}
+                                >
+                                    <Clock size={13} />
+                                    <span>รออนุมัติ</span>
+                                </button>
+                                <button
+                                    onClick={() => { onApvViewChange('history'); setCurrentPage(1); }}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${apvView === 'history'
+                                        ? 'bg-white text-[#04555e] shadow-sm'
+                                        : 'text-white/70 hover:text-white'
+                                        }`}
+                                >
+                                    <CheckCircle size={13} />
+                                    <span>ประวัติอนุมัติ</span>
+                                </button>
+                            </div>
+                        )}
 
                         {/* Mobile Actions */}
                         <div className="flex lg:hidden items-center gap-2">

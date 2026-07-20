@@ -2,7 +2,7 @@
 import { Navbar } from '@/components/navbar';
 import dynamic from 'next/dynamic';
 import { useEffect, useState, useCallback } from 'react';
-import { type TabType, type SurveyFilter } from "./ticketstable";
+import { type TabType, type SurveyFilter, type ApvView } from "./ticketstable";
 import { useSessionContext } from '@/app/context/SessionContext';
 import { useParams, useRouter } from "next/navigation";
 import { WaveBackground } from '@/components/wave-background';
@@ -81,6 +81,7 @@ export default function TicketsPage() {
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<TabType>('apv');
+    const [apvView, setApvView] = useState<ApvView>('pending');
 
     // Auto-open from URL (/mytickets/{form_id})
     const [autoOpenTicket, setAutoOpenTicket] = useState<Ticket | null>(null);
@@ -115,7 +116,8 @@ export default function TicketsPage() {
                 setSurveyNotEvaluated(Array.isArray(notEvalData) ? notEvalData : []);
                 setTickets(Array.isArray(evalData) ? evalData : []);
             } else {
-                const response = await fetch(`/api/tickets?employee_id=${employeeId}&tab=${tab}&role=${role}${dateQS}`);
+                const viewQS = tab === 'apv' && apvView === 'history' ? '&view=history' : '';
+                const response = await fetch(`/api/tickets?employee_id=${employeeId}&tab=${tab}&role=${role}${dateQS}${viewQS}`);
                 const data = await response.json();
                 setTickets(Array.isArray(data) ? data : []);
             }
@@ -125,7 +127,7 @@ export default function TicketsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [employeeId, role, startMonth, endMonth]);
+    }, [employeeId, role, startMonth, endMonth, apvView]);
 
     useEffect(() => {
         if (!employeeId) return;
@@ -164,6 +166,11 @@ export default function TicketsPage() {
     const handleTabChange = useCallback((tab: TabType) => {
         setActiveTab(tab);
         if (tab === 'suv') setSurveyFilter('evaluated');
+        if (tab !== 'apv') setApvView('pending');
+    }, []);
+
+    const handleApvViewChange = useCallback((view: ApvView) => {
+        setApvView(view);
     }, []);
 
     const handleSurveyFilterChange = useCallback((filter: SurveyFilter) => {
@@ -264,6 +271,8 @@ export default function TicketsPage() {
                 onAutoOpenClose={handleAutoOpenClose}
                 surveyFilter={surveyFilter}
                 onSurveyFilterChange={handleSurveyFilterChange}
+                apvView={apvView}
+                onApvViewChange={handleApvViewChange}
                 startMonth={startMonth}
                 endMonth={endMonth}
                 onMonthRangeChange={handleMonthRangeChange}

@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { type Ticket } from "@/app/mytickets/[id]/page";
-import { DataTable, Viewer, type TabType, type SurveyFilter } from "./ticketstable";
+import { DataTable, Viewer, type TabType, type SurveyFilter, type ApvView } from "./ticketstable";
 import { WaveBackground } from "@/components/wave-background";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { exportToExcel, exportToExcel_Submissions } from "@/lib/exportExcel";
@@ -28,6 +28,8 @@ export const TicketComponent = ({
     onAutoOpenClose,
     surveyFilter,
     onSurveyFilterChange,
+    apvView,
+    onApvViewChange,
     startMonth,
     endMonth,
     onMonthRangeChange
@@ -51,6 +53,8 @@ export const TicketComponent = ({
     onAutoOpenClose?: () => void;
     surveyFilter?: SurveyFilter;
     onSurveyFilterChange?: (filter: SurveyFilter) => void;
+    apvView?: ApvView;
+    onApvViewChange?: (view: ApvView) => void;
     startMonth?: string;
     endMonth?: string;
     onMonthRangeChange?: (startMonth: string, endMonth: string) => void;
@@ -110,11 +114,12 @@ export const TicketComponent = ({
                 ],
             });
         } else {
-            if (role !== "a") {
+            const isApvHistory = activeTab === 'apv' && apvView === 'history';
+            if (role !== "a" || isApvHistory) {
                 exportToExcel<Ticket>({
                     data: filteredTickets,
-                    fileName: activeTab === 'my' ? 'คำร้องของฉัน' : 'รายการรออนุมัติ',
-                    sheetName: activeTab === 'my' ? 'คำร้องของฉัน' : 'รออนุมัติ',
+                    fileName: activeTab === 'my' ? 'คำร้องของฉัน' : isApvHistory ? 'ประวัติการอนุมัติ' : 'รายการรออนุมัติ',
+                    sheetName: activeTab === 'my' ? 'คำร้องของฉัน' : isApvHistory ? 'ประวัติการอนุมัติ' : 'รออนุมัติ',
                     columns: [
                         { header: 'รหัสฟอร์ม', key: 'form_code', width: 16 },
                         { header: 'ชื่อฟอร์ม', key: 'form_name', width: 30 },
@@ -136,7 +141,7 @@ export const TicketComponent = ({
                 exportToExcel_Submissions(filteredTickets as any);
             }
         }
-    }, [filteredTickets, activeTab, role]);
+    }, [filteredTickets, activeTab, role, apvView]);
 
     // =================== TAB CHANGE HANDLER ===================
     const handleTabChange = useCallback((value: string) => {
@@ -182,7 +187,7 @@ export const TicketComponent = ({
 
                     <DataTable
                         data={filteredTickets}
-                        title={activeTab === 'my' ? 'รายการคำร้องของฉัน' : activeTab === 'apv' ? 'รายการรออนุมัติ' : 'รายการแบบประเมิน'}
+                        title={activeTab === 'my' ? 'รายการคำร้องของฉัน' : activeTab === 'apv' ? (apvView === 'history' ? 'รายการอนุมัติ/ปฏิเสธแล้ว' : 'รายการรออนุมัติ') : 'รายการแบบประเมิน'}
                         loading={loading}
                         handleExportExcel={handleExportExcel}
                         onViewTicket={handleView}
@@ -191,6 +196,8 @@ export const TicketComponent = ({
                         role={role}
                         surveyFilter={surveyFilter}
                         onSurveyFilterChange={onSurveyFilterChange}
+                        apvView={apvView}
+                        onApvViewChange={onApvViewChange}
                         viewMode={viewMode}
                         onViewModeChange={handleViewModeChange}
                     />

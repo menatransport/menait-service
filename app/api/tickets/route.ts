@@ -5,6 +5,7 @@ export async function GET(request: NextRequest) {
     const sp = request.nextUrl.searchParams;
     const param = sp.get('employee_id');
     const tab = sp.get('tab') || 'pending';
+    const view = sp.get('view') || '';
     const role = sp.get('role') || '';
     const status = sp.get('status') || '';
     const start_date = sp.get('start_date') || '';
@@ -38,6 +39,11 @@ export async function GET(request: NextRequest) {
         endpoint = `${process.env.URL_API}/forms${buildQS({
             ...baseParams,
             ...(role === 'a' ? { status: 'Done' } : { employee_id: param ?? '', status: 'Done' }),
+        })}`;
+    } else if (view === 'history') {
+        endpoint = `${process.env.URL_API}/forms/approval-history${buildQS({
+            ...baseParams,
+            employee_id: param ?? '',
         })}`;
     } else {
         endpoint = `${process.env.URL_API}/forms/pending-approvals${buildQS({
