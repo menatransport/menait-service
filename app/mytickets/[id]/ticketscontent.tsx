@@ -62,6 +62,7 @@ export const TicketComponent = ({
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [filterStatus, setFilterStatus] = useState<string>('all');
+    const [isExporting, setIsExporting] = useState(false);
     const [viewMode, setViewMode] = useState<'sheet' | 'dialog'>(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem('ticket_view_mode');
@@ -94,7 +95,7 @@ export const TicketComponent = ({
         setIsDrawerOpen(false);
     }, []);
 
-    const handleExportExcel = useCallback(() => {
+    const handleExportExcel = useCallback(async () => {
         if (activeTab === 'suv') {
             exportToExcel<Ticket>({
                 data: filteredTickets,
@@ -138,7 +139,12 @@ export const TicketComponent = ({
                     ],
                 });
             } else {
-                exportToExcel_Submissions(filteredTickets as any);
+                setIsExporting(true);
+                try {
+                    await exportToExcel_Submissions(filteredTickets as any);
+                } finally {
+                    setIsExporting(false);
+                }
             }
         }
     }, [filteredTickets, activeTab, role, apvView]);
@@ -190,6 +196,7 @@ export const TicketComponent = ({
                         title={activeTab === 'my' ? 'รายการคำร้องของฉัน' : activeTab === 'apv' ? (apvView === 'history' ? 'รายการอนุมัติ/ปฏิเสธแล้ว' : 'รายการรออนุมัติ') : 'รายการแบบประเมิน'}
                         loading={loading}
                         handleExportExcel={handleExportExcel}
+                        isExporting={isExporting}
                         onViewTicket={handleView}
                         activeTab={activeTab}
                         onTabChange={onTabChange}

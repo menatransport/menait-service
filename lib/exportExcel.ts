@@ -47,8 +47,42 @@ export function exportToExcel<T extends Record<string, any>>({
 }
 
 
-export function exportToExcel_Submissions(data: Ticket[]) {
+type ClosedInfo = { closed_at: string | null; closed_by: string | null };
+
+type FormSubmitLog = {
+    action: string;
+    field_name: string;
+    old_value: string | null;
+    new_value: string;
+    action_by: string;
+    action_at: string;
+};
+
+// ดึงข้อมูล "วันที่ปิดเคส/ผู้ปิดเคส" จาก log การเปลี่ยนสถานะ เนื่องจาก API รายการคำร้อง ไม่มี field นี้มาให้โดยตรง
+async function fetchClosedInfoMap(tickets: Ticket[]): Promise<Map<string, ClosedInfo>> {
+    const map = new Map<string, ClosedInfo>();
+    await Promise.all(tickets.map(async (ticket) => {
+        try {
+            const res = await fetch(`/api/formsubmit-log?form_id=${ticket.form_id}`);
+            const logs = await res.json();
+            if (!Array.isArray(logs)) return;
+            const closeLogs = (logs as FormSubmitLog[]).filter(
+                (l) => l.action === 'STATUS_CHANGE' && l.new_value === 'Done'
+            );
+            const lastClose = closeLogs[closeLogs.length - 1];
+            if (lastClose) {
+                map.set(ticket.form_id, { closed_at: lastClose.action_at, closed_by: lastClose.action_by });
+            }
+        } catch {
+            // ไม่พบ log ก็ปล่อยว่าง ไม่ให้กระทบ export รายการอื่น
+        }
+    }));
+    return map;
+}
+
+export async function exportToExcel_Submissions(data: Ticket[]) {
     const workbook = XLSX.utils.book_new();
+    const closedInfoMap = await fetchClosedInfoMap(data);
 
     const baseColumns: ExcelColumn<Ticket>[] = [
         { header: 'รหัสฟอร์ม', key: 'form_code', width: 16 },
@@ -64,6 +98,8 @@ export function exportToExcel_Submissions(data: Ticket[]) {
         { header: 'หมายเหตุผู้อนุมัติ', key: (r) => r.remark || '-', width: 30 },
         { header: 'วันที่อนุมัติ', key: (r) => r.action_at ? new Date(r.action_at).toLocaleDateString('th-TH') : '', width: 16 },
         { header: 'วันที่สร้าง', key: (r) => r.created_at ? new Date(r.created_at).toLocaleDateString('th-TH') : '', width: 16 },
+        { header: 'วันที่ปิดเคส', key: (r) => { const c = closedInfoMap.get(r.form_id)?.closed_at; return c ? new Date(c).toLocaleDateString('th-TH') : ''; }, width: 16 },
+        { header: 'ผู้ปิดเคส', key: (r) => closedInfoMap.get(r.form_id)?.closed_by || '-', width: 18 },
         { header: 'หมายเหตุไอที', key: (r) => r.admin_comment || '-', width: 30 },
     ];
 

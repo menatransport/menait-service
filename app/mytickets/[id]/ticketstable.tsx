@@ -187,6 +187,7 @@ export const DataTable = ({
     title,
     loading,
     handleExportExcel,
+    isExporting,
     onViewTicket,
     activeTab,
     onTabChange,
@@ -202,6 +203,7 @@ export const DataTable = ({
     title: string;
     loading: boolean;
     handleExportExcel: () => void;
+    isExporting?: boolean;
     onViewTicket: (ticket: Ticket) => void;
     activeTab: TabType;
     onTabChange: (tab: TabType) => void;
@@ -498,11 +500,12 @@ export const DataTable = ({
                         {/* Excel Export */}
                         <button
                             onClick={handleExportExcel}
-                            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition-all cursor-pointer"
+                            disabled={isExporting}
+                            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                             title="ส่งออก Excel"
                         >
-                            <FileSpreadsheet size={14} />
-                            <span>Excel</span>
+                            {isExporting ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
+                            <span>{isExporting ? 'กำลังเตรียมข้อมูล...' : 'Excel'}</span>
                         </button>
                     </div>
                 </div>

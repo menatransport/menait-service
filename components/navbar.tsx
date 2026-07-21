@@ -121,7 +121,7 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
                                 </button>
                             )}
                             {/* NavigationMenu - click on mobile, hover on desktop */}
-                            <div ref={menuRef} className={`relative ${pagelock ? '' : 'sm:group'}`}>
+                            <div ref={menuRef} className={`relative ${pagelock ? '' : 'group'}`}>
                                 <div
                                     onClick={() => !pagelock && setMenuOpen(prev => !prev)}
                                     className="flex items-center gap-2 sm:gap-3 p-1.5 sm:px-4 sm:py-2 bg-white/10 backdrop-blur-sm rounded-xl cursor-pointer hover:bg-white/20 transition-all duration-300 hover:scale-105"
