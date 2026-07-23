@@ -26,8 +26,14 @@ export const SelectStatus = ({ status, onChange }: SelectStatusProps) => {
                     </SelectItem>
                     <SelectItem value='In-Progress'>
                         <span className='flex items-center gap-2'>
-                            <CircleIcon className='size-2 fill-amber-500 text-amber-500' />
+                            <CircleIcon className='size-2 fill-yellow-500 text-yellow-500' />
                             <span className='truncate'>In Progress</span>
+                        </span>
+                    </SelectItem>
+                    <SelectItem value='Coordinate'>
+                        <span className='flex items-center gap-2'>
+                            <CircleIcon className='size-2 fill-amber-500 text-amber-500' />
+                            <span className='truncate'>Coordinate</span>
                         </span>
                     </SelectItem>
                     <SelectItem value='Done'>

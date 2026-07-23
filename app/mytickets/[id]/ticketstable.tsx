@@ -1,7 +1,7 @@
 'use client';
 import { Ticket } from "@/app/mytickets/[id]/page";
 import { useRouter, useParams } from "next/navigation";
-import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, Filter, Search, X, Star, ExternalLink, Computer, Laptop, Copy, ClipboardCheck, Pencil, PanelRight, Maximize2, UserMinus, UserPlus, RefreshCcw, Trophy } from "lucide-react";
+import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, ArrowUpDown, AlertTriangle, Filter, Search, X, Star, ExternalLink, Computer, Laptop, Copy, ClipboardCheck, Pencil, PanelRight, Maximize2, UserMinus, UserPlus, RefreshCcw, Trophy, Check } from "lucide-react";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -12,18 +12,53 @@ import { Button } from "@/components/ui/button";
 import type { formSetup, formSubmitLog } from "@/app/service/[[...slug]]/page";
 import { renderFormField, buildSubmitValues, prefillFormValues, formatDatetime } from "@/components/renderForm";
 import { SelectStatus } from "@/components/ui/selectstatus"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 const showSwal = (options: any) => import('sweetalert2').then(({ default: Swal }) => Swal.fire(options));
 import { useSessionContext } from "@/app/context/SessionContext";
 
 // ===================== CONSTANTS =====================
 const ITEMS_PER_PAGE = 10;
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+// ===================== SLA / PENDING DURATION =====================
+// กติกา SLA: แจ้งปัญหา (มี question_name === 'issue_name') hardware ไม่เกิน 7 วัน, software ไม่เกิน 2 วัน
+// ฟอร์มขอใช้บริการ (ไม่มี issue_name) ไม่เกิน 3 วันจาก Approval, ถ้ายังไม่อนุมัติหรือ default ให้นับจากวันที่สร้าง
+const getPendingInfo = (item: Ticket) => {
+    if (item.status === 'Done' || item.status === 'Rejected' || item.status === 'Backlog') {
+        return { days: 0, slaLimit: 0, isOverdue: false, hidden: true };
+    }
+
+    const now = new Date();
+    const isIssueForm = item.form_code === 'ISSUE_IT';
+
+    let slaLimit = 3;
+    let startDate: Date;
+
+    if (isIssueForm) {
+        const issueValue = item.values?.find(v => v.question_name === 'issue_name')?.value_text;
+        slaLimit = issueValue === 'Hardware' ? 7 : issueValue === 'Software' ? 2 : 3;
+        startDate = new Date(item.created_at);
+    } else {
+        if (item.status_approve !== 'Approved' || !item.action_at) {
+            return { days: 0, slaLimit: 0, isOverdue: false, hidden: true };
+        }
+        startDate = new Date(item.action_at);
+    }
+
+    const toDateOnly = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const days = Math.max(0, Math.round((toDateOnly(now).getTime() - toDateOnly(startDate).getTime()) / MS_PER_DAY));
+    const isOverdue = days > slaLimit;
+
+    return { days, slaLimit, isOverdue, hidden: false };
+};
 const BadgeStatusMap: Record<string, { label: string; className: string }> = {
     'Open': { label: 'Open', className: 'bg-blue-100 text-blue-800 border-blue-200' },
     'In Progress': { label: 'In Progress', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
     'Done': { label: 'Done', className: 'bg-green-100 text-green-800 border-green-200' },
     'Rejected': { label: 'Rejected', className: 'bg-red-100 text-red-800 border-red-200' },
     'Backlog': { label: 'Backlog', className: 'bg-purple-100 text-purple-800 border-purple-200' },
+    'Coordinate': { label: 'Coordinate', className: 'bg-amber-100 text-amber-800 border-amber-200' },
 }
 
 // ===================== SUB COMPONENTS =====================
@@ -43,7 +78,7 @@ const APPROVAL_STATUS_CONFIG: Record<string, { label: string; className: string 
     },
     'In Progress': {
         label: 'รออนุมัติ',
-        className: 'text-amber-600 bg-amber-50'
+        className: 'text-yellow-600 bg-yellow-50'
     },
     'Rejected': {
         label: 'ปฏิเสธ',
@@ -60,6 +95,25 @@ const ApprovalBadge = ({ status }: { status: string }) => {
             <span className="w-1.5 h-1.5 rounded-full bg-current" />
             {config.label}
         </span>
+    );
+};
+
+const PendingDurationBadge = ({ item }: { item: Ticket }) => {
+    const { days, slaLimit, isOverdue, hidden } = getPendingInfo(item);
+    if (hidden) return null;
+    return (
+        <>
+        <span
+            className={`inline-flex items-center gap-1.5  text-xs font-medium whitespace-nowrap ${isOverdue
+                ? 'text-red-600'
+                : 'text-amber-700'
+                }`}
+            title={`SLA: ไม่เกิน ${slaLimit} วัน`}
+        >
+            {isOverdue ? <AlertTriangle size={12} /> : <Clock size={12} />}
+          {days} วัน
+        </span>
+        </>
     );
 };
 
@@ -168,12 +222,21 @@ export type TabType = 'my' | 'apv' | 'suv';
 export type SortOrder = 'asc' | 'desc';
 export type SurveyFilter = 'evaluated' | 'not-evaluated' | 'all';
 export type ApvView = 'pending' | 'history';
+export type SortField = 'date' | 'pending';
+
+const SORT_MENU_OPTIONS: { field: SortField; order: SortOrder; label: string }[] = [
+    { field: 'date', order: 'desc', label: 'เรียงตามวันที่สร้าง (มากไปน้อย)' },
+    { field: 'date', order: 'asc', label: 'เรียงตามวันที่สร้าง (น้อยไปมาก)' },
+    { field: 'pending', order: 'desc', label: 'เรียงตาม SLA (มากไปน้อย)' },
+    { field: 'pending', order: 'asc', label: 'เรียงตาม SLA (น้อยไปมาก)' },
+];
 
 // Filter status options
 const STATUS_OPTIONS = [
     { value: 'all', label: 'ทั้งหมด' },
     { value: 'Open', label: 'Open' },
     { value: 'In-Progress', label: 'In Progress' },
+    { value: 'Coordinate', label: 'Coordinate' },
     { value: 'Done', label: 'Done' },
     { value: 'Rejected', label: 'Rejected' },
     { value: 'Backlog', label: 'Backlog' },
@@ -216,6 +279,7 @@ export const DataTable = ({
     onViewModeChange?: (mode: ViewMode) => void;
 }) => {
     const [currentPage, setCurrentPage] = useState(1);
+    const [sortField, setSortField] = useState<'date' | 'pending'>('date');
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
     const [filterStatus, setFilterStatus] = useState<string>('all');
     const [filterFormCode, setFilterFormCode] = useState<string>('all');
@@ -304,13 +368,18 @@ export const DataTable = ({
         }
 
         result.sort((a, b) => {
+            if (sortField === 'pending') {
+                const pendingA = getPendingInfo(a).days;
+                const pendingB = getPendingInfo(b).days;
+                return sortOrder === 'desc' ? pendingB - pendingA : pendingA - pendingB;
+            }
             const dateA = new Date(a.created_at).getTime();
             const dateB = new Date(b.created_at).getTime();
             return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
         });
 
         return result;
-    }, [data, sortOrder, filterFormCode, filterStatus, searchText, activeTab, currentSurveyFilter]);
+    }, [data, sortField, sortOrder, filterFormCode, filterStatus, searchText, activeTab, currentSurveyFilter]);
 
     const totalPages = Math.ceil(processedData.length / ITEMS_PER_PAGE);
 
@@ -319,8 +388,13 @@ export const DataTable = ({
         return processedData.slice(start, start + ITEMS_PER_PAGE);
     }, [processedData, currentPage]);
     console.log('paginatedTickets for render:', paginatedTickets);
-    const toggleSort = () => {
-        setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+    const toggleSort = (field: 'date' | 'pending' = 'date') => {
+        if (sortField === field) {
+            setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+        } else {
+            setSortField(field);
+            setSortOrder('desc');
+        }
     };
 
     const handleSurveyFilter = (filter: SurveyFilter) => {
@@ -383,7 +457,7 @@ export const DataTable = ({
                         {/* Mobile Actions */}
                         <div className="flex lg:hidden items-center gap-2">
                             <button
-                                onClick={toggleSort}
+                                onClick={() => toggleSort('date')}
                                 className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-all cursor-pointer"
                                 title={sortOrder === 'desc' ? 'เรียงจากใหม่ไปเก่า' : 'เรียงจากเก่าไปใหม่'}
                             >
@@ -671,9 +745,9 @@ export const DataTable = ({
                     <EmptyState />
                 ) : (
                     <div className="divide-y divide-gray-100">
-                        {paginatedTickets.map((item) => (
+                        {paginatedTickets.map((item, index) => (
                             <div
-                                key={activeTab === "suv" ? item.form_id : item.submission_id}
+                                key={`${item.submission_id || item.form_id || 'row'}-${index}`}
                                 onClick={() => onViewTicket(item)}
                                 className="p-4 active:bg-gray-100 transition-colors cursor-pointer"
                             >
@@ -702,6 +776,11 @@ export const DataTable = ({
                                                 <Calendar size={11} />
                                                 {formatDatetime(item.created_at)}
                                             </span>
+                                        </div>
+
+                                        {/* Pending duration */}
+                                        <div className="mt-2">
+                                            <PendingDurationBadge item={item} />
                                         </div>
                                     </div>
 
@@ -758,14 +837,43 @@ export const DataTable = ({
                             {activeTab == "suv" && (<th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[15%]">หมายเหตุ</th>
                             )}
                             <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 w-[20%]">
-                                <span className="flex items-center gap-1">
-                                    วันที่สร้าง
-                                    {sortOrder === 'desc' ? (
-                                        <ArrowDown size={12} className="text-[#026a75]" />
-                                    ) : (
-                                        <ArrowUp size={12} className="text-[#026a75]" />
-                                    )}
-                                </span>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <button
+                                            className="flex items-center gap-1 cursor-pointer hover:text-[#026a75] transition-colors outline-none"
+                                            title="ตัวเลือกการเรียงลำดับ"
+                                        >
+                                            <span>วันที่สร้าง</span>
+                                            {sortField === 'date' ? (
+                                                sortOrder === 'desc' ? (
+                                                    <ArrowDown size={12} className="text-[#026a75]" />
+                                                ) : (
+                                                    <ArrowUp size={12} className="text-[#026a75]" />
+                                                )
+                                            ) : sortOrder === 'desc' ? (
+                                                <ArrowDown size={12} className="text-[#026a75]" />
+                                            ) : (
+                                                <ArrowUp size={12} className="text-[#026a75]" />
+                                            )}
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="w-64">
+                                        {SORT_MENU_OPTIONS.map((opt) => {
+                                            const isActive = sortField === opt.field && sortOrder === opt.order;
+                                            return (
+                                                <DropdownMenuItem
+                                                    key={opt.label}
+                                                    onSelect={() => { setSortField(opt.field); setSortOrder(opt.order); setCurrentPage(1); }}
+                                                    className={isActive ? 'text-[#026a75] font-medium' : ''}
+                                                >
+                                                    {opt.order === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
+                                                    <span className="flex-1">{opt.label}</span>
+                                                    {isActive && <Check size={14} className="text-[#026a75]" />}
+                                                </DropdownMenuItem>
+                                            );
+                                        })}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </th>
                             <th className="px-4 py-4 text-center text-sm font-semibold text-gray-700 w-[15%]">จัดการ</th>
                         </tr>
@@ -776,8 +884,8 @@ export const DataTable = ({
                         ) : paginatedTickets.length === 0 ? (
                             <EmptyState colSpan={4} />
                         ) : (
-                            paginatedTickets.map((item) => (
-                                <tr key={activeTab == "suv" ? item.form_id : item.submission_id} className="hover:bg-gray-50 transition-colors">
+                            paginatedTickets.map((item, index) => (
+                                <tr key={`${item.submission_id || item.form_id || 'row'}-${index}`} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-4">
                                             <UserAvatar email={item.email} imageUrl={item.image_url} />
@@ -787,7 +895,7 @@ export const DataTable = ({
                                                     <ApprovalBadge status={item.status_approve} />
                                                 </p>
                                                 <p className="text-xs text-[#026a75] font-medium">{item.form_id}</p>
-                                                <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                                                <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                                                     <User size={11} /> <span className="font-bold">{item.created_by}</span> {item.firstname} {item.lastname} ฝ่าย: {item.department_name_th}
                                                     {(item.form_code === "FORM-MNT-IT-002_DELETE" || item.form_code === "FORM-MNT-IT-002_ADD") && item.values && (
                                                         <span className="relative group inline-flex items-center ml-2">
@@ -814,7 +922,7 @@ export const DataTable = ({
                                                             </div>
                                                         </span>
                                                     )}
-                                                </p>
+                                                </div>
                                             </div>
                                         </div>
                                     </td>
@@ -839,7 +947,7 @@ export const DataTable = ({
                                     <td className="px-4 py-4">
                                         <span className="text-sm text-gray-600 flex items-center gap-2">
                                             <Calendar size={14} className="text-gray-400" />
-                                            {activeTab == "suv" ? formatDatetime(item.survey_at) : formatDatetime(item.created_at)}
+                                            {activeTab == "suv" ? formatDatetime(item.survey_at) : formatDatetime(item.created_at)} <PendingDurationBadge item={item} />
                                         </span>
                                     </td>
                                     <td className="px-4 py-4">
@@ -1815,6 +1923,10 @@ export const Viewer = ({
                                                         break;
                                                     case 'In Progress':
                                                         label = 'กำลังดำเนินการ';
+                                                        dotColor = 'bg-yellow-500';
+                                                        break;
+                                                    case 'Coordinate':
+                                                        label = 'ส่งประสานงานแล้ว';
                                                         dotColor = 'bg-amber-500';
                                                         break;
                                                     case 'Done':

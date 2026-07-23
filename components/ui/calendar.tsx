@@ -15,6 +15,13 @@ import {
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
 
+const RANGE_PRESETS = [
+  { label: "3 วัน", days: 3 },
+  { label: "7 วัน", days: 7 },
+  { label: "15 วัน", days: 15 },
+  { label: "30 วัน", days: 30 },
+] as const
+
 function Calendar({
   className,
   classNames,
@@ -23,16 +30,49 @@ function Calendar({
   buttonVariant = "ghost",
   formatters,
   components,
+  month,
+  onMonthChange,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
   const defaultClassNames = getDefaultClassNames()
 
+  const [internalMonth, setInternalMonth] = React.useState<Date>(
+    month ?? props.defaultMonth ?? new Date()
+  )
+  const displayMonth = month ?? internalMonth
+
+  const handleMonthChange = (m: Date) => {
+    setInternalMonth(m)
+    onMonthChange?.(m)
+  }
+
+  const handlePresetClick = (days: number) => {
+    const today = new Date()
+    const from = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    const to = new Date(from)
+    to.setDate(to.getDate() + days)
+
+    const onSelect = (props as { onSelect?: (...args: unknown[]) => void })
+      .onSelect
+    if (props.mode === "range") {
+      onSelect?.({ from, to }, to, {}, {})
+    } else {
+      onSelect?.(to, to, {}, {})
+    }
+    handleMonthChange(to)
+  }
+
+  const showPresets = props.mode === "range" || props.mode === "single"
+
   return (
-    <DayPicker
-      showOutsideDays={showOutsideDays}
-      className={cn(
+    <div className="flex flex-col gap-2">
+      <DayPicker
+        showOutsideDays={showOutsideDays}
+        month={displayMonth}
+        onMonthChange={handleMonthChange}
+        className={cn(
         "bg-background group/calendar p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
         String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
@@ -176,6 +216,23 @@ function Calendar({
       }}
       {...props}
     />
+      {showPresets && (
+        <div className="flex items-center justify-center gap-1.5 px-3 pb-2 flex-wrap">
+          {RANGE_PRESETS.map((preset) => (
+            <Button
+              key={preset.days}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2.5 text-xs font-normal"
+              onClick={() => handlePresetClick(preset.days)}
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
