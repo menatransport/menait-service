@@ -25,7 +25,7 @@ const MS_PER_DAY = 1000 * 60 * 60 * 24;
 // กติกา SLA: แจ้งปัญหา (มี question_name === 'issue_name') hardware ไม่เกิน 7 วัน, software ไม่เกิน 2 วัน
 // ฟอร์มขอใช้บริการ (ไม่มี issue_name) ไม่เกิน 3 วันจาก Approval, ถ้ายังไม่อนุมัติหรือ default ให้นับจากวันที่สร้าง
 const getPendingInfo = (item: Ticket) => {
-    if (item.status === 'Done' || item.status === 'Rejected' || item.status === 'Backlog') {
+    if (item.status === 'Done' || item.status === 'Rejected' || item.status === 'Backlog' || item.status === 'Coordinate') {
         return { days: 0, slaLimit: 0, isOverdue: false, hidden: true };
     }
 
