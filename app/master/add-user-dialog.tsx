@@ -10,9 +10,10 @@ import {
 } from '@/components/ui/dialog';
 import {
     User, Mail, Building, MapPin, Briefcase,
-    IdCard, Loader2, UserPlus
+    IdCard, Loader2, UserPlus, Plus
 } from 'lucide-react';
 import { DropdownSearch } from '@/components/ui/dropdown/issue';
+import { AddPositionDialog } from './add-position-dialog';
 import type { UserData } from './types';
 import { UserCreate } from '@/components/profile-form';
 
@@ -44,6 +45,7 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
     const [form, setForm] = useState(INITIAL_FORM);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showAddPosition, setShowAddPosition] = useState(false);
     const [dropdownOptions, setDropdownOptions] = useState<{
         department: Option[];
         site: Option[];
@@ -85,6 +87,14 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
         setForm(prev => ({ ...prev, [key]: value }));
         setError(null);
     }, []);
+
+    const handlePositionAdded = useCallback((option: Option) => {
+        setDropdownOptions(prev => ({
+            ...prev,
+            position: [...prev.position, option].sort((a, b) => a.option_label.localeCompare(b.option_label, 'th')),
+        }));
+        handleChange('position_id', option.option_value);
+    }, [handleChange]);
 
     const handleClose = useCallback((isOpen: boolean) => {
         if (!isOpen) {
@@ -254,10 +264,20 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
 
                     {/* Row 5: ตำแหน่ง (Dropdown) */}
                     <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                            <Briefcase className="w-3.5 h-3.5 text-[#026a75]" />
-                            ตำแหน่ง
-                        </Label>
+                        <div className="flex items-center justify-between">
+                            <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
+                                <Briefcase className="w-3.5 h-3.5 text-[#026a75]" />
+                                ตำแหน่ง
+                            </Label>
+                            <button
+                                type="button"
+                                onClick={() => setShowAddPosition(true)}
+                                className="flex items-center gap-1 text-xs font-medium text-[#026a75] hover:text-[#055058] cursor-pointer"
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                                เพิ่มตำแหน่งใหม่
+                            </button>
+                        </div>
                         <DropdownSearch
                             value={form.position_id}
                             onChange={v => handleChange('position_id', v)}
@@ -266,6 +286,12 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
                             searchPlaceholder="ค้นหาตำแหน่ง..."
                         />
                     </div>
+
+                    <AddPositionDialog
+                        open={showAddPosition}
+                        onOpenChange={setShowAddPosition}
+                        onAdded={handlePositionAdded}
+                    />
 
                     {error && (
                         <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">
