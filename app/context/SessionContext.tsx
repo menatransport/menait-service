@@ -15,6 +15,7 @@ export interface UserInfo {
   position: string;
   position_level: string;
   position_level_id: number;
+  image_url?: string | null;
 }
 
 interface SessionContextType {
@@ -40,7 +41,22 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
         const res = await fetch('/api/session');
         if (res.ok) {
           const data = await res.json();
-          setUserState(data.user);
+          const sessionUser: UserInfo | null = data.user;
+          setUserState(sessionUser);
+
+          // Tokens signed before image_url existed have no such key (3-month TTL),
+          // so pull the avatar from the user profile once instead of waiting for re-login.
+          if (sessionUser && !('image_url' in sessionUser) && sessionUser.employee_id) {
+            try {
+              const profileRes = await fetch(`/api/organization/myuser/${sessionUser.employee_id}`);
+              if (profileRes.ok) {
+                const profile = await profileRes.json();
+                setUserState(prev => prev ? { ...prev, image_url: profile?.image_url ?? null } : prev);
+              }
+            } catch {
+              // keep the initials fallback
+            }
+          }
         } else {
           setUserState(null);
         }

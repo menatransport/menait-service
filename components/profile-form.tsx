@@ -25,6 +25,7 @@ export interface UserData {
     site: string;
     position: string;
     position_level: string;
+    image_url?: string | null;
 }
 
 export interface UserCreate {

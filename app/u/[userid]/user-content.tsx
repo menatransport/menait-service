@@ -6,6 +6,7 @@ import {
     Hash, type LucideIcon
 } from 'lucide-react';
 import type { UserData } from '@/components/profile-form';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 // ── Detail item ──
 const DetailItem = memo(({ label, value, icon: Icon }: { label: string; value: string; icon: LucideIcon }) => (
@@ -45,13 +46,6 @@ export const UserContent = memo(({ user }: { user: UserData | null }) => {
         return `${user.firstname ?? ''} ${user.lastname ?? ''}`.trim();
     }, [user]);
 
-    const initials = useMemo(() => {
-        if (!user) return '';
-        const f = user.username?.[0] ?? '';
-        const l = user.username?.split('.').slice(-1)[0]?.[0] ?? '';
-        return (f + l).toUpperCase();
-    }, [user]);
-
     const isActive = useMemo(() => user?.employee_status?.toLowerCase() === 'active', [user]);
 
     if (!user) return null;
@@ -80,9 +74,14 @@ export const UserContent = memo(({ user }: { user: UserData | null }) => {
                             <div className="relative group">
                                 <div className="absolute -inset-0.5 rounded-full bg-linear-to-br from-[#8ce4cb] to-[#026a75] opacity-50 blur-sm" />
                                 <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full p-0.75 bg-linear-to-br from-[#8ce4cb] via-[#03969a] to-[#026a75] shadow-lg">
-                                    <div className="w-full h-full rounded-full bg-[#f0fdfb] flex items-center justify-center ring-3 ring-white/80">
-                                        <span className="text-xl sm:text-2xl font-black text-[#026a75] select-none">{initials}</span>
-                                    </div>
+                                    <UserAvatar
+                                        imageUrl={user.image_url}
+                                        name={fullName}
+                                        email={user.email}
+                                        className="w-full h-full ring-3 ring-white/80"
+                                        fallbackClassName="bg-[#f0fdfb] text-[#026a75]"
+                                        textClassName="text-xl sm:text-2xl font-black"
+                                    />
                                 </div>
                                 <span className={`absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full border-2 border-white shadow-sm ${isActive ? 'bg-emerald-400' : 'bg-gray-400'}`}>
                                     {isActive && <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-40" />}

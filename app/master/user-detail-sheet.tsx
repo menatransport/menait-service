@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { UserData } from '@/components/profile-form';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { useSessionContext } from '@/app/context/SessionContext';
 
 interface UserDetailSheetProps {
@@ -244,9 +245,15 @@ export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, allUs
                 {/* ── Header ── */}
                 <DialogHeader className="bg-linear-to-br from-[#026a75] to-[#037a86] px-6 pt-5 pb-4 space-y-2 rounded-t-lg shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 bg-white/15 backdrop-blur rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0">
-                            {user.email?.charAt(0).toUpperCase()}{user.email?.charAt(user.email.indexOf('@') - 1).toUpperCase()}
-                        </div>
+                        <UserAvatar
+                            imageUrl={user.image_url}
+                            name={`${user.firstname ?? ''} ${user.lastname ?? ''}`}
+                            email={user.email}
+                            className="w-11 h-11"
+                            rounded="rounded-xl"
+                            fallbackClassName="bg-white/15 backdrop-blur text-white"
+                            textClassName="text-sm font-bold"
+                        />
                         <div className="min-w-0 flex-1">
                             <DialogTitle className="text-white text-base font-bold truncate">
                                 {user.firstname} {user.lastname}

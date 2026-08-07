@@ -13,6 +13,7 @@ import type { formSetup, formSubmitLog } from "@/app/service/[[...slug]]/page";
 import { renderFormField, buildSubmitValues, prefillFormValues, formatDatetime } from "@/components/renderForm";
 import { SelectStatus } from "@/components/ui/selectstatus"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { UserAvatar as SharedUserAvatar } from "@/components/ui/user-avatar"
 
 const showSwal = (options: any) => import('sweetalert2').then(({ default: Swal }) => Swal.fire(options));
 import { useSessionContext } from "@/app/context/SessionContext";
@@ -117,25 +118,15 @@ const PendingDurationBadge = ({ item }: { item: Ticket }) => {
     );
 };
 
-const UserAvatar = ({ email, imageUrl }: { email: string; imageUrl?: string }) => (
-    <div className="relative shrink-0">
-        {imageUrl ? (
-            <img
-                src={imageUrl}
-                alt={email}
-                className="w-11 h-11 rounded-full object-cover shadow-md ring-2 ring-white"
-                onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                    target.nextElementSibling?.classList.remove('hidden');
-                }}
-            />
-        ) :
-            <div className={`w-11 h-11 bg-linear-to-br from-[#026a75] to-[#034d54] rounded-full flex items-center justify-center text-white font-semibold text-base shadow-md ring-2 ring-white`}>
-                {(email || '?').charAt(0).toUpperCase()}
-            </div>
-        }
-    </div>
+const UserAvatar = ({ email, imageUrl, name }: { email: string; imageUrl?: string; name?: string }) => (
+    <SharedUserAvatar
+        imageUrl={imageUrl}
+        name={name}
+        email={email}
+        className="w-11 h-11 shadow-md ring-2 ring-white"
+        fallbackClassName="bg-linear-to-br from-[#026a75] to-[#034d54] text-white"
+        textClassName="text-base font-semibold"
+    />
 );
 
 const PaginationControls = ({ currentPage, totalPages, onPageChange, variant = 'light' }: {
@@ -753,7 +744,7 @@ export const DataTable = ({
                             >
                                 {/* Card Header */}
                                 <div className="flex items-start gap-2">
-                                    <UserAvatar email={item.email} imageUrl={item.image_url} />
+                                    <UserAvatar email={item.email} imageUrl={item.image_url} name={`${item.firstname ?? ''} ${item.lastname ?? ''}`} />
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-start">
                                             <div className="min-w-0 flex-1">
@@ -888,7 +879,7 @@ export const DataTable = ({
                                 <tr key={`${item.submission_id || item.form_id || 'row'}-${index}`} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-4">
-                                            <UserAvatar email={item.email} imageUrl={item.image_url} />
+                                            <UserAvatar email={item.email} imageUrl={item.image_url} name={`${item.firstname ?? ''} ${item.lastname ?? ''}`} />
                                             <div className="min-w-0">
                                                 <p className="font-semibold text-gray-800 truncate">
                                                     [{item.form_code}] {item.form_name}

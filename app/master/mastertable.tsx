@@ -9,11 +9,12 @@ import {
 } from 'lucide-react';
 import { UserDetailSheet } from './user-detail-sheet';
 import { AddUserDialog } from './add-user-dialog';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 // Local imports - bundle-barrel-imports: Import directly
 import {
     USER_COLUMNS, FORM_COLUMNS,
-    parseLevelNum, formatThaiDate, getUserInitials
+    parseLevelNum, formatThaiDate
 } from './constants';
 import {
     StatusBadge, UserEmptyState, FormEmptyState, ErrorState,
@@ -74,9 +75,15 @@ const UserRow = memo(({
         </td>
         <td className="whitespace-nowrap px-4 py-2.5">
             <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 bg-[#026a75]/10 text-[#026a75]">
-                    {getUserInitials(user.email)}
-                </div>
+                <UserAvatar
+                    imageUrl={user.image_url}
+                    name={`${user.firstname ?? ''} ${user.lastname ?? ''}`}
+                    email={user.email}
+                    className="w-7 h-7"
+                    rounded="rounded-lg"
+                    fallbackClassName="bg-[#026a75]/10 text-[#026a75]"
+                    textClassName="text-[10px] font-bold"
+                />
                 <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-800 truncate">
                         {user.firstname} {user.lastname}
@@ -126,9 +133,15 @@ const UserMobileCard = memo(({
     <div className="bg-white border border-gray-100 rounded-xl p-3.5 space-y-2">
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 bg-[#026a75]/10 text-[#026a75]">
-                    {getUserInitials(user.email)}
-                </div>
+                <UserAvatar
+                    imageUrl={user.image_url}
+                    name={`${user.firstname ?? ''} ${user.lastname ?? ''}`}
+                    email={user.email}
+                    className="w-8 h-8"
+                    rounded="rounded-lg"
+                    fallbackClassName="bg-[#026a75]/10 text-[#026a75]"
+                    textClassName="text-[10px] font-bold"
+                />
                 <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-800 truncate">
                         {user.firstname} {user.lastname}

@@ -2,6 +2,7 @@
 
 import { ArrowLeft, Bell, HomeIcon, Shield, User, ChevronDown, LayoutDashboard, Building, Database, Settings, LogOut, TriangleAlert, ClipboardList, CircleCheck } from "lucide-react";
 import { Button } from "./ui/button";
+import { UserAvatar } from "./ui/user-avatar";
 import { useRouter } from 'next/navigation';
 import { useCallback, memo, useState, useRef, useEffect } from "react";
 import { signOut } from "next-auth/react";
@@ -126,9 +127,20 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
                                     onClick={() => !pagelock && setMenuOpen(prev => !prev)}
                                     className="flex items-center gap-2 sm:gap-3 p-1.5 sm:px-4 sm:py-2 bg-white/10 backdrop-blur-sm rounded-xl cursor-pointer hover:bg-white/20 transition-all duration-300 hover:scale-105"
                                 >
-                                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#8ce4cb] rounded-full flex items-center justify-center">
-                                        <User className="w-4 h-4 sm:w-5 sm:h-5 text-[#026a75]" />
-                                    </div>
+                                    {isClient && user ? (
+                                        <UserAvatar
+                                            imageUrl={user.image_url}
+                                            name={`${user.firstname ?? ''} ${user.lastname ?? ''}`}
+                                            email={user.username}
+                                            className="w-8 h-8 sm:w-10 sm:h-10 ring-2 ring-white/30"
+                                            fallbackClassName="bg-[#8ce4cb] text-[#026a75]"
+                                            textClassName="text-xs sm:text-sm font-bold"
+                                        />
+                                    ) : (
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#8ce4cb] rounded-full flex items-center justify-center">
+                                            <User className="w-4 h-4 sm:w-5 sm:h-5 text-[#026a75]" />
+                                        </div>
+                                    )}
                                     <div className="hidden sm:block">
                                         <p className="text-white font-semibold text-sm">
                                             {isClient ? user?.username : ''}
@@ -200,11 +212,14 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
                                         <div className="p-2 border-t border-gray-200/80">
                                             <div className="flex flex-row justify-between p-3 bg-linear-to-r from-[#026a75]/5 to-[#8ce4cb]/10 rounded-xl mb-3">
                                                 <div className="flex items-center gap-3 mb-3">
-                                                    <div className="w-10 h-10 bg-linear-to-br from-[#026a75] to-[#8ce4cb] rounded-full flex items-center justify-center shadow-md">
-                                                        <span className="text-white p-2">
-                                                            {isClient ? `${user?.firstname?.charAt(0) || ''}${user?.lastname?.charAt(0) || ''}` : ''}
-                                                        </span>
-                                                    </div>
+                                                    <UserAvatar
+                                                        imageUrl={isClient ? user?.image_url : null}
+                                                        name={isClient ? `${user?.firstname ?? ''} ${user?.lastname ?? ''}` : ''}
+                                                        email={isClient ? user?.username : ''}
+                                                        className="w-10 h-10 shadow-md"
+                                                        fallbackClassName="bg-linear-to-br from-[#026a75] to-[#8ce4cb] text-white"
+                                                        textClassName="text-sm font-semibold"
+                                                    />
                                                     <div className="flex-1">
                                                         <p className="text-md font-bold text-gray-800">
                                                             ID: {isClient ? user?.employee_id : ''}
