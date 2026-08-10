@@ -26,6 +26,8 @@ export interface UserData {
     position: string;
     position_level: string;
     image_url?: string | null;
+    created_at?: string | null;
+    updated_at?: string | null;
 }
 
 export interface UserCreate {

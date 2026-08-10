@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/ui/loading';
 import {
     FileSpreadsheet, Users, ChevronDown, ChevronRight,
-    Building2, MapPin, Briefcase, Eye, ExternalLink, UserPlus
+    Building2, MapPin, Briefcase, Eye, ExternalLink, UserPlus, UserX
 } from 'lucide-react';
 import { UserDetailSheet } from './user-detail-sheet';
 import { AddUserDialog } from './add-user-dialog';
+import { InactiveUsersDialog } from './inactive-users-dialog';
 import { UserAvatar } from '@/components/ui/user-avatar';
 
 // Local imports - bundle-barrel-imports: Import directly
@@ -216,6 +217,7 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
     const [addDialogOpen, setAddDialogOpen] = useState(false);
+    const [inactiveDialogOpen, setInactiveDialogOpen] = useState(false);
 
     // Sync selectedUser with latest data after update
     useEffect(() => {
@@ -307,6 +309,14 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
                 subtitle={`${groups.length} ฝ่าย · ${totalFiltered.toLocaleString()} คน (จาก ${data.length.toLocaleString()} รายการ)`}
                 actions={
                     <>
+                        <button
+                            onClick={() => setInactiveDialogOpen(true)}
+                            title="ดูพนักงานที่ออก"
+                            className="bg-linear-to-r from-slate-600 to-slate-500 border border-white/30 hover:bg-white/20 text-white px-3 py-2 rounded-xl flex items-center gap-2 text-sm font-medium transition-all duration-200 cursor-pointer"
+                        >
+                            <UserX className="w-4 h-4" />
+                            <span className="hidden sm:inline">ลาออก</span>
+                        </button>
                         {onAdd && (
                             <button
                                 onClick={() => setAddDialogOpen(true)}
@@ -405,6 +415,11 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
                     onAdd={onAdd}
                 />
             )}
+
+            <InactiveUsersDialog
+                open={inactiveDialogOpen}
+                onOpenChange={setInactiveDialogOpen}
+            />
         </TableWrapper>
     );
 });
