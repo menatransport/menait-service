@@ -1,7 +1,7 @@
 'use client';
 import { Ticket } from "@/app/mytickets/[id]/page";
 import { useRouter, useParams } from "next/navigation";
-import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, ArrowUpDown, AlertTriangle, Filter, Search, X, Star, ExternalLink, Computer, Laptop, Copy, ClipboardCheck, Pencil, PanelRight, Maximize2, UserMinus, UserPlus, RefreshCcw, Trophy, Check } from "lucide-react";
+import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, ArrowUpDown, AlertTriangle, Filter, Search, X, Star, ExternalLink, Computer, Laptop, Copy, ClipboardCheck, Pencil, PanelRight, Maximize2, UserMinus, UserPlus, RefreshCcw, Trophy, Check, Mail } from "lucide-react";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -1039,17 +1039,54 @@ const SurveyStatusDialog = ({
         );
     }, [list, search]);
 
-    // Top 5 users with the most pending (unevaluated) items
+    // Top 5 users with the most pending (unevaluated) items, plus each of their cases for per-case links
     const topPendingUsers = useMemo(() => {
-        const map = new Map<string, number>();
+        const map = new Map<string, { count: number; email: string; items: { form_id: string; form_name: string }[] }>();
         pending.forEach(item => {
             const name = `${item.firstname ?? ''} ${item.lastname ?? ''}`.trim() || (item.email ?? '-');
-            map.set(name, (map.get(name) ?? 0) + 1);
+            const existing = map.get(name);
+            map.set(name, {
+                count: (existing?.count ?? 0) + 1,
+                email: existing?.email || item.email || '',
+                items: [...(existing?.items ?? []), { form_id: item.form_id, form_name: item.form_name }],
+            });
         });
-        return Array.from(map, ([name, count]) => ({ name, count }))
+        return Array.from(map, ([name, v]) => ({ name, count: v.count, email: v.email, items: v.items }))
             .sort((a, b) => b.count - a.count)
             .slice(0, 5);
     }, [pending]);
+
+    // Open Gmail compose (as the logged-in user) with a follow-up template listing each person's cases
+    // and a direct evaluation link per case, TO = Top 5 pending users
+    const handleSendFollowUpEmail = () => {
+        const usersWithEmail = topPendingUsers.filter(u => u.email);
+        if (usersWithEmail.length === 0) return;
+
+        const emails = Array.from(new Set(usersWithEmail.map(u => u.email)));
+        const subject = 'ติดตามการประเมินความพึงพอใจ - แบบฟอร์ม IT Support';
+        const surveyUrl = (formId: string) => `https://menait-service.vercel.app/survey-it/${formId}`;
+
+        const bodyLines = [
+            'เรียนผู้ใช้งานทุกท่าน',
+            '',
+            'ระบบพบว่าท่านมีคำร้องที่ดำเนินการเสร็จสิ้นแล้ว แต่ยังไม่ได้ทำแบบประเมินความพึงพอใจ ดังรายการต่อไปนี้',
+            'รบกวนขอความร่วมมือคลิกลิงก์ของแต่ละคำร้องเพื่อเข้าไปทำแบบประเมิน',
+            '',
+        ];
+        usersWithEmail.forEach(u => {
+            bodyLines.push(`${u.name}`);
+            u.items.forEach(item => {
+                bodyLines.push(`  - ${surveyUrl(item.form_id)}`);
+            });
+            bodyLines.push('');
+        });
+        bodyLines.push('ขอบคุณสำหรับความร่วมมือค่ะ', 'ทีม IT Support');
+
+        const body = bodyLines.join('\n');
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(emails.join(','))}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+        window.open(gmailUrl, '_blank', 'noopener,noreferrer');
+    };
 
     const total = pending.length + evaluated.length;
     const evaluatedPct = total > 0 ? Math.round((evaluated.length / total) * 100) : 0;
@@ -1143,6 +1180,15 @@ const SurveyStatusDialog = ({
                                     มีผู้ใช้ {topPendingUsers.length} ราย · รวม {pending.length} รายการคงค้าง
                                 </p>
                             </div>
+                            <button
+                                onClick={handleSendFollowUpEmail}
+                                disabled={topPendingUsers.every(u => !u.email)}
+                                className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                title="ส่งอีเมลติดตามให้ Top 5 ผ่าน Gmail ของคุณ"
+                            >
+                                <Mail size={14} />
+                                <span className="hidden sm:inline">ส่งอีเมลติดตาม</span>
+                            </button>
                             <button
                                 onClick={() => setShowTopUsers(false)}
                                 className="text-amber-700/70 hover:text-amber-900 cursor-pointer shrink-0"
