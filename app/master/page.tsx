@@ -100,13 +100,16 @@ export default function MasterPage() {
 
     const handleUpdate = useCallback(async (userData: UserData): Promise<boolean> => {
         try {
+            const toId = (v: unknown) =>
+                v === null || v === undefined || v === '' ? null : Number(v);
+
             const payload = {
                 id: userData.id,
                 username: userData.username,
                 employee_id: userData.employee_id,
-                department_id: userData.department_id,
-                site_id: userData.site_id,
-                position_id: userData.position_id,
+                department_id: toId(userData.department_id),
+                site_id: toId(userData.site_id),
+                position_id: toId(userData.position_id),
                 email: userData.email,
                 employee_status: userData.employee_status || '',
                 firstname: userData.firstname,
@@ -118,9 +121,37 @@ export default function MasterPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
-            if (!res.ok) return false;
-            const updatedUser = await res.json();
-            setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+            const saved = await res.json().catch(() => null);
+            if (!res.ok) {
+                console.error('Update user failed:', saved);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'อัปเดตข้อมูลไม่สำเร็จ',
+                    text: saved?.error || 'เซิร์ฟเวอร์ปฏิเสธคำขอ',
+                });
+                return false;
+            }
+
+            // HTTP 200 alone does not prove the write landed — compare what came back
+            // with what we sent, so a silently-ignored field cannot report success.
+            const notApplied = saved && typeof saved === 'object'
+                ? (Object.keys(payload) as (keyof typeof payload)[]).filter(
+                    k => k in saved && String((saved as Record<string, unknown>)[k] ?? '') !== String(payload[k] ?? '')
+                )
+                : [];
+            if (notApplied.length > 0) {
+                console.error('Update user: fields not applied by server:', notApplied, { sent: payload, saved });
+                Swal.fire({
+                    icon: 'error',
+                    title: 'อัปเดตข้อมูลไม่สำเร็จ',
+                    text: `เซิร์ฟเวอร์ไม่ได้บันทึก: ${notApplied.join(', ')}`,
+                });
+                await fetchUsers();
+                return false;
+            }
+
+            // Refetch so joined labels (ฝ่าย/สถานที่/ตำแหน่ง/ระดับ) reflect the new ids
+            await fetchUsers();
             Swal.fire({
                 icon: 'success',
                 title: 'อัปเดตข้อมูลสำเร็จ',
@@ -128,10 +159,16 @@ export default function MasterPage() {
                 timer: 1500
             });
             return true;
-        } catch {
+        } catch (err) {
+            console.error('Update user error:', err);
+            Swal.fire({
+                icon: 'error',
+                title: 'อัปเดตข้อมูลไม่สำเร็จ',
+                text: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้',
+            });
             return false;
         }
-    }, [lookups]);
+    }, [fetchUsers]);
 
     const handleAdd = useCallback(async (userData: Omit<UserCreate, 'id'>): Promise<boolean> => {
         try {
@@ -187,7 +224,7 @@ export default function MasterPage() {
                             </TabsTrigger>
                         </TabsList>
                         <TabsContent value="user">
-                            <MasterTable data={users} isLoading={isLoading} error={error} onRetry={fetchUsers} onUpdate={handleUpdate} onAdd={handleAdd} />
+                            <MasterTable data={users} isLoading={isLoading} error={error} onRetry={fetchUsers} onUpdate={handleUpdate} onAdd={handleAdd} lookups={lookups} />
                         </TabsContent>
                         <TabsContent value="form">
                             <TableForm data={forms} isLoading={isLoading} error={error} onRetry={fetchForms} />

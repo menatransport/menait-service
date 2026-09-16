@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { UserData } from '@/components/profile-form';
+import type { MasterLookups } from './types';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { useSessionContext } from '@/app/context/SessionContext';
 
@@ -26,8 +27,8 @@ interface UserDetailSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onUpdate?: (data: UserData) => Promise<boolean>;
-    /** All users — used to derive dropdown options */
-    allUsers?: UserData[];
+    /** Lookup options (id -> label) for ฝ่าย / สถานที่ / ตำแหน่ง */
+    lookups?: MasterLookups;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -47,13 +48,18 @@ const MENU_ITEMS: { key: MenuTab; label: string; icon: React.ElementType; descri
 ];
 
 // ── Sidebar info fields config ──
+type OptionKey = 'employee_status' | 'departments' | 'sites' | 'positions';
+
 interface InfoField {
     label: string;
+    /** Field shown in view mode (a joined label such as `department`) */
     field: keyof UserData;
+    /** Field actually written on save — defaults to `field`. e.g. `department_id` */
+    editField?: keyof UserData;
     icon: LucideIcon;
-    editable: boolean;
-    /** 'dropdown' uses Popover/Command; 'input' uses text input */
-    editType: 'input' | 'dropdown';
+    /** 'dropdown' uses Popover/Command; 'input' uses text input; 'readonly' is never editable */
+    editType: 'input' | 'dropdown' | 'readonly';
+    optionKey?: OptionKey;
 }
 
 const STATUS_OPTIONS = [
@@ -62,27 +68,18 @@ const STATUS_OPTIONS = [
 ];
 
 const INFO_FIELDS: InfoField[] = [
-    { label: 'รหัสพนง.', field: 'employee_id', icon: IdCard, editable: true, editType: 'input' },
-    { label: 'ชื่อ', field: 'firstname', icon: User, editable: true, editType: 'input' },
-    { label: 'นามสกุล', field: 'lastname', icon: User, editable: true, editType: 'input' },
-    { label: 'สถานะ', field: 'employee_status', icon: BadgeCheck, editable: true, editType: 'dropdown' },
-    { label: 'อีเมล', field: 'email', icon: Mail, editable: true, editType: 'input' },
-    { label: 'ฝ่าย', field: 'department', icon: Building, editable: true, editType: 'dropdown' },
-    { label: 'สถานที่', field: 'site', icon: MapPin, editable: true, editType: 'dropdown' },
-    { label: 'ตำแหน่ง', field: 'position', icon: Briefcase, editable: true, editType: 'dropdown' },
-    { label: 'ระดับ', field: 'position_level', icon: Shield, editable: true, editType: 'dropdown' },
+    // employee_id keys the PUT /users/{employee_id} route — it cannot be changed here
+    { label: 'รหัสพนง.', field: 'employee_id', icon: IdCard, editType: 'readonly' },
+    { label: 'ชื่อ', field: 'firstname', icon: User, editType: 'input' },
+    { label: 'นามสกุล', field: 'lastname', icon: User, editType: 'input' },
+    { label: 'สถานะ', field: 'employee_status', icon: BadgeCheck, editType: 'dropdown', optionKey: 'employee_status' },
+    { label: 'อีเมล', field: 'email', icon: Mail, editType: 'input' },
+    { label: 'ฝ่าย', field: 'department', editField: 'department_id', icon: Building, editType: 'dropdown', optionKey: 'departments' },
+    { label: 'สถานที่', field: 'site', editField: 'site_id', icon: MapPin, editType: 'dropdown', optionKey: 'sites' },
+    { label: 'ตำแหน่ง', field: 'position', editField: 'position_id', icon: Briefcase, editType: 'dropdown', optionKey: 'positions' },
+    // ระดับ is derived from the selected ตำแหน่ง on the backend
+    { label: 'ระดับ', field: 'position_level', icon: Shield, editType: 'readonly' },
 ];
-
-/** Build unique sorted options from all users for a given field */
-function buildOptions(users: UserData[], field: keyof UserData) {
-    const set = new Set<string>();
-    for (const u of users) {
-        const v = u[field];
-        if (v != null && String(v).trim()) set.add(String(v).trim());
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'th'))
-        .map(v => ({ option_value: v, option_label: v }));
-}
 
 // ── Compact info row (view mode) ──
 const InfoRow = memo(({ icon: Icon, label, value }: {
@@ -122,6 +119,7 @@ const DropdownEditRow = memo(({ icon: Icon, label, value, options, onChange }: {
     onChange: (v: string) => void;
 }) => {
     const [open, setOpen] = useState(false);
+    const selectedLabel = options.find(o => o.option_value === value)?.option_label ?? '';
     return (
         <div className="space-y-1 py-1">
             <label className="text-[11px] text-gray-400 flex items-center gap-1.5">
@@ -135,10 +133,10 @@ const DropdownEditRow = memo(({ icon: Icon, label, value, options, onChange }: {
                         className={cn(
                             'flex items-center justify-between w-full h-8 px-2.5 text-xs rounded-lg border bg-white transition-colors cursor-pointer',
                             'border-gray-200 hover:border-[#026a75]/40 focus:border-[#026a75]',
-                            !value && 'text-gray-400',
+                            !selectedLabel && 'text-gray-400',
                         )}
                     >
-                        <span className="truncate">{value || '-- เลือก --'}</span>
+                        <span className="truncate">{selectedLabel || '-- เลือก --'}</span>
                         <ChevronsUpDown className="w-3 h-3 text-gray-400 shrink-0 ml-1" />
                     </button>
                 </PopoverTrigger>
@@ -169,7 +167,7 @@ const DropdownEditRow = memo(({ icon: Icon, label, value, options, onChange }: {
 });
 DropdownEditRow.displayName = 'DropdownEditRow';
 
-export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, allUsers = [] }: UserDetailSheetProps) => {
+export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, lookups }: UserDetailSheetProps) => {
     const { user: sessionUser } = useSessionContext();
     const employeeId = sessionUser?.employee_id ?? null;
     const role = sessionUser?.role ?? null;
@@ -180,17 +178,20 @@ export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, allUs
     const [isSaving, setIsSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
-    // Derive dropdown options from all users
-    const dropdownOptions = useMemo(() => ({
+    // Dropdown options come from the org lookup endpoints so we edit real ids, not labels
+    const dropdownOptions: Record<OptionKey, { option_value: string; option_label: string }[]> = useMemo(() => ({
         employee_status: STATUS_OPTIONS,
-        department: buildOptions(allUsers, 'department'),
-        site: buildOptions(allUsers, 'site'),
-        position: buildOptions(allUsers, 'position'),
-        position_level: buildOptions(allUsers, 'position_level'),
-    }), [allUsers]);
+        departments: lookups?.departments ?? [],
+        sites: lookups?.sites ?? [],
+        positions: lookups?.positions ?? [],
+    }), [lookups]);
 
     const handleFieldChange = useCallback((field: keyof UserData, value: string) => {
-        setEditData(prev => ({ ...prev, [field]: value }));
+        // *_id columns are numeric on the API — send numbers, not label strings
+        const next = field.endsWith('_id') && field !== 'employee_id'
+            ? (value === '' ? null : Number(value))
+            : value;
+        setEditData(prev => ({ ...prev, [field]: next }));
     }, []);
 
     const handleStartEdit = useCallback(() => {
@@ -228,8 +229,8 @@ export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, allUs
     }, [onUpdate, user, editData]);
 
     const getValue = useCallback((field: keyof UserData) => {
-        if (field in editData) return String(editData[field]);
-        return String(user?.[field] ?? '');
+        const v = field in editData ? editData[field] : user?.[field];
+        return v === null || v === undefined ? '' : String(v);
     }, [editData, user]);
 
     if (!user) return null;
@@ -287,35 +288,37 @@ export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, allUs
 
                             {/* Info rows */}
                             <div>
-                                {INFO_FIELDS.map(({ label, field, icon, editable, editType }) =>
-                                    isEditing && editable ? (
-                                        editType === 'dropdown' ? (
-                                            <DropdownEditRow
+                                {INFO_FIELDS.map(({ label, field, editField, icon, editType, optionKey }) => {
+                                    const target = editField ?? field;
+                                    if (!isEditing || editType === 'readonly') {
+                                        return (
+                                            <InfoRow
                                                 key={field}
                                                 icon={icon}
                                                 label={label}
-                                                value={getValue(field)}
-                                                options={dropdownOptions[field as keyof typeof dropdownOptions] ?? []}
-                                                onChange={(v) => handleFieldChange(field, v)}
+                                                value={String(user[field] ?? '')}
                                             />
-                                        ) : (
-                                            <EditRow
-                                                key={field}
-                                                icon={icon}
-                                                label={label}
-                                                value={getValue(field)}
-                                                onChange={(v) => handleFieldChange(field, v)}
-                                            />
-                                        )
-                                    ) : (
-                                        <InfoRow
+                                        );
+                                    }
+                                    return editType === 'dropdown' ? (
+                                        <DropdownEditRow
                                             key={field}
                                             icon={icon}
                                             label={label}
-                                            value={String(user[field] ?? '')}
+                                            value={getValue(target)}
+                                            options={optionKey ? dropdownOptions[optionKey] : []}
+                                            onChange={(v) => handleFieldChange(target, v)}
                                         />
-                                    )
-                                )}
+                                    ) : (
+                                        <EditRow
+                                            key={field}
+                                            icon={icon}
+                                            label={label}
+                                            value={getValue(target)}
+                                            onChange={(v) => handleFieldChange(target, v)}
+                                        />
+                                    );
+                                })}
                             </div>
 
                             {/* Save status feedback */}

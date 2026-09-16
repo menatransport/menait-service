@@ -7,6 +7,17 @@ export interface DepartmentGroup {
     users: import('@/components/profile-form').UserData[];
 }
 
+export interface LookupOption {
+    option_value: string;
+    option_label: string;
+}
+
+export interface MasterLookups {
+    departments: LookupOption[];
+    sites: LookupOption[];
+    positions: LookupOption[];
+}
+
 export interface MasterTableProps {
     data: import('@/components/profile-form').UserData[];
     isLoading: boolean;
@@ -14,6 +25,8 @@ export interface MasterTableProps {
     onRetry: () => void;
     onUpdate?: (data: import('@/components/profile-form').UserData) => Promise<boolean>;
     onAdd?: (data: Omit<import('@/components/profile-form').UserCreate, 'id'>) => Promise<boolean>;
+    /** Lookup options (id -> label) used by the edit dropdowns */
+    lookups?: MasterLookups;
 }
 
 // ===================== FORM TABLE TYPES =====================

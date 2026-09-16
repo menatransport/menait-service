@@ -211,7 +211,7 @@ MobileDepartmentGroup.displayName = 'MobileDepartmentGroup';
 
 // ===================== MASTER TABLE (USER) =====================
 
-export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, onAdd }: MasterTableProps) => {
+export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, onAdd, lookups }: MasterTableProps) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [collapsedDeps, setCollapsedDeps] = useState<Set<string>>(new Set());
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
@@ -405,7 +405,7 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
                 open={sheetOpen}
                 onOpenChange={setSheetOpen}
                 onUpdate={onUpdate}
-                allUsers={data}
+                lookups={lookups}
             />
 
             {onAdd && (
