@@ -15,27 +15,39 @@ export function AttachmentPanel({ formId, folder, canUpload = false, refreshKey 
   const [files, setFiles] = useState<AttachmentFile[]>([]);
   const [pending, setPending] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/uploads3?form_id=${encodeURIComponent(formId)}`, { cache: 'no-store' });
-    const data = await res.json().catch(() => ({ files: [] }));
-    setFiles(((data.files ?? []) as AttachmentFile[]).filter(f => f.folder === folder));
+    try {
+      const res = await fetch(`/api/uploads3?form_id=${encodeURIComponent(formId)}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`เกิดข้อผิดพลาด (${res.status})`);
+      const data = await res.json().catch(() => ({ files: [] }));
+      setFiles(((data.files ?? []) as AttachmentFile[]).filter(f => f.folder === folder));
+      setLoadError(false);
+    } catch {
+      setFiles([]);
+      setLoadError(true);
+    }
   }, [formId, folder]);
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
   const upload = async () => {
     setUploading(true);
-    const failed = await uploadFiles(formId, pending, folder === 'request' ? undefined : folder);
-    setUploading(false);
-    setPending([]);
-    if (failed.length) showAlert({ icon: 'error', title: 'อัปโหลดไม่สำเร็จ', text: failed.join(', ') });
+    try {
+      const failed = await uploadFiles(formId, pending, folder === 'request' ? undefined : folder);
+      setPending([]);
+      if (failed.length) showAlert({ icon: 'error', title: 'อัปโหลดไม่สำเร็จ', text: failed.join(', ') });
+    } finally {
+      setUploading(false);
+    }
     load();
   };
 
   return (
     <div className="space-y-2">
       <p className="text-xs font-semibold text-gray-600">{FOLDER_LABELS[folder]}</p>
+      {loadError && <p className="text-xs text-rose-600">โหลดรายการไฟล์ไม่สำเร็จ</p>}
       {files.length === 0 ? (
         <p className="text-xs text-gray-400">ยังไม่มีไฟล์</p>
       ) : (
