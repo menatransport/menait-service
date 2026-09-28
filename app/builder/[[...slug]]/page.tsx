@@ -115,7 +115,7 @@ export default function BuilderPage() {
 
     const [builderMode, setBuilderMode] = useState<"edit" | "create">("create")
 
-    const form_type = [{ option_value: "Issue", option_label: "ฟอร์มแจ้งปัญหา" }, { option_value: "Service", option_label: "ฟอร์มขอใช้บริการ" }]
+    const form_type = [{ option_value: "Issue", option_label: "ฟอร์มแจ้งปัญหา" }, { option_value: "Service", option_label: "ฟอร์มขอใช้บริการ" }, { option_value: "Advance", option_label: "ฟอร์มเบิกเงิน Advance" }]
 
     const form_status_options = [
         { option_value: "Active", option_label: "เปิดใช้งาน" },
@@ -1114,7 +1114,7 @@ export default function BuilderPage() {
                         </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-1 text-sm text-gray-500 border-b pb-4">
-                        <p><span className="font-medium">ประเภท:</span> {formData.form_type === "Issue" ? "ฟอร์มแจ้งปัญหา" : formData.form_type === "Service" ? "ฟอร์มขอใช้บริการ" : "-"}</p>
+                        <p><span className="font-medium">ประเภท:</span> {formData.form_type === "Issue" ? "ฟอร์มแจ้งปัญหา" : formData.form_type === "Service" ? "ฟอร์มขอใช้บริการ" : formData.form_type === "Advance" ? "ฟอร์มเบิกเงิน Advance" : "-"}</p>
                         <p><span className="font-medium">รหัสฟอร์ม:</span> {formData.form_code || "-"}</p>
                         <p><span className="font-medium">การอนุมัติฟอร์ม:</span> {formData.need_approval ? "ต้องอนุมัติ" : "ไม่ต้องอนุมัติ"}</p>
                         <p><span className="font-medium">สถานะฟอร์ม:</span> {formData.form_status || "-"}</p>

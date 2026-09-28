@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Bell, HomeIcon, Shield, User, ChevronDown, LayoutDashboard, Building, Database, Settings, LogOut, TriangleAlert, ClipboardList, CircleCheck } from "lucide-react";
+import { ArrowLeft, Bell, HomeIcon, Shield, User, ChevronDown, LayoutDashboard, Building, Database, Settings, LogOut, TriangleAlert, ClipboardList, CircleCheck, Wallet, Landmark, BookText } from "lucide-react";
 import { Button } from "./ui/button";
 import { UserAvatar } from "./ui/user-avatar";
 import { useRouter } from 'next/navigation';
@@ -22,6 +22,7 @@ const COMPONENT_DEFAULT = [
     { title: 'แจ้งปัญหา', href: '/issue', icon: TriangleAlert },
     { title: 'ขอบริการ', href: '/service', icon: ClipboardList },
     { title: 'ติดตามคำขอ', href: '/mytickets/all', icon: CircleCheck },
+    { title: 'เบิกเงิน Advance', href: '/finance/advance', icon: Wallet },
     // { title: 'ข่าวสารและประกาศ', href: '/inform', icon: MessageCircle },
     // { title: 'ติดต่อเรา', href: '/contact', icon: Phone },
 ] as const;
@@ -31,6 +32,11 @@ const COMPONENT_ADMIN = [
     { title: 'ผู้สร้าง', href: '/builder', style: 'font-semibold text-[#026a75] bg-[#8ce4cb]/10', icon: Building },
     { title: 'ฐานข้อมูล', href: '/master', style: 'font-semibold text-[#026a75] bg-[#8ce4cb]/10', icon: Database },
 ] as const;
+
+const COMPONENT_FINANCE = [
+    { title: 'งานเบิกเงิน Advance', href: '/finance', style: 'font-semibold text-[#026a75] bg-[#8ce4cb]/10', icon: Landmark },
+    { title: 'รหัสบัญชี', href: '/finance/accounts', style: 'font-semibold text-[#026a75] bg-[#8ce4cb]/10', icon: BookText },
+];
 
 // rerender-memo: Memoize Navbar to avoid unnecessary re-renders
 export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, title, pagelock = false }) => {
@@ -187,6 +193,30 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
                                                     <h3 className="text-xs font-semibold text-gray-500 mb-2 px-2">ระบบจัดการ</h3>
                                                     <div className="grid grid-cols-1 gap-2">
                                                         {COMPONENT_ADMIN.map((item, index) => {
+                                                            const IconComponent = item.icon;
+                                                            return (
+                                                                <button
+                                                                    key={index}
+                                                                    onClick={() => handleNavigate(item.href)}
+                                                                    className={`flex cursor-pointer items-center gap-3 p-2 rounded-xl hover:bg-linear-to-br hover:from-[#026a75]/10 hover:to-[#8ce4cb]/10 transition-all duration-200 group/item ${item.style || ''}`}
+                                                                >
+                                                                    <div className="w-8 h-8 bg-[#8ce4cb]/20 rounded-lg flex items-center justify-center group-hover/item:bg-[#026a75] transition-colors duration-200">
+                                                                        <IconComponent className="w-4 h-4 text-[#026a75] group-hover/item:text-white transition-colors duration-200" />
+                                                                    </div>
+                                                                    <span className="text-xs text-[#026a75] font-semibold group-hover/item:text-[#026a75] transition-colors duration-200">
+                                                                        {item.title}
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {isClient && user?.is_finance && (
+                                                <div className="flex-1">
+                                                    <h3 className="text-xs font-semibold text-gray-500 mb-2 px-2">การเงิน</h3>
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        {COMPONENT_FINANCE.map((item, index) => {
                                                             const IconComponent = item.icon;
                                                             return (
                                                                 <button
