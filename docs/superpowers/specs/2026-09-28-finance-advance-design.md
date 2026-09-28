@@ -138,7 +138,7 @@ The display status is derived as follows, in one pure function `derive_status()`
 | `status_approve = 'In Progress'` | PENDING_APPROVAL | รออนุมัติ | approver |
 | `status_approve = 'Rejected'` | REJECTED | ไม่อนุมัติ | – (end) |
 | Approved and no `fin_advances` row | AWAITING_PAYMENT | รอจ่าย | Finance |
-| `fin_status = PAID` | AWAITING_CLEARING | รอเคลียร์ (**overdue** flag if today > `clear_due_date`) | requester |
+| `fin_status = PAID` | AWAITING_CLEARING | จ่ายแล้วรอเคลียร์ (**overdue** flag if today > `clear_due_date`) | requester |
 | `fin_status = SENT_BACK` | SENT_BACK | ส่งกลับแก้ไข (**overdue** flag as above) | requester |
 | `fin_status = CLEARING_SUBMITTED` | AWAITING_REVIEW | รอการเงินตรวจ | Finance |
 | `fin_status = CLOSED` | CLOSED | ปิดแล้ว | – (end) |
@@ -246,7 +246,7 @@ IT forms keep sending exactly as today.
 | `/finance/advance/new` | everyone | Renders the latest Active `ADV` form with `renderForm` and uses `file-dropzone` for multi-file upload. Submits through the existing `/api/formsubmit`, then uploads each file to `/api/uploads3`. |
 | `/finance/advance` | everyone | My advances: status, amounts, due date, overdue badge, "เคลียร์" button when it's my turn |
 | `/finance/advance/[form_id]` | owner | Request, approval and payment info (read-only) + payment attachments. **Clearing form** (step 4) with auto-calculated รับคืน/เบิกเพิ่ม and receipt upload. Shows Finance's send-back remark. |
-| `/finance` | Finance | Queue with tabs: รอจ่าย, รอเคลียร์, เกินกำหนด, รอการเงินตรวจ, ส่งกลับแก้ไข, ปิดแล้ว, ทั้งหมด. Columns follow the current Excel sheet (ลำดับ … หมายเหตุ + บัญชี). Excel export uses the existing `xlsx` library. |
+| `/finance` | Finance | Queue with tabs: รอจ่าย, จ่ายแล้วรอเคลียร์, เกินกำหนด, รอการเงินตรวจ, ส่งกลับแก้ไข, ปิดแล้ว, ทั้งหมด. Columns follow the current Excel sheet (ลำดับ … หมายเหตุ + บัญชี). Excel export uses the existing `xlsx` library. |
 | `/finance/[form_id]` | Finance | Full detail + attachments from all steps + approval history. **Pay card** (step 3: account picker, due date auto +7, slip upload). **Check card** (step 5: Confirm / Send back with remark; for เบิกเพิ่ม, extra-payment date + slip). Change log. |
 | `/finance/accounts` | Finance | Account master: list, add, edit, deactivate |
 
@@ -311,7 +311,7 @@ show for every `form_type` other than `Issue`.
 - **Manual end-to-end flow on local FE (4000) + BE (8001):**
   1. A level 1–4 requester submits with 2 attachments. Their department's level 5–6 manager sees it and approves it.
   2. It appears in รอจ่าย. Finance pays with account 110103, and the due date auto-fills to +7. Finance attaches a
-     slip, then it appears in รอเคลียร์.
+     slip, then it appears in จ่ายแล้วรอเคลียร์.
   3. Set the due date in the past. The advance appears in เกินกำหนด, and the requester sees an overdue badge.
   4. The requester clears with actual < paid (รับคืน > 0), so a return date is required. They attach receipts, then
      it appears in รอการเงินตรวจ.
