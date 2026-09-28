@@ -16,6 +16,8 @@ export interface UserInfo {
   position_level: string;
   position_level_id: number;
   image_url?: string | null;
+  department_id?: number | null;
+  is_finance?: boolean;
 }
 
 interface SessionContextType {
