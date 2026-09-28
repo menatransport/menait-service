@@ -15,6 +15,7 @@ const s3 = new S3Client({
 const BUCKET_NAME = 'mn-bucket';
 const BASE_PATH = 'menait-service';
 const ALLOWED_FOLDERS = ['pay', 'clear', 'check'];
+const FORM_ID_PATTERN = /^[A-Za-z0-9_-]+-\d{4}-\d{4,}$/;
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
@@ -31,6 +32,10 @@ export async function POST(req: NextRequest) {
 
   if (!form_id) {
     return NextResponse.json({ error: 'ไม่มีหมายเลขเอกสาร' }, { status: 400 });
+  }
+
+  if (!FORM_ID_PATTERN.test(form_id)) {
+    return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
   }
 
   const arrayBuffer = await file.arrayBuffer();
@@ -67,6 +72,10 @@ export async function GET(req: NextRequest) {
 
   if (!form_id) {
     return NextResponse.json({ error: 'ไม่มีหมายเลขเอกสาร' }, { status: 400 });
+  }
+
+  if (!FORM_ID_PATTERN.test(form_id)) {
+    return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
   }
 
   const folderPath = `${BASE_PATH}/${form_id}/`;

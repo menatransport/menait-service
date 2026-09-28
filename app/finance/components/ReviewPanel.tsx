@@ -24,7 +24,10 @@ export function ReviewPanel({ detail, onSaved }: { detail: AdvanceDetail; onSave
     if (!ok.isConfirmed) return;
     setSaving(true);
     try {
-      const saved = await putAction(detail.form_id, 'confirm', { settle_date: needsExtraDate ? extraDate : null });
+      const saved = await putAction(detail.form_id, 'confirm', {
+        settle_date: needsExtraDate ? extraDate : null,
+        expected_clear_submitted_at: detail.fin?.clear_submitted_at ?? null,
+      });
       const failed = await uploadFiles(detail.form_id, files, 'check');
       setFiles([]);
       await showAlert({ icon: failed.length ? 'warning' : 'success', title: 'ปิดรายการแล้ว',
@@ -41,7 +44,10 @@ export function ReviewPanel({ detail, onSaved }: { detail: AdvanceDetail; onSave
     if (!remark.trim()) return showAlert({ icon: 'warning', title: 'กรุณาระบุเหตุผลที่ส่งกลับ' });
     setSaving(true);
     try {
-      const saved = await putAction(detail.form_id, 'send-back', { review_remark: remark });
+      const saved = await putAction(detail.form_id, 'send-back', {
+        review_remark: remark,
+        expected_clear_submitted_at: detail.fin?.clear_submitted_at ?? null,
+      });
       setRemark('');
       await showAlert({ icon: 'success', title: 'ส่งกลับให้ผู้เบิกแก้ไขแล้ว' });
       onSaved(saved);

@@ -43,6 +43,7 @@ export function PayForm({ detail, accounts, onSaved }: {
       const saved = await putAction(detail.form_id, 'pay', {
         acc_code: accCode, voucher_no: voucherNo, voucher_date: voucherDate || null, payment_doc_no: paymentDocNo,
         purpose, amount_paid: amountNum, transfer_date: transferDate, clear_due_date: dueDate || null,
+        is_edit: Boolean(fin),
       });
       const failed = await uploadFiles(detail.form_id, files, 'pay');
       setFiles([]);

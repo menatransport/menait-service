@@ -88,7 +88,7 @@ export default function NewAdvancePage() {
     <FinanceShell title="ขอเบิกเงิน Advance">
       {loading ? (
         <Panel title="กำลังโหลด..."><div className="h-24" /></Panel>
-      ) : !form ? (
+      ) : !form || form.form_status !== 'Active' ? (
         <Panel title="ไม่พบแบบฟอร์ม"><p className="text-sm text-gray-500">ยังไม่มีฟอร์ม ADV หรือฟอร์มปิดใช้งาน</p></Panel>
       ) : (
         <Panel title={form.form_name}>
