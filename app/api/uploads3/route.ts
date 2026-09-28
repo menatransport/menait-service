@@ -14,11 +14,16 @@ const s3 = new S3Client({
 
 const BUCKET_NAME = 'mn-bucket';
 const BASE_PATH = 'menait-service';
+const ALLOWED_FOLDERS = ['pay', 'clear', 'check'];
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const file = formData.get('file') as File | null;
   const form_id = formData.get('form_id') as string;
+  const folder = ((formData.get('folder') as string | null) ?? '').trim();
+  if (folder && !ALLOWED_FOLDERS.includes(folder)) {
+    return NextResponse.json({ error: 'โฟลเดอร์ไม่ถูกต้อง' }, { status: 400 });
+  }
 
   if (!file) {
     return NextResponse.json({ error: 'ไม่มีไฟล์' }, { status: 400 });
@@ -30,7 +35,9 @@ export async function POST(req: NextRequest) {
 
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
-  const fileName = `${BASE_PATH}/${form_id}/${file.name}`;
+  const fileName = folder
+    ? `${BASE_PATH}/${form_id}/${folder}/${file.name}`
+    : `${BASE_PATH}/${form_id}/${file.name}`;
 
   const uploadParams = {
     Bucket: BUCKET_NAME,
@@ -83,12 +90,14 @@ export async function GET(req: NextRequest) {
 
         const signedUrl = await getSignedUrl(s3, getObjectCommand, { expiresIn: 3600 });
 
+        const relative = obj.Key.slice(folderPath.length);
         return {
           key: obj.Key,
           fileName: obj.Key.split('/').pop(),
           url: signedUrl,
           size: obj.Size,
-          lastModified: obj.LastModified
+          lastModified: obj.LastModified,
+          folder: relative.includes('/') ? relative.split('/')[0] : 'request',
         };
       })
     );
