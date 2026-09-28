@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { buildSubmitValues, renderFormField } from '@/components/renderForm';
 import type { Question } from '@/app/service/[[...slug]]/page';
 import { useSessionContext } from '@/app/context/SessionContext';
-import { parseAmount } from '@/lib/finance/status';
+import { isBeforeToday } from '@/lib/finance/dates';
+import { parseAmount, todayBkk } from '@/lib/finance/status';
 import { fetchJson, showAlert, uploadFiles } from '../../api';
 import { FilePicker } from '../../components/FilePicker';
 import { FinanceShell, Panel } from '../../components/FinanceShell';
@@ -14,6 +15,11 @@ import { FinanceShell, Panel } from '../../components/FinanceShell';
 interface AdvForm { form_code: string; form_name: string; form_status: string; questions: Question[] }
 
 const isBlank = (v: unknown) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
+
+// The "adv_use_date" question by name, falling back to the first datetime/date question.
+const findUseDateQuestion = (questions: Question[]): Question | undefined =>
+  questions.find(q => q.name === 'adv_use_date') ??
+  questions.find(q => q.type === 'datetime' || q.type === 'date');
 
 export default function NewAdvancePage() {
   const router = useRouter();
@@ -24,6 +30,11 @@ export default function NewAdvancePage() {
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  const useDateQuestion = useMemo(
+    () => (form ? findUseDateQuestion(form.questions) : undefined),
+    [form]
+  );
 
   useEffect(() => {
     fetchJson<AdvForm>('/api/formsubmit?path=ADV')
@@ -53,6 +64,10 @@ export default function NewAdvancePage() {
       if (q.type === 'number' && !isBlank(values[q.name])) {
         const amount = parseAmount(values[q.name]);
         if (amount === null || amount <= 0) next[q.name] = 'จำนวนเงินต้องมากกว่า 0';
+      }
+      if (useDateQuestion && q.id === useDateQuestion.id && !isBlank(values[q.name]) &&
+        isBeforeToday(values[q.name], todayBkk())) {
+        next[q.name] = 'วันที่ใช้เงินต้องเป็นวันนี้หรือหลังจากนี้';
       }
     }
     if (Object.keys(next).length) { setErrors(next); return; }
@@ -100,7 +115,10 @@ export default function NewAdvancePage() {
               <p><span className="text-gray-500">รหัสพนักงาน:</span> {user?.employee_id ?? '-'}</p>
             </div>
             {form.questions.map((q, index) =>
-              <div key={q.id}>{renderFormField({ question: q, index, formValues: values, errors, onInputChange, allQuestions: form.questions })}</div>
+              <div key={q.id}>{renderFormField({
+                question: q, index, formValues: values, errors, onInputChange, allQuestions: form.questions,
+                minDate: useDateQuestion && q.id === useDateQuestion.id ? todayBkk() : undefined,
+              })}</div>
             )}
             <div>
               <p className="mb-1 text-sm font-medium">เอกสารประกอบ</p>

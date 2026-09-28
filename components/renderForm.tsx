@@ -24,6 +24,7 @@ export interface RenderFieldProps {
     compact?: boolean;
     allQuestions?: Question[];
     readOnly?: boolean;
+    minDate?: string;
 }
 
 export interface SubmitValue {
@@ -92,6 +93,12 @@ const sortOptions = (opts: Option[]): Option[] =>
         return a.label.localeCompare(b.label, 'th');
     });
 
+// 'YYYY-MM-DD' → local Date (no timezone drift)
+const toLocalDate = (isoDate: string): Date => {
+    const [y, m, d] = isoDate.split('-').map(Number);
+    return new Date(y, m - 1, d);
+};
+
 // ===================== FIELD LABEL (rerender-memo) =====================
 const FieldLabel = memo(({ index, label, required }: { index: number; label: string; required: boolean }) => (
     <div className="flex items-center gap-2 mb-1.5">
@@ -127,7 +134,8 @@ export const FormField = memo(({
     onInputChange,
     compact = false,
     allQuestions,
-    readOnly = false
+    readOnly = false,
+    minDate
 }: RenderFieldProps) => {
     const widthClass = compact ? '' : 'w-full';
     const hasError = !!errors[question.name];
@@ -274,6 +282,7 @@ export const FormField = memo(({
                                         setCalendarOpen(false);
                                     }
                                 }}
+                                disabled={minDate ? { before: toLocalDate(minDate) } : undefined}
                                 initialFocus
                             />
 
