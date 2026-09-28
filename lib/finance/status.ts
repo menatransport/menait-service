@@ -86,6 +86,20 @@ export function todayBkk(now: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(now);
 }
 
+/** ISO datetime or date-only string → 'YYYY-MM' in Asia/Bangkok. Date-only strings never shift. */
+export function toBkkYM(iso: string | null | undefined): string {
+  if (!iso) return '';
+  if (ISO_DATE.test(iso)) return iso.slice(0, 7);
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit',
+  }).formatToParts(dt);
+  const y = parts.find(p => p.type === 'year')?.value ?? '';
+  const m = parts.find(p => p.type === 'month')?.value ?? '';
+  return y && m ? `${y}-${m}` : '';
+}
+
 /** S3 key-safe, collision-free file name: '<epochMs>-<name>' */
 export function uniqueFileName(name: string, epochMs: number): string {
   return `${epochMs}-${name.replace(/[\\/]/g, '_')}`;

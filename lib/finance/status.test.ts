@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   STATUS_LABELS, addDays, computeSettle, displayFileName, formatBaht, formatDate, parseAmount,
-  settleLabel, todayBkk, uniqueFileName,
+  settleLabel, todayBkk, toBkkYM, uniqueFileName,
 } from './status';
 
 describe('labels', () => {
@@ -41,6 +41,12 @@ describe('formatting', () => {
   test('empty', () => expect(formatDate(null)).toBe('-'));
   test('todayBkk after 17:00 UTC is next day', () =>
     expect(todayBkk(new Date('2026-07-08T17:30:00Z'))).toBe('2026-07-09'));
+});
+
+describe('toBkkYM', () => {
+  test('UTC datetime rolls into next day/month in Bangkok', () =>
+    expect(toBkkYM('2026-07-31T18:00:00+00:00')).toBe('2026-08'));
+  test('date-only string keeps its own month', () => expect(toBkkYM('2026-07-09')).toBe('2026-07'));
 });
 
 describe('file names', () => {
