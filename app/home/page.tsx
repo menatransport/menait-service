@@ -1,5 +1,5 @@
 'use client';
-import { TriangleAlert, ClipboardList, Search, ArrowRight, FileText, Loader2, CircleCheck } from 'lucide-react';
+import { TriangleAlert, ClipboardList, Search, ArrowRight, FileText, Loader2, CircleCheck, Wallet, ClipboardCheck, type LucideIcon } from 'lucide-react';
 import { Navbar } from "@/components/navbar";
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -7,6 +7,26 @@ import { useSessionContext } from "@/app/context/SessionContext";
 import { Input } from "@/components/ui/input";
 import { Robot } from "@/components/robot";
 import { WaveBackground } from "@/components/wave-background";
+
+type HomeAction = { label: string; href: string; img?: string; Icon?: LucideIcon };
+
+const HOME_ACTION_GROUPS: { heading: string; items: HomeAction[] }[] = [
+    {
+        heading: 'IT',
+        items: [
+            { label: 'แจ้งปัญหา IT', href: '/issue', img: '/megaphone.png' },
+            { label: 'ขอบริการ IT', href: '/service', img: '/contract.png' },
+            { label: 'ติดตามคำร้อง IT', href: '/mytickets/all', img: '/person.png' },
+        ],
+    },
+    {
+        heading: 'การเงิน',
+        items: [
+            { label: 'เบิกเงิน Advance', href: '/finance/advance/new', Icon: Wallet },
+            { label: 'ติดตามคำขอ Advance', href: '/finance/advance', Icon: ClipboardCheck },
+        ],
+    },
+];
 
 export default function HomePage() {
     const router = useRouter();
@@ -165,24 +185,28 @@ export default function HomePage() {
                         )}
                     </div>
 
-                    <div className="flex flex-wrap justify-center gap-3 sm:gap-3 w-full">
-                        {[
-                            { label: 'แจ้งปัญหา', href: '/issue', icon: '/megaphone.png' },
-                            { label: 'ขอบริการ', href: '/service', icon: '/contract.png' },
-                            { label: 'ติดตามคำร้อง', href: '/mytickets/all', icon: '/person.png' },
-                        ].map((item) => {
-                            const Icon = item.icon;
-                            return (
-                                <button
-                                    key={item.href}
-                                    onClick={() => handleNavigate(item.href)}
-                                    className="flex items-center gap-2 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full text-white text-md sm:text-md font-medium transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
-                                >
-                                    <img src={item.icon} alt={item.label} className={`w-4 h-4 sm:w-6.5 sm:h-6`} />
-                                    {item.label}
-                                </button>
-                            );
-                        })}
+                    <div className="flex flex-col sm:flex-row sm:justify-center items-center gap-6 sm:gap-10 w-full">
+                        {HOME_ACTION_GROUPS.map((group) => (
+                            <div key={group.heading} className="flex flex-col items-center gap-2">
+                                <p className="text-white/70 text-xs sm:text-sm font-medium">{group.heading}</p>
+                                <div className="flex flex-wrap justify-center gap-3 sm:gap-3">
+                                    {group.items.map((item) => (
+                                        <button
+                                            key={item.href}
+                                            onClick={() => handleNavigate(item.href)}
+                                            className="flex items-center gap-2 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full text-white text-md sm:text-md font-medium transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
+                                        >
+                                            {item.Icon ? (
+                                                <item.Icon className="w-4 h-4 sm:w-6.5 sm:h-6 text-white" />
+                                            ) : (
+                                                <img src={item.img} alt={item.label} className="w-4 h-4 sm:w-6.5 sm:h-6" />
+                                            )}
+                                            {item.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
                     </div>
 
 

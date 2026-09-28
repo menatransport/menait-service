@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Bell, HomeIcon, Shield, User, ChevronDown, LayoutDashboard, Building, Database, Settings, LogOut, TriangleAlert, ClipboardList, CircleCheck, Wallet, Landmark, BookText } from "lucide-react";
+import { ArrowLeft, Bell, HomeIcon, Shield, User, ChevronDown, LayoutDashboard, Building, Database, Settings, LogOut, TriangleAlert, ClipboardList, CircleCheck, Wallet, Landmark, BookText, ClipboardCheck, BadgeCheck } from "lucide-react";
 import { Button } from "./ui/button";
 import { UserAvatar } from "./ui/user-avatar";
 import { useRouter } from 'next/navigation';
@@ -19,10 +19,12 @@ interface NavbarProps {
 
 const COMPONENT_DEFAULT = [
     { title: 'หน้าหลัก', href: '/home', icon: HomeIcon },
-    { title: 'แจ้งปัญหา', href: '/issue', icon: TriangleAlert },
-    { title: 'ขอบริการ', href: '/service', icon: ClipboardList },
-    { title: 'ติดตามคำขอ', href: '/mytickets/all', icon: CircleCheck },
-    { title: 'เบิกเงิน Advance', href: '/finance/advance', icon: Wallet },
+    { title: 'แจ้งปัญหา IT', href: '/issue', icon: TriangleAlert },
+    { title: 'ขอบริการ IT', href: '/service', icon: ClipboardList },
+    { title: 'ติดตามคำร้อง IT', href: '/mytickets/all', icon: CircleCheck },
+    { title: 'เบิกเงิน Advance', href: '/finance/advance/new', icon: Wallet },
+    { title: 'ติดตามคำขอ Advance', href: '/finance/advance', icon: ClipboardCheck },
+    { title: 'อนุมัติเบิกเงิน Advance', href: '/finance/approvals', icon: BadgeCheck },
     // { title: 'ข่าวสารและประกาศ', href: '/inform', icon: MessageCircle },
     // { title: 'ติดต่อเรา', href: '/contact', icon: Phone },
 ] as const;
@@ -214,7 +216,7 @@ export const Navbar: React.FC<NavbarProps> = memo(({ children, isHome = false, t
                                             )}
                                             {isClient && user?.is_finance && (
                                                 <div className="flex-1">
-                                                    <h3 className="text-xs font-semibold text-gray-500 mb-2 px-2">การเงิน</h3>
+                                                    <h3 className="text-xs font-semibold text-gray-500 mb-2 px-2">ฝ่ายการเงิน</h3>
                                                     <div className="grid grid-cols-1 gap-2">
                                                         {COMPONENT_FINANCE.map((item, index) => {
                                                             const IconComponent = item.icon;
