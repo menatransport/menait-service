@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { DateField } from './DateField';
 import { Textarea } from '@/components/ui/textarea';
 import { formatBaht, settleLabel } from '@/lib/finance/status';
@@ -14,6 +15,7 @@ export function ReviewPanel({ detail, onSaved }: { detail: AdvanceDetail; onSave
   const settle = detail.fin?.settle_amount ?? 0;
   const needsExtraDate = settle < 0;
   const [extraDate, setExtraDate] = useState('');
+  const [clearDocNo, setClearDocNo] = useState(detail.fin?.clear_doc_no ?? '');
   const [remark, setRemark] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
@@ -25,6 +27,7 @@ export function ReviewPanel({ detail, onSaved }: { detail: AdvanceDetail; onSave
     setSaving(true);
     try {
       const saved = await putAction(detail.form_id, 'confirm', {
+        clear_doc_no: clearDocNo,
         settle_date: needsExtraDate ? extraDate : null,
         expected_clear_submitted_at: detail.fin?.clear_submitted_at ?? null,
       });
@@ -75,6 +78,9 @@ export function ReviewPanel({ detail, onSaved }: { detail: AdvanceDetail; onSave
             </div>
           </div>
         )}
+        <label className="block space-y-1 text-sm">เอกสารเคลียร์ (เลขที่/รายการ)
+          <Input value={clearDocNo} onChange={e => setClearDocNo(e.target.value)} disabled={saving} />
+        </label>
         <Button type="button" onClick={confirm} disabled={saving} className="w-full bg-[#026a75] hover:bg-[#055058]">
           ยืนยันปิดรายการ
         </Button>

@@ -16,7 +16,6 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
   const fin = detail.fin!;
   const [clearDate, setClearDate] = useState(fin.clear_date ?? '');
   const [actual, setActual] = useState(fin.amount_actual !== null ? String(fin.amount_actual) : '');
-  const [clearDocNo, setClearDocNo] = useState(fin.clear_doc_no ?? '');
   const [settleDate, setSettleDate] = useState(fin.settle_date ?? '');
   const [remark, setRemark] = useState(fin.remark ?? '');
   const [files, setFiles] = useState<File[]>([]);
@@ -55,7 +54,6 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
       const saved = await putAction(detail.form_id, 'clear', {
         clear_date: clearDate,
         amount_actual: actualNum,
-        clear_doc_no: clearDocNo,
         settle_date: settle !== null && settle > 0 ? settleDate : null,
         remark,
       });
@@ -76,9 +74,6 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
         </label>
         <label className="space-y-1 text-sm">ยอดใช้จริง (บาท) *
           <Input inputMode="decimal" value={actual} onChange={e => setActual(e.target.value)} placeholder="0.00" disabled={saving} />
-        </label>
-        <label className="space-y-1 text-sm">เอกสารเคลียร์ (เลขที่/รายการ)
-          <Input value={clearDocNo} onChange={e => setClearDocNo(e.target.value)} disabled={saving} />
         </label>
         <div className="space-y-1 text-sm">
           <p>รับคืน (เบิกเพิ่ม) — คำนวณอัตโนมัติ</p>
