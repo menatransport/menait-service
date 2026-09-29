@@ -1,0 +1,26 @@
+{
+  "request_date": "2026-08-13",
+  "employee": {
+    "name": "นางสาวตัวอย่าง ทดสอบ",
+    "employee_id": "000000",
+    "position": "ผู้ช่วยหัวหน้าแผนกบัญชี",
+    "department": "บัญชี",
+    "bank_account_no": "000-0-00000-0",
+    "bank_name": "กสิกรไทย",
+    "account_name": "นางสาวตัวอย่าง ทดสอบ"
+  },
+  "centers": ["ลาดกระบัง/ขอนแก่น", "อื่นๆ"],
+  "center_other_text": "",
+  "items": [
+    {"description": "เพื่อสำรองจ่ายเครดิต 7 วัน รอบวันที่ 20/08/2026", "amount": 5000.00}
+  ],
+  "disbursement_round": "2026-08-18",
+  "use_date": "2026-08-18",
+  "additional_details": "",
+  "signatures": {
+    "requester":  {"name": "", "date": ""},
+    "unit_head":  {"name": "", "date": ""},
+    "manager":    {"name": "", "date": ""},
+    "approver":   {"name": "", "date": ""}
+  }
+}

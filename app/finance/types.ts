@@ -6,6 +6,7 @@ export interface Requester {
   department: string | null;
   site: string | null;
   site_code: string | null;
+  position?: string | null;
 }
 
 export interface FinInfo {

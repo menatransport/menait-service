@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { fetchJson } from '../api';
 import type { AdvanceDetail } from '../types';
 import { AdvanceSummary } from './AdvanceSummary';
+import { PrintCashAdvanceButton } from './PrintCashAdvanceButton';
 import { AttachmentPanel } from './AttachmentPanel';
 import { ClearForm } from './ClearForm';
 import { NoAccess, Panel } from './FinanceShell';
@@ -31,6 +32,7 @@ export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChang
 
   return (
     <>
+      <PrintCashAdvanceButton detail={detail} />
       <AdvanceSummary item={detail} />
       <Panel title="ไฟล์แนบ">
         <div className="grid gap-5 sm:grid-cols-2">
