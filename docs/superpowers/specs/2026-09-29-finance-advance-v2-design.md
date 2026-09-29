@@ -224,7 +224,10 @@ these questions and show "-".
 - **Data:** `PUT /finance/advances/{id}/voucher` creates the `fin_advances` row with `fin_status='VOUCHERED'`. The
   pay columns are empty until payment, so `amount_paid`, `transfer_date` and `clear_due_date` become **nullable**,
   and the fin_status CHECK gains `'VOUCHERED'`. These ALTERs go into the same v2 SQL.
-- **Voucher edits:** allowed in รอจ่าย and จ่ายแล้วรอเคลียร์ (log `VOUCHER_EDIT`). The first save logs `VOUCHER`.
+- **One step at a time** (user, 2026-09-29): the detail page shows only the current step's form. รอตั้งเบิกทำจ่าย shows
+  `VoucherForm`. รอจ่าย shows `PayForm`, with the voucher data read-only in the summary. จ่ายแล้วรอเคลียร์ shows the
+  pay-edit form as in v1. The first save logs `VOUCHER`. The BE still accepts a voucher edit (`VOUCHER_EDIT`) in
+  รอจ่าย and จ่ายแล้วรอเคลียร์, but the UI does not offer it.
 - **Pay:** `PUT …/pay` is allowed only on a `VOUCHERED` row (create → `PAID`, log `PAY`) or in จ่ายแล้วรอเคลียร์
   (edit, `PAY_EDIT`). Paying with no voucher → 409. `voucher_no`/`voucher_date` leave `PayIn`.
 - **The outstanding summary** counts only paid advances (a voucher row with no payment is not outstanding money).
