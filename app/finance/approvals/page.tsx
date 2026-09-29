@@ -5,7 +5,8 @@ import { CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { FormValue } from '@/app/mytickets/[id]/types';
 import { formatBaht, formatDate } from '@/lib/finance/status';
-import { showAlert, showConfirm } from '../api';
+import { fetchJson, showAlert, showConfirm } from '../api';
+import type { PendingApprovalItem } from '../types';
 import { AttachmentPanel } from '../components/AttachmentPanel';
 import { Field, FinanceShell, Panel } from '../components/FinanceShell';
 
@@ -128,10 +129,72 @@ function ApprovalCard({
   );
 }
 
+function PendingCard({
+  item, processing, onApprove, onReject,
+}: {
+  item: PendingApprovalItem; processing: boolean; onApprove: () => void; onReject: () => void;
+}) {
+  const { requester, request, tier } = item;
+  const requesterName = requester?.name?.trim() || '-';
+
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2 border-b border-gray-100 pb-3">
+        <div>
+          <p className="text-sm font-semibold text-[#055058]">{item.form_id}</p>
+          <p className="text-xs text-gray-500">{requesterName}{requester?.department ? ` · ${requester.department}` : ''}</p>
+        </div>
+        <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+          <Clock className="h-3 w-3" /> รออนุมัติ
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <Field label="จำนวนเงินที่ขอ" value={formatBaht(request.amount)} />
+        <Field label="วันที่ใช้เงิน" value={formatDate(request.use_date)} />
+        <Field label="วันที่ยื่นคำขอ" value={formatDate(item.created_at)} />
+        <Field label="ค่าใช้จ่ายรายศูนย์" value={request.cost_center ?? '-'} />
+        <div className="col-span-2"><Field label="ขั้นอนุมัติ" value={`ข้อ ${tier.clause} · ${tier.approver_label}`} /></div>
+        <div className="col-span-2 sm:col-span-3"><Field label={PURPOSE_LABEL} value={request.purpose} /></div>
+      </div>
+
+      <div className="mt-4">
+        <AttachmentPanel formId={item.form_id} folder="request" />
+      </div>
+
+      <div className="mt-4 border-t border-gray-100 pt-3">
+        {item.tab === 'delegable' && (
+          <p className="mb-2 text-xs text-gray-500">อนุมัติแทนได้ — มีผู้มีสิทธิ์ระดับ {tier.required_level}+ ที่ใกล้กว่า</p>
+        )}
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            disabled={processing}
+            onClick={onReject}
+            className="rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            ไม่อนุมัติ
+          </button>
+          <button
+            type="button"
+            disabled={processing}
+            onClick={onApprove}
+            className="rounded-xl bg-[#026a75] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#055058] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            อนุมัติ
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FinanceApprovalsPage() {
   const { user } = useSessionContext();
   const [apvView, setApvView] = useState<ApvView>('pending');
   const [items, setItems] = useState<ApprovalItem[]>([]);
+  const [pending, setPending] = useState<PendingApprovalItem[]>([]);
+  const [pendingTab, setPendingTab] = useState<'mine' | 'delegable'>('mine');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -141,6 +204,10 @@ export default function FinanceApprovalsPage() {
     setLoading(true);
     setError('');
     try {
+      if (apvView === 'pending') {
+        setPending(await fetchJson<PendingApprovalItem[]>('/api/finance/approvals'));
+        return;
+      }
       const viewQS = apvView === 'history' ? '&view=history' : '';
       const res = await fetch(
         `/api/tickets?employee_id=${encodeURIComponent(user.employee_id)}&tab=apv&role=${encodeURIComponent(user.role ?? '')}&scope=advance${viewQS}`,
@@ -171,6 +238,7 @@ export default function FinanceApprovalsPage() {
       setItems(enriched);
     } catch (err) {
       setItems([]);
+      setPending([]);
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
     } finally {
       setLoading(false);
@@ -179,7 +247,7 @@ export default function FinanceApprovalsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const submitAction = useCallback(async (item: ApprovalItem, remark: string, action: 'approve' | 'reject') => {
+  const submitAction = useCallback(async (item: { form_id: string }, remark: string, action: 'approve' | 'reject') => {
     setProcessingId(item.form_id);
     try {
       const res = await fetch('/api/tickets', {
@@ -214,7 +282,7 @@ export default function FinanceApprovalsPage() {
     }
   }, [user?.employee_id, load]);
 
-  const handleApprove = useCallback(async (item: ApprovalItem) => {
+  const handleApprove = useCallback(async (item: { form_id: string }) => {
     const result: any = await showConfirm({
       title: 'ยืนยันอนุมัติคำขอเบิกเงิน Advance',
       text: `ฟอร์ม ${item.form_id}`,
@@ -226,7 +294,7 @@ export default function FinanceApprovalsPage() {
     await submitAction(item, (result.value ?? '').trim(), 'approve');
   }, [submitAction]);
 
-  const handleReject = useCallback(async (item: ApprovalItem) => {
+  const handleReject = useCallback(async (item: { form_id: string }) => {
     const result: any = await showConfirm({
       title: 'ยืนยันไม่อนุมัติคำขอเบิกเงิน Advance',
       text: `ฟอร์ม ${item.form_id}`,
@@ -266,8 +334,43 @@ export default function FinanceApprovalsPage() {
           <p className="text-sm text-gray-400">กำลังโหลด...</p>
         ) : error ? (
           <p className="text-sm text-rose-600">{error}</p>
+        ) : apvView === 'pending' ? (
+          (() => {
+            const mine = pending.filter(p => p.tab === 'mine');
+            const delegable = pending.filter(p => p.tab === 'delegable');
+            const shown = pendingTab === 'mine' ? mine : delegable;
+            const pill = (active: boolean) =>
+              `rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${active ? 'bg-[#026a75] text-white shadow-sm' : 'text-gray-600 hover:text-[#026a75]'}`;
+            return (
+              <>
+                <div className="mb-4 inline-flex items-center gap-0.5 rounded-full bg-gray-100 p-0.5">
+                  <button type="button" onClick={() => setPendingTab('mine')} className={pill(pendingTab === 'mine')}>
+                    {`รอฉันอนุมัติ (${mine.length})`}
+                  </button>
+                  <button type="button" onClick={() => setPendingTab('delegable')} className={pill(pendingTab === 'delegable')}>
+                    {`อนุมัติแทนได้ (${delegable.length})`}
+                  </button>
+                </div>
+                {shown.length === 0 ? (
+                  <p className="text-sm text-gray-500">{pendingTab === 'mine' ? 'ไม่มีรายการรอคุณอนุมัติ' : 'ไม่มีรายการที่อนุมัติแทนได้'}</p>
+                ) : (
+                  <div className="space-y-4">
+                    {shown.map(item => (
+                      <PendingCard
+                        key={item.form_id}
+                        item={item}
+                        processing={processingId === item.form_id}
+                        onApprove={() => handleApprove(item)}
+                        onReject={() => handleReject(item)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            );
+          })()
         ) : items.length === 0 ? (
-          <p className="text-sm text-gray-500">{apvView === 'pending' ? 'ไม่มีรายการรออนุมัติ' : 'ไม่มีรายการอนุมัติ/ไม่อนุมัติแล้ว'}</p>
+          <p className="text-sm text-gray-500">ไม่มีรายการอนุมัติ/ไม่อนุมัติแล้ว</p>
         ) : (
           <div className="space-y-4">
             {items.map(item => (
