@@ -2080,3 +2080,86 @@ Add one `toCashAdvanceData` test with a minimal `AdvanceDetail` fixture: cost_ce
   `<div class="esign"><div class="esign-title">✔ e-Signature</div><div>{name}</div><div>{date}</div><div>{time} น.</div><div class="esign-ref">{ref}</div></div>` — CSS: rounded 2px solid border in #0f766e, color #0f766e, font-size 11px, centered, `transform: rotate(-3deg)` optional, max-width 90% of the cell, fits inside the existing signature space (the table height must not grow; still one A4 page). Without `esign` the cell is unchanged. Under the table, only when ≥1 esign exists: a small line `ลงนามอิเล็กทรอนิกส์ผ่านระบบ menait-service · เวลาประเทศไทย (UTC+7)`. ชื่อ/วันที่ lines keep their prefilled values.
 - [ ] **Step 3: Verify** `bun test lib/finance`, `bunx tsc --noEmit`, `bun run build`; render a sample WITH both stamps to `tmp/cash-advance-esign-sample.pdf` (+ PNG) and Read the PNG to confirm the stamps sit inside the cells and the page is still one A4.
 - [ ] **Step 4: Commit** `feat(finance): e-Signature stamps with Bangkok timestamp in ส่วนที่ 4` (explicit paths).
+
+---
+
+## Part 8 (spec §5f) — follow-ups from the LINE thread
+
+### Task 14: BE — ตีกลับตั้งเบิก, closed_by_name/paid_by_name, วันที่โอนเงินคืนบริษัท message
+
+**Files:**
+- `services/finance/advance_logic.py`: add `FIN_VOUCHER_REJECTED = "VOUCHER_REJECTED"` mapped to AWAITING_VOUCHER in `_FIN_TO_STATUS`, and `check_reject_voucher(status, *, remark)`.
+  - It allows only AWAITING_PAYMENT: `_require_status(status, (AWAITING_PAYMENT,), "ตีกลับไปตั้งเบิกใหม่")`.
+  - The remark is required: `กรุณาระบุเหตุผลที่ตีกลับ`.
+  - The check_clear message becomes `มียอดต้องคืนบริษัท กรุณาระบุวันที่โอนเงินคืนบริษัท`.
+- `models/finance_model.py` fin_status CHECK: `('VOUCHERED','VOUCHER_REJECTED','PAID','CLEARING_SUBMITTED','SENT_BACK','CLOSED')`.
+- New `scripts/migrations/2026-09-29_finance_advance_v2b.sql`: BEGIN; `ALTER TABLE fin_advances DROP CONSTRAINT IF EXISTS ck_fin_advances_fin_status;` then ADD with the new list; COMMIT. It is DBeaver-safe and idempotent.
+- `schemas/finance_schema.py`: add `class RejectVoucherIn(_Body): action_by: str; remark: str`.
+- `routes/finance/advance_routes.py`:
+  - `PUT /advances/{form_id}/reject-voucher`:
+    - Call `require_finance`, then `_load_for_update`, then `check_reject_voucher`.
+    - Set `adv.fin_status = FIN_VOUCHER_REJECTED`.
+    - Log `FinAdvanceLog(action="VOUCHER_REJECT", remark=body.remark, action_by=…)`, then `_commit_and_return`.
+  - `voucher_advance`:
+    - When `adv` exists with fin_status VOUCHER_REJECTED and status is AWAITING_VOUCHER (a first save after a reject), update the existing row.
+    - Set fin_status back to VOUCHERED and log `VOUCHER`.
+    - `check_voucher(status, is_edit=False)` already allows AWAITING_VOUCHER.
+- `services/finance/advance_repo.py`: `serialize_fin` adds `closed_by_name` and `paid_by_name`. Resolve the names by passing a people map: in `list_advances` and `get_advance_detail`, include `adv.closed_by`/`adv.paid_by` ids in the `people_by_employee_id` lookup, so there is one extra query at most and no N+1.
+- **Tests (DB-free):**
+  - derive_status(VOUCHER_REJECTED) → AWAITING_VOUCHER.
+  - check_reject_voucher: ok in AWAITING_PAYMENT; 409 elsewhere (AWAITING_VOUCHER, AWAITING_CLEARING); 400 on a blank remark.
+  - The new check_clear message.
+  - RejectVoucherIn requires remark.
+  - The model DDL contains VOUCHER_REJECTED, and the v2b SQL file contains it.
+  - A serialize_fin test for closed_by_name/paid_by_name, via a people map.
+- **Verify:** full pytest. Commit `feat(finance): ตีกลับไปตั้งเบิกใหม่ at รอจ่าย, closed/paid-by names, วันที่โอนเงินคืนบริษัท`.
+
+### Task 15: FE — ตีกลับ button + voucher re-do, label rename, วันที่โอนเงิน column, remove accounts page
+
+- **Status type:** `app/finance/types.ts` FinInfo adds `closed_by_name?: string | null; paid_by_name?: string | null`.
+- **Next route and API:**
+  - `app/api/finance/advances/[form_id]/route.ts` FINANCE_ACTIONS adds `'reject-voucher'`.
+  - `app/finance/api.ts` AdvanceAction adds `'reject-voucher'`.
+  - LOG_ACTION_LABELS adds `VOUCHER_REJECT: 'ตีกลับไปตั้งเบิกใหม่'`.
+- **FinanceAdvanceDetail:**
+  - At AWAITING_PAYMENT, render (above PayForm) a rose outline button "ตีกลับไปตั้งเบิกใหม่".
+  - It opens `showConfirm` with a required textarea (`inputValidator`: 'กรุณาระบุเหตุผลที่ตีกลับ').
+  - Then call `putAction(form_id,'reject-voucher',{remark})`, then `onSaved`.
+- **VoucherForm:**
+  - Send `is_edit: false` whenever `detail.status === 'AWAITING_VOUCHER'`; otherwise `Boolean(fin)`.
+  - When `fin?.fin_status === 'VOUCHER_REJECTED'`:
+    - Show an orange banner with the latest VOUCHER_REJECT log remark: "การเงินตีกลับ: …".
+    - Prefill voucher_no/voucher_date from fin.
+    - Title "ตั้งเบิกทำจ่าย (แก้ไขตามที่ตีกลับ)".
+- **Label "วันที่โอนเงินคืนบริษัท"** (replacing "วันที่โอนเงินคืน") in:
+  - ClearForm: label "วันที่โอนเงินคืนบริษัท *" and alert text "…กรุณาระบุวันที่โอนเงินคืนบริษัท".
+  - AdvanceSummary.
+  - FIELD_LABELS.settle_date.
+  - EXPORT_COLUMNS, plus the row key and the export test.
+  - The cash advance form, if it prints it.
+  - `grep -rn "วันที่โอนเงินคืน\b"`: nothing left without "บริษัท".
+- **List column:** in AdvanceListView finance mode, add `<th>วันที่โอนเงิน</th>` after วันที่ใช้เงิน and `<td>{formatDate(it.fin?.transfer_date)}</td>`, plus a line on the mobile card.
+- **Accounts page:** delete `app/finance/accounts/page.tsx` and `app/api/finance/accounts/route.ts`. Remove the FinAccount type and imports if they become unused. Build must still pass.
+- **Verify:** bun test lib/finance, tsc 0, build. Commit `feat(finance): ตีกลับตั้งเบิก, วันที่โอนเงินคืนบริษัท, วันที่โอนเงิน column, remove accounts page`.
+
+### Task 16: FE — ใบเคลียร์เงินทดรองจ่าย print
+
+- New `lib/finance/clearingForm.ts`, following the patterns of `cashAdvanceForm.ts`: reuse `esc`, `bahtText`, the date helpers, the stamp renderer and the print-readiness helper. Extract shared pieces into `lib/finance/printShared.ts` if needed, without changing the cash-advance output. It provides:
+  - `type ClearingFormData`
+  - `toClearingData(detail, files)`
+  - `buildClearingHtml(data, {logoUrl})`
+  - `printClearing(data): boolean`
+
+  Layout per spec §5f.5. Attachments: `files` are the `/api/uploads3` items with `folder === 'clear'`. Image = by extension jpg/jpeg/png/gif/webp; others are listed by name. Printing waits for every <img> to load or error, then fonts.
+- New `app/finance/components/PrintClearingButton.tsx` ("พิมพ์ใบเคลียร์เงิน", Printer icon):
+  - Show it when `detail.fin?.clear_date`.
+  - On click, fetch `/api/uploads3?form_id=` using the same parsing as AttachmentPanel.
+  - Then call `printClearing(toClearingData(detail, files))`. A blocked popup gives an alert.
+- Place the button in AdvanceSummary's "ข้อมูลการเคลียร์เงิน" Panel `actions`. AdvanceSummary receives the full detail, so the prop type is already `AdvanceItem & {approval?}`; widen it as needed to AdvanceDetail for approval_logs.
+- **Tests** (`lib/finance/clearingForm.test.ts`):
+  - toClearingData mapping: รับคืน, เบิกเพิ่ม and พอดี, the stamps, and ผู้ตรวจ stamp only when CLOSED.
+  - HTML contains every section and label, including "วันที่โอนเงินคืนบริษัท" and "(Cash Advance Clearing form)".
+  - An attachments page appears only with images, and non-images are listed.
+  - Escaping.
+  - A Chrome sample PDF test, writing `tmp/clearing-sample.pdf` (skip if Chrome is absent). Render a PNG and Read it: page 1 is A4, and the attachment page follows.
+- **Verify:** bun test lib/finance, tsc 0, build. Commit `feat(finance): print ใบเคลียร์เงินทดรองจ่าย with e-Signature and slip pages`.

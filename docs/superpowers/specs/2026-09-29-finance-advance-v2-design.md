@@ -291,6 +291,48 @@ these questions and show "-".
 - **Test:** generate a sample PDF from the example JSON. A bun test renders the HTML with headless Chrome when it
   is available (skipped otherwise), writes `tmp/cash-advance-sample.pdf`, and asserts that the file starts with `%PDF`.
 
+## 5f. Part 8 — follow-ups from the LINE thread (user, 2026-09-29)
+
+1. **ตีกลับไปตั้งเบิกใหม่ at รอจ่าย:**
+   - At AWAITING_PAYMENT (a VOUCHERED row with no payment), a Finance/Accounting user can press
+     "ตีกลับไปตั้งเบิกใหม่" and must give a reason.
+   - The effect: `fin_status='VOUCHER_REJECTED'` (a new value), which derives to AWAITING_VOUCHER (รอตั้งเบิกทำจ่าย).
+   - Log `VOUCHER_REJECT` with the reason as the remark. The voucher fields are kept, so Accounting sees and fixes them.
+   - VoucherForm shows the reject banner (the latest VOUCHER_REJECT remark) and saves as a first save again
+     (`is_edit=false`), which sets fin_status back to VOUCHERED and logs `VOUCHER`.
+   - The ตั้งเบิก step itself has no reject.
+   - Endpoint: `PUT /finance/advances/{id}/reject-voucher` with `{action_by, remark}` (remark required). It needs
+     require_finance and is allowed only in AWAITING_PAYMENT; otherwise 409.
+   - Prod SQL: widen `ck_fin_advances_fin_status` to include 'VOUCHER_REJECTED' (the user runs it).
+2. **Label "วันที่โอนเงินคืนบริษัท"** replaces "วันที่โอนเงินคืน" everywhere: ClearForm label and validation alert,
+   AdvanceSummary, FIELD_LABELS.settle_date, the Excel column, the BE check_clear message and the print forms.
+3. **List column "วันที่โอนเงิน"** (`fin.transfer_date`, dd/mm/yy like the other list dates) in the Finance queue table,
+   after วันที่ใช้เงิน, and on the mobile card.
+4. **Remove AccCode / AccName / AccNameEng:** delete the `/finance/accounts` page and its Next API route
+   `app/api/finance/accounts`, plus any now-unused `FinAccount` imports. The BE endpoints and the table stay
+   (unused) and old rows still display บัญชี.
+5. **Print ใบเคลียร์เงินทดรองจ่าย (Cash Advance Clearing form)**, in the same style and mechanism as §5e:
+   - **When and where:** available once a clearing exists (`fin.clear_date`). The button "พิมพ์ใบเคลียร์เงิน" sits in
+     the "ข้อมูลการเคลียร์เงิน" panel header, for Finance and the requester.
+   - **Header:** logo; the version box "เริ่มใช้ 1 Nov 22"; title "ใบเคลียร์เงินทดรองจ่าย", subtitle
+     "(Cash Advance Clearing form)"; a box with the document number; วันที่ (thaiShortDate of clear_date).
+   - **ส่วนที่ 1 ข้อมูลผู้เบิก:** ชื่อ-สกุล, รหัสพนักงาน, ตำแหน่ง, แผนก, ศูนย์ค่าใช้จ่าย.
+   - **ส่วนที่ 2 ข้อมูลการเบิก:** วัตถุประสงค์, เลขที่ใบเบิก, ยอดเงินที่ได้รับ (boxed), วันที่โอนเงิน, กำหนดการเคลียร์.
+   - **ส่วนที่ 3 สรุปการเคลียร์:**
+     - ยอดใช้จริง, boxed.
+     - รับคืน or เบิกเพิ่ม: the absolute amount plus its label, plus bahtText of that amount. If the settle is 0,
+       show "พอดี (ไม่มียอดคงค้าง)".
+     - วันที่ส่งเอกสารเคลียร์, วันที่โอนเงินคืนบริษัท, เอกสารเคลียร์ (บัญชี), หมายเหตุ.
+   - **ส่วนที่ 4 ลงนาม:** 3 columns (ผู้เคลียร์ | หัวหน้าหน่วยงาน | ผู้ตรวจ (บัญชี)). e-Signature stamps as in §5e:
+     - ผู้เคลียร์: requester name + `clear_submitted_at`, ref the form_id.
+     - ผู้ตรวจ: `closed_by_name` + `closed_at`, ref "ปิดรายการ". Only when CLOSED.
+     - หัวหน้าหน่วยงาน: always blank.
+   - **Attachment pages:** images from the `clear/` folder, 2 per row, with captions. Non-image files are listed by
+     name. The images use the signed URLs from `/api/uploads3`, and printing waits for all images to load.
+   - **Footer:** "Page N".
+   - **BE:** `serialize_fin` adds `closed_by_name` (and `paid_by_name`), resolved in the same people lookup as the
+     requester (no N+1).
+
 ## 6. Migration `scripts/migrations/2026-09-29_finance_advance_v2.sql` (user runs it in DBeaver)
 
 One transaction, idempotent, with no `DO $$` blocks (DBeaver-safe, as in v1):
