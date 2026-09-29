@@ -33,13 +33,22 @@ describe('cash advance form', () => {
   test('html has every section and value', () => {
     const html = buildCashAdvanceHtml(sample as any, { logoUrl: '' });
     for (const s of ['ใบคำขอเบิกเงินล่วงหน้า', '(Cash Advance Request form)', 'เริ่มใช้ 1 Nov 22', 'วันที่', '13-ส.ค.-26',
-      'ส่วนที่ 1', 'ส่วนที่ 2', 'ส่วนที่ 3', 'ส่วนที่ 4', 'นางสาวตัวอย่าง ทดสอบ', '000000', 'ผู้ช่วยหัวหน้าแผนกบัญชี',
+      'ข้อมูลพนักงานผู้เบิกเงิน', 'ประเภทและวัตถุประสงค์ในการเบิกเงินล่วงหน้า', 'เงื่อนไขและข้อตกลง', 'ลงนามและอนุมัติ', 'นางสาวตัวอย่าง ทดสอบ', '000000', 'ผู้ช่วยหัวหน้าแผนกบัญชี',
       '000-0-00000-0', 'กสิกรไทย', '5,000.00', 'ห้าพันบาทถ้วน', '18/8/2026', 'กรุงเทพ', 'ลาดกระบัง/ขอนแก่น',
-      'สระบุรี/ระยอง', 'MDD', 'อื่นๆ', 'ผู้ขอเบิก', 'หัวหน้าหน่วยงาน', 'ผู้จัดการ', 'ผู้มีอำนาจอนุมัติ', 'Page 1',
+      'สระบุรี/ระยอง', 'MDD', 'อื่นๆ', 'ผู้ขอเบิก', 'หัวหน้าหน่วยงาน', 'ผู้จัดการ', 'ผู้มีอำนาจอนุมัติ', 'counter(page)', 'Document Control &amp; Revision History',
       'ภายใน 7 วันหลังจากได้รับเงิน', 'กรุณาส่งเอกสารที่ได้รับอนุมัติตาม TOA ภายในวันอังคาร']) {
       expect(html).toContain(s);
     }
     expect((html.match(/class="cb checked"/g) ?? []).length).toBe(2); // ลาดกระบัง/ขอนแก่น + อื่นๆ
+  });
+  test('document_no shows in the meta box and the footer; toCashAdvanceData sets it from form_id', () => {
+    const html = buildCashAdvanceHtml({ ...sample, document_no: 'ADV-2026-0007' } as any, {});
+    expect(html).toContain('<span>เลขที่</span><b>ADV-2026-0007</b>');
+    expect(html).toContain('<td style="width:33%">ADV-2026-0007</td>');
+    expect(html).toContain('Cash Advance Request (ADV)');
+    const d = toCashAdvanceData({ form_id: 'ADV-2026-0009', status: 'CLOSED', created_at: '2026-08-13T03:00:00+00:00',
+      requester: { employee_id: '1', name: 'x' }, request: { purpose: 'p', amount: 1 }, fin: null, approval_logs: [] } as any);
+    expect(d.document_no).toBe('ADV-2026-0009');
   });
   test('html escapes interpolated strings', () => {
     const d = { ...sample, additional_details: '<script>x</script>' };

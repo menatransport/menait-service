@@ -2,6 +2,9 @@ import type { AdvanceDetail } from '@/app/finance/types';
 import { bahtText } from './bahtText';
 import { bankLabel, formatAccountNo } from './bank';
 import { toBkkDate } from './dates';
+import { documentControlFooter, esc, formatBkkDateTime, money, printedNow, stampHtml, wrapDocument, type DocumentControl } from './printShared';
+
+export { formatBkkDateTime };
 
 export const PRINTABLE_STATUSES = ['AWAITING_VOUCHER', 'AWAITING_PAYMENT', 'AWAITING_CLEARING', 'SENT_BACK', 'AWAITING_REVIEW', 'CLOSED'];
 
@@ -31,6 +34,8 @@ export interface CashAdvanceFormData {
   disbursement_round: string;
   use_date: string;
   additional_details: string;
+  /** Document Ref / เลขที่ (the form_id) shown in the meta box and the Document Control footer. */
+  document_no?: string;
   signatures: { requester: Signature; unit_head: Signature; manager: Signature; approver: Signature };
 }
 
@@ -50,17 +55,6 @@ export function thaiShortDate(iso: string | null | undefined): string {
   return `${String(p[2]).padStart(2, '0')}-${MONTHS[p[1] - 1]}-${String(p[0] % 100).padStart(2, '0')}`;
 }
 
-/** ISO datetime → Bangkok { date: 'dd/mm/yyyy', time: 'HH:mm:ss' }; blanks when invalid. */
-export function formatBkkDateTime(iso: string | null | undefined): { date: string; time: string } {
-  const dt = iso ? new Date(iso) : null;
-  if (!dt || Number.isNaN(dt.getTime())) return { date: '', time: '' };
-  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Bangkok', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  }).formatToParts(dt).map(x => [x.type, x.value]));
-  return { date: `${p.day}/${p.month}/${p.year}`, time: `${p.hour}:${p.minute}:${p.second}` };
-}
-
 /** '2026-08-18' → '18/8/2026' */
 export function dmy(iso: string | null | undefined): string {
   const p = parts(iso);
@@ -77,11 +71,6 @@ export function validateCashAdvance(data: CashAdvanceFormData): string[] {
   return errors;
 }
 
-const esc = (v: unknown) =>
-  String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
-
-const money = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
 const CLAUSES = [
   'ข้าพเจ้าได้อ่านและเข้าใจนโยบายและข้อปฏิบัติของการเบิกเงินล่วงหน้าของบริษัทแล้ว',
   'ข้าพเจ้าตกลงที่จะคืนเงินคงเหลือพร้อมทั้งใบกำกับภาษี/ใบเสร็จรับเงินและเอกสารประกอบอื่น ๆ ภายใน 7 วันหลังจากได้รับเงิน',
@@ -90,58 +79,73 @@ const CLAUSES = [
   'กรุณาส่งเอกสารที่ได้รับอนุมัติตาม TOA ภายในวันอังคาร เพื่อรับชำระเงินคืนภายในวันพฤหัสบดี',
 ];
 
-const CSS = `
-@page { size: A4 portrait; margin: 12mm 14mm; }
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-body { font-family: 'Sarabun', 'TH Sarabun New', 'Noto Sans Thai', 'Thonburi', sans-serif; font-size: 11.5pt; line-height: 1.35; color: #111; }
-.page { position: relative; width: 100%; }
-.head { position: relative; height: 22mm; }
-.head .logo { position: absolute; left: 0; top: 0; height: 18mm; max-width: 45mm; object-fit: contain; }
-.head .ver { position: absolute; right: 0; top: 0; border: 1px solid #111; padding: 1px 8px; font-size: 9.5pt; }
-.head .t1 { position: absolute; left: 0; right: 0; top: 2mm; text-align: center; font-size: 17pt; font-weight: 700; }
-.head .t2 { position: absolute; left: 0; right: 0; top: 11mm; text-align: center; font-size: 12.5pt; font-weight: 700; }
-hr { border: 0; border-top: 1.2px solid #111; margin: 1mm 0 2mm; }
-.date { text-align: right; margin-bottom: 2mm; }
-.date .v, .v { display: inline-block; border-bottom: 1px solid #111; min-width: 28mm; padding: 0 4px; text-align: center; }
-.sec { background: #e5e7eb; font-weight: 700; padding: 1px 6px; margin: 3mm 0 1.5mm; }
-.row { display: flex; gap: 6mm; margin: 1mm 0; align-items: flex-end; }
-.f { display: flex; align-items: flex-end; flex: 1 1 0; min-width: 0; }
-.f .l { white-space: nowrap; padding-right: 4px; }
-.f .u { flex: 1; border-bottom: 1px solid #111; min-height: 1.35em; padding: 0 4px; overflow: hidden; }
-.cbs { display: flex; gap: 5mm; align-items: flex-end; margin-top: 1.5mm; flex-wrap: nowrap; white-space: nowrap; }
-.cbi { display: inline-flex; align-items: center; gap: 4px; }
-.cb { display: inline-block; width: 3.6mm; height: 3.6mm; border: 1px solid #111; line-height: 3.2mm; text-align: center; font-size: 9pt; font-weight: 700; }
+const PART_CSS = `
+.head { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; }
+.head .logo { height: 44px; }
+.t1 { font-size: 21px; font-weight: 700; color: var(--teal); letter-spacing: 0.1px; line-height: 1.2; }
+.t2 { font-size: 12px; font-weight: 600; color: var(--muted); }
+.meta { border: 1px solid var(--teal); border-radius: 3px; font-size: 10.5px; min-width: 150px; }
+.meta div { display: flex; justify-content: space-between; gap: 12px; padding: 3px 8px; }
+.meta div + div { border-top: 1px solid var(--line); }
+.meta span { color: var(--muted); }
+.meta b { font-weight: 600; }
+.meta .ver { background: var(--teal); color: #fff; justify-content: center; font-weight: 600; }
+.sec { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; }
+.sec .n { width: 19px; height: 19px; border-radius: 3px; background: var(--teal); color: #fff; font-weight: 700; font-size: 11px; display: grid; place-items: center; flex: none; }
+.sec h2 { font-size: 13px; font-weight: 700; white-space: nowrap; }
+.sec small { font-size: 10px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+.sec::after { content: ""; flex: 1; border-top: 1px solid var(--line); margin-left: 4px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 22px; row-gap: 5px; }
+.f { border-bottom: 1px solid var(--line); padding-bottom: 2px; min-width: 0; }
+.f .l { display: block; font-size: 9.5px; color: var(--muted); }
+.f .v { display: block; font-size: 12.5px; font-weight: 500; min-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cbs { display: flex; align-items: center; gap: 16px; margin-top: 8px; font-size: 11.5px; flex-wrap: wrap; }
+.cbs .lbl { color: var(--muted); font-size: 10.5px; }
+.cbi { display: inline-flex; align-items: center; gap: 5px; }
+.cb { width: 12px; height: 12px; border: 1.3px solid var(--ink); border-radius: 2px; display: inline-grid; place-items: center; font-size: 10px; line-height: 1; }
+.cb.checked { background: var(--teal); border-color: var(--teal); color: #fff; }
 .cb.checked::after { content: '\\2713'; }
-.cbi .oth { display: inline-block; border-bottom: 1px solid #111; min-width: 24mm; padding: 0 3px; min-height: 1.3em; }
-table.items { width: 100%; border-collapse: collapse; margin-top: 1mm; }
-table.items td { padding: 0; height: 7mm; vertical-align: bottom; }
-table.items td.n { width: 7mm; }
-table.items td.d { border-bottom: 1px solid #111; padding: 0 4px; }
-table.items td.a { width: 32mm; border: 1px solid #111; text-align: right; padding: 0 6px; vertical-align: middle; }
-table.items th.a { width: 32mm; border: 1px solid #111; font-weight: 400; text-align: center; }
-.tot { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 0; }
-.tot .box { width: 32mm; border: 1px solid #111; text-align: right; padding: 0 6px; font-weight: 700; }
-.words { font-style: italic; }
-.clauses { margin: 0; padding-left: 6mm; }
-.clauses li { margin: 0.5mm 0; }
-table.sig { width: 100%; border-collapse: collapse; table-layout: fixed; }
-table.sig th, table.sig td { border: 1px solid #111; padding: 2px 6px; }
-table.sig th { text-align: center; font-weight: 700; }
-table.sig td.space { height: 24mm; }
-table.sig td.ln { border-top: 0; border-bottom: 0; overflow: hidden; }
-table.sig td.ln { font-size: 11px; }
-table.sig td.ln .u2 { display: flex; min-width: 0; } table.sig td.ln .u2 b { font-weight: 400; padding-right: 4px; white-space: nowrap; } table.sig td.ln .u2 i { font-style: normal; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 1px solid #111; min-height: 1.35em; padding: 0 3px; }
-table.sig td.ln.last { border-bottom: 1px solid #111; }
-.esign { display: inline-block; max-width: 90%; border: 2px solid #0f766e; border-radius: 6px; color: #0f766e; font-size: 11px; line-height: 1.2; text-align: center; padding: 2px 6px; transform: rotate(-3deg); }
-.esign-title { font-weight: 700; }
-.esign-ref { font-size: 9.5px; white-space: nowrap; }
-table.sig td.space { text-align: center; vertical-align: middle; }
-.esign-note { font-size: 9pt; color: #0f766e; margin-top: 1mm; }
-.pg { position: fixed; right: 0; bottom: 0; font-size: 10pt; }
+.oth { display: inline-block; min-width: 70px; border-bottom: 1px solid var(--line); }
+table.items { width: 100%; border-collapse: collapse; margin-top: 2px; }
+table.items th { background: var(--mint); color: var(--teal); font-size: 10.5px; font-weight: 600; text-align: left; padding: 4px 8px; }
+table.items th.a, table.items td.a { text-align: right; width: 34mm; }
+table.items td { padding: 4px 8px; border-bottom: 1px solid var(--line); height: 23px; font-size: 12px; }
+table.items td.no { width: 9mm; color: var(--muted); }
+table.items td.a { font-weight: 600; }
+.sum { display: grid; grid-template-columns: 1fr auto; gap: 16px; margin-top: 8px; align-items: stretch; }
+.dates { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px; row-gap: 5px; align-content: start; }
+.tot { background: var(--teal); color: #fff; border-radius: 3px; padding: 7px 12px; min-width: 68mm; }
+.tot .k { font-size: 10px; opacity: 0.85; }
+.tot .amt { font-size: 22px; font-weight: 700; line-height: 1.15; text-align: right; }
+.tot .amt span { font-size: 11px; font-weight: 500; margin-left: 4px; }
+.tot .words { font-size: 11px; font-style: italic; text-align: right; border-top: 1px solid rgba(255,255,255,.35); margin-top: 4px; padding-top: 3px; }
+.more { grid-column: 1 / -1; margin-top: 2px; }
+.more .l { font-size: 9.5px; color: var(--muted); }
+.more .ln { border-bottom: 1px solid var(--line); min-height: 19px; font-size: 12px; }
+ol.clauses { background: var(--mint); border-left: 3px solid var(--teal); padding: 7px 10px 7px 26px; font-size: 10.5px; line-height: 1.55; }
+ol.clauses li { padding-left: 2px; }
+ol.clauses li::marker { color: var(--teal); font-weight: 700; }
+table.sig { width: 100%; border-collapse: collapse; table-layout: fixed; break-inside: avoid; }
+table.sig th { background: var(--mint); color: var(--teal); font-size: 11px; font-weight: 600; padding: 5px; border: 1px solid var(--line); }
+table.sig td { border: 1px solid var(--line); vertical-align: top; padding: 0 8px 6px; }
+table.sig td.space { height: 23mm; text-align: center; vertical-align: middle; padding: 4px; }
+table.sig .row { display: flex; gap: 6px; font-size: 10.5px; margin-top: 5px; align-items: baseline; }
+table.sig .row .k { color: var(--muted); flex: none; }
+table.sig .row i { font-style: normal; flex: 1; border-bottom: 1px dotted var(--muted); min-height: 16px; min-width: 0; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 `;
 
-export function buildCashAdvanceHtml(data: CashAdvanceFormData, opts: { logoUrl?: string; fontCss?: boolean } = {}): string {
+export interface CashAdvanceOpts { logoUrl?: string; fontCss?: boolean; printed?: string; attachmentsHtml?: string }
+
+export function cashAdvanceFooter(data: CashAdvanceFormData, printed?: string): DocumentControl {
+  const ap = data.signatures?.approver;
+  return {
+    ref: data.document_no ?? '', name: 'Cash Advance Request (ADV)', owner: data.employee.name,
+    approvedBy: ap?.name ?? '', approvedDate: ap?.date ?? '', printed: printed ?? printedNow(),
+  };
+}
+
+/** Part 1 body markup only (header → signatures), without the page footer wrapper; 16b composes Part 2 the same way. */
+export function cashAdvanceBody(data: CashAdvanceFormData, opts: { logoUrl?: string } = {}): string {
   const errors = validateCashAdvance(data);
   if (errors.length) throw new Error(errors.join('\n'));
   const e = data.employee;
@@ -149,14 +153,15 @@ export function buildCashAdvanceHtml(data: CashAdvanceFormData, opts: { logoUrl?
   const checked = new Set(data.centers ?? []);
   const cb = (on: boolean) => `<span class="cb${on ? ' checked' : ''}"></span>`;
   const field = (label: string, value: unknown) =>
-    `<div class="f"><span class="l">${label}</span><span class="u">${esc(value)}</span></div>`;
+    `<div class="f"><span class="l">${label}</span><span class="v">${esc(value)}</span></div>`;
+  const sec = (n: number, th: string, en: string) => `<div class="sec"><span class="n">${n}</span><h2>${th}</h2><small>${en}</small></div>`;
 
   const centers = CENTER_OPTIONS.map(c => `<span class="cbi">${cb(checked.has(c))}${esc(c)}</span>`).join('')
     + `<span class="cbi">${cb(checked.has(CENTER_OTHER))}${CENTER_OTHER}<span class="oth">${esc(data.center_other_text)}</span></span>`;
 
   const rows = [0, 1, 2, 3].map(i => {
     const it = data.items[i];
-    return `<tr><td class="n">${i + 1}.</td><td class="d">${it ? esc(it.description) : ''}</td><td class="a">${it ? money(Number(it.amount)) : ''}</td></tr>`;
+    return `<tr><td class="no">${i + 1}.</td><td>${it ? esc(it.description) : ''}</td><td class="a">${it ? money(Number(it.amount)) : ''}</td></tr>`;
   }).join('');
 
   const sigs = data.signatures ?? ({} as CashAdvanceFormData['signatures']);
@@ -164,51 +169,48 @@ export function buildCashAdvanceHtml(data: CashAdvanceFormData, opts: { logoUrl?
     ['ผู้ขอเบิก', sigs.requester], ['หัวหน้าหน่วยงาน', sigs.unit_head], ['ผู้จัดการ', sigs.manager], ['ผู้มีอำนาจอนุมัติ', sigs.approver],
   ];
   const validEsign = (sg?: Signature) => (sg?.esign && formatBkkDateTime(sg.esign.timestamp).date ? sg.esign : null);
-  const stamp = (sg?: Signature) => {
-    const es = validEsign(sg);
-    if (!es) return '';
-    const t = formatBkkDateTime(es.timestamp);
-    return `<div class="esign"><div class="esign-title">✔ e-Signature</div><div>${esc(es.name || '-')}</div><div>${esc(t.date)}</div><div>${esc(t.time)} น.</div><div class="esign-ref">${esc(es.ref)}</div></div>`;
-  };
   const anyEsign = sigCols.some(([, sg]) => validEsign(sg));
-  const sigRow = (fn: (s: Signature | undefined) => string, cls = 'ln') => `<tr>${sigCols.map(([, s]) => `<td class="${cls}">${fn(s)}</td>`).join('')}</tr>`;
+  const sigLines = (s: Signature | undefined) =>
+    `<div class="row"><span class="k">ชื่อ</span><i>${esc(s?.name)}</i></div><div class="row"><span class="k">วันที่</span><i>${esc(validEsign(s) ? dmy(validEsign(s)!.timestamp) : s?.date)}</i></div>`;
 
-  const font = opts.fontCss === false ? '' :
-    '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">';
-  const logo = opts.logoUrl ? `<img class="logo" src="${esc(opts.logoUrl)}" alt="">` : '';
+  const logo = opts.logoUrl ? `<img class="logo" src="${esc(opts.logoUrl)}" alt="MENA Transport">` : '<span></span>';
 
-  return `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ใบคำขอเบิกเงินล่วงหน้า</title>${font}<style>${CSS}</style></head><body><div class="page">
-<div class="head">${logo}<div class="ver">เริ่มใช้ 1 Nov 22</div><div class="t1">ใบคำขอเบิกเงินล่วงหน้า</div><div class="t2">(Cash Advance Request form)</div></div>
-<hr>
-<div class="date">วันที่ <span class="v">${esc(thaiShortDate(data.request_date))}</span></div>
+  return `<section class="doc-part"><div class="doc-band"></div>
+<header class="head">${logo}<div><div class="t1">ใบคำขอเบิกเงินล่วงหน้า</div><div class="t2">(Cash Advance Request form)</div></div>
+<div class="meta"><div class="ver">เริ่มใช้ 1 Nov 22</div><div><span>เลขที่</span><b>${esc(data.document_no)}</b></div><div class="date"><span>วันที่</span><b>${esc(thaiShortDate(data.request_date))}</b></div></div></header>
 
-<div class="sec">ส่วนที่ 1: ข้อมูลพนักงานผู้เบิกเงิน</div>
-<div class="row">${field('ชื่อ-สกุล', e.name)}${field('รหัสพนักงาน', e.employee_id)}</div>
-<div class="row">${field('ตำแหน่ง', e.position)}${field('แผนก', e.department)}</div>
-<div class="row">${field('โอนเงินเข้าบัญชีธนาคารเลขที่', e.bank_account_no)}${field('ธนาคาร', e.bank_name)}</div>
-<div class="row">${field('ชื่อบัญชี', e.account_name)}</div>
-<div class="cbs"><span>ศูนย์ :</span>${centers}</div>
+${sec(1, 'ข้อมูลพนักงานผู้เบิกเงิน', 'Requester')}
+<div class="grid">${field('ชื่อ-สกุล', e.name)}${field('รหัสพนักงาน', e.employee_id)}${field('ตำแหน่ง', e.position)}${field('แผนก', e.department)}${field('โอนเงินเข้าบัญชีธนาคารเลขที่', e.bank_account_no)}${field('ธนาคาร', e.bank_name)}${field('ชื่อบัญชี', e.account_name)}<div></div></div>
+<div class="cbs"><span class="lbl">ศูนย์</span>${centers}</div>
 
-<div class="sec">ส่วนที่ 2: ประเภทและวัตถุประสงค์ในการเบิกเงินล่วงหน้า</div>
-<table class="items"><tr><th style="text-align:left;font-weight:400" colspan="2">วัตถุประสงค์ในการเบิกเงินล่วงหน้า :</th><th class="a">(บาท)</th></tr>${rows}</table>
-<div class="tot"><span>จำนวนเงินรวม</span><span class="box">${money(total)}</span></div>
-<div class="row"><div class="f"><span class="l">จำนวนเงิน (ตัวอักษร)</span><span class="u words">${esc(bahtText(total))}</span></div></div>
-<div class="row">${field('รอบการเบิกเงิน', dmy(data.disbursement_round))}${field('วันที่จะมีการใช้เงิน', dmy(data.use_date))}</div>
-<div class="row"><div class="f"><span class="l">รายละเอียดเพิ่มเติม</span><span class="u">${esc(data.additional_details)}</span></div></div>
-<div class="row"><div class="f"><span class="u">&nbsp;</span></div></div>
+${sec(2, 'ประเภทและวัตถุประสงค์ในการเบิกเงินล่วงหน้า', 'Purpose')}
+<table class="items"><thead><tr><th colspan="2">วัตถุประสงค์ในการเบิกเงินล่วงหน้า</th><th class="a">(บาท)</th></tr></thead><tbody>${rows}</tbody></table>
+<div class="sum"><div class="dates">${field('รอบการเบิกเงิน', dmy(data.disbursement_round))}${field('วันที่จะมีการใช้เงิน', dmy(data.use_date))}
+<div class="more"><span class="l">รายละเอียดเพิ่มเติม</span><div class="ln">${esc(data.additional_details)}</div><div class="ln"></div></div></div>
+<div class="tot"><div class="k">จำนวนเงินรวม</div><div class="amt">${money(total)}<span>บาท</span></div><div class="words">จำนวนเงิน (ตัวอักษร) : ${esc(bahtText(total))}</div></div></div>
 
-<div class="sec">ส่วนที่ 3: เงื่อนไขและข้อตกลง</div>
+${sec(3, 'เงื่อนไขและข้อตกลง', 'Terms')}
 <ol class="clauses">${CLAUSES.map(c => `<li>${esc(c)}</li>`).join('')}</ol>
 
-<div class="sec">ส่วนที่ 4: ลงนามและอนุมัติ</div>
-<table class="sig"><tr>${sigCols.map(([t]) => `<th>${t}</th>`).join('')}</tr>
-<tr>${sigCols.map(([, sg]) => `<td class="space">${stamp(sg)}</td>`).join('')}</tr>
-${sigRow(s => `<div class="u2"><b>ชื่อ</b><i>${esc(s?.name)}</i></div>`)}
-${sigRow(s => `<div class="u2"><b>วันที่</b><i>${esc(validEsign(s) ? dmy(validEsign(s)!.timestamp) : s?.date)}</i></div>`, 'ln last')}
-</table>
+${sec(4, 'ลงนามและอนุมัติ', 'Signatures')}
+<table class="sig"><thead><tr>${sigCols.map(([t]) => `<th>${t}</th>`).join('')}</tr></thead><tbody>
+<tr>${sigCols.map(([, sg]) => `<td class="space">${stampHtml(validEsign(sg))}</td>`).join('')}</tr>
+<tr>${sigCols.map(([, sg]) => `<td>${sigLines(sg)}</td>`).join('')}</tr></tbody></table>
 ${anyEsign ? '<div class="esign-note">ลงนามอิเล็กทรอนิกส์ผ่านระบบ menait-service · เวลาประเทศไทย (UTC+7)</div>' : ''}
-</div><div class="pg">Page 1</div></body></html>`;
+</section>`;
 }
+
+export function buildCashAdvanceHtml(data: CashAdvanceFormData, opts: CashAdvanceOpts = {}): string {
+  const body = cashAdvanceBody(data, opts) + (opts.attachmentsHtml ?? '');
+  return wrapDocument({
+    title: `${data.document_no ? `${data.document_no} — ` : ''}ใบคำขอเบิกเงินล่วงหน้า`,
+    body, extraCss: PART_CSS, fontCss: opts.fontCss,
+    footerHtml: documentControlFooter(cashAdvanceFooter(data, opts.printed)),
+  });
+}
+
+/** CSS a composed document (Part 1 + Part 2) needs for Part 1's body. */
+export const CASH_ADVANCE_CSS = PART_CSS;
 
 export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
   const r = detail.request;
@@ -221,6 +223,7 @@ export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
   const account = r.account_no ? formatAccountNo(r.account_no) : '';
   const name = detail.requester.name ?? '';
   return {
+    document_no: detail.form_id,
     request_date: toBkkDate(detail.created_at),
     employee: {
       name,
@@ -253,25 +256,4 @@ export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
       },
     },
   };
-}
-
-/** Opens the print popup. Returns false when the browser blocked it (caller shows the alert). */
-export function printCashAdvance(data: CashAdvanceFormData): boolean {
-  const html = buildCashAdvanceHtml(data, { logoUrl: `${window.location.origin}/mena.png` });
-  const w = window.open('', '', 'width=900,height=1000');
-  if (!w) return false;
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  w.onafterprint = () => w.close();
-  // Print only once logo + stylesheet have loaded and fonts are ready; a rejection still prints.
-  const loaded = new Promise<void>(resolve => {
-    if (w.document.readyState === 'complete') resolve();
-    else w.addEventListener('load', () => resolve(), { once: true });
-  });
-  loaded
-    .then(() => w.document.fonts.ready)
-    .catch(() => undefined)
-    .finally(() => { w.focus(); w.print(); });
-  return true;
 }

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { fetchJson, putAction, showAlert, showConfirm } from '../api';
 import type { AdvanceDetail } from '../types';
 import { AdvanceSummary } from './AdvanceSummary';
-import { PrintCashAdvanceButton } from './PrintCashAdvanceButton';
+import { PrintDocumentButton } from './PrintDocumentButton';
 import { AttachmentPanel } from './AttachmentPanel';
 import { NoAccess, Panel } from './FinanceShell';
 import { LogList } from './LogList';
@@ -52,7 +52,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
 
   return (
     <>
-      <PrintCashAdvanceButton detail={detail} />
+      <PrintDocumentButton detail={detail} />
       <AdvanceSummary item={detail} />
       <Panel title="ไฟล์แนบทุกขั้นตอน">
         <div className="grid gap-5 sm:grid-cols-2">
