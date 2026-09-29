@@ -219,6 +219,8 @@ these questions and show "-".
 | fin_status `VOUCHERED` (new) | **รอจ่าย** (`AWAITING_PAYMENT`) | บัญชี / การเงิน | เลขที่เอกสารจ่าย, ยอดเงิน *, วันที่โอนเงิน *, กำหนดการเคลียร์, วัตถุประสงค์, สลิปโอน |
 | fin_status `PAID` | จ่ายแล้วรอเคลียร์ (unchanged) | requester | … |
 
+- **Label rename** (user, 2026-09-29): AWAITING_REVIEW is shown as **รอบัญชีตรวจ** (was รอการเงินตรวจ). This applies
+  to the BE/FE STATUS_LABELS, the list tabs and the post-clearing alert.
 - **No role split** (user decision): everyone with `is_finance` (depts 4 Finance and 6 Accounting, plus local 11) can do both steps.
 - No รหัสบัญชี in either step (still removed, as in §5).
 - **Data:** `PUT /finance/advances/{id}/voucher` creates the `fin_advances` row with `fin_status='VOUCHERED'`. The
