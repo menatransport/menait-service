@@ -2059,3 +2059,24 @@ Add one `toCashAdvanceData` test with a minimal `AdvanceDetail` fixture: cost_ce
   - Render the button at the top of `FinanceAdvanceDetail` and `MyAdvanceDetail` (above `AdvanceSummary`, right-aligned).
 - [ ] **Step 3: Verify** `bun test lib/finance` (bahtText + form tests; the PDF test runs on this Mac and writes `tmp/cash-advance-sample.pdf`), `bunx tsc --noEmit`, `bun run build`. Do not commit `tmp/`.
 - [ ] **Step 4: Commit** `feat(finance): print ใบคำขอเบิกเงินล่วงหน้า (A4, Thai baht text, sample PDF test)` (explicit paths).
+
+### Task 13: FE — e-Signature stamps in ส่วนที่ 4 (user request 2026-09-29)
+
+**Files:** Modify `lib/finance/cashAdvanceForm.ts`, `lib/finance/cashAdvanceForm.test.ts`.
+
+**Decision (user):** stamp only the steps that happened in the system — ผู้ขอเบิก (request submitted) and ผู้มีอำนาจอนุมัติ (the APPROVED approval log). หัวหน้าหน่วยงาน and ผู้จัดการ stay blank for a wet signature. The user's JSON schema stays valid (the new field is optional).
+
+**Interfaces:**
+- `Signature` gains optional `esign?: { name: string; timestamp: string /* ISO datetime */; ref: string }`.
+- `formatBkkDateTime(iso): { date: 'dd/mm/yyyy', time: 'HH:mm:ss' }` (Asia/Bangkok; `{date:'',time:''}` when invalid).
+- `toCashAdvanceData(detail)`: requester.esign = `{ name: requester name, timestamp: detail.created_at, ref: detail.form_id }` when created_at exists; approver.esign = `{ name: actor_name, timestamp: action_at, ref: detail.approval ? 'ข้อ ' + detail.approval.clause : detail.form_id }` from the latest `APPROVED` approval log; unit_head/manager never get esign.
+
+- [ ] **Step 1: Failing tests** (append to `cashAdvanceForm.test.ts`):
+  - `formatBkkDateTime('2026-09-16T07:03:10+00:00')` → `{ date: '16/09/2026', time: '14:03:10' }`; invalid → empty strings.
+  - HTML from the sample JSON (no esign) contains **no** `class="esign"` and no `ลงนามอิเล็กทรอนิกส์ผ่านระบบ`.
+  - HTML from the sample with `signatures.requester.esign = { name: 'ณรงค์กรณ์ ท.', timestamp: '2026-09-15T02:12:45Z', ref: 'ADV-2026-0001' }` and `approver.esign = { name: 'อธิวัฒน์', timestamp: '2026-09-16T07:03:10Z', ref: 'ข้อ 6.6' }` contains exactly 2 `class="esign"`, the strings `✔ e-Signature`, `15/09/2026`, `09:12:45 น.`, `16/09/2026`, `14:03:10 น.`, `ADV-2026-0001`, `ข้อ 6.6`, and the footnote `ลงนามอิเล็กทรอนิกส์ผ่านระบบ menait-service · เวลาประเทศไทย (UTC+7)`; esign names are HTML-escaped (test with `<b>x</b>` → `&lt;b&gt;`).
+  - `toCashAdvanceData` with an AdvanceDetail fixture (created_at, one APPROVED log with actor_name/action_at, approval.clause '6.6') → requester.esign.ref === form_id, approver.esign.ref === 'ข้อ 6.6', unit_head.esign and manager.esign undefined; with no APPROVED log → approver.esign undefined.
+- [ ] **Step 2: Implement.** In the signature cell, when `esign` exists render, above the ชื่อ/วันที่ lines, a stamp:
+  `<div class="esign"><div class="esign-title">✔ e-Signature</div><div>{name}</div><div>{date}</div><div>{time} น.</div><div class="esign-ref">{ref}</div></div>` — CSS: rounded 2px solid border in #0f766e, color #0f766e, font-size 11px, centered, `transform: rotate(-3deg)` optional, max-width 90% of the cell, fits inside the existing signature space (the table height must not grow; still one A4 page). Without `esign` the cell is unchanged. Under the table, only when ≥1 esign exists: a small line `ลงนามอิเล็กทรอนิกส์ผ่านระบบ menait-service · เวลาประเทศไทย (UTC+7)`. ชื่อ/วันที่ lines keep their prefilled values.
+- [ ] **Step 3: Verify** `bun test lib/finance`, `bunx tsc --noEmit`, `bun run build`; render a sample WITH both stamps to `tmp/cash-advance-esign-sample.pdf` (+ PNG) and Read the PNG to confirm the stamps sit inside the cells and the page is still one A4.
+- [ ] **Step 4: Commit** `feat(finance): e-Signature stamps with Bangkok timestamp in ส่วนที่ 4` (explicit paths).
