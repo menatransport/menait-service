@@ -16,6 +16,11 @@ export function VoucherForm({ detail, onSaved }: {
   const [voucherNo, setVoucherNo] = useState(fin?.voucher_no ?? '');
   const [voucherDate, setVoucherDate] = useState(fin?.voucher_date ?? todayBkk());
   const [saving, setSaving] = useState(false);
+  const rejected = fin?.fin_status === 'VOUCHER_REJECTED';
+  const rejectRemark = rejected
+    ? [...detail.fin_logs].filter(l => l.action === 'VOUCHER_REJECT')
+        .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? '')).pop()?.remark ?? ''
+    : '';
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +28,7 @@ export function VoucherForm({ detail, onSaved }: {
     setSaving(true);
     try {
       const saved = await putAction(detail.form_id, 'voucher', {
-        voucher_no: voucherNo, voucher_date: voucherDate, is_edit: Boolean(fin),
+        voucher_no: voucherNo, voucher_date: voucherDate, is_edit: detail.status === 'AWAITING_VOUCHER' ? false : Boolean(fin),
       });
       await showAlert({ icon: 'success', title: 'บันทึกตั้งเบิกแล้ว' });
       onSaved(saved);
@@ -35,7 +40,12 @@ export function VoucherForm({ detail, onSaved }: {
   };
 
   return (
-    <Panel title={fin ? 'แก้ไขข้อมูลตั้งเบิก' : 'ตั้งเบิกทำจ่าย'}>
+    <Panel title={rejected ? 'ตั้งเบิกทำจ่าย (แก้ไขตามที่ตีกลับ)' : fin ? 'แก้ไขข้อมูลตั้งเบิก' : 'ตั้งเบิกทำจ่าย'}>
+      {rejected && (
+        <div className="mb-4 rounded-lg border border-orange-300 bg-orange-50 px-4 py-3 text-sm text-orange-800">
+          การเงินตีกลับ: {rejectRemark || '-'}
+        </div>
+      )}
       <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="space-y-1 text-sm">เลขที่ใบเบิก
           <Input value={voucherNo} onChange={e => setVoucherNo(e.target.value)} placeholder="เช่น SADV2607-005" disabled={saving} />

@@ -332,6 +332,9 @@ export function AdvanceListView({
                       {mode === 'finance' && (
                         <p className="text-xs text-gray-500 mt-0.5">ศูนย์ค่าใช้จ่าย: {item.request.cost_center ?? '-'}</p>
                       )}
+                      {mode === 'finance' && (
+                        <p className="text-xs text-gray-500 mt-0.5">วันที่โอนเงิน: {formatDate(item.fin?.transfer_date)}</p>
+                      )}
                     </div>
                     <StatusBadge status={item.status} overdue={item.overdue} />
                   </div>
@@ -361,6 +364,7 @@ export function AdvanceListView({
                     <th className={TH}>วัตถุประสงค์</th>
                     <th className={`${TH} text-right`}>ยอดเงิน</th>
                     <th className={TH}>วันที่ใช้เงิน</th>
+                    <th className={TH}>วันที่โอนเงิน</th>
                     <th className={TH}>กำหนดการเคลียร์</th>
                     <th className={TH}>สถานะ</th>
                   </>
@@ -379,7 +383,7 @@ export function AdvanceListView({
             <tbody className="divide-y divide-gray-100">
               {!loading && paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={mode === 'finance' ? 10 : 6} className="px-6 py-16 text-center text-gray-500">
+                  <td colSpan={mode === 'finance' ? 11 : 6} className="px-6 py-16 text-center text-gray-500">
                     <FileText size={56} className="mx-auto mb-4 text-gray-300" />
                     <p className="text-lg">ไม่มีรายการ</p>
                   </td>
@@ -401,6 +405,7 @@ export function AdvanceListView({
                       <td className={`${TD} max-w-xs truncate`}>{item.fin?.purpose ?? item.request.purpose ?? '-'}</td>
                       <td className={`${TD} text-right`}>{formatBaht(item.fin?.amount_paid ?? item.request.amount)}</td>
                       <td className={TD}>{formatDate(item.request.use_date)}</td>
+                      <td className={TD}>{formatDate(item.fin?.transfer_date)}</td>
                       <td className={TD}>{formatDate(item.fin?.clear_due_date)}</td>
                       <td className={TD}><StatusBadge status={item.status} overdue={item.overdue} /></td>
                     </>

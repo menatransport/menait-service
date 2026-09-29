@@ -38,7 +38,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
     if (!clearDate) return showAlert({ icon: 'warning', title: 'กรุณาระบุวันที่ส่งเอกสารเคลียร์' });
     if (actualNum === null || actualNum < 0) return showAlert({ icon: 'warning', title: 'กรุณาระบุยอดใช้จริง (ไม่ติดลบ)' });
     if (settle !== null && settle > 0 && !settleDate) {
-      return showAlert({ icon: 'warning', title: 'มียอดต้องคืนบริษัท', text: 'กรุณาระบุวันที่โอนเงินคืน' });
+      return showAlert({ icon: 'warning', title: 'มียอดต้องคืนบริษัท', text: 'กรุณาระบุวันที่โอนเงินคืนบริษัท' });
     }
     if (files.length === 0 && existingClear === 0) return showAlert({ icon: 'warning', title: CLEAR_ATTACHMENT_REQUIRED });
     setSaving(true);
@@ -82,7 +82,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
           </p>
         </div>
         {settle !== null && settle > 0 && (
-          <label className="space-y-1 text-sm">วันที่โอนเงินคืน *
+          <label className="space-y-1 text-sm">วันที่โอนเงินคืนบริษัท *
             <DateField value={settleDate} onChange={setSettleDate} disabled={saving} />
           </label>
         )}

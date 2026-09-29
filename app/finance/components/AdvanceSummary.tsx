@@ -51,7 +51,7 @@ export function AdvanceSummary({ item }: { item: AdvanceItem & { approval?: Appr
             <Field label="ยอดใช้จริง" value={formatBaht(fin.amount_actual)} />
             <Field label="เอกสารเคลียร์" value={fin.clear_doc_no} />
             <Field label={`รับคืน (เบิกเพิ่ม) · ${settleLabel(fin.settle_amount)}`} value={formatBaht(fin.settle_amount)} />
-            <Field label="วันที่โอนเงินคืน" value={formatDate(fin.settle_date)} />
+            <Field label="วันที่โอนเงินคืนบริษัท" value={formatDate(fin.settle_date)} />
             <Field label="หมายเหตุ" value={fin.remark} />
           </div>
         </Panel>

@@ -31,6 +31,8 @@ export interface FinInfo {
   review_remark: string | null;
   closed_by: string | null;
   closed_at: string | null;
+  closed_by_name?: string | null;
+  paid_by_name?: string | null;
   fin_status: string;
 }
 
@@ -67,13 +69,6 @@ export interface AdvanceDetail extends AdvanceItem {
   approval?: ApprovalTierInfo | null;
   approval_logs: ApprovalLog[];
   fin_logs: FinLog[];
-}
-
-export interface FinAccount {
-  acc_code: string;
-  acc_name: string;
-  acc_name_en: string | null;
-  is_active: boolean;
 }
 
 export type AttachmentFolder = 'request' | 'pay' | 'clear' | 'check';

@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { fetchJson } from '../api';
+import { Button } from '@/components/ui/button';
+import { fetchJson, putAction, showAlert, showConfirm } from '../api';
 import type { AdvanceDetail } from '../types';
 import { AdvanceSummary } from './AdvanceSummary';
 import { PrintCashAdvanceButton } from './PrintCashAdvanceButton';
@@ -27,6 +28,22 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
 
   const onSaved = (d: AdvanceDetail) => { setDetail(d); setRefreshKey(k => k + 1); onChanged?.(); };
 
+  const rejectVoucher = async () => {
+    const res = await showConfirm({
+      title: 'ตีกลับไปตั้งเบิกใหม่?', text: detail?.form_id,
+      input: 'textarea', inputPlaceholder: 'เหตุผลที่ตีกลับ',
+      inputValidator: (v: string) => (v?.trim() ? undefined : 'กรุณาระบุเหตุผลที่ตีกลับ'),
+    });
+    if (!res.isConfirmed) return;
+    try {
+      const saved = await putAction(formId, 'reject-voucher', { remark: String(res.value).trim() });
+      await showAlert({ icon: 'success', title: 'ตีกลับไปตั้งเบิกใหม่แล้ว' });
+      onSaved(saved);
+    } catch (err) {
+      showAlert({ icon: 'error', title: 'ตีกลับไม่สำเร็จ', text: (err as Error).message });
+    }
+  };
+
   if (error) return <NoAccess text={error} />;
   if (!detail) return <Panel title="กำลังโหลด..."><div className="h-24" /></Panel>;
 
@@ -46,6 +63,14 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
         </div>
       </Panel>
       {canVoucher && <VoucherForm key={`v-${refreshKey}`} detail={detail} onSaved={onSaved} />}
+      {detail.status === 'AWAITING_PAYMENT' && (
+        <div className="mb-4">
+          <Button type="button" variant="outline" onClick={rejectVoucher}
+            className="border-rose-400 text-rose-600 hover:bg-rose-50 hover:text-rose-700">
+            ตีกลับไปตั้งเบิกใหม่
+          </Button>
+        </div>
+      )}
       {canPay && <PayForm key={`pay-${refreshKey}`} detail={detail} onSaved={onSaved} />}
       {detail.status === 'AWAITING_REVIEW' && <ReviewPanel key={`rev-${refreshKey}`} detail={detail} onSaved={onSaved} />}
       <LogList approvalLogs={detail.approval_logs} finLogs={detail.fin_logs} />
