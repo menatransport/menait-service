@@ -211,6 +211,28 @@ these questions and show "-".
   The existing min-date rules (due ≥ transfer) are unchanged.
 - BE: `PayIn.voucher_date` becomes required (`date`, not `Optional`). Existing rows are untouched.
 
+## 5d. Part 6 — split payment into ตั้งเบิกทำจ่าย → จ่ายเงิน (user request 2026-09-29)
+
+| Status (new order) | Label | Who acts | Fields |
+|---|---|---|---|
+| Approved, no fin row | **รอตั้งเบิกทำจ่าย** (`AWAITING_VOUCHER`, new) | บัญชี / การเงิน | เลขที่ใบเบิก, วันที่ตั้งเบิก * (default today) |
+| fin_status `VOUCHERED` (new) | **รอจ่าย** (`AWAITING_PAYMENT`) | บัญชี / การเงิน | เลขที่เอกสารจ่าย, ยอดเงิน *, วันที่โอนเงิน *, กำหนดการเคลียร์, วัตถุประสงค์, สลิปโอน |
+| fin_status `PAID` | จ่ายแล้วรอเคลียร์ (unchanged) | requester | … |
+
+- **No role split** (user decision): everyone with `is_finance` (depts 4 Finance and 6 Accounting, plus local 11) can do both steps.
+- No รหัสบัญชี in either step (still removed, as in §5).
+- **Data:** `PUT /finance/advances/{id}/voucher` creates the `fin_advances` row with `fin_status='VOUCHERED'`. The
+  pay columns are empty until payment, so `amount_paid`, `transfer_date` and `clear_due_date` become **nullable**,
+  and the fin_status CHECK gains `'VOUCHERED'`. These ALTERs go into the same v2 SQL.
+- **Voucher edits:** allowed in รอจ่าย and จ่ายแล้วรอเคลียร์ (log `VOUCHER_EDIT`). The first save logs `VOUCHER`.
+- **Pay:** `PUT …/pay` is allowed only on a `VOUCHERED` row (create → `PAID`, log `PAY`) or in จ่ายแล้วรอเคลียร์
+  (edit, `PAY_EDIT`). Paying with no voucher → 409. `voucher_no`/`voucher_date` leave `PayIn`.
+- **The outstanding summary** counts only paid advances (a voucher row with no payment is not outstanding money).
+- **FE:** new status in `AdvanceStatus`, labels and styles. The finance queue gets a "รอตั้งเบิก" tab before
+  "รอจ่าย"; the requester's "รอจ่าย" tab also matches `AWAITING_VOUCHER`. The detail page shows a
+  `VoucherForm` (ตั้งเบิกทำจ่าย) and then `PayForm` (จ่ายเงิน, no voucher fields). `PayForm`'s `is_edit` becomes
+  `status === 'AWAITING_CLEARING'`.
+
 ## 6. Migration `scripts/migrations/2026-09-29_finance_advance_v2.sql` (user runs it in DBeaver)
 
 One transaction, idempotent, with no `DO $$` blocks (DBeaver-safe, as in v1):

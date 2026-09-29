@@ -796,6 +796,116 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
+### Task 2b: ตั้งเบิกทำจ่าย status: logic, model, SQL (spec §5d)
+
+**Files:**
+- Modify: `services/finance/advance_logic.py`, `models/finance_model.py`, `scripts/migrations/2026-09-29_finance_advance_v2.sql`, `services/finance/advance_repo.py`
+- Test: `tests/finance/test_advance_logic.py`, `tests/finance/test_finance_model.py`
+
+**Interfaces:**
+- Produces (Task 4 uses): `advance_logic.AWAITING_VOUCHER = "AWAITING_VOUCHER"`, `FIN_VOUCHERED = "VOUCHERED"`, `STATUS_LABELS[AWAITING_VOUCHER] = "รอตั้งเบิกทำจ่าย"`, `check_voucher(status, *, voucher_date, is_edit=False)`. `derive_status("Approved", None, …)` → `AWAITING_VOUCHER`; `derive_status("Approved", "VOUCHERED", …)` → `AWAITING_PAYMENT`.
+- `FinAdvance.amount_paid`, `transfer_date` and `clear_due_date` become nullable, and the fin_status CHECK gains `'VOUCHERED'`.
+
+- [ ] **Step 1: Failing tests.** In `tests/finance/test_advance_logic.py`:
+  - change `test_approved_without_fin_row_awaits_payment` to expect `(L.AWAITING_VOUCHER, False)` and rename it `test_approved_without_fin_row_awaits_voucher`;
+  - add to `TestDeriveStatus`:
+
+```python
+    def test_vouchered_awaits_payment(self):
+        assert L.derive_status("Approved", L.FIN_VOUCHERED, None, TODAY) == (L.AWAITING_PAYMENT, False)
+```
+
+  - in `test_labels` add `L.AWAITING_VOUCHER` to the loop tuple and `assert L.STATUS_LABELS[L.AWAITING_VOUCHER] == "รอตั้งเบิกทำจ่าย"`;
+  - add:
+
+```python
+class TestCheckVoucher:
+    def test_create_on_awaiting_voucher(self):
+        L.check_voucher(L.AWAITING_VOUCHER, voucher_date=date(2026, 9, 29))
+
+    def test_edit_after_voucher_and_after_pay(self):
+        L.check_voucher(L.AWAITING_PAYMENT, voucher_date=date(2026, 9, 29), is_edit=True)
+        L.check_voucher(L.AWAITING_CLEARING, voucher_date=date(2026, 9, 29), is_edit=True)
+
+    def test_stale_create_rejected(self):
+        with pytest.raises(L.InvalidTransition, match="รายการนี้ถูกตั้งเบิกไปแล้ว"):
+            L.check_voucher(L.AWAITING_PAYMENT, voucher_date=date(2026, 9, 29))
+
+    def test_edit_without_voucher_rejected(self):
+        with pytest.raises(L.InvalidTransition, match="ยังไม่มีข้อมูลการตั้งเบิกให้แก้ไข"):
+            L.check_voucher(L.AWAITING_VOUCHER, voucher_date=date(2026, 9, 29), is_edit=True)
+
+    def test_voucher_date_required(self):
+        with pytest.raises(L.AdvanceRuleError, match="กรุณาระบุวันที่ตั้งเบิก"):
+            L.check_voucher(L.AWAITING_VOUCHER, voucher_date=None)
+
+    @pytest.mark.parametrize("status", ["PENDING_APPROVAL", "REJECTED", "AWAITING_REVIEW", "CLOSED", "SENT_BACK"])
+    def test_wrong_status(self, status):
+        with pytest.raises(L.InvalidTransition):
+            L.check_voucher(status, voucher_date=date(2026, 9, 29), is_edit=True)
+
+
+def test_pay_needs_voucher_first():
+    with pytest.raises(L.InvalidTransition, match="รอตั้งเบิกทำจ่าย"):
+        L.check_pay(L.AWAITING_VOUCHER, acc_active=True, amount_paid=100, transfer_date=date(2026, 10, 1),
+                    clear_due_date=None)
+```
+
+  In `tests/finance/test_finance_model.py`, `test_fin_advances_constraints`: replace the fin_status assertion with
+  `assert "fin_status IN ('VOUCHERED','PAID','CLEARING_SUBMITTED','SENT_BACK','CLOSED')" in ddl` and add
+  `assert "amount_paid NUMERIC(12, 2)," in ddl` and `assert "transfer_date DATE," in ddl` (no NOT NULL). In
+  `test_fin_approval_tiers_matches_sql`, add the fragments `"ALTER COLUMN amount_paid    DROP NOT NULL"` and `"'VOUCHERED'"` to the SQL loop.
+
+- [ ] **Step 2: Verify fail**: `PYTHONDONTWRITEBYTECODE=1 .venv/bin/pytest tests/finance -q`. Expected: FAIL.
+
+- [ ] **Step 3: Implement.**
+
+`advance_logic.py`:
+- add `AWAITING_VOUCHER = "AWAITING_VOUCHER"` right after `REJECTED`;
+- in `STATUS_LABELS` insert `AWAITING_VOUCHER: "รอตั้งเบิกทำจ่าย",` after the `REJECTED` entry;
+- add `FIN_VOUCHERED = "VOUCHERED"` above `FIN_PAID`, and `FIN_VOUCHERED: AWAITING_PAYMENT,` as the first entry of `_FIN_TO_STATUS`;
+- in `derive_status`, `elif status_approve == "Approved": status = AWAITING_PAYMENT` becomes `status = AWAITING_VOUCHER`;
+- add after `check_pay`:
+
+```python
+def check_voucher(status, *, voucher_date, is_edit: bool = False):
+    _require_status(status, (AWAITING_VOUCHER, AWAITING_PAYMENT, AWAITING_CLEARING), "บันทึกการตั้งเบิก")
+    if status == AWAITING_VOUCHER and is_edit:
+        raise InvalidTransition("ยังไม่มีข้อมูลการตั้งเบิกให้แก้ไข กรุณารีเฟรชหน้าจอ")
+    if status != AWAITING_VOUCHER and not is_edit:
+        raise InvalidTransition("รายการนี้ถูกตั้งเบิกไปแล้ว กรุณารีเฟรชหน้าจอ")
+    _require(voucher_date is not None, "กรุณาระบุวันที่ตั้งเบิก")
+```
+
+`models/finance_model.py` `FinAdvance`: `amount_paid = Column(Numeric(12, 2))`, `transfer_date = Column(Date)`, `clear_due_date = Column(Date)` (keep the Thai comments, add "— NULL until paid"); the fin_status CheckConstraint text becomes `"fin_status IN ('VOUCHERED','PAID','CLEARING_SUBMITTED','SENT_BACK','CLOSED')"`.
+
+SQL: insert before the final `COMMIT;`:
+
+```sql
+-- 4) ตั้งเบิกทำจ่าย before จ่ายเงิน (spec §5d): the fin row exists before payment
+ALTER TABLE fin_advances ALTER COLUMN amount_paid    DROP NOT NULL;
+ALTER TABLE fin_advances ALTER COLUMN transfer_date  DROP NOT NULL;
+ALTER TABLE fin_advances ALTER COLUMN clear_due_date DROP NOT NULL;
+ALTER TABLE fin_advances DROP CONSTRAINT IF EXISTS ck_fin_advances_fin_status;
+ALTER TABLE fin_advances ADD CONSTRAINT ck_fin_advances_fin_status
+    CHECK (fin_status IN ('VOUCHERED','PAID','CLEARING_SUBMITTED','SENT_BACK','CLOSED'));
+```
+
+`advance_repo.outstanding_summary`: the first line becomes
+`items = [i for i in list_advances(db) if i["status"] in (logic.AWAITING_CLEARING, logic.SENT_BACK, logic.AWAITING_REVIEW)]`.
+
+- [ ] **Step 4: Run all BE tests** → PASS.
+- [ ] **Step 5: Commit**
+
+```bash
+git add services/finance/advance_logic.py models/finance_model.py scripts/migrations/2026-09-29_finance_advance_v2.sql services/finance/advance_repo.py tests/finance/test_advance_logic.py tests/finance/test_finance_model.py
+git commit -m "feat(finance): ตั้งเบิกทำจ่าย status before payment — VOUCHERED row, nullable pay columns, v2 SQL
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
 ### Task 3: Wire the ADV branch into the shared form engine
 
 **Files:**
@@ -1048,6 +1158,90 @@ git commit -m "feat(finance): approval tiers/preview/pending endpoints, pay with
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
+
+---
+
+#### Task 4 amendment (spec §5d, supersedes the PayIn/voucher_date parts above)
+
+- `schemas/finance_schema.py`: `PayIn` **loses** `voucher_no` and `voucher_date` (keep `acc_code: Optional[str] = None`). Add:
+
+```python
+class VoucherIn(_Body):
+    action_by: str
+    voucher_no: Optional[str] = Field(default=None, max_length=50)
+    voucher_date: date
+    is_edit: bool = False
+```
+
+- The schema test becomes:
+
+```python
+def test_pay_in_v2_acc_code_optional_no_voucher_fields():
+    from schemas.finance_schema import PayIn
+    body = PayIn(action_by="670108", amount_paid="3000", transfer_date="2026-10-01")
+    assert body.acc_code is None
+    assert not hasattr(body, "voucher_date")
+
+
+def test_voucher_in_requires_date():
+    import pytest
+    from pydantic import ValidationError
+    from schemas.finance_schema import VoucherIn
+    assert VoucherIn(action_by="670108", voucher_date="2026-09-29").voucher_no is None
+    with pytest.raises(ValidationError):
+        VoucherIn(action_by="670108")
+```
+
+- `advance_routes.py`:
+  - `PAY_FIELDS = ("acc_code", "payment_doc_no", "purpose", "amount_paid", "transfer_date", "clear_due_date")`, `VOUCHER_FIELDS = ("voucher_no", "voucher_date")`; `_pay_values` drops the two voucher keys.
+  - New endpoint (import `VoucherIn`):
+
+```python
+@router.put("/advances/{form_id}/voucher")
+def voucher_advance(form_id: str, body: VoucherIn, db: Session = Depends(get_db)):
+    require_finance(db, body.action_by)
+    sub, adv, status = _load_for_update(db, form_id)
+    try:
+        logic.check_voucher(status, voucher_date=body.voucher_date, is_edit=body.is_edit)
+    except logic.AdvanceRuleError as exc:
+        raise _rule_error(exc)
+    values = {"voucher_no": body.voucher_no, "voucher_date": body.voucher_date}
+    before = _snapshot(adv, VOUCHER_FIELDS)
+    action = "VOUCHER_EDIT" if adv is not None else "VOUCHER"
+    if adv is None:
+        adv = FinAdvance(submission_id=sub.id, form_id=sub.form_id, fin_status=logic.FIN_VOUCHERED)
+        db.add(adv)
+    for field, value in values.items():
+        setattr(adv, field, value)
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=_ALREADY_SAVED)
+    db.add(FinAdvanceLog(advance_id=adv.id, action=action, changes=logic.diff_fields(before, values),
+                         action_by=body.action_by))
+    return _commit_and_return(db, form_id)
+```
+
+  - `pay_advance`: after `check_pay`, replace the create-row branch with:
+
+```python
+    if adv is None:  # unreachable: check_pay rejects AWAITING_VOUCHER — defensive
+        raise HTTPException(status_code=409, detail="ยังไม่ได้ตั้งเบิก กรุณาตั้งเบิกก่อนจ่ายเงิน")
+    values = _pay_values(body, due)
+    if body.acc_code is None:
+        values["acc_code"] = adv.acc_code
+    before = _snapshot(adv, PAY_FIELDS)
+    action = "PAY" if status == logic.AWAITING_PAYMENT else "PAY_EDIT"
+    if status == logic.AWAITING_PAYMENT:
+        adv.fin_status = logic.FIN_PAID
+        adv.paid_by = body.action_by
+        adv.paid_at = func.now()
+    for field, value in values.items():
+        setattr(adv, field, value)
+```
+
+    then keep the existing `db.flush()` / log / `_commit_and_return` tail.
 
 ---
 
@@ -1579,6 +1773,29 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ---
+
+#### Task 7 amendment (spec §5d, applies on top of Steps 1–8; the voucher fields move out of PayForm)
+
+- `lib/finance/status.ts`: `AdvanceStatus` gains `'AWAITING_VOUCHER'`. Add `AWAITING_VOUCHER: 'รอตั้งเบิกทำจ่าย'` to `STATUS_LABELS` right after `REJECTED`, and `AWAITING_VOUCHER: 'bg-cyan-50 text-cyan-700 border-cyan-200'` to `STATUS_STYLES`. Update `lib/finance/status.test.ts` if it lists the labels.
+- `app/finance/types.ts` `FinInfo`: `amount_paid: number | null; transfer_date: string | null; clear_due_date: string | null;`. Fix any tsc fallout null-safely, e.g. ClearForm `computeSettle(fin.amount_paid ?? 0, …)`.
+- `app/finance/labels.ts` `LOG_ACTION_LABELS`: add `VOUCHER: 'ตั้งเบิกทำจ่าย', VOUCHER_EDIT: 'แก้ไขข้อมูลตั้งเบิก'`.
+- `app/finance/api.ts`: `AdvanceAction` adds `'voucher'`. `app/api/finance/advances/[form_id]/route.ts`: `FINANCE_ACTIONS` adds `'voucher'`.
+- Tabs: in `app/finance/page.tsx`, insert `{ key: 'voucher', label: 'รอตั้งเบิก', match: i => i.status === 'AWAITING_VOUCHER' }` before the `pay` tab. In `app/finance/advance/page.tsx`, the `pay` tab matches `i.status === 'AWAITING_VOUCHER' || i.status === 'AWAITING_PAYMENT'`.
+- **New `app/finance/components/VoucherForm.tsx`** (Panel title `fin ? 'แก้ไขข้อมูลตั้งเบิก' : 'ตั้งเบิกทำจ่าย'`):
+  - `เลขที่ใบเบิก`: Input, placeholder `เช่น SADV2607-005`.
+  - `วันที่ตั้งเบิก *`: `DateField`, default `fin?.voucher_date ?? todayBkk()`. If empty, alert `กรุณาระบุวันที่ตั้งเบิก`.
+  - Submit with `putAction(detail.form_id, 'voucher', { voucher_no: voucherNo, voucher_date: voucherDate, is_edit: Boolean(fin) })`. On success the alert is `บันทึกตั้งเบิกแล้ว`, then call `onSaved(saved)`.
+  - Button `บันทึกตั้งเบิก`.
+- **PayForm** (this replaces Step 1's voucher bullets):
+  - Remove `voucherNo`/`voucherDate` state, fields and payload keys.
+  - Set `is_edit: detail.status === 'AWAITING_CLEARING'`.
+  - Panel title: `detail.status === 'AWAITING_CLEARING' ? 'แก้ไขข้อมูลการจ่ายเงิน' : 'จ่ายเงิน'`. Button: `'บันทึกการจ่ายเงิน'` or `'บันทึกการแก้ไข'`.
+  - The amount/transfer/due defaults stay `fin?.x ?? …`, which also works when the voucher row exists with null pay fields.
+- **FinanceAdvanceDetail**:
+  - `canVoucher = ['AWAITING_VOUCHER','AWAITING_PAYMENT','AWAITING_CLEARING'].includes(detail.status)` and `canPay = ['AWAITING_PAYMENT','AWAITING_CLEARING'].includes(detail.status)`.
+  - Render `{canVoucher && <VoucherForm key={`v-${refreshKey}`} detail={detail} onSaved={onSaved} />}` before `PayForm`.
+  - Upload into the `pay` folder is allowed only when `canPay`.
+- **AdvanceSummary**: the fin panel title becomes `ข้อมูลตั้งเบิก / การจ่ายเงิน`. It renders whenever `fin` exists, and every pay field is null-safe (`formatBaht(null)` → '-').
 
 ### Task 8: Clearing form: rename, mandatory slip, upload first
 
