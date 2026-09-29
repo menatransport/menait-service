@@ -1906,3 +1906,156 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - The FE Next route: `PUT /api/finance/advances/<id>` `{action:'clear'}` with no `clear/` files → 400 message (with the session cookie, from the browser).
 - [ ] Final whole-branch review (opus) for BE `3ede73a..HEAD` + FE `184a62c..HEAD`. Fix wave if needed.
 - [ ] Report to the user: one table row per requirement (status + evidence).
+
+---
+
+## Additions after the user's print request (spec §5e)
+
+### Task 11: BE — requester position in advance payloads
+
+**Files:** Modify `services/finance/advance_repo.py` (`people_by_employee_id`); Test `tests/finance/test_advance_repo.py`.
+
+**Interfaces:** Produces `requester.position: str | None` (Thai position name) in every advance list/detail item and in `approval_repo.pending_for` items (they reuse `people_by_employee_id`). The fallback requester dict (unknown employee) also gets `"position": None`.
+
+- [ ] **Step 1: Failing test** (append):
+
+```python
+def test_people_by_employee_id_includes_position():
+    from types import SimpleNamespace
+    from services.finance import advance_repo
+
+    class Q:
+        def __init__(self, rows): self.rows = rows
+        def filter(self, *a, **k): return self
+        def outerjoin(self, *a, **k): return self
+        def all(self): return self.rows
+
+    user = SimpleNamespace(employee_id="670108", firstname="ณรงค์กรณ์", lastname="ท", department_id=11,
+                           site_id=1, position_id=7)
+    class DB:
+        def query(self, *models):
+            names = [getattr(m, "__name__", getattr(m, "key", "")) for m in models]
+            if names == ["Department"]:
+                return Q([SimpleNamespace(department_id=11, department_name_th="Operation Support")])
+            if names == ["Site"]:
+                return Q([SimpleNamespace(site_id=1, site_name_th="HQ", site_code="HQ")])
+            if names == ["Position"]:
+                return Q([SimpleNamespace(position_id=7, position_name_th="ผู้จัดการ")])
+            return Q([user])
+    people = advance_repo.people_by_employee_id(DB(), ["670108"])
+    assert people["670108"]["position"] == "ผู้จัดการ"
+```
+
+(If the existing function's query shape makes this fake awkward, adapt the fake — the assertion is the requirement: `position` = `Position.position_name_th` for the user's `position_id`, `None` when missing.)
+
+- [ ] **Step 2: Implement** — in `people_by_employee_id` load `positions = {p.position_id: p.position_name_th for p in db.query(Position).all()}` (import `Position` from `models.user_model`) and add `"position": positions.get(user.position_id)` to each person; add `"position": None` to the fallback requester dict in `serialize_advance` and in `approval_repo.pending_for`.
+- [ ] **Step 3: Run all BE tests** → PASS. **Commit** `feat(finance): requester position in advance payloads` (explicit paths).
+
+### Task 12: FE — ใบคำขอเบิกเงินล่วงหน้า generator + print button
+
+**Files:**
+- Create: `lib/finance/bahtText.ts`, `lib/finance/bahtText.test.ts`, `lib/finance/cashAdvanceForm.ts`, `lib/finance/cashAdvanceForm.test.ts`, `lib/finance/cash-advance-sample.json`, `app/finance/components/PrintCashAdvanceButton.tsx`
+- Modify: `app/finance/types.ts` (`Requester.position?: string | null`), `app/finance/components/FinanceAdvanceDetail.tsx`, `app/finance/components/MyAdvanceDetail.tsx`, `.gitignore` (add `tmp/` if not ignored)
+
+**Interfaces:**
+- `bahtText(amount: number): string` — Excel BAHTTEXT rules.
+- `thaiShortDate(iso: string): string` → `'13-ส.ค.-26'`; `dmy(iso: string): string` → `'18/8/2026'` (both accept 'YYYY-MM-DD' or ISO datetime → Bangkok date; '' for blank).
+- `type CashAdvanceFormData` = the user's JSON schema (spec §5e).
+- `validateCashAdvance(data): string[]` (error messages; empty = valid) — max 4 items, each amount > 0.
+- `buildCashAdvanceHtml(data, opts: { logoUrl?: string; fontCss?: boolean }): string` — throws `Error(errors.join('\n'))` when invalid; total = sum of items.
+- `toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData` — mapping per spec §5e.
+- `printCashAdvance(data)` — opens a window, writes the HTML (logo `${location.origin}/mena.png`), waits `document.fonts.ready`, prints, closes after print.
+- `PRINTABLE_STATUSES = ['AWAITING_PAYMENT','AWAITING_CLEARING','SENT_BACK','AWAITING_REVIEW','CLOSED']`.
+
+- [ ] **Step 1: Failing tests.** `lib/finance/bahtText.test.ts`:
+
+```ts
+import { describe, expect, test } from 'bun:test';
+import { bahtText } from './bahtText';
+
+describe('bahtText (Excel BAHTTEXT rules)', () => {
+  test.each([
+    [0, 'ศูนย์บาทถ้วน'],
+    [1, 'หนึ่งบาทถ้วน'],
+    [10, 'สิบบาทถ้วน'],
+    [11, 'สิบเอ็ดบาทถ้วน'],
+    [20, 'ยี่สิบบาทถ้วน'],
+    [21, 'ยี่สิบเอ็ดบาทถ้วน'],
+    [101, 'หนึ่งร้อยเอ็ดบาทถ้วน'],
+    [5000, 'ห้าพันบาทถ้วน'],
+    [12740, 'หนึ่งหมื่นสองพันเจ็ดร้อยสี่สิบบาทถ้วน'],
+    [1000000, 'หนึ่งล้านบาทถ้วน'],
+    [1000001, 'หนึ่งล้านเอ็ดบาทถ้วน'],
+    [21000000, 'ยี่สิบเอ็ดล้านบาทถ้วน'],
+    [1234.5, 'หนึ่งพันสองร้อยสามสิบสี่บาทห้าสิบสตางค์'],
+    [10.1, 'สิบบาทสิบสตางค์'],
+    [0.25, 'ยี่สิบห้าสตางค์'],
+    [0.01, 'หนึ่งสตางค์'],
+    [100.21, 'หนึ่งร้อยบาทยี่สิบเอ็ดสตางค์'],
+  ])('%p → %s', (n, words) => {
+    expect(bahtText(n)).toBe(words);
+  });
+});
+```
+
+`lib/finance/cash-advance-sample.json` = the user's example JSON verbatim (spec §5e / the user message).
+
+`lib/finance/cashAdvanceForm.test.ts`:
+
+```ts
+import { describe, expect, test } from 'bun:test';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { spawnSync } from 'child_process';
+import sample from './cash-advance-sample.json';
+import { buildCashAdvanceHtml, dmy, thaiShortDate, validateCashAdvance, toCashAdvanceData } from './cashAdvanceForm';
+
+describe('cash advance form', () => {
+  test('dates', () => {
+    expect(thaiShortDate('2026-08-13')).toBe('13-ส.ค.-26');
+    expect(dmy('2026-08-18')).toBe('18/8/2026');
+    expect(dmy('2026-10-01T00:00:00+00:00')).toBe('1/10/2026');
+    expect(dmy('')).toBe('');
+  });
+  test('validation', () => {
+    expect(validateCashAdvance(sample as any)).toEqual([]);
+    const five = { ...sample, items: Array(5).fill({ description: 'x', amount: 1 }) };
+    expect(validateCashAdvance(five as any).length).toBeGreaterThan(0);
+    const zero = { ...sample, items: [{ description: 'x', amount: 0 }] };
+    expect(validateCashAdvance(zero as any).length).toBeGreaterThan(0);
+    expect(() => buildCashAdvanceHtml(zero as any, {})).toThrow();
+  });
+  test('html has every section and value', () => {
+    const html = buildCashAdvanceHtml(sample as any, { logoUrl: '' });
+    for (const s of ['ใบคำขอเบิกเงินล่วงหน้า', '(Cash Advance Request form)', 'เริ่มใช้ 1 Nov 22', 'วันที่', '13-ส.ค.-26',
+      'ส่วนที่ 1', 'ส่วนที่ 2', 'ส่วนที่ 3', 'ส่วนที่ 4', 'นางสาวตัวอย่าง ทดสอบ', '000000', 'ผู้ช่วยหัวหน้าแผนกบัญชี',
+      '000-0-00000-0', 'กสิกรไทย', '5,000.00', 'ห้าพันบาทถ้วน', '18/8/2026', 'กรุงเทพ', 'ลาดกระบัง/ขอนแก่น',
+      'สระบุรี/ระยอง', 'MDD', 'อื่นๆ', 'ผู้ขอเบิก', 'หัวหน้าหน่วยงาน', 'ผู้จัดการ', 'ผู้มีอำนาจอนุมัติ', 'Page 1',
+      'ภายใน 7 วันหลังจากได้รับเงิน', 'กรุณาส่งเอกสารที่ได้รับอนุมัติตาม TOA ภายในวันอังคาร']) {
+      expect(html).toContain(s);
+    }
+    expect((html.match(/class="cb checked"/g) ?? []).length).toBe(2); // ลาดกระบัง/ขอนแก่น + อื่นๆ
+  });
+  const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  test.skipIf(!existsSync(chrome))('generates a sample PDF from the example JSON', () => {
+    mkdirSync('tmp', { recursive: true });
+    writeFileSync('tmp/cash-advance-sample.html', buildCashAdvanceHtml(sample as any, { logoUrl: `file://${process.cwd()}/public/mena.png` }));
+    const r = spawnSync(chrome, ['--headless=new', '--disable-gpu', '--no-pdf-header-footer', '--allow-file-access-from-files',
+      '--virtual-time-budget=5000', `--print-to-pdf=${process.cwd()}/tmp/cash-advance-sample.pdf`,
+      `file://${process.cwd()}/tmp/cash-advance-sample.html`], { timeout: 60000 });
+    expect(r.status).toBe(0);
+    expect(readFileSync('tmp/cash-advance-sample.pdf').subarray(0, 4).toString()).toBe('%PDF');
+  }, 70000);
+});
+```
+
+Add one `toCashAdvanceData` test with a minimal `AdvanceDetail` fixture: cost_center 'ศขก' ⇒ centers ['ลาดกระบัง/ขอนแก่น']; 'ศบก' ⇒ ['อื่นๆ'] + center_other_text 'บางปะกง'; bank 'KBANK' ⇒ bank_name 'กสิกรไทย'; account '1234567890' ⇒ '123-4-56789-0'; one item = purpose + amount; disbursement_round = fin.transfer_date ?? fin.voucher_date; approver signature from the APPROVED approval log (actor_name + action_at d/m/yyyy).
+
+- [ ] **Step 2: Implement.**
+  - `bahtText`: integer baht + satang (`Math.round(n * 100)`); groups of 6 digits joined with 'ล้าน'; digits หนึ่ง…เก้า, places สิบ/ร้อย/พัน/หมื่น/แสน; 'ยี่' for 2 in the tens place, no 'หนึ่ง' before สิบ, and 'เอ็ด' for a units-digit 1 whenever the number (the whole baht part, or the satang part) is > 1 at that position (Excel rule: 11, 21, 101, 1000001 → …เอ็ด). Output: `<baht>บาทถ้วน` when satang = 0; `<baht>บาท<satang>สตางค์`; `<satang>สตางค์` when baht = 0 and satang > 0; `ศูนย์บาทถ้วน` for 0.
+  - `cashAdvanceForm.ts`: the HTML follows spec §5e exactly (header, 4 sections, static clauses verbatim, 4-column signature table, "Page 1" fixed bottom-right). CSS: `@page { size: A4 portrait; margin: 12mm 14mm; }`, Sarabun via `<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap">`, section title bars `background:#e5e7eb; font-weight:700`, underlined values `border-bottom:1px solid #111`, amount column boxed with header "(บาท)", checkboxes as `<span class="cb">` / `<span class="cb checked">` (✓ inside). Escape every interpolated string (HTML-escape `& < > " '`).
+  - `toCashAdvanceData(detail)`: mapping per spec §5e (cost-center map constant `COST_CENTER_TO_CENTER`).
+  - `printCashAdvance(data)`: `window.open('', '', 'width=900,height=1000')`, write HTML with `logoUrl: `${window.location.origin}/mena.png``, then `w.document.fonts.ready.then(() => { w.focus(); w.print(); })` and `w.onafterprint = () => w.close()`; if `window.open` returns null → `showAlert({ icon:'error', title:'เบราว์เซอร์บล็อกหน้าต่างพิมพ์' })`.
+  - `PrintCashAdvanceButton({ detail })`: shows only when `PRINTABLE_STATUSES.includes(detail.status)`; outline button with lucide `Printer` + "พิมพ์ใบคำขอเบิก"; on click `printCashAdvance(toCashAdvanceData(detail))` inside try/catch → `showAlert` with the validation message on error.
+  - Render the button at the top of `FinanceAdvanceDetail` and `MyAdvanceDetail` (above `AdvanceSummary`, right-aligned).
+- [ ] **Step 3: Verify** `bun test lib/finance` (bahtText + form tests; the PDF test runs on this Mac and writes `tmp/cash-advance-sample.pdf`), `bunx tsc --noEmit`, `bun run build`. Do not commit `tmp/`.
+- [ ] **Step 4: Commit** `feat(finance): print ใบคำขอเบิกเงินล่วงหน้า (A4, Thai baht text, sample PDF test)` (explicit paths).

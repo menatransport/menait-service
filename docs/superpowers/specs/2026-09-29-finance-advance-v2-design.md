@@ -236,6 +236,52 @@ these questions and show "-".
   `VoucherForm` (ตั้งเบิกทำจ่าย) and then `PayForm` (จ่ายเงิน, no voucher fields). `PayForm`'s `is_edit` becomes
   `status === 'AWAITING_CLEARING'`.
 
+## 5e. Part 7 — print ใบคำขอเบิกเงินล่วงหน้า (Cash Advance Request form) (user request 2026-09-29)
+
+- **Who and when:** a "พิมพ์ใบคำขอเบิก" button on both the Finance detail and the requester's detail. It shows for
+  statuses รอจ่าย and later (AWAITING_PAYMENT, AWAITING_CLEARING, SENT_BACK, AWAITING_REVIEW, CLOSED).
+- **How:** like the NC form (mena-safety-ncac `lib/printDocument.ts`). An HTML string opens in a new window and
+  `window.print()` runs, so the browser saves an A4 portrait PDF. The browser does the Thai shaping, with Sarabun
+  from Google Fonts, and printing waits for `document.fonts.ready`.
+- **Generator input:** JSON, exactly the user's schema: `request_date`, `employee{name, employee_id, position,
+  department, bank_account_no, bank_name, account_name}`, `centers[]`, `center_other_text`, `items[{description,
+  amount}]`, `disbursement_round`, `use_date`, `additional_details`, `signatures{requester, unit_head, manager,
+  approver: {name, date}}`.
+- **Validation:** at most 4 items, every amount > 0, total = the sum of the items.
+- **Layout (verbatim from the user):**
+  - **Header:** logo top-left; a bordered box top-right reading "เริ่มใช้ 1 Nov 22"; centered title
+    "ใบคำขอเบิกเงินล่วงหน้า" and bold subtitle "(Cash Advance Request form)"; a horizontal rule; right-aligned
+    "วันที่ 13-ส.ค.-26" (day, Thai month abbreviation, 2-digit year).
+  - **ส่วนที่ 1 ข้อมูลพนักงานผู้เบิกเงิน:** two-column underlined label/value pairs; then a row of ศูนย์ checkboxes
+    (กรุงเทพ, ลาดกระบัง/ขอนแก่น, สระบุรี/ระยอง, MDD, อื่นๆ ____), where more than one can be ticked.
+  - **ส่วนที่ 2:**
+    - "วัตถุประสงค์ในการเบิกเงินล่วงหน้า :" with 4 numbered lines and a boxed "(บาท)" column.
+    - "จำนวนเงินรวม" in a box, with the format 5,000.00.
+    - "จำนวนเงิน (ตัวอักษร)" in italics, using the Thai baht-text function, which handles satang (Excel BAHTTEXT
+      rules).
+    - "รอบการเบิกเงิน" and "วันที่จะมีการใช้เงิน" as d/m/yyyy.
+    - "รายละเอียดเพิ่มเติม" with 2 lines.
+  - **ส่วนที่ 3 เงื่อนไขและข้อตกลง:** the 5 static clauses, reproduced exactly.
+  - **ส่วนที่ 4 ลงนามและอนุมัติ:** a 4-column bordered table (ผู้ขอเบิก | หัวหน้าหน่วยงาน | ผู้จัดการ |
+    ผู้มีอำนาจอนุมัติ), with signature space and "ชื่อ ____ / วันที่ ____", prefilled when known.
+  - **Footer:** "Page 1" bottom-right.
+- **Mapping from an ADV:**
+  - request_date = the submission date (Bangkok).
+  - employee = requester, including position from `position_name_th` (the BE adds `requester.position`).
+  - bank_name = the bank label without the "ธนาคาร" prefix; account number formatted.
+  - items = one line: the purpose plus the requested amount.
+  - disbursement_round = transfer_date, else voucher_date.
+  - use_date = the request's use date.
+  - Signatures: requester = requester name + request date; approver = the APPROVED actor + date. The other two are blank.
+- **ศูนย์ checkbox mapping (assumption, adjust if wrong):**
+  - สกท → กรุงเทพ
+  - ศลบ, ศขก → ลาดกระบัง/ขอนแก่น
+  - สสบ, ศรย → สระบุรี/ระยอง
+  - ศบก → อื่นๆ "บางปะกง"
+  - MDD is never auto-ticked.
+- **Test:** generate a sample PDF from the example JSON. A bun test renders the HTML with headless Chrome when it
+  is available (skipped otherwise), writes `tmp/cash-advance-sample.pdf`, and asserts that the file starts with `%PDF`.
+
 ## 6. Migration `scripts/migrations/2026-09-29_finance_advance_v2.sql` (user runs it in DBeaver)
 
 One transaction, idempotent, with no `DO $$` blocks (DBeaver-safe, as in v1):
