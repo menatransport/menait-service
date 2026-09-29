@@ -47,7 +47,7 @@ export function AdvanceListView({
   const [endMonth, setEndMonth] = useState<string>(() => currentMonth());
   const [search, setSearch] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [accFilter, setAccFilter] = useState('all');
+  const [ccFilter, setCcFilter] = useState('all');
   const [deptFilter, setDeptFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -76,12 +76,10 @@ export function AdvanceListView({
     [monthFiltered, activeTabDef],
   );
 
-  const accOptions = useMemo(() => {
-    const seen = new Map<string, string>();
-    tabItems.forEach(i => {
-      if (i.fin?.acc_code && !seen.has(i.fin.acc_code)) seen.set(i.fin.acc_code, i.fin.acc_name ?? i.fin.acc_code);
-    });
-    return Array.from(seen, ([value, name]) => ({ value, label: `${value} ${name}` }));
+  const ccOptions = useMemo(() => {
+    const seen = new Set<string>();
+    tabItems.forEach(i => { if (i.request.cost_center) seen.add(i.request.cost_center); });
+    return Array.from(seen).sort();
   }, [tabItems]);
 
   const deptOptions = useMemo(() => {
@@ -90,11 +88,11 @@ export function AdvanceListView({
     return Array.from(seen);
   }, [tabItems]);
 
-  const hasActiveFilters = search.trim() !== '' || (mode === 'finance' && (accFilter !== 'all' || deptFilter !== 'all'));
+  const hasActiveFilters = search.trim() !== '' || (mode === 'finance' && (ccFilter !== 'all' || deptFilter !== 'all'));
 
   const processedData = useMemo(() => {
     let result = [...tabItems];
-    if (mode === 'finance' && accFilter !== 'all') result = result.filter(i => i.fin?.acc_code === accFilter);
+    if (mode === 'finance' && ccFilter !== 'all') result = result.filter(i => i.request.cost_center === ccFilter);
     if (mode === 'finance' && deptFilter !== 'all') result = result.filter(i => i.requester.department === deptFilter);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -110,7 +108,7 @@ export function AdvanceListView({
       return sortOrder === 'desc' ? db - da : da - db;
     });
     return result;
-  }, [tabItems, mode, accFilter, deptFilter, search, sortOrder]);
+  }, [tabItems, mode, ccFilter, deptFilter, search, sortOrder]);
 
   const totalPages = Math.max(1, Math.ceil(processedData.length / ITEMS_PER_PAGE));
   const paginated = useMemo(() => {
@@ -119,10 +117,10 @@ export function AdvanceListView({
   }, [processedData, currentPage]);
 
   // Reset to page 1 whenever the tab, search, filters or month range change
-  useEffect(() => { setCurrentPage(1); }, [activeTab, search, accFilter, deptFilter, startMonth, endMonth]);
+  useEffect(() => { setCurrentPage(1); }, [activeTab, search, ccFilter, deptFilter, startMonth, endMonth]);
 
   const toggleSort = () => setSortOrder(o => (o === 'desc' ? 'asc' : 'desc'));
-  const clearFilters = () => { setSearch(''); setAccFilter('all'); setDeptFilter('all'); };
+  const clearFilters = () => { setSearch(''); setCcFilter('all'); setDeptFilter('all'); };
   const handleExport = () => {
     if (!exportFileBase) return;
     exportAdvancesXlsx(processedData, `${exportFileBase}-${activeTab}-${todayBkk()}.xlsx`);
@@ -268,14 +266,14 @@ export function AdvanceListView({
           <div className="p-3 lg:p-4 bg-linear-to-r from-gray-50 to-gray-100 border-b border-gray-200">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <span className="text-xs font-medium text-gray-500 shrink-0">บัญชี</span>
+                <span className="text-xs font-medium text-gray-500 shrink-0">ศูนย์ค่าใช้จ่าย</span>
                 <select
-                  value={accFilter}
-                  onChange={e => setAccFilter(e.target.value)}
-                  className={`px-3 py-1.5 rounded-lg text-sm border bg-white cursor-pointer focus:outline-none transition-colors ${accFilter !== 'all' ? 'border-[#026a75] text-[#026a75] font-medium ring-1 ring-[#026a75]/30' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}
+                  value={ccFilter}
+                  onChange={e => setCcFilter(e.target.value)}
+                  className={`px-3 py-1.5 rounded-lg text-sm border bg-white cursor-pointer focus:outline-none transition-colors ${ccFilter !== 'all' ? 'border-[#026a75] text-[#026a75] font-medium ring-1 ring-[#026a75]/30' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}
                 >
-                  <option value="all">ทุกบัญชี</option>
-                  {accOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  <option value="all">ศูนย์ค่าใช้จ่ายทั้งหมด</option>
+                  {ccOptions.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
@@ -331,6 +329,9 @@ export function AdvanceListView({
                           <User size={11} /> {item.requester.name ?? item.requester.employee_id}
                         </p>
                       )}
+                      {mode === 'finance' && (
+                        <p className="text-xs text-gray-500 mt-0.5">ศูนย์ค่าใช้จ่าย: {item.request.cost_center ?? '-'}</p>
+                      )}
                     </div>
                     <StatusBadge status={item.status} overdue={item.overdue} />
                   </div>
@@ -356,6 +357,7 @@ export function AdvanceListView({
                     <th className={TH}>ผู้เบิก</th>
                     <th className={TH}>แผนก</th>
                     <th className={TH}>ศูนย์</th>
+                    <th className={TH}>ศูนย์ค่าใช้จ่าย</th>
                     <th className={TH}>วัตถุประสงค์</th>
                     <th className={`${TH} text-right`}>ยอดเงิน</th>
                     <th className={TH}>วันที่ใช้เงิน</th>
@@ -395,6 +397,7 @@ export function AdvanceListView({
                       <td className={TD}>{item.requester.name ?? item.requester.employee_id}</td>
                       <td className={TD}>{item.requester.department ?? '-'}</td>
                       <td className={TD}>{item.requester.site_code ?? item.requester.site ?? '-'}</td>
+                      <td className={TD}>{item.request.cost_center ?? '-'}</td>
                       <td className={`${TD} max-w-xs truncate`}>{item.fin?.purpose ?? item.request.purpose ?? '-'}</td>
                       <td className={`${TD} text-right`}>{formatBaht(item.fin?.amount_paid ?? item.request.amount)}</td>
                       <td className={TD}>{formatDate(item.request.use_date)}</td>

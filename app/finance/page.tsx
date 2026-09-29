@@ -12,6 +12,7 @@ import { NoAccess } from './components/FinanceShell';
 import type { AdvanceItem } from './types';
 
 const TABS: AdvanceListTab[] = [
+  { key: 'voucher', label: 'รอตั้งเบิก', match: i => i.status === 'AWAITING_VOUCHER' },
   { key: 'pay', label: 'รอจ่าย', match: i => i.status === 'AWAITING_PAYMENT' },
   { key: 'clearing', label: 'จ่ายแล้วรอเคลียร์', match: i => i.status === 'AWAITING_CLEARING' },
   { key: 'overdue', label: 'เกินกำหนด', match: i => i.overdue },

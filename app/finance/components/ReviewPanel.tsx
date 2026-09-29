@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { DateField } from './DateField';
 import { Textarea } from '@/components/ui/textarea';
 import { formatBaht, settleLabel } from '@/lib/finance/status';
 import { putAction, showAlert, showConfirm, uploadFiles } from '../api';
@@ -67,7 +67,7 @@ export function ReviewPanel({ detail, onSaved }: { detail: AdvanceDetail; onSave
         {needsExtraDate && (
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-1 text-sm">วันที่การเงินโอนเงินเพิ่ม *
-              <Input type="date" value={extraDate} onChange={e => setExtraDate(e.target.value)} disabled={saving} />
+              <DateField value={extraDate} onChange={setExtraDate} disabled={saving} />
             </label>
             <div>
               <p className="mb-1 text-sm">แนบสลิปโอนเงินเพิ่ม</p>

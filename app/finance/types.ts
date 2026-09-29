@@ -15,9 +15,9 @@ export interface FinInfo {
   voucher_date: string | null;
   payment_doc_no: string | null;
   purpose: string | null;
-  amount_paid: number;
-  transfer_date: string;
-  clear_due_date: string;
+  amount_paid: number | null;
+  transfer_date: string | null;
+  clear_due_date: string | null;
   paid_by: string | null;
   paid_at: string | null;
   clear_date: string | null;

@@ -6,6 +6,7 @@ export const FIELD_LABELS: Record<string, string> = {
 };
 
 export const LOG_ACTION_LABELS: Record<string, string> = {
+  VOUCHER: 'ตั้งเบิกทำจ่าย', VOUCHER_EDIT: 'แก้ไขข้อมูลตั้งเบิก',
   PAY: 'บันทึกการจ่ายเงิน', PAY_EDIT: 'แก้ไขข้อมูลการจ่าย', CLEAR_SUBMIT: 'ส่งเคลียร์เงิน',
   CLEAR_EDIT: 'แก้ไขข้อมูลเคลียร์', SEND_BACK: 'ส่งกลับแก้ไข', CONFIRM: 'ยืนยันปิดรายการ',
   APPROVED: 'อนุมัติ', REJECTED: 'ไม่อนุมัติ',

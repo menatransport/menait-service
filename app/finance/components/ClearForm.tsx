@@ -32,7 +32,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
   }, [detail.form_id]);
 
   const actualNum = parseAmount(actual);
-  const settle = actualNum === null ? null : computeSettle(fin.amount_paid, actualNum);
+  const settle = actualNum === null ? null : computeSettle(fin.amount_paid ?? 0, actualNum);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

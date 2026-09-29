@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Bell, HomeIcon, Shield, User, ChevronDown, LayoutDashboard, Building, Database, Settings, LogOut, TriangleAlert, ClipboardList, CircleCheck, Wallet, Landmark, BookText, ClipboardCheck, BadgeCheck } from "lucide-react";
+import { ArrowLeft, Bell, HomeIcon, Shield, User, ChevronDown, LayoutDashboard, Building, Database, Settings, LogOut, TriangleAlert, ClipboardList, CircleCheck, Wallet, Landmark, ClipboardCheck, BadgeCheck } from "lucide-react";
 import { Button } from "./ui/button";
 import { UserAvatar } from "./ui/user-avatar";
 import { useRouter } from 'next/navigation';
@@ -37,7 +37,6 @@ const COMPONENT_ADMIN = [
 
 const COMPONENT_FINANCE = [
     { title: 'งานเบิกเงิน Advance', href: '/finance', style: 'font-semibold text-[#026a75] bg-[#8ce4cb]/10', icon: Landmark },
-    { title: 'รหัสบัญชี', href: '/finance/accounts', style: 'font-semibold text-[#026a75] bg-[#8ce4cb]/10', icon: BookText },
 ];
 
 // rerender-memo: Memoize Navbar to avoid unnecessary re-renders

@@ -1,9 +1,10 @@
 import { formatBaht, formatDate, settleLabel } from '@/lib/finance/status';
-import type { AdvanceItem } from '../types';
+import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
+import type { AdvanceItem, ApprovalTierInfo } from '../types';
 import { Field, Panel } from './FinanceShell';
 import { StatusBadge } from './StatusBadge';
 
-export function AdvanceSummary({ item }: { item: AdvanceItem }) {
+export function AdvanceSummary({ item }: { item: AdvanceItem & { approval?: ApprovalTierInfo | null } }) {
   const fin = item.fin;
   return (
     <>
@@ -15,12 +16,21 @@ export function AdvanceSummary({ item }: { item: AdvanceItem }) {
           <Field label="จำนวนเงินที่ขอ" value={formatBaht(item.request.amount)} />
           <Field label="วันที่ใช้เงิน" value={formatDate(item.request.use_date)} />
           <Field label="วันที่ขอ" value={formatDate(item.created_at)} />
+          <Field label="ค่าใช้จ่ายรายศูนย์" value={item.request.cost_center ?? '-'} />
+          <Field label="ธนาคาร" value={item.request.bank ? bankLabel(item.request.bank) : '-'} />
+          <Field label="เลขที่บัญชี" value={item.request.account_no ? formatAccountNo(item.request.account_no) : '-'} />
+          <Field label="ชื่อบัญชี" value={item.request.account_name ?? '-'} />
+          {item.approval && (
+            <div className="col-span-2 sm:col-span-3">
+              <Field label="ขั้นอนุมัติ" value={`ข้อ ${item.approval.clause} · ${item.approval.approver_label} (ระดับ ${item.approval.required_level}+)`} />
+            </div>
+          )}
           <div className="col-span-2 sm:col-span-3"><Field label="เบิกเงิน Advance สำหรับ" value={item.request.purpose} /></div>
         </div>
       </Panel>
 
       {fin && (
-        <Panel title="ข้อมูลการจ่ายเงิน (การเงิน)">
+        <Panel title="ข้อมูลตั้งเบิก / การจ่ายเงิน">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <Field label="เลขที่ใบเบิก" value={fin.voucher_no} />
             <Field label="วันที่ตั้งเบิก" value={formatDate(fin.voucher_date)} />
@@ -28,7 +38,7 @@ export function AdvanceSummary({ item }: { item: AdvanceItem }) {
             <Field label="ยอดเงิน" value={formatBaht(fin.amount_paid)} />
             <Field label="วันที่โอนเงิน" value={formatDate(fin.transfer_date)} />
             <Field label="กำหนดการเคลียร์" value={formatDate(fin.clear_due_date)} />
-            <Field label="บัญชี" value={fin.acc_code ? `${fin.acc_code} ${fin.acc_name ?? ''}` : '-'} />
+            {fin.acc_code && <Field label="บัญชี" value={`${fin.acc_code} ${fin.acc_name ?? ''}`} />}
             <div className="col-span-2"><Field label="วัตถุประสงค์" value={fin.purpose} /></div>
           </div>
         </Panel>
@@ -37,7 +47,7 @@ export function AdvanceSummary({ item }: { item: AdvanceItem }) {
       {fin?.clear_date && (
         <Panel title="ข้อมูลการเคลียร์เงิน">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <Field label="วันที่เคลียร์" value={formatDate(fin.clear_date)} />
+            <Field label="วันที่ส่งเอกสารเคลียร์" value={formatDate(fin.clear_date)} />
             <Field label="ยอดใช้จริง" value={formatBaht(fin.amount_actual)} />
             <Field label="เอกสารเคลียร์" value={fin.clear_doc_no} />
             <Field label={`รับคืน (เบิกเพิ่ม) · ${settleLabel(fin.settle_amount)}`} value={formatBaht(fin.settle_amount)} />
