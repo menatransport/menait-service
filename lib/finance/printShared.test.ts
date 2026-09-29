@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { attachmentPagesHtml, documentControlFooter, isImageFile, stampHtml, wrapDocument } from './printShared';
+import { PRINT_READY_TIMEOUT_MS, attachmentPagesHtml, documentControlFooter, isImageFile, stampHtml, wrapDocument } from './printShared';
 
 const LABELS = { request: 'เอกสารประกอบการขอเบิก', pay: 'หลักฐานการจ่ายเงิน', clear: 'เคลียร์' };
 
@@ -41,5 +41,10 @@ describe('printShared', () => {
     expect(html).toContain('<tfoot>');
     expect((html.match(/class="dc">F/g) ?? []).length).toBe(2);
     expect(html).toContain('counter(page)');
+    expect(html).toContain('"Page " counter(page)');
+  });
+  test('print readiness is bounded by a timeout', () => {
+    expect(PRINT_READY_TIMEOUT_MS).toBeGreaterThan(0);
+    expect(PRINT_READY_TIMEOUT_MS).toBeLessThanOrEqual(20000);
   });
 });

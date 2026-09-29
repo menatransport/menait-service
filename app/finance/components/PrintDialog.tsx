@@ -33,8 +33,9 @@ export default function PrintDialog({ open, onOpenChange, onConfirm, documentNo,
   // Reset on every open: requested option if usable, else ทั้งหมด when clearing exists, else Part 1.
   useEffect(() => {
     if (open) setSelected(initial && enabled(initial) ? initial : part2Ok ? 'both' : 'part1');
+    // Depends on `open` only (NC parity): a detail reload while open must not reset the user's choice.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initial, part2Ok]);
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

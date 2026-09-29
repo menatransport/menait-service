@@ -117,6 +117,8 @@ export function wrapDocument(opts: { title: string; body: string; footerHtml: st
 </body></html>`;
 }
 
+export const PRINT_READY_TIMEOUT_MS = 15000;
+
 /**
  * Opens the print popup, waits for load + every <img> + fonts, prints, closes after print.
  * Returns false when the browser blocked the popup (caller shows the alert).
@@ -134,10 +136,14 @@ export function openPrintWindow(html: string): boolean {
   });
   const imagesReady = () => Promise.all(Array.from(w.document.images).map(img =>
     img.complete ? Promise.resolve() : new Promise<void>(res => { img.onload = () => res(); img.onerror = () => res(); })));
-  loaded
-    .then(() => imagesReady())
-    .then(() => w.document.fonts.ready)
+  // A stalled image/font must not hang the popup forever: print anyway after the timeout.
+  const ready = loaded.then(() => imagesReady()).then(() => w.document.fonts.ready).then(() => undefined);
+  const timeout = new Promise<void>(res => setTimeout(res, PRINT_READY_TIMEOUT_MS));
+  Promise.race([ready, timeout])
     .catch(() => undefined)
-    .finally(() => { w.focus(); w.print(); });
+    .finally(() => {
+      if (w.closed) return;
+      try { w.focus(); w.print(); } catch { try { w.close(); } catch { /* popup already gone */ } }
+    });
   return true;
 }
