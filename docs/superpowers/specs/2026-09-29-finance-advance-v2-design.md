@@ -192,6 +192,12 @@ these questions and show "-".
 - A small refactor: the S3 client, bucket and base path move from `app/api/uploads3/route.ts` into `lib/s3.ts`,
   shared by uploads3 and the finance route (no behaviour change for uploads3).
 
+**เอกสารเคลียร์ (เลขที่/รายการ) moves to Accounting** (user, 2026-09-29):
+- `clear_doc_no` is filled by บัญชี at รอบัญชีตรวจ (AWAITING_REVIEW) in the ReviewPanel. It is optional and prefilled
+  with the stored value, and it is saved with "ยืนยันปิดรายการ" (`ConfirmIn.clear_doc_no`, logged in CONFIRM changes).
+- The requester's ClearForm no longer shows it. `PUT …/clear` no longer writes `clear_doc_no`, so a resubmission
+  after a send-back never wipes Accounting's value. The ClearIn field is ignored for compatibility.
+
 ## 5c. Part 5 — วันที่ตั้งเบิก and date inputs
 
 - **วันที่ตั้งเบิก** (`voucher_date`, pay form) **defaults to today** (Bangkok) on a new payment and becomes required
