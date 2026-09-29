@@ -42,7 +42,7 @@ export interface AdvanceItem {
   status_label: string;
   overdue: boolean;
   requester: Requester;
-  request: { purpose: string | null; amount: number | null; use_date: string | null };
+  request: RequestInfo;
   fin: FinInfo | null;
 }
 
@@ -63,6 +63,7 @@ export interface FinLog {
 }
 
 export interface AdvanceDetail extends AdvanceItem {
+  approval?: ApprovalTierInfo | null;
   approval_logs: ApprovalLog[];
   fin_logs: FinLog[];
 }
@@ -83,4 +84,27 @@ export interface AttachmentFile {
   size: number;
   lastModified: string;
   folder: AttachmentFolder;
+}
+
+export interface RequestInfo {
+  purpose: string | null;
+  amount: number | null;
+  use_date: string | null;
+  cost_center?: string | null;
+  bank?: string | null;
+  bank_label?: string | null;
+  account_no?: string | null;
+  account_name?: string | null;
+}
+
+export interface ApprovalTierInfo { clause: string; approver_label: string; required_level: number }
+
+export interface PendingApprovalItem {
+  form_id: string;
+  submission_id: number;
+  created_at: string | null;
+  requester: Requester;
+  request: RequestInfo;
+  tier: ApprovalTierInfo;
+  tab: 'mine' | 'delegable';
 }

@@ -1,21 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { S3Client, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+import { BASE_PATH, BUCKET_NAME, FORM_ID_PATTERN, s3 } from '@/lib/s3';
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-const s3 = new S3Client({
-  region: process.env.region,
-  endpoint: process.env.endpoint,
-  forcePathStyle: true,
-  credentials: {
-    accessKeyId: process.env.accessKeyId!,
-    secretAccessKey: process.env.secretAccessKey!,
-  },
-});
-
-const BUCKET_NAME = 'mn-bucket';
-const BASE_PATH = 'menait-service';
 const ALLOWED_FOLDERS = ['pay', 'clear', 'check'];
-const FORM_ID_PATTERN = /^[A-Za-z0-9_-]+-\d{4}-\d{4,}$/;
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();

@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { BASE_PATH, FORM_ID_PATTERN, hasFiles } from '@/lib/s3';
+import { CLEAR_ATTACHMENT_REQUIRED } from '@/app/finance/labels';
 import { beUrl, proxy, requireFinance, requireUser } from '@/lib/finance/server';
 
 const FINANCE_ACTIONS = new Set(['pay', 'send-back', 'confirm']);
@@ -31,6 +33,17 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   }
   const guard = action === 'clear' ? await requireUser(req) : await requireFinance(req);
   if ('error' in guard) return guard.error;
+  if (action === 'clear') {
+    if (!FORM_ID_PATTERN.test(form_id)) return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
+    try {
+      if (!(await hasFiles(`${BASE_PATH}/${form_id}/clear/`))) {
+        return NextResponse.json({ error: CLEAR_ATTACHMENT_REQUIRED }, { status: 400 });
+      }
+    } catch (err) {
+      console.error('clear attachment check error:', err);
+      return NextResponse.json({ error: 'ตรวจสอบไฟล์แนบไม่สำเร็จ กรุณาลองใหม่' }, { status: 502 });
+    }
+  }
   return proxy(beUrl(`/finance/advances/${encodeURIComponent(form_id)}/${action}`), {
     method: 'PUT',
     body: JSON.stringify({ ...fields, action_by: guard.user.employee_id }),

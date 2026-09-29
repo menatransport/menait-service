@@ -1,10 +1,12 @@
 import type { AdvanceItem } from '@/app/finance/types';
+import { bankLabel, formatAccountNo } from './bank';
 import { formatDate } from './status';
 
 export const EXPORT_COLUMNS = [
   'ลำดับ', 'เลขที่เอกสาร', 'ผู้เบิก', 'แผนก', 'ศูนย์', 'สถานะ', 'เลขที่ใบเบิก', 'วันที่ตั้งเบิก', 'วันที่ใช้เงิน',
-  'เลขที่เอกสารจ่าย', 'วัตถุประสงค์', 'ยอดเงิน', 'วันที่โอนเงิน', 'กำหนดการเคลียร์', 'วันที่เคลียร์', 'ยอดใช้จริง',
-  'เอกสารเคลียร์', 'รับคืน (เบิกเพิ่ม)', 'วันที่โอนเงินคืน', 'หมายเหตุ', 'รหัสบัญชี',
+  'เลขที่เอกสารจ่าย', 'วัตถุประสงค์', 'ยอดเงิน', 'วันที่โอนเงิน', 'กำหนดการเคลียร์', 'วันที่ส่งเอกสารเคลียร์', 'ยอดใช้จริง',
+  'เอกสารเคลียร์', 'รับคืน (เบิกเพิ่ม)', 'วันที่โอนเงินคืน', 'หมายเหตุ',
+  'ศูนย์ค่าใช้จ่าย', 'ธนาคาร', 'เลขที่บัญชี', 'ชื่อบัญชี',
 ] as const;
 
 type Row = Record<(typeof EXPORT_COLUMNS)[number], string | number | null>;
@@ -27,13 +29,16 @@ export function toSheetRows(items: AdvanceItem[]): Row[] {
     'ยอดเงิน': it.fin?.amount_paid ?? it.request.amount ?? null,
     'วันที่โอนเงิน': d(it.fin?.transfer_date),
     'กำหนดการเคลียร์': d(it.fin?.clear_due_date),
-    'วันที่เคลียร์': d(it.fin?.clear_date),
+    'วันที่ส่งเอกสารเคลียร์': d(it.fin?.clear_date),
     'ยอดใช้จริง': it.fin?.amount_actual ?? null,
     'เอกสารเคลียร์': it.fin?.clear_doc_no ?? '',
     'รับคืน (เบิกเพิ่ม)': it.fin?.settle_amount ?? null,
     'วันที่โอนเงินคืน': d(it.fin?.settle_date),
     'หมายเหตุ': it.fin?.remark ?? '',
-    'รหัสบัญชี': it.fin?.acc_code ?? '',
+    'ศูนย์ค่าใช้จ่าย': it.request.cost_center ?? '',
+    'ธนาคาร': it.request.bank ? bankLabel(it.request.bank) : '',
+    'เลขที่บัญชี': it.request.account_no ? formatAccountNo(it.request.account_no) : '',
+    'ชื่อบัญชี': it.request.account_name ?? '',
   }));
 }
 

@@ -1,7 +1,7 @@
 export const FIELD_LABELS: Record<string, string> = {
   acc_code: 'รหัสบัญชี', voucher_no: 'เลขที่ใบเบิก', voucher_date: 'วันที่ตั้งเบิก', payment_doc_no: 'เลขที่เอกสารจ่าย',
   purpose: 'วัตถุประสงค์', amount_paid: 'ยอดเงิน', transfer_date: 'วันที่โอนเงิน', clear_due_date: 'กำหนดการเคลียร์',
-  clear_date: 'วันที่เคลียร์', amount_actual: 'ยอดใช้จริง', clear_doc_no: 'เอกสารเคลียร์',
+  clear_date: 'วันที่ส่งเอกสารเคลียร์', amount_actual: 'ยอดใช้จริง', clear_doc_no: 'เอกสารเคลียร์',
   settle_amount: 'รับคืน (เบิกเพิ่ม)', settle_date: 'วันที่โอนเงินคืน', remark: 'หมายเหตุ',
 };
 
@@ -15,3 +15,5 @@ export const FOLDER_LABELS: Record<string, string> = {
   request: 'เอกสารประกอบการขอเบิก', pay: 'หลักฐานการจ่ายเงิน', clear: 'เอกสารเคลียร์ / สลิปคืนเงิน',
   check: 'หลักฐานการเงิน (จ่ายเพิ่ม)',
 };
+
+export const CLEAR_ATTACHMENT_REQUIRED = 'กรุณาแนบใบเสร็จ / สลิปคืนเงินอย่างน้อย 1 ไฟล์';
