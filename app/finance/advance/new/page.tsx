@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { buildSubmitValues, renderFormField } from '@/components/renderForm';
 import type { Question } from '@/app/service/[[...slug]]/page';
 import { useSessionContext } from '@/app/context/SessionContext';
+import { accountNoError, normalizeAccountNo } from '@/lib/finance/bank';
 import { isBeforeToday } from '@/lib/finance/dates';
 import { parseAmount, todayBkk } from '@/lib/finance/status';
 import { fetchJson, showAlert, uploadFiles } from '../../api';
@@ -35,6 +36,24 @@ export default function NewAdvancePage() {
     () => (form ? findUseDateQuestion(form.questions) : undefined),
     [form]
   );
+
+  const [hint, setHint] = useState<{ text: string; error: boolean } | null>(null);
+  const amountQuestion = useMemo(
+    () => form?.questions.find(q => q.name === 'adv_amount') ?? form?.questions.find(q => q.type === 'number'),
+    [form]
+  );
+  const amountValue = amountQuestion ? values[amountQuestion.name] : undefined;
+  useEffect(() => {
+    const amount = parseAmount(amountValue);
+    if (amount === null || amount <= 0) { setHint(null); return; }
+    const timer = setTimeout(() => {
+      fetchJson<{ clause: string; approver_label: string; required_level: number }>(
+        `/api/finance/approval-preview?amount=${encodeURIComponent(String(amount))}`)
+        .then(r => setHint({ text: `ต้องอนุมัติโดย: ${r.approver_label} ขึ้นไป (ระดับ ${r.required_level}+) — ข้อ ${r.clause}`, error: false }))
+        .catch(err => setHint({ text: err.message, error: true }));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [amountValue]);
 
   useEffect(() => {
     fetchJson<AdvForm>('/api/formsubmit?path=ADV')
@@ -70,6 +89,12 @@ export default function NewAdvancePage() {
         next[q.name] = 'วันที่ใช้เงินต้องเป็นวันนี้หรือหลังจากนี้';
       }
     }
+    const bankQ = form.questions.find(q => q.name === 'adv_bank');
+    const accountQ = form.questions.find(q => q.name === 'adv_account_no');
+    if (accountQ && !next[accountQ.name] && !isBlank(values[accountQ.name])) {
+      const msg = accountNoError(bankQ ? values[bankQ.name] : null, values[accountQ.name]);
+      if (msg) next[accountQ.name] = msg;
+    }
     if (Object.keys(next).length) { setErrors(next); return; }
 
     setSubmitting(true);
@@ -77,6 +102,7 @@ export default function NewAdvancePage() {
       const normalized = { ...values };
       for (const q of form.questions) {
         if (q.type === 'number' && !isBlank(normalized[q.name])) normalized[q.name] = parseAmount(normalized[q.name]);
+        if (q.name === 'adv_account_no' && !isBlank(normalized[q.name])) normalized[q.name] = normalizeAccountNo(normalized[q.name]);
       }
       const payload = {
         form_code: form.form_code,
@@ -115,10 +141,18 @@ export default function NewAdvancePage() {
               <p><span className="text-gray-500">รหัสพนักงาน:</span> {user?.employee_id ?? '-'}</p>
             </div>
             {form.questions.map((q, index) =>
-              <div key={q.id}>{renderFormField({
-                question: q, index, formValues: values, errors, onInputChange, allQuestions: form.questions,
-                minDate: useDateQuestion && q.id === useDateQuestion.id ? todayBkk() : undefined,
-              })}</div>
+              <div key={q.id}>
+                {q.name === 'adv_bank' && (
+                  <p className="mb-2 border-t border-gray-100 pt-4 text-sm font-semibold text-[#055058]">บัญชีรับเงิน</p>
+                )}
+                {renderFormField({
+                  question: q, index, formValues: values, errors, onInputChange, allQuestions: form.questions,
+                  minDate: useDateQuestion && q.id === useDateQuestion.id ? todayBkk() : undefined,
+                })}
+                {amountQuestion && q.id === amountQuestion.id && hint && (
+                  <p className={`mt-1 text-xs ${hint.error ? 'text-rose-600' : 'text-[#026a75]'}`}>{hint.text}</p>
+                )}
+              </div>
             )}
             <div>
               <p className="mb-1 text-sm font-medium">เอกสารประกอบ</p>
