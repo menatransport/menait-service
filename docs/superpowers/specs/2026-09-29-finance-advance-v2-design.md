@@ -333,6 +333,44 @@ these questions and show "-".
    - **BE:** `serialize_fin` adds `closed_by_name` (and `paid_by_name`), resolved in the same people lookup as the
      requester (no N+1).
 
+## 5g. Part 9 — print redesign (user, 2026-09-29)
+
+- **Print dialog, like the NC form.** It is a copy of the `PrintOptionsDialog` in mena-safety-ncac:
+  - Title "พิมพ์เอกสาร" with the form_id underneath.
+  - 3 radio rows:
+    - "Part 1 : Cash Advance Request / ใบคำขอเบิกเงินล่วงหน้า"
+    - "Part 2 : Advance Clearing / ใบเคลียร์เงินทดรองจ่าย"
+    - "ทั้งหมด / Part 1 + Part 2"
+  - Part 2 and ทั้งหมด are disabled, with the note "ยังไม่มีข้อมูลเคลียร์", until `fin.clear_date` exists.
+  - The default is ทั้งหมด when the clearing exists, else Part 1.
+  - The footer reads "แนบหน้ารูปภาพให้อัตโนมัติ" next to the ยกเลิก and พิมพ์ buttons; พิมพ์ shows "กำลังเตรียม..." while files load.
+- **Where the dialog opens from:**
+  - One "พิมพ์เอกสาร" button at the top of both detail views. It replaces the "พิมพ์ใบคำขอเบิก" button and uses the
+    same visibility rule (PRINTABLE_STATUSES).
+  - A second button in the "ข้อมูลการเคลียร์เงิน" panel header opens the dialog with Part 2 preselected.
+- **Document look:** the modern design. The reference is `.superpowers/sdd/2026-09-29-finance-advance-v2/design-reference-modern.html`
+  (+ .png), and applies to both Part 1 and Part 2:
+  - IBM Plex Sans Thai.
+  - Brand teal `#055058`, a mint wash `#EAF4F1` and hairlines `#C7D3D0`.
+  - A top teal band, the logo, and a left-aligned title with the English subtitle.
+  - A meta box on the right: "เริ่มใช้ 1 Nov 22", the เลขที่ (form_id) and วันที่.
+  - Numbered section headers.
+  - Stacked label/value fields.
+  - The one bold element: the total, or for Part 2 the settle amount, in a teal block.
+  - Clauses in a mint box with a teal left border.
+  - The signature table with e-Signature stamps.
+- **Footer on every page:** NC's "Document Control & Revision History" table. It has 6 columns and 3 rows:
+  - Document Ref = the form_id, and Document Name = "Cash Advance Request (ADV)" or "Advance Clearing (ADV)".
+  - Document Owner = requester name, Version No = 01, Revision Date = 1 Nov 22.
+  - Approved By = approver name, Approved Date = approval date, Printed = the print datetime.
+
+  The table repeats on every page (a fixed footer plus a tfoot spacer, as in the v2 mock). "Page N" is printed
+  bottom-right via the `@page` margin box (`counter(page)`).
+- **Image pages:** after each part, the images from that part's folders. Part 1 uses `request/` and `pay/`; Part 2
+  uses `clear/` and `check/`. They go 2 per row with a caption "folder label · file name", and non-image files are
+  listed by name. Printing waits for every image and font.
+- All content, validation and mapping from §5e and §5f.5 are unchanged. Only the look and the entry point change.
+
 ## 6. Migration `scripts/migrations/2026-09-29_finance_advance_v2.sql` (user runs it in DBeaver)
 
 One transaction, idempotent, with no `DO $$` blocks (DBeaver-safe, as in v1):

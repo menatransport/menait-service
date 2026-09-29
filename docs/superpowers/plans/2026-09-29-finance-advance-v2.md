@@ -2163,3 +2163,49 @@ Add one `toCashAdvanceData` test with a minimal `AdvanceDetail` fixture: cost_ce
   - Escaping.
   - A Chrome sample PDF test, writing `tmp/clearing-sample.pdf` (skip if Chrome is absent). Render a PNG and Read it: page 1 is A4, and the attachment page follows.
 - **Verify:** bun test lib/finance, tsc 0, build. Commit `feat(finance): print ใบเคลียร์เงินทดรองจ่าย with e-Signature and slip pages`.
+
+### Task 16 is REPLACED by 16a + 16b (spec §5g)
+
+### Task 16a: FE — print system redesign: shared modern style + Document Control footer + NC-style dialog + Part 1 re-skin
+
+- New `lib/finance/printShared.ts`:
+  - The CSS tokens and base styles from `design-reference-modern.html`.
+  - `documentControlFooter({ref, name, owner, approvedBy, approvedDate, printed})`: the NC table, escaped.
+  - The tfoot-spacer page wrapper and the `@page` `@bottom-right` "Page N" rule.
+  - `attachmentPagesHtml(files, folders, labels)`, where images are jpg/jpeg/png/gif/webp.
+  - `stampHtml(esign)`, moved from cashAdvanceForm.
+  - `openPrintWindow(html): boolean`, which waits for load, all <img> and fonts, then prints and closes after print.
+- `lib/finance/cashAdvanceForm.ts`:
+  - Re-skin to the modern layout: new markup and CSS from the reference.
+  - Keep every existing test string and hook: `class="cb checked"`, `class="esign"`, `esign-ref`, `esign-note`, all Thai labels, the clauses and "Page 1". Move "Page 1" to "Page N" only if the tests are updated to the new counter, but keep the text "Page" present.
+  - Add an optional `document_no` to `CashAdvanceFormData`; `toCashAdvanceData` sets it to the form_id.
+  - Use `documentControlFooter`.
+  - Existing tests must stay green. Update only assertions that encode the old visual structure, and say which in the report.
+- New `app/finance/components/PrintDialog.tsx`: a copy of mena-safety-ncac `components/PrintOptionsDialog.tsx` (on the fetched origin/main, readable with `git -C ~/Documents/project/ncac_fe/mena-safety-ncac show origin/main:components/PrintOptionsDialog.tsx`). It uses this repo's shadcn Dialog, with the options and disabled rules from spec §5g.
+  - Props: `open, onOpenChange, onConfirm(parts: 'part1'|'part2'|'both'), documentNo, hasClearing, initial?, isPreparing`.
+- New `app/finance/components/PrintDocumentButton.tsx` ("พิมพ์เอกสาร", Printer icon, outline). It is shown when `PRINTABLE_STATUSES.includes(status)`, and opens PrintDialog.
+  - On confirm, fetch `/api/uploads3?form_id=` once (same parsing as AttachmentPanel).
+  - Build Part 1 now. Part 2 comes in 16b: until then, the Part 2 and ทั้งหมด options stay disabled with "เร็วๆ นี้" if `buildClearingHtml` is not available yet.
+  - Call `openPrintWindow`. A blocked popup shows an alert.
+- Replace `PrintCashAdvanceButton` usages in FinanceAdvanceDetail and MyAdvanceDetail with `PrintDocumentButton`, and delete the old button.
+- **Tests:**
+  - printShared: the footer contains all 9 labels and escaped values; attachmentPagesHtml splits images from non-images and emits no page when nothing is attached.
+  - cash advance: the existing suite, plus the document_no in the meta box.
+  - Keep the Chrome sample test. Render `tmp/cash-advance-sample.pdf` → PNG, Read it, compare against `design-reference-modern.png`, and confirm the Document Control table sits at the bottom and everything fits one A4 page.
+- **Verify:** bun test lib/finance, tsc 0, build. Commit `feat(finance): modern print design, NC-style print dialog, Document Control footer`.
+
+### Task 16b: FE — Part 2 ใบเคลียร์เงินทดรองจ่าย in the new style
+
+The content is the original Task 16 / spec §5f.5, built on `printShared`.
+- `lib/finance/clearingForm.ts`: `toClearingData(detail)` and `buildClearingHtml(data, {logoUrl, files})`. The footer Document Name is "Advance Clearing (ADV)".
+- Wire it into PrintDocumentButton:
+  - part2 → the clearing HTML plus `clear/` and `check/` images.
+  - both → Part 1 plus images, then a page break, then Part 2 plus images, all in one window.
+  - Enable the dialog options when `hasClearing`.
+- Add the second entry point: a small "พิมพ์" button in AdvanceSummary's "ข้อมูลการเคลียร์เงิน" panel `actions`, which opens the dialog with `initial='part2'`.
+- **Tests:**
+  - toClearingData covers รับคืน, เบิกเพิ่ม and พอดี, and the ผู้ตรวจ stamp only when CLOSED.
+  - The HTML has all sections and labels, including "วันที่โอนเงินคืนบริษัท" and "(Cash Advance Clearing form)".
+  - Escaping.
+  - A Chrome sample `tmp/clearing-sample.pdf` → PNG, Read it.
+- **Verify:** bun test lib/finance, tsc 0, build. Commit `feat(finance): Part 2 ใบเคลียร์เงินทดรองจ่าย print`.
