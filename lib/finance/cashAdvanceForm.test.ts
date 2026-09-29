@@ -58,6 +58,22 @@ describe('cash advance form', () => {
     expect(o.center_other_text).toBe('บางปะกง');
     expect(o.disbursement_round).toBe('2026-08-14');
   });
+  test.each([
+    ['สกท', ['กรุงเทพ'], ''],
+    ['ศลบ', ['ลาดกระบัง/ขอนแก่น'], ''],
+    ['ศขก', ['ลาดกระบัง/ขอนแก่น'], ''],
+    ['สสบ', ['สระบุรี/ระยอง'], ''],
+    ['ศรย', ['สระบุรี/ระยอง'], ''],
+    ['ศบก', ['อื่นๆ'], 'บางปะกง'],
+  ])('cost center %s maps to centers', (code, centers, other) => {
+    const d = toCashAdvanceData({
+      status: 'AWAITING_PAYMENT', created_at: '2026-08-13T03:00:00+00:00',
+      requester: { employee_id: '1', name: 'x' }, request: { purpose: 'p', amount: 1, cost_center: code },
+      fin: null, approval_logs: [],
+    } as any);
+    expect(d.centers).toEqual(centers as string[]);
+    expect(d.center_other_text).toBe(other as string);
+  });
   const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   test.skipIf(!existsSync(chrome))('generates a sample PDF from the example JSON', () => {
     mkdirSync('tmp', { recursive: true });

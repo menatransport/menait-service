@@ -10,7 +10,11 @@ export const CENTER_OTHER = 'อื่นๆ';
 
 /** ATMS cost-center code → checkbox on the form. Unknown codes fall back to "อื่นๆ" + the code as text. */
 const COST_CENTER_TO_CENTER: Record<string, { center: string; other?: string }> = {
+  'สกท': { center: 'กรุงเทพ' },
+  'ศลบ': { center: 'ลาดกระบัง/ขอนแก่น' },
   'ศขก': { center: 'ลาดกระบัง/ขอนแก่น' },
+  'สสบ': { center: 'สระบุรี/ระยอง' },
+  'ศรย': { center: 'สระบุรี/ระยอง' },
   'ศบก': { center: CENTER_OTHER, other: 'บางปะกง' },
 };
 
@@ -109,7 +113,7 @@ table.items th.a { width: 32mm; border: 1px solid #111; font-weight: 400; text-a
 .tot .box { width: 32mm; border: 1px solid #111; text-align: right; padding: 0 6px; font-weight: 700; }
 .words { font-style: italic; }
 .clauses { margin: 0; padding-left: 6mm; }
-.clauses li { margin: 0.5mm 0; text-align: justify; }
+.clauses li { margin: 0.5mm 0; }
 table.sig { width: 100%; border-collapse: collapse; table-layout: fixed; }
 table.sig th, table.sig td { border: 1px solid #111; padding: 2px 6px; }
 table.sig th { text-align: center; font-weight: 700; }
