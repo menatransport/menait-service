@@ -33,7 +33,7 @@ export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChang
   return (
     <>
       <PrintDocumentButton detail={detail} />
-      <AdvanceSummary item={detail} />
+      <AdvanceSummary item={detail} detail={detail} />
       <Panel title="ไฟล์แนบ">
         <div className="grid gap-5 sm:grid-cols-2">
           <AttachmentPanel formId={formId} folder="request" canUpload={detail.status === 'PENDING_APPROVAL'} refreshKey={refreshKey} />

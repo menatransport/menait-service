@@ -91,7 +91,7 @@ table.print-wrap > thead > tr > td, table.print-wrap > tbody > tr > td, table.pr
 .dc td.lb { background: var(--mint); color: var(--teal); font-weight: 600; }
 .doc-band { position: absolute; top: 0; left: 0; right: 0; height: 5mm; background: var(--teal); }
 .doc-part { break-after: auto; }
-.doc-part + .doc-part, .att { break-before: page; }
+.doc-part ~ .doc-part, .att { break-before: page; }
 .att-title { font-size: 14px; font-weight: 700; color: var(--teal); border-bottom: 1px solid var(--line); padding: 8px 0 5px; margin-bottom: 9px; }
 .att-title small { font-size: 10px; color: var(--muted); font-weight: 500; margin-left: 6px; }
 .att-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

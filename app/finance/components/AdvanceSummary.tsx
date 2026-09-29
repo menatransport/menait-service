@@ -1,10 +1,11 @@
 import { formatBaht, formatDate, settleLabel } from '@/lib/finance/status';
 import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
-import type { AdvanceItem, ApprovalTierInfo } from '../types';
+import type { AdvanceDetail, AdvanceItem, ApprovalTierInfo } from '../types';
+import { PrintDocumentButton } from './PrintDocumentButton';
 import { Field, Panel } from './FinanceShell';
 import { StatusBadge } from './StatusBadge';
 
-export function AdvanceSummary({ item }: { item: AdvanceItem & { approval?: ApprovalTierInfo | null } }) {
+export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approval?: ApprovalTierInfo | null }; detail?: AdvanceDetail }) {
   const fin = item.fin;
   return (
     <>
@@ -45,7 +46,7 @@ export function AdvanceSummary({ item }: { item: AdvanceItem & { approval?: Appr
       )}
 
       {fin?.clear_date && (
-        <Panel title="ข้อมูลการเคลียร์เงิน">
+        <Panel title="ข้อมูลการเคลียร์เงิน" actions={detail ? <PrintDocumentButton detail={detail} initial="part2" compact /> : undefined}>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <Field label="วันที่ส่งเอกสารเคลียร์" value={formatDate(fin.clear_date)} />
             <Field label="ยอดใช้จริง" value={formatBaht(fin.amount_actual)} />

@@ -53,7 +53,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
   return (
     <>
       <PrintDocumentButton detail={detail} />
-      <AdvanceSummary item={detail} />
+      <AdvanceSummary item={detail} detail={detail} />
       <Panel title="ไฟล์แนบทุกขั้นตอน">
         <div className="grid gap-5 sm:grid-cols-2">
           <AttachmentPanel formId={formId} folder="request" refreshKey={refreshKey} />

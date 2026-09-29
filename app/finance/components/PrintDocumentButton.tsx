@@ -4,16 +4,14 @@ import { useState } from 'react';
 import { Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { buildCashAdvanceHtml, PRINTABLE_STATUSES, toCashAdvanceData } from '@/lib/finance/cashAdvanceForm';
+import { buildClearingHtml, buildCombinedHtml, toClearingData } from '@/lib/finance/clearingForm';
 import { attachmentPagesHtml, openPrintWindow, type PrintFile, type PrintParts } from '@/lib/finance/printShared';
 import { showAlert } from '../api';
 import { FOLDER_LABELS } from '../labels';
 import type { AdvanceDetail } from '../types';
 import PrintDialog from './PrintDialog';
 
-// Flip to true when Part 2 (Task 16b) can be built; until then the dialog shows "เร็วๆ นี้" for Part 2 / ทั้งหมด.
-const PART2_AVAILABLE = false;
-
-export function PrintDocumentButton({ detail, initial }: { detail: AdvanceDetail; initial?: PrintParts }) {
+export function PrintDocumentButton({ detail, initial, compact = false }: { detail: AdvanceDetail; initial?: PrintParts; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [preparing, setPreparing] = useState(false);
   if (!PRINTABLE_STATUSES.includes(detail.status)) return null;
@@ -26,14 +24,16 @@ export function PrintDocumentButton({ detail, initial }: { detail: AdvanceDetail
   };
 
   const onConfirm = async (parts: PrintParts) => {
-    if (parts !== 'part1') return; // Part 2 / ทั้งหมด arrive with Task 16b
     setPreparing(true);
     try {
       const files = await fetchFiles();
-      const html = buildCashAdvanceHtml(toCashAdvanceData(detail), {
-        logoUrl: `${window.location.origin}/mena.png`,
-        attachmentsHtml: attachmentPagesHtml(files, ['request', 'pay'], FOLDER_LABELS),
-      });
+      const logoUrl = `${window.location.origin}/mena.png`;
+      const att1 = attachmentPagesHtml(files, ['request', 'pay'], FOLDER_LABELS);
+      const att2 = attachmentPagesHtml(files, ['clear', 'check'], FOLDER_LABELS);
+      const cash = toCashAdvanceData(detail);
+      const html = parts === 'part1' ? buildCashAdvanceHtml(cash, { logoUrl, attachmentsHtml: att1 })
+        : parts === 'part2' ? buildClearingHtml(toClearingData(detail), { logoUrl, attachmentsHtml: att2 })
+        : buildCombinedHtml(cash, toClearingData(detail), { logoUrl, part1AttachmentsHtml: att1, part2AttachmentsHtml: att2 });
       if (!openPrintWindow(html)) showAlert({ icon: 'error', title: 'เบราว์เซอร์บล็อกหน้าต่างพิมพ์' });
       else setOpen(false);
     } catch (err) {
@@ -43,13 +43,14 @@ export function PrintDocumentButton({ detail, initial }: { detail: AdvanceDetail
     }
   };
 
-  return (
-    <div className="flex justify-end">
-      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Printer className="mr-1 h-4 w-4" />พิมพ์เอกสาร
-      </Button>
-      <PrintDialog open={open} onOpenChange={setOpen} onConfirm={onConfirm} documentNo={detail.form_id}
-        hasClearing={Boolean(detail.fin?.clear_date)} part2Available={PART2_AVAILABLE} initial={initial} isPreparing={preparing} />
-    </div>
+  const trigger = (
+    <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Printer className="mr-1 h-4 w-4" />{compact ? 'พิมพ์' : 'พิมพ์เอกสาร'}
+    </Button>
   );
+  const dialog = (
+      <PrintDialog open={open} onOpenChange={setOpen} onConfirm={onConfirm} documentNo={detail.form_id}
+        hasClearing={Boolean(detail.fin?.clear_date)} part2Available initial={initial} isPreparing={preparing} />
+  );
+  return compact ? <>{trigger}{dialog}</> : <div className="flex justify-end">{trigger}{dialog}</div>;
 }
