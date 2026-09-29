@@ -62,7 +62,7 @@ Boundaries are inclusive ("ไม่เกิน"): exactly 2,000.00 → 6.7, an
 
 ```
 ORG_WIDE_LEVEL = 9
-required_level = min(max(tier.min_level, requester_level + 1), ORG_WIDE_LEVEL)
+required_level = max(tier.min_level, min(requester_level + 1, ORG_WIDE_LEVEL))   # a future tier above 9 is kept (E2)
 
 eligible(approver) =
       approver is Active
