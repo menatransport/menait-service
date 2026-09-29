@@ -239,7 +239,8 @@ these questions and show "-".
 ## 5e. Part 7 — print ใบคำขอเบิกเงินล่วงหน้า (Cash Advance Request form) (user request 2026-09-29)
 
 - **Who and when:** a "พิมพ์ใบคำขอเบิก" button on both the Finance detail and the requester's detail. It shows for
-  statuses รอจ่าย and later (AWAITING_PAYMENT, AWAITING_CLEARING, SENT_BACK, AWAITING_REVIEW, CLOSED).
+  statuses รอตั้งเบิกทำจ่าย and later (AWAITING_VOUCHER, AWAITING_PAYMENT, AWAITING_CLEARING, SENT_BACK,
+  AWAITING_REVIEW, CLOSED). AWAITING_VOUCHER was added at the user's request on 2026-09-29, from the detail side sheet.
 - **How:** like the NC form (mena-safety-ncac `lib/printDocument.ts`). An HTML string opens in a new window and
   `window.print()` runs, so the browser saves an A4 portrait PDF. The browser does the Thai shaping, with Sarabun
   from Google Fonts, and printing waits for `document.fonts.ready`.
