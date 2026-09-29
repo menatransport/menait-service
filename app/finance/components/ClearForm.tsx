@@ -57,7 +57,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
         remark,
       });
       setFiles([]);
-      await showAlert({ icon: 'success', title: 'ส่งเคลียร์เงินแล้ว รอการเงินตรวจ' });
+      await showAlert({ icon: 'success', title: 'ส่งเคลียร์เงินแล้ว รอบัญชีตรวจ' });
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: (err as Error).message });

@@ -6,6 +6,7 @@ import {
 
 describe('labels', () => {
   test('awaiting clearing label', () => expect(STATUS_LABELS.AWAITING_CLEARING).toBe('จ่ายแล้วรอเคลียร์'));
+  test('awaiting review label', () => expect(STATUS_LABELS.AWAITING_REVIEW).toBe('รอบัญชีตรวจ'));
 });
 
 describe('addDays', () => {
