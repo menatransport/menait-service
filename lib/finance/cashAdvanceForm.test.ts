@@ -95,7 +95,7 @@ describe('cash advance form', () => {
     ...sample,
     signatures: {
       ...sample.signatures,
-      requester: { name: 'a', date: '15/9/2026', esign: { name: reqName, timestamp: '2026-09-15T02:12:45Z', ref: 'ADV-2026-0001' } },
+      requester: { name: 'นางสาวตัวอย่างชื่อยาวมาก นามสกุลยาวมาก', date: '15/9/2026', esign: { name: reqName, timestamp: '2026-09-15T02:12:45Z', ref: 'ADV-2026-0001' } },
       approver: { name: 'b', date: '16/9/2026', esign: { name: 'อธิวัฒน์', timestamp: '2026-09-16T07:03:10Z', ref: 'ข้อ 6.6' } },
     },
   });
@@ -112,6 +112,21 @@ describe('cash advance form', () => {
     const bad = buildCashAdvanceHtml(withEsign('<b>x</b>') as any, {});
     expect(bad).toContain('&lt;b&gt;');
     expect(bad).not.toContain('<b>x</b>');
+  });
+  test('stamp and วันที่ line share the Bangkok date; invalid timestamp / null name handled', () => {
+    expect(dmy('2026-09-15T18:00:00Z')).toBe('16/9/2026');
+    const d: any = withEsign();
+    d.signatures.requester = { name: 'a', date: '15/9/2026', esign: { name: 'x', timestamp: '2026-09-15T18:00:00Z', ref: 'R1' } };
+    d.signatures.approver = { name: 'b', date: '1/1/2026', esign: { name: '', timestamp: 'bad', ref: 'R2' } };
+    const html = buildCashAdvanceHtml(d, {});
+    expect(html).toContain('16/09/2026');
+    expect(html).toContain('<i>16/9/2026</i>');
+    expect((html.match(/class="esign"/g) ?? []).length).toBe(1);
+    expect(html).toContain('<i>1/1/2026</i>');
+    d.signatures.requester.esign.name = null;
+    const h2 = buildCashAdvanceHtml(d, {});
+    expect(h2).toContain('<div>-</div>');
+    expect(h2).not.toContain(' น.</div><div class="esign-ref">R2');
   });
   test('toCashAdvanceData esign mapping', () => {
     const detail: any = {

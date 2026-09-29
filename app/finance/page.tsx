@@ -25,7 +25,7 @@ const TABS: AdvanceListTab[] = [
 export default function FinanceQueuePage() {
   const { user, loading } = useSessionContext();
   const [items, setItems] = useState<AdvanceItem[] | null>(null);
-  const [tab, setTab] = useState('pay');
+  const [tab, setTab] = useState('voucher');
   const [openFormId, setOpenFormId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 

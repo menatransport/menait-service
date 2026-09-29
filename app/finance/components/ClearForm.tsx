@@ -49,6 +49,9 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
         await showAlert({ icon: 'error', title: 'อัปโหลดไฟล์ไม่สำเร็จ ยังไม่ได้ส่งเคลียร์', text: failed.join(', ') });
         return;
       }
+      // Uploaded files now exist server-side: count them so a retry after a failed save does not re-upload duplicates.
+      setExistingClear(n => n + files.length);
+      setFiles([]);
       const saved = await putAction(detail.form_id, 'clear', {
         clear_date: clearDate,
         amount_actual: actualNum,
@@ -56,7 +59,6 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
         settle_date: settle !== null && settle > 0 ? settleDate : null,
         remark,
       });
-      setFiles([]);
       await showAlert({ icon: 'success', title: 'ส่งเคลียร์เงินแล้ว รอบัญชีตรวจ' });
       onSaved(saved);
     } catch (err) {

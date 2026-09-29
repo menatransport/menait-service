@@ -45,14 +45,16 @@ export default function NewAdvancePage() {
   const amountValue = amountQuestion ? values[amountQuestion.name] : undefined;
   useEffect(() => {
     const amount = parseAmount(amountValue);
-    if (amount === null || amount <= 0) { setHint(null); return; }
+    setHint(null);
+    if (amount === null || amount <= 0) return;
+    let cancelled = false;
     const timer = setTimeout(() => {
       fetchJson<{ clause: string; approver_label: string; required_level: number }>(
         `/api/finance/approval-preview?amount=${encodeURIComponent(String(amount))}`)
-        .then(r => setHint({ text: `ต้องอนุมัติโดย: ${r.approver_label} ขึ้นไป (ระดับ ${r.required_level}+) — ข้อ ${r.clause}`, error: false }))
-        .catch(err => setHint({ text: err.message, error: true }));
+        .then(r => { if (!cancelled) setHint({ text: `ต้องอนุมัติโดยระดับ ${r.required_level} ขึ้นไป (ข้อ ${r.clause} · ${r.approver_label})`, error: false }); })
+        .catch(err => { if (!cancelled) setHint({ text: err.message, error: true }); });
     }, 400);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [amountValue]);
 
   useEffect(() => {

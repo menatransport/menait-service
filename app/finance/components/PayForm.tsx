@@ -68,9 +68,10 @@ export function PayForm({ detail, onSaved }: {
           <div className="sm:col-span-2 rounded-xl border border-[#8ce4cb] bg-[#8ce4cb]/10 p-3 text-sm">
             <p className="mb-1 font-semibold text-[#055058]">โอนเข้าบัญชี</p>
             <p>{bankLabel(detail.request.bank)} · <span className="font-mono">{formatAccountNo(detail.request.account_no)}</span>
-              <button type="button" className="ml-2 text-xs text-[#026a75] underline"
+              <button type="button" className="ml-2 text-xs text-[#026a75] underline" aria-label="คัดลอกเลขที่บัญชี"
                 onClick={() => navigator.clipboard?.writeText(detail.request.account_no ?? '')
-                  .then(() => showAlert({ icon: 'success', title: 'คัดลอกเลขที่บัญชีแล้ว', timer: 1200, showConfirmButton: false }))}>
+                  .then(() => showAlert({ icon: 'success', title: 'คัดลอกเลขที่บัญชีแล้ว', timer: 1200, showConfirmButton: false }))
+                  .catch(() => showAlert({ icon: 'error', title: 'คัดลอกไม่สำเร็จ' }))}>
                 คัดลอก
               </button>
             </p>

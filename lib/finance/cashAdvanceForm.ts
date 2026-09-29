@@ -130,11 +130,12 @@ table.sig th, table.sig td { border: 1px solid #111; padding: 2px 6px; }
 table.sig th { text-align: center; font-weight: 700; }
 table.sig td.space { height: 24mm; }
 table.sig td.ln { border-top: 0; border-bottom: 0; overflow: hidden; }
-table.sig td.ln .u2 { display: flex; } table.sig td.ln .u2 b { font-weight: 400; padding-right: 4px; } table.sig td.ln .u2 i { font-style: normal; flex: 1; border-bottom: 1px solid #111; min-height: 1.35em; padding: 0 3px; }
+table.sig td.ln { font-size: 11px; }
+table.sig td.ln .u2 { display: flex; min-width: 0; } table.sig td.ln .u2 b { font-weight: 400; padding-right: 4px; white-space: nowrap; } table.sig td.ln .u2 i { font-style: normal; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 1px solid #111; min-height: 1.35em; padding: 0 3px; }
 table.sig td.ln.last { border-bottom: 1px solid #111; }
 .esign { display: inline-block; max-width: 90%; border: 2px solid #0f766e; border-radius: 6px; color: #0f766e; font-size: 11px; line-height: 1.2; text-align: center; padding: 2px 6px; transform: rotate(-3deg); }
 .esign-title { font-weight: 700; }
-.esign-ref { font-size: 9.5px; }
+.esign-ref { font-size: 9.5px; white-space: nowrap; }
 table.sig td.space { text-align: center; vertical-align: middle; }
 .esign-note { font-size: 9pt; color: #0f766e; margin-top: 1mm; }
 .pg { position: fixed; right: 0; bottom: 0; font-size: 10pt; }
@@ -162,12 +163,14 @@ export function buildCashAdvanceHtml(data: CashAdvanceFormData, opts: { logoUrl?
   const sigCols: [string, Signature | undefined][] = [
     ['ผู้ขอเบิก', sigs.requester], ['หัวหน้าหน่วยงาน', sigs.unit_head], ['ผู้จัดการ', sigs.manager], ['ผู้มีอำนาจอนุมัติ', sigs.approver],
   ];
+  const validEsign = (sg?: Signature) => (sg?.esign && formatBkkDateTime(sg.esign.timestamp).date ? sg.esign : null);
   const stamp = (sg?: Signature) => {
-    if (!sg?.esign) return '';
-    const t = formatBkkDateTime(sg.esign.timestamp);
-    return `<div class="esign"><div class="esign-title">✔ e-Signature</div><div>${esc(sg.esign.name)}</div><div>${esc(t.date)}</div><div>${esc(t.time)} น.</div><div class="esign-ref">${esc(sg.esign.ref)}</div></div>`;
+    const es = validEsign(sg);
+    if (!es) return '';
+    const t = formatBkkDateTime(es.timestamp);
+    return `<div class="esign"><div class="esign-title">✔ e-Signature</div><div>${esc(es.name || '-')}</div><div>${esc(t.date)}</div><div>${esc(t.time)} น.</div><div class="esign-ref">${esc(es.ref)}</div></div>`;
   };
-  const anyEsign = sigCols.some(([, sg]) => sg?.esign);
+  const anyEsign = sigCols.some(([, sg]) => validEsign(sg));
   const sigRow = (fn: (s: Signature | undefined) => string, cls = 'ln') => `<tr>${sigCols.map(([, s]) => `<td class="${cls}">${fn(s)}</td>`).join('')}</tr>`;
 
   const font = opts.fontCss === false ? '' :
@@ -201,7 +204,7 @@ export function buildCashAdvanceHtml(data: CashAdvanceFormData, opts: { logoUrl?
 <table class="sig"><tr>${sigCols.map(([t]) => `<th>${t}</th>`).join('')}</tr>
 <tr>${sigCols.map(([, sg]) => `<td class="space">${stamp(sg)}</td>`).join('')}</tr>
 ${sigRow(s => `<div class="u2"><b>ชื่อ</b><i>${esc(s?.name)}</i></div>`)}
-${sigRow(s => `<div class="u2"><b>วันที่</b><i>${esc(s?.date)}</i></div>`, 'ln last')}
+${sigRow(s => `<div class="u2"><b>วันที่</b><i>${esc(validEsign(s) ? dmy(validEsign(s)!.timestamp) : s?.date)}</i></div>`, 'ln last')}
 </table>
 ${anyEsign ? '<div class="esign-note">ลงนามอิเล็กทรอนิกส์ผ่านระบบ menait-service · เวลาประเทศไทย (UTC+7)</div>' : ''}
 </div><div class="pg">Page 1</div></body></html>`;
@@ -252,16 +255,23 @@ export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
   };
 }
 
-export function printCashAdvance(data: CashAdvanceFormData): void {
+/** Opens the print popup. Returns false when the browser blocked it (caller shows the alert). */
+export function printCashAdvance(data: CashAdvanceFormData): boolean {
   const html = buildCashAdvanceHtml(data, { logoUrl: `${window.location.origin}/mena.png` });
   const w = window.open('', '', 'width=900,height=1000');
-  if (!w) {
-    import('@/app/finance/api').then(({ showAlert }) => showAlert({ icon: 'error', title: 'เบราว์เซอร์บล็อกหน้าต่างพิมพ์' }));
-    return;
-  }
+  if (!w) return false;
   w.document.open();
   w.document.write(html);
   w.document.close();
   w.onafterprint = () => w.close();
-  w.document.fonts.ready.then(() => { w.focus(); w.print(); });
+  // Print only once logo + stylesheet have loaded and fonts are ready; a rejection still prints.
+  const loaded = new Promise<void>(resolve => {
+    if (w.document.readyState === 'complete') resolve();
+    else w.addEventListener('load', () => resolve(), { once: true });
+  });
+  loaded
+    .then(() => w.document.fonts.ready)
+    .catch(() => undefined)
+    .finally(() => { w.focus(); w.print(); });
+  return true;
 }

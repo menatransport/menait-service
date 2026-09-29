@@ -10,7 +10,7 @@ export function PrintCashAdvanceButton({ detail }: { detail: AdvanceDetail }) {
   if (!PRINTABLE_STATUSES.includes(detail.status)) return null;
   const onClick = () => {
     try {
-      printCashAdvance(toCashAdvanceData(detail));
+      if (!printCashAdvance(toCashAdvanceData(detail))) showAlert({ icon: 'error', title: 'เบราว์เซอร์บล็อกหน้าต่างพิมพ์' });
     } catch (err) {
       showAlert({ icon: 'error', title: 'พิมพ์ไม่ได้', text: err instanceof Error ? err.message : String(err) });
     }
