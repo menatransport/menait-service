@@ -18,7 +18,7 @@ const COST_CENTER_TO_CENTER: Record<string, { center: string; other?: string }> 
   'ศบก': { center: CENTER_OTHER, other: 'บางปะกง' },
 };
 
-export interface Signature { name: string; date: string }
+export interface Signature { name: string; date: string; esign?: { name: string; timestamp: string; ref: string } }
 export interface CashAdvanceFormData {
   request_date: string;
   employee: {
@@ -48,6 +48,17 @@ export function thaiShortDate(iso: string | null | undefined): string {
   const p = parts(iso);
   if (!p) return '';
   return `${String(p[2]).padStart(2, '0')}-${MONTHS[p[1] - 1]}-${String(p[0] % 100).padStart(2, '0')}`;
+}
+
+/** ISO datetime → Bangkok { date: 'dd/mm/yyyy', time: 'HH:mm:ss' }; blanks when invalid. */
+export function formatBkkDateTime(iso: string | null | undefined): { date: string; time: string } {
+  const dt = iso ? new Date(iso) : null;
+  if (!dt || Number.isNaN(dt.getTime())) return { date: '', time: '' };
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Bangkok', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(dt).map(x => [x.type, x.value]));
+  return { date: `${p.day}/${p.month}/${p.year}`, time: `${p.hour}:${p.minute}:${p.second}` };
 }
 
 /** '2026-08-18' → '18/8/2026' */
@@ -121,6 +132,11 @@ table.sig td.space { height: 24mm; }
 table.sig td.ln { border-top: 0; border-bottom: 0; overflow: hidden; }
 table.sig td.ln .u2 { display: flex; } table.sig td.ln .u2 b { font-weight: 400; padding-right: 4px; } table.sig td.ln .u2 i { font-style: normal; flex: 1; border-bottom: 1px solid #111; min-height: 1.35em; padding: 0 3px; }
 table.sig td.ln.last { border-bottom: 1px solid #111; }
+.esign { display: inline-block; max-width: 90%; border: 2px solid #0f766e; border-radius: 6px; color: #0f766e; font-size: 11px; line-height: 1.2; text-align: center; padding: 2px 6px; transform: rotate(-3deg); }
+.esign-title { font-weight: 700; }
+.esign-ref { font-size: 9.5px; }
+table.sig td.space { text-align: center; vertical-align: middle; }
+.esign-note { font-size: 9pt; color: #0f766e; margin-top: 1mm; }
 .pg { position: fixed; right: 0; bottom: 0; font-size: 10pt; }
 `;
 
@@ -146,6 +162,12 @@ export function buildCashAdvanceHtml(data: CashAdvanceFormData, opts: { logoUrl?
   const sigCols: [string, Signature | undefined][] = [
     ['ผู้ขอเบิก', sigs.requester], ['หัวหน้าหน่วยงาน', sigs.unit_head], ['ผู้จัดการ', sigs.manager], ['ผู้มีอำนาจอนุมัติ', sigs.approver],
   ];
+  const stamp = (sg?: Signature) => {
+    if (!sg?.esign) return '';
+    const t = formatBkkDateTime(sg.esign.timestamp);
+    return `<div class="esign"><div class="esign-title">✔ e-Signature</div><div>${esc(sg.esign.name)}</div><div>${esc(t.date)}</div><div>${esc(t.time)} น.</div><div class="esign-ref">${esc(sg.esign.ref)}</div></div>`;
+  };
+  const anyEsign = sigCols.some(([, sg]) => sg?.esign);
   const sigRow = (fn: (s: Signature | undefined) => string, cls = 'ln') => `<tr>${sigCols.map(([, s]) => `<td class="${cls}">${fn(s)}</td>`).join('')}</tr>`;
 
   const font = opts.fontCss === false ? '' :
@@ -177,10 +199,11 @@ export function buildCashAdvanceHtml(data: CashAdvanceFormData, opts: { logoUrl?
 
 <div class="sec">ส่วนที่ 4: ลงนามและอนุมัติ</div>
 <table class="sig"><tr>${sigCols.map(([t]) => `<th>${t}</th>`).join('')}</tr>
-<tr>${sigCols.map(() => '<td class="space"></td>').join('')}</tr>
+<tr>${sigCols.map(([, sg]) => `<td class="space">${stamp(sg)}</td>`).join('')}</tr>
 ${sigRow(s => `<div class="u2"><b>ชื่อ</b><i>${esc(s?.name)}</i></div>`)}
 ${sigRow(s => `<div class="u2"><b>วันที่</b><i>${esc(s?.date)}</i></div>`, 'ln last')}
 </table>
+${anyEsign ? '<div class="esign-note">ลงนามอิเล็กทรอนิกส์ผ่านระบบ menait-service · เวลาประเทศไทย (UTC+7)</div>' : ''}
 </div><div class="pg">Page 1</div></body></html>`;
 }
 
@@ -212,10 +235,19 @@ export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
     use_date: toBkkDate(r.use_date),
     additional_details: '',
     signatures: {
-      requester: { name, date: dmy(detail.created_at) },
+      requester: {
+        name, date: dmy(detail.created_at),
+        ...(detail.created_at ? { esign: { name, timestamp: detail.created_at, ref: detail.form_id } } : {}),
+      },
       unit_head: { name: '', date: '' },
       manager: { name: '', date: '' },
-      approver: { name: approved?.actor_name ?? '', date: dmy(approved?.action_at) },
+      approver: {
+        name: approved?.actor_name ?? '', date: dmy(approved?.action_at),
+        ...(approved?.action_at ? { esign: {
+          name: approved.actor_name ?? '', timestamp: approved.action_at,
+          ref: detail.approval ? `ข้อ ${detail.approval.clause}` : detail.form_id,
+        } } : {}),
+      },
     },
   };
 }
