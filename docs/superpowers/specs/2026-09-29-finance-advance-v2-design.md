@@ -18,6 +18,8 @@ Three changes to the ADV (เบิกเงิน Advance) flow:
    name) to `/finance/advance/new`. The account number is format-checked.
 3. **Remove รหัสบัญชี (เงินสดย่อยที่จ่าย)** from Finance's pay form.
 4. **Clearing form:** rename วันที่เคลียร์ → **วันที่ส่งเอกสารเคลียร์**, and make **แนบใบเสร็จ / สลิปคืนเงิน mandatory**.
+5. **Pay-form dates:** วันที่ตั้งเบิก defaults to today and is required. วันที่โอนเงิน defaults to the request's
+   วันที่ใช้เงิน. Finance date inputs display as **dd/mm/yyyy**.
 
 Email/LINE for ADV stays **off**. v1 already gates every send path on `ADVANCE_NOTIFY_ENABLED` (default false),
 so this needs no work (see §8 for the live-deploy caveat).
@@ -189,6 +191,25 @@ these questions and show "-".
   "กรุณาแนบใบเสร็จ / สลิปคืนเงินอย่างน้อย 1 ไฟล์". api-ncac has no S3 access, so this is the enforcement point.
 - A small refactor: the S3 client, bucket and base path move from `app/api/uploads3/route.ts` into `lib/s3.ts`,
   shared by uploads3 and the finance route (no behaviour change for uploads3).
+
+## 5c. Part 5 — วันที่ตั้งเบิก and date inputs
+
+- **วันที่ตั้งเบิก** (`voucher_date`, pay form) **defaults to today** (Bangkok) on a new payment and becomes required
+  (`*`). When Finance edits an existing payment, the saved value is kept.
+- **วันที่โอนเงิน** (`transfer_date`, already required) **defaults to the request's วันที่ใช้เงิน** (`request.use_date`)
+  on a new payment. กำหนดการเคลียร์ therefore starts at use date + 7, through the existing auto rule. Finance can
+  change either date. When editing, the saved values are kept. `use_date` arrives as a datetime
+  (`2026-10-01T00:00:00+00:00`), so it is converted to a Bangkok `YYYY-MM-DD` before prefilling.
+- **ยอดเงิน (บาท) \*** defaults to the requested amount (`request.amount`), and วัตถุประสงค์ to the requested purpose.
+  **Both already work in v1** (`PayForm` initial state) and are kept. Verified 2026-09-29: the BE returns
+  `request.amount`, e.g. ADV-2026-9001 → 3000.
+- **Shown as `dd/mm/yyyy`** (Christian year). Today every finance date input is a native `<input type="date">`, whose
+  format depends on the browser locale (often mm/dd/yyyy). A shared `app/finance/components/DateField.tsx`
+  (Popover + Calendar, the same pieces `renderForm` uses) shows `dd/mm/yyyy` and still stores `YYYY-MM-DD`.
+- It is used for **all 6 finance date inputs** so the forms are consistent: PayForm (วันที่ตั้งเบิก, วันที่โอนเงิน,
+  กำหนดการเคลียร์), ClearForm (วันที่ส่งเอกสารเคลียร์, วันที่โอนเงินคืน) and ReviewPanel (the extra-payment date).
+  The existing min-date rules (due ≥ transfer) are unchanged.
+- BE: `PayIn.voucher_date` becomes required (`date`, not `Optional`). Existing rows are untouched.
 
 ## 6. Migration `scripts/migrations/2026-09-29_finance_advance_v2.sql` (user runs it in DBeaver)
 
