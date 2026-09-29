@@ -29,7 +29,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
   if (error) return <NoAccess text={error} />;
   if (!detail) return <Panel title="กำลังโหลด..."><div className="h-24" /></Panel>;
 
-  const canVoucher = ['AWAITING_VOUCHER', 'AWAITING_PAYMENT', 'AWAITING_CLEARING'].includes(detail.status);
+  const canVoucher = detail.status === 'AWAITING_VOUCHER';
   const canPay = ['AWAITING_PAYMENT', 'AWAITING_CLEARING'].includes(detail.status);
 
   return (
