@@ -22,7 +22,7 @@ export function AdvanceSummary({ item }: { item: AdvanceItem & { approval?: Appr
           <Field label="ชื่อบัญชี" value={item.request.account_name ?? '-'} />
           {item.approval && (
             <div className="col-span-2 sm:col-span-3">
-              <Field label="ขั้นอนุมัติ" value={`ข้อ ${item.approval.clause} · ${item.approval.approver_label} (ระดับ ${item.approval.required_level}+)`} />
+              <Field label="ขั้นอนุมัติ" value={`ข้อ ${item.approval.clause} · ${item.approval.approver_label} — ผู้อนุมัติระดับ ${item.approval.required_level} ขึ้นไป`} />
             </div>
           )}
           <div className="col-span-2 sm:col-span-3"><Field label="เบิกเงิน Advance สำหรับ" value={item.request.purpose} /></div>

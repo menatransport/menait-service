@@ -2,9 +2,20 @@ import { describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { spawnSync } from 'child_process';
 import sample from './cash-advance-sample.json';
-import { buildCashAdvanceHtml, dmy, formatBkkDateTime, thaiShortDate, validateCashAdvance, toCashAdvanceData } from './cashAdvanceForm';
+import { buildCashAdvanceHtml, dmy, formatBkkDateTime, thaiShortDate, validateCashAdvance, toCashAdvanceData, PRINTABLE_STATUSES } from './cashAdvanceForm';
 
 describe('cash advance form', () => {
+  test('PRINTABLE_STATUSES includes correct statuses and excludes others', () => {
+    expect(PRINTABLE_STATUSES).toContain('AWAITING_VOUCHER');
+    expect(PRINTABLE_STATUSES).toContain('AWAITING_PAYMENT');
+    expect(PRINTABLE_STATUSES).toContain('AWAITING_CLEARING');
+    expect(PRINTABLE_STATUSES).toContain('SENT_BACK');
+    expect(PRINTABLE_STATUSES).toContain('AWAITING_REVIEW');
+    expect(PRINTABLE_STATUSES).toContain('CLOSED');
+    expect(PRINTABLE_STATUSES).not.toContain('PENDING_APPROVAL');
+    expect(PRINTABLE_STATUSES).not.toContain('REJECTED');
+    expect(PRINTABLE_STATUSES[0]).toBe('AWAITING_VOUCHER');
+  });
   test('dates', () => {
     expect(thaiShortDate('2026-08-13')).toBe('13-ส.ค.-26');
     expect(dmy('2026-08-18')).toBe('18/8/2026');

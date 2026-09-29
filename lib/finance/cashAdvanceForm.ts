@@ -3,7 +3,7 @@ import { bahtText } from './bahtText';
 import { bankLabel, formatAccountNo } from './bank';
 import { toBkkDate } from './dates';
 
-export const PRINTABLE_STATUSES = ['AWAITING_PAYMENT', 'AWAITING_CLEARING', 'SENT_BACK', 'AWAITING_REVIEW', 'CLOSED'];
+export const PRINTABLE_STATUSES = ['AWAITING_VOUCHER', 'AWAITING_PAYMENT', 'AWAITING_CLEARING', 'SENT_BACK', 'AWAITING_REVIEW', 'CLOSED'];
 
 export const CENTER_OPTIONS = ['กรุงเทพ', 'ลาดกระบัง/ขอนแก่น', 'สระบุรี/ระยอง', 'MDD'] as const;
 export const CENTER_OTHER = 'อื่นๆ';
