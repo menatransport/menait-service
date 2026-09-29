@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { computeSettle, formatBaht, parseAmount, settleLabel } from '@/lib/finance/status';
-import { putAction, showAlert, uploadFiles } from '../api';
-import type { AdvanceDetail } from '../types';
+import { fetchJson, putAction, showAlert, uploadFiles } from '../api';
+import { CLEAR_ATTACHMENT_REQUIRED } from '../labels';
+import type { AdvanceDetail, AttachmentFile } from '../types';
+import { DateField } from './DateField';
 import { FilePicker } from './FilePicker';
 import { Panel } from './FinanceShell';
 
@@ -19,19 +21,34 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
   const [remark, setRemark] = useState(fin.remark ?? '');
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
+  const [existingClear, setExistingClear] = useState(0);
+  useEffect(() => {
+    fetchJson<{ files?: AttachmentFile[] } | AttachmentFile[]>(`/api/uploads3?form_id=${encodeURIComponent(detail.form_id)}`)
+      .then(data => {
+        const list = Array.isArray(data) ? data : data.files ?? [];
+        setExistingClear(list.filter(f => f.folder === 'clear').length);
+      })
+      .catch(() => setExistingClear(0));
+  }, [detail.form_id]);
 
   const actualNum = parseAmount(actual);
   const settle = actualNum === null ? null : computeSettle(fin.amount_paid, actualNum);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clearDate) return showAlert({ icon: 'warning', title: 'กรุณาระบุวันที่เคลียร์' });
+    if (!clearDate) return showAlert({ icon: 'warning', title: 'กรุณาระบุวันที่ส่งเอกสารเคลียร์' });
     if (actualNum === null || actualNum < 0) return showAlert({ icon: 'warning', title: 'กรุณาระบุยอดใช้จริง (ไม่ติดลบ)' });
     if (settle !== null && settle > 0 && !settleDate) {
       return showAlert({ icon: 'warning', title: 'มียอดต้องคืนบริษัท', text: 'กรุณาระบุวันที่โอนเงินคืน' });
     }
+    if (files.length === 0 && existingClear === 0) return showAlert({ icon: 'warning', title: CLEAR_ATTACHMENT_REQUIRED });
     setSaving(true);
     try {
+      const failed = await uploadFiles(detail.form_id, files, 'clear');
+      if (failed.length) {
+        await showAlert({ icon: 'error', title: 'อัปโหลดไฟล์ไม่สำเร็จ ยังไม่ได้ส่งเคลียร์', text: failed.join(', ') });
+        return;
+      }
       const saved = await putAction(detail.form_id, 'clear', {
         clear_date: clearDate,
         amount_actual: actualNum,
@@ -39,13 +56,8 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
         settle_date: settle !== null && settle > 0 ? settleDate : null,
         remark,
       });
-      const failed = await uploadFiles(detail.form_id, files, 'clear');
       setFiles([]);
-      await showAlert({
-        icon: failed.length ? 'warning' : 'success',
-        title: 'ส่งเคลียร์เงินแล้ว รอการเงินตรวจ',
-        text: failed.length ? `อัปโหลดไม่สำเร็จ: ${failed.join(', ')}` : undefined,
-      });
+      await showAlert({ icon: 'success', title: 'ส่งเคลียร์เงินแล้ว รอการเงินตรวจ' });
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: (err as Error).message });
@@ -57,8 +69,8 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
   return (
     <Panel title="เคลียร์เงิน (ผู้เบิกกรอก)">
       <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <label className="space-y-1 text-sm">วันที่เคลียร์ *
-          <Input type="date" value={clearDate} onChange={e => setClearDate(e.target.value)} disabled={saving} />
+        <label className="space-y-1 text-sm">วันที่ส่งเอกสารเคลียร์ *
+          <DateField value={clearDate} onChange={setClearDate} disabled={saving} />
         </label>
         <label className="space-y-1 text-sm">ยอดใช้จริง (บาท) *
           <Input inputMode="decimal" value={actual} onChange={e => setActual(e.target.value)} placeholder="0.00" disabled={saving} />
@@ -74,7 +86,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
         </div>
         {settle !== null && settle > 0 && (
           <label className="space-y-1 text-sm">วันที่โอนเงินคืน *
-            <Input type="date" value={settleDate} onChange={e => setSettleDate(e.target.value)} disabled={saving} />
+            <DateField value={settleDate} onChange={setSettleDate} disabled={saving} />
           </label>
         )}
         {settle !== null && settle < 0 && (
@@ -84,7 +96,8 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
           <Textarea value={remark} onChange={e => setRemark(e.target.value)} disabled={saving} />
         </label>
         <div className="sm:col-span-2">
-          <p className="mb-1 text-sm">แนบใบเสร็จ / สลิปคืนเงิน</p>
+          <p className="mb-1 text-sm">แนบใบเสร็จ / สลิปคืนเงิน *</p>
+          {existingClear > 0 && <p className="text-xs text-gray-500">มีไฟล์แนบแล้ว {existingClear} ไฟล์ (แนบเพิ่มได้)</p>}
           <FilePicker files={files} onChange={setFiles} disabled={saving} />
         </div>
         <div className="sm:col-span-2">
