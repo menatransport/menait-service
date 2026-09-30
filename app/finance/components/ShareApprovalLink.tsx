@@ -57,7 +57,7 @@ export function ShareApprovalLink({ detail }: { detail: AdvanceDetail }) {
           {loading ? (
             <p className="text-sm text-gray-400">กำลังโหลด...</p>
           ) : error ? (
-            <p className="text-sm text-rose-600">{error}</p>
+            <p className="text-sm text-gray-600">ยังดึงรายชื่อผู้อนุมัติไม่ได้ ส่งลิงก์ให้หัวหน้าตามสายงานได้เลย</p>
           ) : data && (
             <>
               <p className="mb-2 text-sm text-gray-700">{`ข้อ ${data.clause} · ${data.approver_label} — ผู้อนุมัติระดับ ${data.required_level} ขึ้นไป`}</p>

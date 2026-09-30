@@ -10,5 +10,9 @@ export function safeNextPath(next: string | null | undefined): string | null {
   try { u = new URL(next, BASE); } catch { return null; }
   if (u.origin !== BASE) return null;
   if (u.pathname === '/login' || u.pathname.startsWith('/login/')) return null;
-  return `${u.pathname}${u.search}${u.hash}`;
+  const out = `${u.pathname}${u.search}${u.hash}`;
+  // Dot segments collapse ("/..//evil.com" -> "//evil.com"), so re-check the normalized result.
+  if (!out.startsWith('/') || out.startsWith('//') || out.startsWith('/\\')) return null;
+  try { if (new URL(out, BASE).origin !== BASE) return null; } catch { return null; }
+  return out;
 }
