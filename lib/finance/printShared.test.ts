@@ -7,7 +7,9 @@ describe('printShared', () => {
   test('Document Control footer has every label and escapes values', () => {
     const html = documentControlFooter({ ref: 'ADV-1', name: 'Cash Advance Request (ADV)', owner: '<b>x</b>', approvedBy: 'A & B', approvedDate: '14/8/2026', printed: '29/09/2026 10:00' });
     for (const l of ['Document Control &amp; Revision History', 'Document Ref', 'Document Name', 'Document Owner', 'Version No', 'Revision Date', 'Approved By', 'Approved Date', 'Printed',
-      'ADV-1', 'Cash Advance Request (ADV)', '1 Nov 22', 'A &amp; B', '14/8/2026', '29/09/2026 10:00']) expect(html).toContain(l);
+      'ADV-1', 'Cash Advance Request (ADV)', 'A &amp; B', '14/8/2026', '29/09/2026 10:00']) expect(html).toContain(l);
+    expect(html).toContain('Revision Date');
+    expect(html).not.toContain('1 Nov 22');
     expect(html).toContain('&lt;b&gt;x&lt;/b&gt;');
     expect(html).not.toContain('<b>x</b>');
   });

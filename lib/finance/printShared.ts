@@ -38,7 +38,6 @@ export interface DocumentControl {
   ref: string; name: string; owner: string; approvedBy: string; approvedDate: string; printed: string;
 }
 
-export const REVISION_DATE = '1 Nov 22';
 export const VERSION_NO = '01';
 
 /** NC-style "Document Control & Revision History" table (6 columns, 3 rows), all values escaped. */
@@ -48,7 +47,7 @@ export function documentControlFooter(d: DocumentControl): string {
 <thead><tr><th colspan="6">Document Control &amp; Revision History</th></tr></thead>
 <tbody>
 <tr><td class="lb" style="width:15%">Document Ref</td><td style="width:33%">${v(d.ref)}</td><td class="lb" style="width:15%">Document Name</td><td colspan="3">${v(d.name)}</td></tr>
-<tr><td class="lb">Document Owner</td><td>${v(d.owner)}</td><td class="lb">Version No</td><td style="width:8%">${VERSION_NO}</td><td class="lb" style="width:14%">Revision Date</td><td style="width:13%">${REVISION_DATE}</td></tr>
+<tr><td class="lb">Document Owner</td><td>${v(d.owner)}</td><td class="lb">Version No</td><td style="width:8%">${VERSION_NO}</td><td class="lb" style="width:14%">Revision Date</td><td style="width:13%"> </td></tr>
 <tr><td class="lb">Approved By</td><td>${v(d.approvedBy)}</td><td class="lb">Approved Date</td><td>${v(d.approvedDate)}</td><td class="lb">Printed</td><td>${v(d.printed)}</td></tr>
 </tbody></table></div>`;
 }

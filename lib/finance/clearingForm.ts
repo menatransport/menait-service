@@ -105,7 +105,7 @@ export function clearingBody(data: ClearingFormData, opts: { logoUrl?: string; b
 
   return `<section class="doc-part">${opts.band ? '<div class="doc-band"></div>' : ''}
 <header class="head">${logo}<div><div class="t1">ใบเคลียร์เงินทดรองจ่าย</div><div class="t2">(Cash Advance Clearing form)</div></div>
-<div class="meta"><div class="ver">เริ่มใช้ 1 Nov 22</div><div><span>เลขที่</span><b>${esc(data.document_no)}</b></div><div class="date"><span>วันที่</span><b>${esc(thaiShortDate(data.clear_date))}</b></div></div></header>
+<div class="meta"><div><span>เลขที่</span><b>${esc(data.document_no)}</b></div><div class="date"><span>วันที่</span><b>${esc(thaiShortDate(data.clear_date))}</b></div></div></header>
 
 ${sec(1, 'ข้อมูลผู้เบิก', 'Requester')}
 <div class="grid">${field('ชื่อ-สกุล', e.name)}${field('รหัสพนักงาน', e.employee_id)}${field('ตำแหน่ง', e.position)}${field('แผนก', e.department)}${field('ศูนย์ค่าใช้จ่าย', e.cost_center)}</div>

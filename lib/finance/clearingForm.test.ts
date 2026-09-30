@@ -41,11 +41,13 @@ describe('clearing form', () => {
   });
   test('html has all sections, labels and the settle result', () => {
     const html = buildClearingHtml(toClearingData(detail({ status: 'CLOSED' })), {});
-    for (const s of ['ใบเคลียร์เงินทดรองจ่าย', '(Cash Advance Clearing form)', 'เริ่มใช้ 1 Nov 22', 'ADV-2026-0001', '24-ส.ค.-26',
+    for (const s of ['ใบเคลียร์เงินทดรองจ่าย', '(Cash Advance Clearing form)', 'ADV-2026-0001', '24-ส.ค.-26',
       'ข้อมูลผู้เบิก', 'ข้อมูลการเบิก', 'สรุปการเคลียร์', 'ลงนาม', 'ศูนย์ค่าใช้จ่าย', 'เลขที่ใบเบิก', 'ยอดเงินที่ได้รับ', 'กำหนดการเคลียร์',
       'ยอดใช้จริง', 'วันที่ส่งเอกสารเคลียร์', 'วันที่โอนเงินคืนบริษัท', 'เอกสารเคลียร์ (บัญชี)', 'หมายเหตุ',
       'ผู้เคลียร์', 'หัวหน้าหน่วยงาน', 'ผู้ตรวจ (บัญชี)', 'รับคืน', '800.00', 'แปดร้อยบาทถ้วน', '4,200.00', 'ปิดรายการ', 'ลงนามอิเล็กทรอนิกส์',
       'Advance Clearing (ADV)', 'counter(page)']) expect(html).toContain(s);
+    expect(html).not.toContain('เริ่มใช้');
+    expect(html).not.toContain('1 Nov 22');
     expect((html.match(/class="esign"/g) ?? []).length).toBe(2);
   });
   test('เบิกเพิ่ม, พอดี and no-stamp cases', () => {

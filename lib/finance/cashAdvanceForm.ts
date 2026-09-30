@@ -89,7 +89,6 @@ const PART_CSS = `
 .meta div + div { border-top: 1px solid var(--line); }
 .meta span { color: var(--muted); }
 .meta b { font-weight: 600; }
-.meta .ver { background: var(--teal); color: #fff; justify-content: center; font-weight: 600; }
 .sec { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; }
 .sec .n { width: 19px; height: 19px; border-radius: 3px; background: var(--teal); color: #fff; font-weight: 700; font-size: 11px; display: grid; place-items: center; flex: none; }
 .sec h2 { font-size: 13px; font-weight: 700; white-space: nowrap; }
@@ -177,7 +176,7 @@ export function cashAdvanceBody(data: CashAdvanceFormData, opts: { logoUrl?: str
 
   return `<section class="doc-part"><div class="doc-band"></div>
 <header class="head">${logo}<div><div class="t1">ใบคำขอเบิกเงินล่วงหน้า</div><div class="t2">(Cash Advance Request form)</div></div>
-<div class="meta"><div class="ver">เริ่มใช้ 1 Nov 22</div><div><span>เลขที่</span><b>${esc(data.document_no)}</b></div><div class="date"><span>วันที่</span><b>${esc(thaiShortDate(data.request_date))}</b></div></div></header>
+<div class="meta"><div><span>เลขที่</span><b>${esc(data.document_no)}</b></div><div class="date"><span>วันที่</span><b>${esc(thaiShortDate(data.request_date))}</b></div></div></header>
 
 ${sec(1, 'ข้อมูลพนักงานผู้เบิกเงิน', 'Requester')}
 <div class="grid">${field('ชื่อ-สกุล', e.name)}${field('รหัสพนักงาน', e.employee_id)}${field('ตำแหน่ง', e.position)}${field('แผนก', e.department)}${field('โอนเงินเข้าบัญชีธนาคารเลขที่', e.bank_account_no)}${field('ธนาคาร', e.bank_name)}${field('ชื่อบัญชี', e.account_name)}<div></div></div>

@@ -32,13 +32,15 @@ describe('cash advance form', () => {
   });
   test('html has every section and value', () => {
     const html = buildCashAdvanceHtml(sample as any, { logoUrl: '' });
-    for (const s of ['ใบคำขอเบิกเงินล่วงหน้า', '(Cash Advance Request form)', 'เริ่มใช้ 1 Nov 22', 'วันที่', '13-ส.ค.-26',
+    for (const s of ['ใบคำขอเบิกเงินล่วงหน้า', '(Cash Advance Request form)', 'วันที่', '13-ส.ค.-26',
       'ข้อมูลพนักงานผู้เบิกเงิน', 'ประเภทและวัตถุประสงค์ในการเบิกเงินล่วงหน้า', 'เงื่อนไขและข้อตกลง', 'ลงนามและอนุมัติ', 'นางสาวตัวอย่าง ทดสอบ', '000000', 'ผู้ช่วยหัวหน้าแผนกบัญชี',
       '000-0-00000-0', 'กสิกรไทย', '5,000.00', 'ห้าพันบาทถ้วน', '18/8/2026', 'กรุงเทพ', 'ลาดกระบัง/ขอนแก่น',
       'สระบุรี/ระยอง', 'MDD', 'อื่นๆ', 'ผู้ขอเบิก', 'หัวหน้าหน่วยงาน', 'ผู้จัดการ', 'ผู้มีอำนาจอนุมัติ', 'counter(page)', 'Document Control &amp; Revision History',
       'ภายใน 7 วันหลังจากได้รับเงิน', 'กรุณาส่งเอกสารที่ได้รับอนุมัติตาม TOA ภายในวันอังคาร']) {
       expect(html).toContain(s);
     }
+    expect(html).not.toContain('เริ่มใช้');
+    expect(html).not.toContain('1 Nov 22');
     expect((html.match(/class="cb checked"/g) ?? []).length).toBe(2); // ลาดกระบัง/ขอนแก่น + อื่นๆ
   });
   test('document_no shows in the meta box and the footer; toCashAdvanceData sets it from form_id', () => {
