@@ -11,10 +11,3 @@ export function approvalMessage(
   const purpose = (detail.request.purpose ?? '').trim() || '-';
   return `ขออนุมัติเบิกเงิน Advance ${detail.form_id}\nจำนวน ${formatBaht(detail.request.amount)} บาท\nเพื่อ ${purpose}\n${link}`;
 }
-
-/** Only same-site absolute paths may be used as a post-login destination (blocks open redirects). */
-export function safeNextPath(next: string | null | undefined): string | null {
-  if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) return null;
-  if (next === '/login' || next.startsWith('/login?') || next.startsWith('/login/')) return null;
-  return next;
-}

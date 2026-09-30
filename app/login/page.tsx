@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense, useCallback, use } from "react";
-import { safeNextPath } from "@/lib/finance/shareLink";
+import { safeNextPath } from "@/lib/safeRedirect";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
 import { CircleUserRound, KeyRound } from 'lucide-react';

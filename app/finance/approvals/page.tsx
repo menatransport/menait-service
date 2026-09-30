@@ -195,6 +195,17 @@ function FinanceApprovals() {
   const doc = useSearchParams().get('doc');
   const [notice, setNotice] = useState('');
   const handledDoc = useRef<string | null>(null);
+  const activeDoc = useRef<string | null>(null);
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cancels any in-flight lookup / pending scroll when the doc changes or the page unmounts.
+  useEffect(() => {
+    activeDoc.current = doc;
+    return () => {
+      activeDoc.current = null;
+      if (scrollTimer.current) clearTimeout(scrollTimer.current);
+    };
+  }, [doc]);
   const [apvView, setApvView] = useState<ApvView>('pending');
   const [items, setItems] = useState<ApprovalItem[]>([]);
   const [pending, setPending] = useState<PendingApprovalItem[]>([]);
@@ -260,7 +271,7 @@ function FinanceApprovals() {
     if (hit) {
       setNotice('');
       setPendingTab(hit.tab);
-      setTimeout(() => document.getElementById(`apv-${doc}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+      scrollTimer.current = setTimeout(() => document.getElementById(`apv-${doc}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
       return;
     }
     const notInQueue = `รายการ ${doc} ไม่อยู่ในคิวอนุมัติของคุณ — อาจอนุมัติไปแล้ว หรือระดับ/แผนกของคุณไม่มีสิทธิ์อนุมัติวงเงินนี้`;
@@ -270,7 +281,9 @@ function FinanceApprovals() {
           `/api/tickets?employee_id=${encodeURIComponent(user.employee_id)}&tab=apv&role=${encodeURIComponent(user.role ?? '')}&scope=advance&view=history`,
           { cache: 'no-store' },
         );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        if (activeDoc.current !== doc) return;
         const found: ApprovalListItem | undefined = Array.isArray(data) ? data.find((h: ApprovalListItem) => h.form_id === doc) : undefined;
         if (found) {
           const approved = found.action === 'APPROVED' || found.status_approve === 'Approved';
@@ -279,7 +292,7 @@ function FinanceApprovals() {
           setNotice(notInQueue);
         }
       } catch {
-        setNotice(notInQueue);
+        if (activeDoc.current === doc) setNotice(`ตรวจสอบสถานะรายการ ${doc} ไม่สำเร็จ ลองรีเฟรช`);
       }
     })();
   }, [doc, user?.employee_id, user?.role, apvView, loading, error, pending]);
@@ -439,7 +452,7 @@ function FinanceApprovals() {
 
 export default function FinanceApprovalsPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<FinanceShell title="อนุมัติเบิกเงิน Advance"><Panel title="รายการรออนุมัติ"><p className="text-sm text-gray-400">กำลังโหลด...</p></Panel></FinanceShell>}>
       <FinanceApprovals />
     </Suspense>
   );

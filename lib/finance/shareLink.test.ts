@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { approvalLink, approvalMessage, safeNextPath } from './shareLink';
+import { approvalLink, approvalMessage } from './shareLink';
 
 const detail = { form_id: 'ADV-2569-0001', request: { amount: 12345.5, purpose: 'ค่าเดินทาง\nไปสระบุรี' } };
 
@@ -13,13 +13,5 @@ describe('shareLink', () => {
   });
   test('missing purpose/amount', () => {
     expect(approvalMessage({ form_id: 'A', request: { amount: null, purpose: null } }, 'L')).toBe('ขออนุมัติเบิกเงิน Advance A\nจำนวน - บาท\nเพื่อ -\nL');
-  });
-  test('safeNextPath', () => {
-    expect(safeNextPath('/finance/approvals?doc=ADV-1')).toBe('/finance/approvals?doc=ADV-1');
-    expect(safeNextPath('//evil.com')).toBeNull();
-    expect(safeNextPath('https://evil.com')).toBeNull();
-    expect(safeNextPath('/\\evil.com')).toBeNull();
-    expect(safeNextPath('/login?x=1')).toBeNull();
-    expect(safeNextPath(null)).toBeNull();
   });
 });
