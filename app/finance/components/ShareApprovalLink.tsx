@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Copy, Send } from 'lucide-react';
-import { approvalLink, approvalMessage, lineShareUrl } from '@/lib/finance/shareLink';
+import { Copy, MessageSquareText } from 'lucide-react';
+import { approvalLink, approvalMessage } from '@/lib/finance/shareLink';
 import { fetchJson } from '../api';
 import type { AdvanceDetail, SuggestedApprovers } from '../types';
 import { Panel } from './FinanceShell';
@@ -11,9 +11,10 @@ export function ShareApprovalLink({ detail }: { detail: AdvanceDetail }) {
   const [data, setData] = useState<SuggestedApprovers | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'link' | 'msg' | null>(null);
   const [origin, setOrigin] = useState('');
   const linkRef = useRef<HTMLInputElement>(null);
+  const msgRef = useRef<HTMLTextAreaElement>(null);
   const formId = detail.form_id;
 
   useEffect(() => { setOrigin(window.location.origin); }, []);
@@ -29,16 +30,17 @@ export function ShareApprovalLink({ detail }: { detail: AdvanceDetail }) {
   }, [formId]);
 
   const link = origin ? approvalLink(origin, formId) : '';
-  const lineHref = link ? lineShareUrl(approvalMessage(detail, link)) : '#';
+  const message = link ? approvalMessage(detail, link) : '';
 
-  const copy = async () => {
+  const copy = async (kind: 'link' | 'msg') => {
     try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(kind === 'link' ? link : message);
+      setCopied(kind);
+      setTimeout(() => setCopied(null), 2000);
     } catch {
-      linkRef.current?.focus();
-      linkRef.current?.select();
+      const el = kind === 'link' ? linkRef.current : msgRef.current;
+      el?.focus();
+      el?.select();
     }
   };
 
@@ -76,21 +78,31 @@ export function ShareApprovalLink({ detail }: { detail: AdvanceDetail }) {
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={copy}
+                onClick={() => copy('link')}
                 disabled={!link}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-[#026a75] bg-white px-4 py-2 text-sm font-medium text-[#026a75] transition-colors hover:bg-[#026a75]/5 disabled:opacity-50"
               >
-                <Copy className="h-4 w-4" /> {copied ? 'คัดลอกแล้ว' : 'คัดลอกลิงก์'}
+                <Copy className="h-4 w-4" /> {copied === 'link' ? 'คัดลอกแล้ว' : 'คัดลอกลิงก์'}
               </button>
-              <a
-                href={lineHref}
-                target="_blank"
-                rel="noopener"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#026a75] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#055058]"
-              >
-                <Send className="h-4 w-4" /> ส่งทาง LINE
-              </a>
             </div>
+          </div>
+          <div className="space-y-2">
+            <textarea
+              ref={msgRef}
+              readOnly
+              rows={4}
+              value={message}
+              onFocus={e => e.currentTarget.select()}
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
+            />
+            <button
+              type="button"
+              onClick={() => copy('msg')}
+              disabled={!message}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#026a75] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#055058] disabled:opacity-50"
+            >
+              <MessageSquareText className="h-4 w-4" /> {copied === 'msg' ? 'คัดลอกแล้ว' : 'คัดลอกข้อความ (ส่ง LINE)'}
+            </button>
           </div>
         </div>
       )}

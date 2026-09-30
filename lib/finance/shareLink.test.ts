@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { approvalLink, approvalMessage, lineShareUrl, safeNextPath } from './shareLink';
+import { approvalLink, approvalMessage, safeNextPath } from './shareLink';
 
 const detail = { form_id: 'ADV-2569-0001', request: { amount: 12345.5, purpose: 'ค่าเดินทาง\nไปสระบุรี' } };
 
@@ -13,14 +13,6 @@ describe('shareLink', () => {
   });
   test('missing purpose/amount', () => {
     expect(approvalMessage({ form_id: 'A', request: { amount: null, purpose: null } }, 'L')).toBe('ขออนุมัติเบิกเงิน Advance A\nจำนวน - บาท\nเพื่อ -\nL');
-  });
-  test('lineShareUrl encodes Thai, newlines, & and ?', () => {
-    const url = lineShareUrl('ก\nb&c?d=e');
-    expect(url.startsWith('https://line.me/R/msg/text/?')).toBe(true);
-    expect(url).not.toContain('\n');
-    expect(url.split('?').length).toBe(2);
-    expect(decodeURIComponent(url.split('?')[1])).toBe('ก\nb&c?d=e');
-    expect(url).toContain('%0A');
   });
   test('safeNextPath', () => {
     expect(safeNextPath('/finance/approvals?doc=ADV-1')).toBe('/finance/approvals?doc=ADV-1');
