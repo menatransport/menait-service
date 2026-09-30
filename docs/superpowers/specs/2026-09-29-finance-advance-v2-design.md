@@ -371,6 +371,10 @@ these questions and show "-".
   listed by name. Printing waits for every image and font.
 - All content, validation and mapping from §5e and §5f.5 are unchanged. Only the look and the entry point change.
 
+**Update (user, 2026-09-30): the version marker "เริ่มใช้ 1 Nov 22" is removed from every print.** It is gone from both
+the top-right meta box and the Document Control "Revision Date" cell, which stays blank. This supersedes those
+mentions in §5e/§5f/§5g.
+
 ## 6. Migration `scripts/migrations/2026-09-29_finance_advance_v2.sql` (user runs it in DBeaver)
 
 One transaction, idempotent, with no `DO $$` blocks (DBeaver-safe, as in v1):
