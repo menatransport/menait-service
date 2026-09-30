@@ -28,6 +28,12 @@ interface SessionContextType {
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
+/** /login?next=<current path+query> so a deep link survives the login round trip (login validates `next`). */
+const loginUrlWithNext = () => {
+  const here = `${window.location.pathname}${window.location.search}`;
+  return here === '/' ? '/login' : `/login?next=${encodeURIComponent(here)}`;
+};
+
 const showSwal = (options: any) => import('sweetalert2').then(({ default: Swal }) => Swal.fire(options));
 
 export const SessionProvider = ({ children }: { children: React.ReactNode }) => {
@@ -88,7 +94,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
         allowOutsideClick: false,
       }).then(() => {
         localStorage.clear()
-        router.replace('/login');
+        router.replace(loginUrlWithNext());
       });
     }
   }, [user, loading, pathname, router]);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense, useCallback, use } from "react";
+import { safeNextPath } from "@/lib/finance/shareLink";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
 import { CircleUserRound, KeyRound } from 'lucide-react';
@@ -42,7 +43,7 @@ function LoginForm() {
                 setUser(data.user);
             }
             sessionStorage.setItem("showWelcome", "true")
-            router.push("/home");
+            router.push(safeNextPath(searchParams.get('next')) ?? "/home");
 
             return true;
         } catch (error) {
@@ -51,7 +52,7 @@ function LoginForm() {
             setIsLoading(false);
             return false;
         }
-    }, [router, setUser]);
+    }, [router, setUser, searchParams]);
 
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
@@ -72,8 +73,9 @@ function LoginForm() {
 
     const handleAuthengoogle = useCallback(() => {
         setIsLoading(true);
-        signIn('google', { callbackUrl: '/login?google=true' });
-    }, []);
+        const next = safeNextPath(searchParams.get('next'));
+        signIn('google', { callbackUrl: `/login?google=true${next ? `&next=${encodeURIComponent(next)}` : ''}` });
+    }, [searchParams]);
 
     return (
         <div className="min-h-screen bg-linear-to-br from-[#026a75] via-[#037a86] to-[#025f68] flex items-center justify-center p-4 relative overflow-hidden">

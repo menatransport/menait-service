@@ -104,3 +104,18 @@ export interface PendingApprovalItem {
   tier: ApprovalTierInfo;
   tab: 'mine' | 'delegable';
 }
+
+export interface SuggestedApprover {
+  employee_id: string;
+  name: string | null;
+  position: string | null;
+  department: string | null;
+}
+
+export interface SuggestedApprovers {
+  requester_employee_id: string;
+  clause: string;
+  approver_label: string;
+  required_level: number;
+  approvers: SuggestedApprover[];
+}

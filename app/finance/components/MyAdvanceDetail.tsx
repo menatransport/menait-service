@@ -9,6 +9,7 @@ import { AttachmentPanel } from './AttachmentPanel';
 import { ClearForm } from './ClearForm';
 import { NoAccess, Panel } from './FinanceShell';
 import { LogList } from './LogList';
+import { ShareApprovalLink } from './ShareApprovalLink';
 
 const CLEARABLE = new Set(['AWAITING_CLEARING', 'SENT_BACK', 'AWAITING_REVIEW']);
 
@@ -34,6 +35,7 @@ export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChang
     <>
       <PrintDocumentButton detail={detail} />
       <AdvanceSummary item={detail} detail={detail} />
+      {detail.status === 'PENDING_APPROVAL' && <ShareApprovalLink detail={detail} />}
       <Panel title="ไฟล์แนบ">
         <div className="grid gap-5 sm:grid-cols-2">
           <AttachmentPanel formId={formId} folder="request" canUpload={detail.status === 'PENDING_APPROVAL'} refreshKey={refreshKey} />

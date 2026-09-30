@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { CheckCircle2, Clock, X, XCircle } from 'lucide-react';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { FormValue } from '@/app/mytickets/[id]/types';
 import { formatBaht, formatDate } from '@/lib/finance/status';
@@ -130,15 +131,15 @@ function ApprovalCard({
 }
 
 function PendingCard({
-  item, processing, onApprove, onReject,
+  item, processing, highlight = false, onApprove, onReject,
 }: {
-  item: PendingApprovalItem; processing: boolean; onApprove: () => void; onReject: () => void;
+  item: PendingApprovalItem; processing: boolean; highlight?: boolean; onApprove: () => void; onReject: () => void;
 }) {
   const { requester, request, tier } = item;
   const requesterName = requester?.name?.trim() || '-';
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+    <div id={`apv-${item.form_id}`} className={`rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5 ${highlight ? 'ring-2 ring-[#026a75]' : ''}`}>
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2 border-b border-gray-100 pb-3">
         <div>
           <p className="text-sm font-semibold text-[#055058]">{item.form_id}</p>
@@ -189,8 +190,11 @@ function PendingCard({
   );
 }
 
-export default function FinanceApprovalsPage() {
+function FinanceApprovals() {
   const { user } = useSessionContext();
+  const doc = useSearchParams().get('doc');
+  const [notice, setNotice] = useState('');
+  const handledDoc = useRef<string | null>(null);
   const [apvView, setApvView] = useState<ApvView>('pending');
   const [items, setItems] = useState<ApprovalItem[]>([]);
   const [pending, setPending] = useState<PendingApprovalItem[]>([]);
@@ -246,6 +250,39 @@ export default function FinanceApprovalsPage() {
   }, [user?.employee_id, user?.role, apvView]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Deep link ?doc=<form_id>: focus the pending card, else explain where the item went.
+  useEffect(() => {
+    if (!doc || !user?.employee_id || apvView !== 'pending' || loading || error) return;
+    if (handledDoc.current === doc) return;
+    handledDoc.current = doc;
+    const hit = pending.find(p => p.form_id === doc);
+    if (hit) {
+      setNotice('');
+      setPendingTab(hit.tab);
+      setTimeout(() => document.getElementById(`apv-${doc}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+      return;
+    }
+    const notInQueue = `รายการ ${doc} ไม่อยู่ในคิวอนุมัติของคุณ — อาจอนุมัติไปแล้ว หรือระดับ/แผนกของคุณไม่มีสิทธิ์อนุมัติวงเงินนี้`;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/tickets?employee_id=${encodeURIComponent(user.employee_id)}&tab=apv&role=${encodeURIComponent(user.role ?? '')}&scope=advance&view=history`,
+          { cache: 'no-store' },
+        );
+        const data = await res.json();
+        const found: ApprovalListItem | undefined = Array.isArray(data) ? data.find((h: ApprovalListItem) => h.form_id === doc) : undefined;
+        if (found) {
+          const approved = found.action === 'APPROVED' || found.status_approve === 'Approved';
+          setNotice(`คุณ${approved ? 'อนุมัติ' : 'ไม่อนุมัติ'}รายการนี้แล้ว เมื่อ ${formatDate(found.action_at)}`);
+        } else {
+          setNotice(notInQueue);
+        }
+      } catch {
+        setNotice(notInQueue);
+      }
+    })();
+  }, [doc, user?.employee_id, user?.role, apvView, loading, error, pending]);
 
   const submitAction = useCallback(async (item: { form_id: string }, remark: string, action: 'approve' | 'reject') => {
     setProcessingId(item.form_id);
@@ -309,6 +346,14 @@ export default function FinanceApprovalsPage() {
 
   return (
     <FinanceShell title="อนุมัติเบิกเงิน Advance">
+      {notice && (
+        <div role="status" className="flex items-start justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span>{notice}</span>
+          <button type="button" aria-label="ปิด" onClick={() => setNotice('')} className="shrink-0 text-amber-700 hover:text-amber-900">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       <Panel
         title={apvView === 'pending' ? 'รายการรออนุมัติ' : 'รายการอนุมัติ/ไม่อนุมัติแล้ว'}
         actions={
@@ -338,7 +383,8 @@ export default function FinanceApprovalsPage() {
           (() => {
             const mine = pending.filter(p => p.tab === 'mine');
             const delegable = pending.filter(p => p.tab === 'delegable');
-            const shown = pendingTab === 'mine' ? mine : delegable;
+            const shownRaw = pendingTab === 'mine' ? mine : delegable;
+            const shown = doc ? [...shownRaw].sort((a, b) => Number(b.form_id === doc) - Number(a.form_id === doc)) : shownRaw;
             const pill = (active: boolean) =>
               `rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${active ? 'bg-[#026a75] text-white shadow-sm' : 'text-gray-600 hover:text-[#026a75]'}`;
             return (
@@ -360,6 +406,7 @@ export default function FinanceApprovalsPage() {
                         key={item.form_id}
                         item={item}
                         processing={processingId === item.form_id}
+                        highlight={!!doc && item.form_id === doc}
                         onApprove={() => handleApprove(item)}
                         onReject={() => handleReject(item)}
                       />
@@ -387,5 +434,13 @@ export default function FinanceApprovalsPage() {
         )}
       </Panel>
     </FinanceShell>
+  );
+}
+
+export default function FinanceApprovalsPage() {
+  return (
+    <Suspense fallback={null}>
+      <FinanceApprovals />
+    </Suspense>
   );
 }
