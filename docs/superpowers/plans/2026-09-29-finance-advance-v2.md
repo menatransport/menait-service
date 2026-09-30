@@ -2209,3 +2209,43 @@ The content is the original Task 16 / spec §5f.5, built on `printShared`.
   - Escaping.
   - A Chrome sample `tmp/clearing-sample.pdf` → PNG, Read it.
 - **Verify:** bun test lib/finance, tsc 0, build. Commit `feat(finance): Part 2 ใบเคลียร์เงินทดรองจ่าย print`.
+
+---
+
+## Part 10 (spec §5h) — share an approval link
+
+### Task 17: BE — suggested approvers endpoint
+
+- `services/finance/approval_repo.py`: add `suggested_approvers(db, submission) -> dict`.
+  - Load the context once, read the amount (`_amount_of`), then `describe` for clause/label/required/direct.
+  - Eligible = every person where `rules.can_approve(p, requester, required, mappings.get(eid, ()))`; direct = eligible with `level == direct_level`.
+  - Enrich direct ones with `advance_repo.people_by_employee_id` (name/position/department).
+  - Return `{requester_employee_id, clause, approver_label, required_level, approvers:[{employee_id, name, position, department}]}`, sorted by name.
+- Put the pure selection in `approval_logic.direct_approvers(people, requester, required, mappings) -> list[dict]` (people at the direct level), with a DB-free test.
+- `routes/finance/advance_routes.py`: `GET /advances/{form_id}/approvers` returns 404 if not ADV; `AdvanceRuleError` → `_rule_error`.
+- **Tests (DB-free):** `direct_approvers`:
+  - Only the lowest eligible level is returned.
+  - The requester is excluded.
+  - Level 9 is org-wide.
+  - An empty list when nobody is eligible.
+- **Verify:** full pytest. Commit `feat(finance): suggested approvers for an advance (share-link support)`.
+
+### Task 18: FE — share-link panel + approvals deep link
+
+- **Types:** `app/finance/types.ts` gets `SuggestedApprovers` matching the BE shape.
+- **Route:** `app/api/finance/advances/[form_id]/approvers/route.ts` (GET).
+  - `requireUser`, then proxy to BE.
+  - Return data only if `guard.user.employee_id === data.requester_employee_id || guard.user.is_finance`; otherwise 403 'ไม่มีสิทธิ์ดูรายการนี้'.
+- **New `app/finance/components/ShareApprovalLink.tsx`:** rendered by MyAdvanceDetail when `detail.status === 'PENDING_APPROVAL'`.
+  - It loads the approvers.
+  - It shows the tier line and the approver list, each "ชื่อ · ตำแหน่ง · แผนก".
+  - The link is shown as selectable text, next to "คัดลอกลิงก์". The copy handles clipboard rejection and falls back to selecting the text.
+  - "ส่งทาง LINE" is an `<a href target="_blank" rel="noopener">` to `https://line.me/R/msg/text/?` plus the encoded message, as in spec §5h.
+  - Loading/error states.
+- **`app/finance/approvals/page.tsx`:** read `doc` via `useSearchParams` (wrap in `<Suspense>` if Next requires it).
+  - If pending contains it: set `pendingTab` to its tab, render it first with a highlight ring (e.g. `ring-2 ring-[#026a75]`), and `scrollIntoView` after render.
+  - If not: fetch history (the existing history call) once. If found, show a notice "คุณ<อนุมัติ/ไม่อนุมัติ>รายการนี้แล้ว เมื่อ <formatDate(action_at)>"; else show the not-in-queue notice from spec §5h.
+  - The notice sits above the list and is dismissible.
+- **Login redirect:** check how an unauthenticated visit to `/finance/approvals?doc=…` is redirected (middleware/login page/next-auth callbackUrl). Make it return to the same URL if that is a small change; otherwise document the current behaviour in the report.
+- **Pure helper** `lib/finance/shareLink.ts`: `approvalLink(origin, formId)` and `lineShareUrl(message)` / `approvalMessage(detail, link)`, with tests covering encoding (Thai + newlines) and the amount format.
+- **Verify:** bun test lib/finance, tsc 0, build. Commit `feat(finance): share approval link (copy/LINE) + approvals deep link`.

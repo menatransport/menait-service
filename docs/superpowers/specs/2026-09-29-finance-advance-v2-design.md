@@ -375,6 +375,32 @@ these questions and show "-".
 the top-right meta box and the Document Control "Revision Date" cell, which stays blank. This supersedes those
 mentions in §5e/§5f/§5g.
 
+## 5h. Part 10 — share an approval link (user, 2026-09-30)
+
+- **Requester side:** shown on the requester's detail page (MyAdvanceDetail) while the status is รออนุมัติ
+  (PENDING_APPROVAL). A panel titled "ส่งลิงก์ขออนุมัติ" contains:
+  - **Suggested approvers:** the eligible people at the *direct* level (the "รอฉันอนุมัติ" group). Each shows name,
+    position and department, plus the required level and clause, e.g. "ข้อ 6.6 — ผู้อนุมัติระดับ 6 ขึ้นไป". If
+    none are found, show "ไม่พบผู้อนุมัติที่เหมาะสม กรุณาติดต่อฝ่ายการเงิน".
+  - **Copy link:** `${origin}/finance/approvals?doc=<form_id>`. The clipboard error is handled; the fallback selects the text.
+  - **Send via LINE:** opens `https://line.me/R/msg/text/?<encodeURIComponent(message)>` in a new tab, where
+    message = "ขออนุมัติเบิกเงิน Advance <form_id>\nจำนวน <amount> บาท\nเพื่อ <purpose>\n<link>".
+- **BE:** `GET /finance/advances/{form_id}/approvers` returns `{requester_employee_id, clause, approver_label,
+  required_level, approvers: [{employee_id, name, position, department}]}`, using the direct-level eligible people.
+  Returns 404 when there's no ADV and 400 on a rule error. It uses the already-loaded approval context (no N+1).
+- **FE route:** `GET /api/finance/advances/[form_id]/approvers`, with requireUser. It returns data only to the
+  requester (session employee_id === requester_employee_id) or a Finance user; anyone else gets 403.
+- **Approver side:** `/finance/approvals?doc=<form_id>`.
+  - If the item is in the pending list, switch to its tab (mine/delegable), move it to the top, highlight it and
+    scroll it into view.
+  - If it is not pending, look it up in the approver's history. When found, show "คุณ<อนุมัติ/ไม่อนุมัติ>รายการนี้แล้ว
+    เมื่อ <date>".
+  - Otherwise show "รายการ <form_id> ไม่อยู่ในคิวอนุมัติของคุณ — อาจอนุมัติไปแล้ว หรือระดับ/แผนกของคุณไม่มีสิทธิ์อนุมัติวงเงินนี้".
+  - A not-logged-in user must come back to the same URL after login. Keep the query; the implementer verifies the
+    current login redirect and notes it if that isn't feasible.
+- Security is unchanged: the link grants nothing, and approve/reject is still checked by BE eligibility. Server-side
+  identity remains on the launch gate.
+
 ## 6. Migration `scripts/migrations/2026-09-29_finance_advance_v2.sql` (user runs it in DBeaver)
 
 One transaction, idempotent, with no `DO $$` blocks (DBeaver-safe, as in v1):
