@@ -383,7 +383,8 @@ mentions in §5e/§5f/§5g.
     position and department, plus the required level and clause, e.g. "ข้อ 6.6 — ผู้อนุมัติระดับ 6 ขึ้นไป". If
     none are found, show "ไม่พบผู้อนุมัติที่เหมาะสม กรุณาติดต่อฝ่ายการเงิน".
   - **Copy link:** `${origin}/finance/approvals?doc=<form_id>`. The clipboard error is handled; the fallback selects the text.
-  - **Send via LINE:** opens `https://line.me/R/msg/text/?<encodeURIComponent(message)>` in a new tab, where
+  - **Copy message for LINE** (user, 2026-09-30: copy only, no LINE deep link): a button "คัดลอกข้อความ (ส่ง LINE)" copies
+    the full message to the clipboard, where
     message = "ขออนุมัติเบิกเงิน Advance <form_id>\nจำนวน <amount> บาท\nเพื่อ <purpose>\n<link>".
 - **BE:** `GET /finance/advances/{form_id}/approvers` returns `{requester_employee_id, clause, approver_label,
   required_level, approvers: [{employee_id, name, position, department}]}`, using the direct-level eligible people.
