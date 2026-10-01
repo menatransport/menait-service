@@ -1,7 +1,7 @@
 'use client';
 import { Navbar } from '@/components/navbar';
 import dynamic from 'next/dynamic';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { type TabType, type SurveyFilter, type ApvView } from "./ticketstable";
 import { useSessionContext } from '@/app/context/SessionContext';
 import { useParams, useRouter } from "next/navigation";
@@ -100,34 +100,71 @@ export default function TicketsPage() {
             : { startMonth: sMonth, endMonth: eMonth });
     }, []);
 
+    // Per-view cache (stale-while-revalidate): switching back to a tab shows the
+    // last result instantly and refreshes it in the background.
+    const cacheRef = useRef(new Map<string, { evaluated: Ticket[]; notEvaluated: Ticket[] }>());
+    const abortRef = useRef<AbortController | null>(null);
+    const [hasLoaded, setHasLoaded] = useState(false);
+
     const fetchTickets = useCallback(async (tab: TabType) => {
         if (!employeeId) return;
-        setIsLoading(true);
         const { start_date, end_date } = monthToRange(startMonth, endMonth);
         const dateQS = `&start_date=${start_date}&end_date=${end_date}`;
+        const view = tab === 'apv' ? apvView : '';
+        const cacheKey = `${tab}|${view}|${start_date}|${end_date}`;
+
+        const apply = ({ evaluated, notEvaluated }: { evaluated: Ticket[]; notEvaluated: Ticket[] }) => {
+            if (tab === 'suv') {
+                setSurveyEvaluated(evaluated);
+                setSurveyNotEvaluated(notEvaluated);
+            }
+            setTickets(evaluated);
+        };
+
+        const cached = cacheRef.current.get(cacheKey);
+        if (cached) apply(cached);
+        setIsLoading(!cached);
+
+        // Drop the response of a tab the user already left
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+        const { signal } = controller;
+
         try {
+            let entry: { evaluated: Ticket[]; notEvaluated: Ticket[] };
             if (tab === 'suv') {
                 const [evalRes, notEvalRes] = await Promise.all([
-                    fetch(`/api/survey-it?employee_id=${employeeId}&tab=${tab}&role=${role}`),
-                    fetch(`/api/tickets?employee_id=${employeeId}&tab=suv&role=${role}&status=Done${dateQS}`),
+                    fetch(`/api/survey-it?employee_id=${employeeId}&tab=${tab}&role=${role}`, { signal }),
+                    fetch(`/api/tickets?employee_id=${employeeId}&tab=suv&role=${role}&status=Done${dateQS}`, { signal }),
                 ]);
                 const [evalData, notEvalData] = await Promise.all([evalRes.json(), notEvalRes.json()]);
-                setSurveyEvaluated(Array.isArray(evalData) ? evalData : []);
-                setSurveyNotEvaluated(Array.isArray(notEvalData) ? notEvalData : []);
-                setTickets(Array.isArray(evalData) ? evalData : []);
+                entry = {
+                    evaluated: Array.isArray(evalData) ? evalData : [],
+                    notEvaluated: Array.isArray(notEvalData) ? notEvalData : [],
+                };
             } else {
-                const viewQS = tab === 'apv' && apvView === 'history' ? '&view=history' : '';
-                const response = await fetch(`/api/tickets?employee_id=${employeeId}&tab=${tab}&role=${role}${dateQS}${viewQS}`);
+                const viewQS = view === 'history' ? '&view=history' : '';
+                const response = await fetch(`/api/tickets?employee_id=${employeeId}&tab=${tab}&role=${role}${dateQS}${viewQS}`, { signal });
                 const data = await response.json();
-                setTickets(Array.isArray(data) ? data : []);
+                entry = { evaluated: Array.isArray(data) ? data : [], notEvaluated: [] };
             }
+            if (signal.aborted) return;
+            cacheRef.current.set(cacheKey, entry);
+            apply(entry);
         } catch (error) {
+            if (signal.aborted) return;
             console.error('Error fetching tickets data:', error);
-            setTickets([]);
+            if (!cached) setTickets([]);
         } finally {
-            setIsLoading(false);
+            if (!signal.aborted) {
+                setIsLoading(false);
+                setHasLoaded(true);
+            }
         }
     }, [employeeId, role, startMonth, endMonth, apvView]);
+
+    useEffect(() => () => abortRef.current?.abort(), []);
 
     useEffect(() => {
         if (!employeeId) return;
@@ -208,6 +245,7 @@ export default function TicketsPage() {
             });
 
             if (res.ok) {
+                cacheRef.current.clear();
                 setTickets(prev => prev.map(t =>
                     t.form_id === ticket.form_id ? { ...t, status: newStatus } : t
                 ));
@@ -232,15 +270,18 @@ export default function TicketsPage() {
         submitAction(ticket, remark, 'reject'), [submitAction]);
 
     const handleUpdateStatus = useCallback((ticket: Ticket, newStatus: string) => {
+        cacheRef.current.clear();
         setTickets(prev => prev.map(t =>
             t.form_id === ticket.form_id ? { ...t, status: newStatus } : t
         ));
     }, []);
 
-    if (isLoading) {
+    // Full-page spinner only before the first load; afterwards the table stays
+    // mounted and DataTable shows its own loading overlay.
+    if (!hasLoaded) {
         return (
-            <Navbar isHome={false} title="ติดตามสถานะคำร้อง">
-                <main className="flex-1 min-h-0 bg-[#026a75] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto relative">
+            <Navbar isHome={false} title="ติดตามสถานะคำร้อง IT">
+                <main className="flex-1 min-h-0 bg-brand-600 rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto relative">
                     <WaveBackground />
                     <div className="flex items-center justify-center h-64 relative z-10">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
@@ -251,7 +292,7 @@ export default function TicketsPage() {
     }
 
     return (
-        <Navbar isHome={false} title="ติดตามสถานะคำร้อง">
+        <Navbar isHome={false} title="ติดตามสถานะคำร้อง IT">
             <TicketComponent
                 tickets={tickets}
                 selectTicketBack={selectedTicket}

@@ -156,9 +156,9 @@ export const DashboardFilter = ({
                                 className={[
                                     'py-2 text-xs rounded-md transition-colors cursor-pointer',
                                     isEdge
-                                        ? 'bg-teal-600 text-white font-semibold shadow-sm'
+                                        ? 'bg-brand-600 text-white font-semibold shadow-sm'
                                         : inRange
-                                            ? 'bg-teal-100 text-teal-800'
+                                            ? 'bg-brand-100 text-brand-800'
                                             : 'text-gray-700 hover:bg-gray-100',
                                 ].join(' ')}
                             >
@@ -175,7 +175,7 @@ export const DashboardFilter = ({
                             const cm = currentYM();
                             apply(cm, cm);
                         }}
-                        className="text-[11px] px-2.5 py-1 rounded-full bg-gray-100 hover:bg-teal-100 hover:text-teal-700 text-gray-700 transition-colors cursor-pointer"
+                        className="text-[11px] px-2.5 py-1 rounded-full bg-gray-100 hover:bg-brand-100 hover:text-brand-700 text-gray-700 transition-colors cursor-pointer"
                     >
                         เดือนนี้
                     </button>
@@ -187,7 +187,7 @@ export const DashboardFilter = ({
                             const sd = new Date(now.getFullYear(), now.getMonth() - 2, 1);
                             apply(fmtYM(sd.getFullYear(), sd.getMonth() + 1), e);
                         }}
-                        className="text-[11px] px-2.5 py-1 rounded-full bg-gray-100 hover:bg-teal-100 hover:text-teal-700 text-gray-700 transition-colors cursor-pointer"
+                        className="text-[11px] px-2.5 py-1 rounded-full bg-gray-100 hover:bg-brand-100 hover:text-brand-700 text-gray-700 transition-colors cursor-pointer"
                     >
                         3 เดือน
                     </button>
@@ -199,7 +199,7 @@ export const DashboardFilter = ({
                             const sd = new Date(now.getFullYear(), now.getMonth() - 5, 1);
                             apply(fmtYM(sd.getFullYear(), sd.getMonth() + 1), e);
                         }}
-                        className="text-[11px] px-2.5 py-1 rounded-full bg-gray-100 hover:bg-teal-100 hover:text-teal-700 text-gray-700 transition-colors cursor-pointer"
+                        className="text-[11px] px-2.5 py-1 rounded-full bg-gray-100 hover:bg-brand-100 hover:text-brand-700 text-gray-700 transition-colors cursor-pointer"
                     >
                         6 เดือน
                     </button>
@@ -211,7 +211,7 @@ export const DashboardFilter = ({
                             const sd = new Date(now.getFullYear(), now.getMonth() - 11, 1);
                             apply(fmtYM(sd.getFullYear(), sd.getMonth() + 1), e);
                         }}
-                        className="text-[11px] px-2.5 py-1 rounded-full bg-gray-100 hover:bg-teal-100 hover:text-teal-700 text-gray-700 transition-colors cursor-pointer"
+                        className="text-[11px] px-2.5 py-1 rounded-full bg-gray-100 hover:bg-brand-100 hover:text-brand-700 text-gray-700 transition-colors cursor-pointer"
                     >
                         1 ปี
                     </button>

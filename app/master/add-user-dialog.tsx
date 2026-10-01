@@ -154,7 +154,7 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-[#026a75]">
+                    <DialogTitle className="flex items-center gap-2 text-brand-600">
                         <UserPlus className="w-5 h-5" />
                         เพิ่มผู้ใช้ใหม่
                     </DialogTitle>
@@ -167,13 +167,13 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
                     {/* Row 1: รหัสพนักงาน */}
                     <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                            <IdCard className="w-3.5 h-3.5 text-[#026a75]" />
+                            <IdCard className="w-3.5 h-3.5 text-brand-600" />
                             รหัสพนักงาน <span className="text-red-400">*</span>
                         </Label>
                         <Input
                             value={form.employee_id}
                             onChange={e => handleChange('employee_id', e.target.value)}
-                            className="h-10 text-sm rounded-lg border-gray-200 focus:ring-[#026a75] focus:border-[#026a75]"
+                            className="h-10 text-sm rounded-lg border-gray-200 focus:ring-brand-600 focus:border-brand-600"
                         />
                     </div>
 
@@ -181,24 +181,24 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <User className="w-3.5 h-3.5 text-[#026a75]" />
+                                <User className="w-3.5 h-3.5 text-brand-600" />
                                 ชื่อ <span className="text-red-400">*</span>
                             </Label>
                             <Input
                                 value={form.firstname}
                                 onChange={e => handleChange('firstname', e.target.value)}
-                                className="h-10 text-sm rounded-lg border-gray-200 focus:ring-[#026a75] focus:border-[#026a75]"
+                                className="h-10 text-sm rounded-lg border-gray-200 focus:ring-brand-600 focus:border-brand-600"
                             />
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <User className="w-3.5 h-3.5 text-[#026a75]" />
+                                <User className="w-3.5 h-3.5 text-brand-600" />
                                 นามสกุล <span className="text-red-400">*</span>
                             </Label>
                             <Input
                                 value={form.lastname}
                                 onChange={e => handleChange('lastname', e.target.value)}
-                                className="h-10 text-sm rounded-lg border-gray-200 focus:ring-[#026a75] focus:border-[#026a75]"
+                                className="h-10 text-sm rounded-lg border-gray-200 focus:ring-brand-600 focus:border-brand-600"
                             />
                         </div>
                     </div>
@@ -207,24 +207,24 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <User className="w-3.5 h-3.5 text-[#026a75]" />
+                                <User className="w-3.5 h-3.5 text-brand-600" />
                                 ชื่อผู้ใช้ <span className="text-red-400">*</span>
                             </Label>
                             <Input
                                 value={form.username}
                                 onChange={e => handleChange('username', e.target.value)}
-                                className="h-10 text-sm rounded-lg border-gray-200 focus:ring-[#026a75] focus:border-[#026a75]"
+                                className="h-10 text-sm rounded-lg border-gray-200 focus:ring-brand-600 focus:border-brand-600"
                             />
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <Mail className="w-3.5 h-3.5 text-[#026a75]" />
+                                <Mail className="w-3.5 h-3.5 text-brand-600" />
                                 อีเมล <span className="text-red-400">*</span>
                             </Label>
                             <Input
                                 value={form.email}
                                 onChange={e => handleChange('email', e.target.value)}
-                                className="h-10 text-sm rounded-lg border-gray-200 focus:ring-[#026a75] focus:border-[#026a75]"
+                                className="h-10 text-sm rounded-lg border-gray-200 focus:ring-brand-600 focus:border-brand-600"
                             />
                         </div>
                     </div>
@@ -236,7 +236,7 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <Building className="w-3.5 h-3.5 text-[#026a75]" />
+                                <Building className="w-3.5 h-3.5 text-brand-600" />
                                 ฝ่าย
                             </Label>
                             <DropdownSearch
@@ -249,7 +249,7 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <MapPin className="w-3.5 h-3.5 text-[#026a75]" />
+                                <MapPin className="w-3.5 h-3.5 text-brand-600" />
                                 สถานที่ปฏิบัติงาน
                             </Label>
                             <DropdownSearch
@@ -266,13 +266,13 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
                     <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
                             <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <Briefcase className="w-3.5 h-3.5 text-[#026a75]" />
+                                <Briefcase className="w-3.5 h-3.5 text-brand-600" />
                                 ตำแหน่ง
                             </Label>
                             <button
                                 type="button"
                                 onClick={() => setShowAddPosition(true)}
-                                className="flex items-center gap-1 text-xs font-medium text-[#026a75] hover:text-[#055058] cursor-pointer"
+                                className="flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 cursor-pointer"
                             >
                                 <Plus className="w-3.5 h-3.5" />
                                 เพิ่มตำแหน่งใหม่
@@ -312,7 +312,7 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
                         <Button
                             type="submit"
                             disabled={saving}
-                            className="rounded-xl bg-[#026a75] hover:bg-[#055058] text-white cursor-pointer"
+                            className="rounded-xl bg-brand-600 hover:bg-brand-800 text-white cursor-pointer"
                         >
                             {saving ? (
                                 <>

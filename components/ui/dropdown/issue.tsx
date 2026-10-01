@@ -55,7 +55,7 @@ export const DropdownSearch = ({
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            "w-full h-12 justify-between px-4 bg-white border-2 rounded-xl text-sm font-normal transition-all duration-300 hover:border-[#026a75]/50 focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75]",
+            "w-full h-12 justify-between px-4 bg-white border-2 rounded-xl text-sm font-normal transition-all duration-300 hover:border-brand-600/50 focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600",
             error ? "border-rose-300 bg-rose-50" : "border-gray-200",
             !value && "text-gray-500"
           )}
@@ -84,7 +84,7 @@ export const DropdownSearch = ({
                 >
                   <CheckIcon
                     className={cn(
-                      "mr-2 h-4 w-4 text-[#026a75]",
+                      "mr-2 h-4 w-4 text-brand-600",
                       value === option.option_value ? "opacity-100" : "opacity-0"
                     )}
                   />

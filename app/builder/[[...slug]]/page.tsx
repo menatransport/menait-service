@@ -115,7 +115,7 @@ export default function BuilderPage() {
 
     const [builderMode, setBuilderMode] = useState<"edit" | "create">("create")
 
-    const form_type = [{ option_value: "Issue", option_label: "ฟอร์มแจ้งปัญหา" }, { option_value: "Service", option_label: "ฟอร์มขอใช้บริการ" }]
+    const form_type = [{ option_value: "Issue", option_label: "ฟอร์มแจ้งปัญหา" }, { option_value: "Service", option_label: "ฟอร์มขอใช้บริการ" }, { option_value: "Advance", option_label: "ฟอร์มเบิกเงิน Advance" }]
 
     const form_status_options = [
         { option_value: "Active", option_label: "เปิดใช้งาน" },
@@ -235,7 +235,7 @@ export default function BuilderPage() {
                 text: 'คุณแน่ใจหรือไม่ว่าต้องการลบเงื่อนไขนี้? หากลบแล้วจะนำออกจากระบบทันที',
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#026a75',
+                confirmButtonColor: '#1c6ef2',
                 cancelButtonColor: '#d33',
                 confirmButtonText: 'ยืนยัน',
                 cancelButtonText: 'ยกเลิก'
@@ -283,7 +283,7 @@ export default function BuilderPage() {
                 text: `คุณกำลังจะเปลี่ยนสถานะฟอร์มเป็น ${value} คุณแน่ใจหรือไม่?`,
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#026a75',
+                confirmButtonColor: '#1c6ef2',
                 cancelButtonColor: '#d33',
                 confirmButtonText: 'ยืนยัน',
                 cancelButtonText: 'ยกเลิก'
@@ -569,7 +569,7 @@ export default function BuilderPage() {
                 return (
                     <div key={question.id} className="space-y-1 pt-2">
                         <Label className="text-sm font-medium text-gray-700">
-                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-[#026a75] text-white text-xs font-md">
+                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-brand-600 text-white text-xs font-md">
                                 {index + 1}
                             </div>
                             {question.question_label || `คำถามที่ ${index + 1}`}
@@ -582,7 +582,7 @@ export default function BuilderPage() {
                 return (
                     <div key={question.id} className="space-y-1 pt-2">
                         <Label className="text-sm font-medium text-gray-700">
-                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-[#026a75] text-white text-xs font-md">
+                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-brand-600 text-white text-xs font-md">
                                 {index + 1}
                             </div>
                             {question.question_label || `คำถามที่ ${index + 1}`}
@@ -599,7 +599,7 @@ export default function BuilderPage() {
                 return (
                     <div key={question.id} className="space-y-1 pt-2">
                         <Label className="text-sm font-medium text-gray-700">
-                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-[#026a75] text-white text-xs font-md">
+                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-brand-600 text-white text-xs font-md">
                                 {index + 1}
                             </div>
                             {question.question_label || `คำถามที่ ${index + 1}`}
@@ -612,7 +612,7 @@ export default function BuilderPage() {
                 return (
                     <div key={question.id} className="space-y-1 pt-2">
                         <Label className="text-sm font-medium text-gray-700">
-                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-[#026a75] text-white text-xs font-md">
+                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-brand-600 text-white text-xs font-md">
                                 {index + 1}
                             </div>
                             {question.question_label || `คำถามที่ ${index + 1}`}
@@ -630,7 +630,7 @@ export default function BuilderPage() {
                 return (
                     <div key={question.id} className="space-y-2 pt-2">
                         <Label className="text-sm font-medium text-gray-700">
-                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-[#026a75] text-white text-xs font-md">
+                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-brand-600 text-white text-xs font-md">
                                 {index + 1}
                             </div>
                             {question.question_label || `คำถามที่ ${index + 1}`}
@@ -650,7 +650,7 @@ export default function BuilderPage() {
                 return (
                     <div key={question.id} className="space-y-1 pt-2">
                         <Label className="text-sm font-medium text-gray-700">
-                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-[#026a75] text-white text-xs font-md">
+                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-brand-600 text-white text-xs font-md">
                                 {index + 1}
                             </div>
                             {question.question_label || `คำถามที่ ${index + 1}`}
@@ -674,7 +674,7 @@ export default function BuilderPage() {
                 <div className="flex items-start gap-3">
                     {/* Drag Handle & Number */}
                     <div className="flex flex-col items-center gap-1 pt-1">
-                        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[#026a75] text-white text-xs font-bold">
+                        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-brand-600 text-white text-xs font-bold">
                             {index + 1}
                         </div>
                         <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
@@ -684,7 +684,7 @@ export default function BuilderPage() {
                     <div className="flex-1 space-y-3">
                         {/* Type Badge */}
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-sm text-[#026a75] font-medium">
+                            <div className="flex items-center gap-2 text-sm text-brand-600 font-medium">
                                 <IconComponent className="w-4 h-4" />
                                 {config?.label}
                             </div>
@@ -752,7 +752,7 @@ export default function BuilderPage() {
 
                         {/* Options for Dropdown/Multiselect */}
                         {(question.question_type === "dropdown" || question.question_type === "multiselect") && (
-                            <div className="space-y-2 py-2 pl-2 border-l-2 border-[#026a75]/20">
+                            <div className="space-y-2 py-2 pl-2 border-l-2 border-brand-600/20">
                                 <Label className="text-xs text-gray-500">ตัวเลือก (Options)</Label>
                                 {question.options.map((option, optIndex) => (
                                     <div key={optIndex} className="flex items-center gap-2">
@@ -821,12 +821,12 @@ export default function BuilderPage() {
         <Navbar isHome={false} title={builderMode == "create" ? "สร้างฟอร์มแจ้งปัญหา และบริการ" : "แก้ไขฟอร์มแจ้งปัญหา และบริการ"}>
             {/* Main Content */}
 
-            <main className="flex-1 min-h-0 rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto" style={{ background: 'radial-gradient(circle, #c3ddde 1.5px, #f0fafa 1.5px)', backgroundSize: '20px 20px' }}>
+            <main className="flex-1 min-h-0 rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto" style={{ background: 'radial-gradient(circle, #c5dcf5 1.5px, #f0faff 1.5px)', backgroundSize: '20px 20px' }}>
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
                     <div className="flex flex-col gap-4">
 
                         <div className="flex flex-row">
-                            <div className="bg-[#026a75] text-white w-auto h-auto p-4 text-xl">1</div>
+                            <div className="bg-brand-600 text-white w-auto h-auto p-4 text-xl">1</div>
                             <div className="bg-white w-full border border- p-4">
                                 <h3 className="font-bold text-gray-800 text-md">{builderMode == "create" ? "สร้างฟอร์มใหม่" : "แก้ไขฟอร์ม"}</h3>
                                 {builderMode === "edit" && formData.form_status !== "Draft" && (
@@ -892,7 +892,7 @@ export default function BuilderPage() {
 
                         {/* Create Form Builder Element Can remove and add when click button */}
                         <div className="flex flex-row">
-                            <div className="bg-[#026a75] text-white w-auto h-auto p-4 text-xl">2</div>
+                            <div className="bg-brand-600 text-white w-auto h-auto p-4 text-xl">2</div>
                             <div className="bg-white w-full border border- p-4">
                                 <h3 className="font-bold text-gray-800 text-md">{builderMode == "create" ? "ออกแบบฟอร์มใหม่" : "ออกแบบฟอร์ม"}</h3>
 
@@ -930,7 +930,7 @@ export default function BuilderPage() {
                         </Card>
 
                         <div className="flex flex-row">
-                            <div className="bg-[#026a75] text-white w-auto h-auto p-4 text-xl">3</div>
+                            <div className="bg-brand-600 text-white w-auto h-auto p-4 text-xl">3</div>
                             <div className="bg-white w-full border border- p-4 flex justify-between">
                                 <h3 className="font-bold text-gray-800 text-md">เงื่อนไข และกฎเกณฑ์</h3>
                                 <Button
@@ -962,7 +962,7 @@ export default function BuilderPage() {
                                                 {/* Header */}
                                                 <div className="flex items-center justify-between px-4 py-3 border-b">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="flex items-center justify-center h-6 text-sm font-semibold" style={{ borderBottomColor: "#026a75", borderBottomWidth: '3px' }}>
+                                                        <div className="flex items-center justify-center h-6 text-sm font-semibold" style={{ borderBottomColor: "#1c6ef2", borderBottomWidth: '3px' }}>
                                                             กฎลำดับที่ {index + 1}
                                                         </div>
 
@@ -979,22 +979,22 @@ export default function BuilderPage() {
                                                 </div>
 
                                                 {/* Body Rule */}
-                                                <div className="flex flex-col gap-5 p-6 bg-linear-to-br from-white to-[#f8fdfd]">
+                                                <div className="flex flex-col gap-5 p-6 bg-linear-to-br from-white to-brand-50">
                                                     {/* Row 1: Form Code */}
                                                     <div className="flex flex-row items-center gap-4 pb-3">
-                                                        <Label className="text-sm font-semibold text-[#026a75] w-32 shrink-0">รหัสฟอร์ม :</Label>
+                                                        <Label className="text-sm font-semibold text-brand-600 w-32 shrink-0">รหัสฟอร์ม :</Label>
                                                         <label className="flex-1 text-sm font-medium text-gray-700">{formData.form_code}</label>
                                                     </div>
 
                                                     {/* Row 2: approve_by_type */}
                                                     <div className="flex flex-row items-center gap-4 pb-3">
-                                                        <Label className="text-sm font-semibold text-[#026a75] w-32 shrink-0">ประเภทอนุมัติ :</Label>
+                                                        <Label className="text-sm font-semibold text-brand-600 w-32 shrink-0">ประเภทอนุมัติ :</Label>
                                                         <label className="flex-1 text-sm font-medium text-gray-700">{rule.approve_by_type.toUpperCase()}</label>
                                                     </div>
 
                                                     {/* Row 3: Creator Range */}
                                                     <div className="flex items-start gap-4 pb-3 flex-col sm:flex-row">
-                                                        <Label className="text-sm font-semibold text-[#026a75] w-32 shrink-0 pt-2">ระดับผู้สร้าง :</Label>
+                                                        <Label className="text-sm font-semibold text-brand-600 w-32 shrink-0 pt-2">ระดับผู้สร้าง :</Label>
                                                         <div className="flex items-center gap-3 flex-1 flex-wrap">
                                                             <DropdownSearch
                                                                 options={position.map(p => ({
@@ -1005,7 +1005,7 @@ export default function BuilderPage() {
                                                                 onChange={(value) => updateRule(index, "creator_min", parseInt(value))}
                                                             // disabled={builderMode === "edit"}
                                                             />
-                                                            <span className="text-[#026a75] text-md font-semibold ml-2">ถึง </span>
+                                                            <span className="text-brand-600 text-md font-semibold ml-2">ถึง </span>
                                                             <DropdownSearch
                                                                 options={position.map(p => ({
                                                                     option_value: p.position_level_id.toString(),
@@ -1020,7 +1020,7 @@ export default function BuilderPage() {
 
                                                     {/* Row 4: Approver Range */}
                                                     <div className="flex items-start gap-4 pb-3 flex-col sm:flex-row">
-                                                        <Label className="text-sm font-semibold text-[#026a75] w-32 shrink-0 pt-2">ระดับผู้อนุมัติ :</Label>
+                                                        <Label className="text-sm font-semibold text-brand-600 w-32 shrink-0 pt-2">ระดับผู้อนุมัติ :</Label>
                                                         <div className="flex items-center gap-3 flex-1 flex-wrap">
                                                             <DropdownSearch
                                                                 options={position.map(p => ({
@@ -1031,7 +1031,7 @@ export default function BuilderPage() {
                                                                 onChange={(value) => updateRule(index, "approve_by_min", parseInt(value))}
                                                             // disabled={builderMode === "edit"}
                                                             />
-                                                            <span className="text-[#026a75] text-md font-semibold ml-2">ถึง </span>
+                                                            <span className="text-brand-600 text-md font-semibold ml-2">ถึง </span>
                                                             <DropdownSearch
                                                                 options={position.map(p => ({
                                                                     option_value: p.position_level_id.toString(),
@@ -1052,9 +1052,9 @@ export default function BuilderPage() {
                                                                 checked={rule.same_department}
                                                                 disabled={builderMode === "edit"}
                                                                 onCheckedChange={(checked) => updateRule(index, "same_department", checked)}
-                                                                className="border-[#026a75] data-[state=checked]:bg-[#026a75]"
+                                                                className="border-brand-600 data-[state=checked]:bg-brand-600"
                                                             />
-                                                            <Label htmlFor={`same_dept_${index}`} className="text-sm font-medium text-[#026a75] cursor-pointer">
+                                                            <Label htmlFor={`same_dept_${index}`} className="text-sm font-medium text-brand-600 cursor-pointer">
                                                                 ต้องอยู่แผนกเดียวกัน
                                                             </Label>
                                                         </div>
@@ -1064,9 +1064,9 @@ export default function BuilderPage() {
                                                                 checked={rule.is_active}
                                                                 disabled={builderMode === "edit"}
                                                                 onCheckedChange={(checked) => updateRule(index, "is_active", checked)}
-                                                                className="border-[#026a75] data-[state=checked]:bg-[#026a75]"
+                                                                className="border-brand-600 data-[state=checked]:bg-brand-600"
                                                             />
-                                                            <Label htmlFor={`is_active_${index}`} className="text-sm font-medium text-[#026a75] cursor-pointer">
+                                                            <Label htmlFor={`is_active_${index}`} className="text-sm font-medium text-brand-600 cursor-pointer">
                                                                 เปิดใช้งาน
                                                             </Label>
                                                         </div>
@@ -1090,12 +1090,12 @@ export default function BuilderPage() {
                                 <Eye className="w-4 h-4" /> ดูตัวอย่าง
                             </Button>
                             {builderMode === "edit" && formData.form_status === "Draft" && (
-                                <Button type="button" className="gap-2 bg-[#026a75] hover:bg-[#025f68] cursor-pointer" onClick={handleEditForm}>
+                                <Button type="button" className="gap-2 bg-brand-600 hover:bg-brand-700 cursor-pointer" onClick={handleEditForm}>
                                     <Pencil className="w-4 h-4" /> แก้ไขฟอร์ม
                                 </Button>
                             )}
                             {builderMode === "create" && (
-                                <Button type="button" className="gap-2 bg-[#026a75] hover:bg-[#025f68] cursor-pointer" onClick={handleSaveForm}>
+                                <Button type="button" className="gap-2 bg-brand-600 hover:bg-brand-700 cursor-pointer" onClick={handleSaveForm}>
                                     <Save className="w-4 h-4" /> บันทึกฟอร์ม
                                 </Button>
                             )}
@@ -1109,12 +1109,12 @@ export default function BuilderPage() {
             <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-bold text-[#026a75]">
+                        <DialogTitle className="text-xl font-bold text-brand-600">
                             ตัวอย่างฟอร์ม: {formData.form_name || "ยังไม่ได้ตั้งชื่อ"}
                         </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-1 text-sm text-gray-500 border-b pb-4">
-                        <p><span className="font-medium">ประเภท:</span> {formData.form_type === "Issue" ? "ฟอร์มแจ้งปัญหา" : formData.form_type === "Service" ? "ฟอร์มขอใช้บริการ" : "-"}</p>
+                        <p><span className="font-medium">ประเภท:</span> {formData.form_type === "Issue" ? "ฟอร์มแจ้งปัญหา" : formData.form_type === "Service" ? "ฟอร์มขอใช้บริการ" : formData.form_type === "Advance" ? "ฟอร์มเบิกเงิน Advance" : "-"}</p>
                         <p><span className="font-medium">รหัสฟอร์ม:</span> {formData.form_code || "-"}</p>
                         <p><span className="font-medium">การอนุมัติฟอร์ม:</span> {formData.need_approval ? "ต้องอนุมัติ" : "ไม่ต้องอนุมัติ"}</p>
                         <p><span className="font-medium">สถานะฟอร์ม:</span> {formData.form_status || "-"}</p>

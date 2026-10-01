@@ -100,13 +100,13 @@ const EditRow = memo(({ icon: Icon, label, value, onChange }: {
 }) => (
     <div className="space-y-1 py-1">
         <label className="text-[11px] text-gray-400 flex items-center gap-1.5">
-            <Icon className="w-3.5 h-3.5 text-[#026a75]" />
+            <Icon className="w-3.5 h-3.5 text-brand-600" />
             {label}
         </label>
         <Input
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            className="h-8 text-xs bg-white border-gray-200 focus:border-[#026a75] px-2.5 rounded-lg"
+            className="h-8 text-xs bg-white border-gray-200 focus:border-brand-600 px-2.5 rounded-lg"
         />
     </div>
 ));
@@ -123,7 +123,7 @@ const DropdownEditRow = memo(({ icon: Icon, label, value, options, onChange }: {
     return (
         <div className="space-y-1 py-1">
             <label className="text-[11px] text-gray-400 flex items-center gap-1.5">
-                <Icon className="w-3.5 h-3.5 text-[#026a75]" />
+                <Icon className="w-3.5 h-3.5 text-brand-600" />
                 {label}
             </label>
             <Popover open={open} onOpenChange={setOpen}>
@@ -132,7 +132,7 @@ const DropdownEditRow = memo(({ icon: Icon, label, value, options, onChange }: {
                         type="button"
                         className={cn(
                             'flex items-center justify-between w-full h-8 px-2.5 text-xs rounded-lg border bg-white transition-colors cursor-pointer',
-                            'border-gray-200 hover:border-[#026a75]/40 focus:border-[#026a75]',
+                            'border-gray-200 hover:border-brand-600/40 focus:border-brand-600',
                             !selectedLabel && 'text-gray-400',
                         )}
                     >
@@ -153,7 +153,7 @@ const DropdownEditRow = memo(({ icon: Icon, label, value, options, onChange }: {
                                         onSelect={() => { onChange(opt.option_value); setOpen(false); }}
                                         className="text-xs cursor-pointer"
                                     >
-                                        <Check className={cn('w-3 h-3 mr-1.5', value === opt.option_value ? 'opacity-100 text-[#026a75]' : 'opacity-0')} />
+                                        <Check className={cn('w-3 h-3 mr-1.5', value === opt.option_value ? 'opacity-100 text-brand-600' : 'opacity-0')} />
                                         {opt.option_label}
                                     </CommandItem>
                                 ))}
@@ -244,7 +244,7 @@ export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, looku
                 className="max-w-5xl w-[95vw] h-[85vh] p-0 flex flex-col overflow-hidden"
             >
                 {/* ── Header ── */}
-                <DialogHeader className="bg-linear-to-br from-[#026a75] to-[#037a86] px-6 pt-5 pb-4 space-y-2 rounded-t-lg shrink-0">
+                <DialogHeader className="bg-linear-to-br from-brand-600 to-brand-500 px-6 pt-5 pb-4 space-y-2 rounded-t-lg shrink-0">
                     <div className="flex items-center gap-3">
                         <UserAvatar
                             imageUrl={user.image_url}
@@ -355,7 +355,7 @@ export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, looku
                                             size="sm"
                                             onClick={handleSave}
                                             disabled={isSaving || !isDirty}
-                                            className="flex-1 h-8 text-xs bg-[#026a75] hover:bg-[#025f68] text-white cursor-pointer"
+                                            className="flex-1 h-8 text-xs bg-brand-600 hover:bg-brand-700 text-white cursor-pointer"
                                         >
                                             {isSaving ? (
                                                 <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
@@ -370,7 +370,7 @@ export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, looku
                                         variant="outline"
                                         size="sm"
                                         onClick={handleStartEdit}
-                                        className="w-full h-8 text-xs text-[#026a75] border-[#026a75]/30 hover:bg-[#026a75]/5 cursor-pointer"
+                                        className="w-full h-8 text-xs text-brand-600 border-brand-600/30 hover:bg-brand-600/5 cursor-pointer"
                                     >
                                         <Pencil className="w-3.5 h-3.5 mr-1.5" />
                                         แก้ไขข้อมูล
@@ -398,8 +398,8 @@ export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, looku
                                         type="button"
                                         onClick={() => setActiveTab(key)}
                                         className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer ${activeTab === key
-                                            ? 'bg-[#026a75] text-white shadow-md'
-                                            : 'bg-white border border-gray-200 text-gray-600 hover:border-[#026a75]/40 hover:text-[#026a75]'
+                                            ? 'bg-brand-600 text-white shadow-md'
+                                            : 'bg-white border border-gray-200 text-gray-600 hover:border-brand-600/40 hover:text-brand-600'
                                             }`}
                                     >
                                         <Icon className="w-4 h-4" />

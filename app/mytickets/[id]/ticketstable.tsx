@@ -124,7 +124,7 @@ const UserAvatar = ({ email, imageUrl, name }: { email: string; imageUrl?: strin
         name={name}
         email={email}
         className="w-11 h-11 shadow-md ring-2 ring-white"
-        fallbackClassName="bg-linear-to-br from-[#026a75] to-[#034d54] text-white"
+        fallbackClassName="bg-linear-to-br from-brand-600 to-brand-800 text-white"
         textClassName="text-base font-semibold"
     />
 );
@@ -269,7 +269,7 @@ export const DataTable = ({
     viewMode?: ViewMode;
     onViewModeChange?: (mode: ViewMode) => void;
 }) => {
-    const [currentPage, setCurrentPage] = useState(1);
+    const [requestedPage, setCurrentPage] = useState(1);
     const [sortField, setSortField] = useState<'date' | 'pending'>('date');
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
     const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -373,12 +373,13 @@ export const DataTable = ({
     }, [data, sortField, sortOrder, filterFormCode, filterStatus, searchText, activeTab, currentSurveyFilter]);
 
     const totalPages = Math.ceil(processedData.length / ITEMS_PER_PAGE);
+    // Data can shrink under the current page (month range change / background refresh)
+    const currentPage = Math.min(requestedPage, Math.max(totalPages, 1));
 
     const paginatedTickets = useMemo(() => {
         const start = (currentPage - 1) * ITEMS_PER_PAGE;
         return processedData.slice(start, start + ITEMS_PER_PAGE);
     }, [processedData, currentPage]);
-    console.log('paginatedTickets for render:', paginatedTickets);
     const toggleSort = (field: 'date' | 'pending' = 'date') => {
         if (sortField === field) {
             setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
@@ -405,7 +406,7 @@ export const DataTable = ({
 
     return (
         <section className="bg-white rounded-2xl shadow-xl border border-white/30 overflow-hidden relative">
-            <div className="p-4 lg:p-5 bg-[#04555e]">
+            <div className="p-4 lg:p-5 bg-brand-800">
                 {/* Top Row - Title and Actions */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                     <div className="flex items-center justify-between lg:justify-start gap-4">
@@ -425,7 +426,7 @@ export const DataTable = ({
                                 <button
                                     onClick={() => { onApvViewChange('pending'); setCurrentPage(1); }}
                                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${(apvView ?? 'pending') === 'pending'
-                                        ? 'bg-white text-[#04555e] shadow-sm'
+                                        ? 'bg-white text-brand-800 shadow-sm'
                                         : 'text-white/70 hover:text-white'
                                         }`}
                                 >
@@ -435,7 +436,7 @@ export const DataTable = ({
                                 <button
                                     onClick={() => { onApvViewChange('history'); setCurrentPage(1); }}
                                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${apvView === 'history'
-                                        ? 'bg-white text-[#04555e] shadow-sm'
+                                        ? 'bg-white text-brand-800 shadow-sm'
                                         : 'text-white/70 hover:text-white'
                                         }`}
                                 >
@@ -470,7 +471,7 @@ export const DataTable = ({
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
                                 className={`flex items-center justify-center w-9 h-9 rounded-lg transition-all cursor-pointer relative ${showFilters || hasActiveFilters
-                                    ? 'bg-white text-[#04555e]'
+                                    ? 'bg-white text-brand-800'
                                     : 'bg-white/10 text-white hover:bg-white/20'
                                     }`}
                             >
@@ -509,7 +510,7 @@ export const DataTable = ({
                         <button
                             onClick={() => setShowFilters(!showFilters)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${showFilters || hasActiveFilters
-                                ? 'bg-white text-[#04555e]'
+                                ? 'bg-white text-brand-800'
                                 : 'bg-white/10 text-white hover:bg-white/20 border border-white/20'
                                 }`}
                             title="ตัวกรอง"
@@ -540,7 +541,7 @@ export const DataTable = ({
                                 <button
                                     onClick={() => onViewModeChange('sheet')}
                                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${viewMode === 'sheet'
-                                        ? 'bg-white text-[#04555e] shadow-sm'
+                                        ? 'bg-white text-brand-800 shadow-sm'
                                         : 'text-white/70 hover:text-white'
                                         }`}
                                     title="มุมมอง Sheet"
@@ -551,7 +552,7 @@ export const DataTable = ({
                                 <button
                                     onClick={() => onViewModeChange('dialog')}
                                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${viewMode === 'dialog'
-                                        ? 'bg-white text-[#04555e] shadow-sm'
+                                        ? 'bg-white text-brand-800 shadow-sm'
                                         : 'text-white/70 hover:text-white'
                                         }`}
                                     title="มุมมอง Dialog"
@@ -642,7 +643,7 @@ export const DataTable = ({
                                 value={filterFormCode}
                                 onChange={(e) => { setFilterFormCode(e.target.value); setCurrentPage(1); }}
                                 className={`px-3 py-1.5 rounded-lg text-sm border bg-white cursor-pointer focus:outline-none transition-colors ${filterFormCode !== 'all'
-                                    ? 'border-[#026a75] text-[#026a75] font-medium ring-1 ring-[#026a75]/30'
+                                    ? 'border-brand-600 text-brand-600 font-medium ring-1 ring-brand-600/30'
                                     : 'border-gray-300 text-gray-700 hover:border-gray-400'
                                     }`}
                             >
@@ -676,8 +677,8 @@ export const DataTable = ({
                                             key={value}
                                             onClick={() => handleSurveyFilter(value)}
                                             className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${currentSurveyFilter === value
-                                                ? 'bg-[#026a75] text-white border-[#026a75] shadow-sm'
-                                                : 'bg-white text-gray-600 border-gray-300 hover:border-[#026a75] hover:text-[#026a75]'
+                                                ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
+                                                : 'bg-white text-gray-600 border-gray-300 hover:border-brand-600 hover:text-brand-600'
                                                 }`}
                                         >
                                             {label}
@@ -689,8 +690,8 @@ export const DataTable = ({
                                             key={value}
                                             onClick={() => { setFilterStatus(value); setCurrentPage(1); }}
                                             className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${filterStatus === value
-                                                ? 'bg-[#026a75] text-white border-[#026a75] shadow-sm'
-                                                : 'bg-white text-gray-600 border-gray-300 hover:border-[#026a75] hover:text-[#026a75]'
+                                                ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
+                                                : 'bg-white text-gray-600 border-gray-300 hover:border-brand-600 hover:text-brand-600'
                                                 }`}
                                         >
                                             {label}
@@ -750,7 +751,7 @@ export const DataTable = ({
                                             <div className="min-w-0 flex-1">
                                                 <h3 className="font-semibold text-gray-800 text-sm truncate">{item.form_name}</h3>
                                                 <div className="flex items-center mt-0.5">
-                                                    <p className="text-xs text-[#026a75] font-medium">{item.form_code}</p>
+                                                    <p className="text-xs text-brand-600 font-medium">{item.form_code}</p>
                                                     <ApprovalBadge status={item.status_approve} />
                                                 </div>
                                             </div>
@@ -803,7 +804,7 @@ export const DataTable = ({
                                 <button
                                     disabled={currentPage >= totalPages}
                                     onClick={(e) => { e.stopPropagation(); setCurrentPage(currentPage + 1); }}
-                                    className="px-4 py-2 text-sm font-medium rounded-lg bg-[#026a75] text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                    className="px-4 py-2 text-sm font-medium rounded-lg bg-brand-600 text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                                 >
                                     ถัดไป
                                 </button>
@@ -831,20 +832,20 @@ export const DataTable = ({
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <button
-                                            className="flex items-center gap-1 cursor-pointer hover:text-[#026a75] transition-colors outline-none"
+                                            className="flex items-center gap-1 cursor-pointer hover:text-brand-600 transition-colors outline-none"
                                             title="ตัวเลือกการเรียงลำดับ"
                                         >
                                             <span>วันที่สร้าง</span>
                                             {sortField === 'date' ? (
                                                 sortOrder === 'desc' ? (
-                                                    <ArrowDown size={12} className="text-[#026a75]" />
+                                                    <ArrowDown size={12} className="text-brand-600" />
                                                 ) : (
-                                                    <ArrowUp size={12} className="text-[#026a75]" />
+                                                    <ArrowUp size={12} className="text-brand-600" />
                                                 )
                                             ) : sortOrder === 'desc' ? (
-                                                <ArrowDown size={12} className="text-[#026a75]" />
+                                                <ArrowDown size={12} className="text-brand-600" />
                                             ) : (
-                                                <ArrowUp size={12} className="text-[#026a75]" />
+                                                <ArrowUp size={12} className="text-brand-600" />
                                             )}
                                         </button>
                                     </DropdownMenuTrigger>
@@ -855,11 +856,11 @@ export const DataTable = ({
                                                 <DropdownMenuItem
                                                     key={opt.label}
                                                     onSelect={() => { setSortField(opt.field); setSortOrder(opt.order); setCurrentPage(1); }}
-                                                    className={isActive ? 'text-[#026a75] font-medium' : ''}
+                                                    className={isActive ? 'text-brand-600 font-medium' : ''}
                                                 >
                                                     {opt.order === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
                                                     <span className="flex-1">{opt.label}</span>
-                                                    {isActive && <Check size={14} className="text-[#026a75]" />}
+                                                    {isActive && <Check size={14} className="text-brand-600" />}
                                                 </DropdownMenuItem>
                                             );
                                         })}
@@ -885,7 +886,7 @@ export const DataTable = ({
                                                     [{item.form_code}] {item.form_name}
                                                     <ApprovalBadge status={item.status_approve} />
                                                 </p>
-                                                <p className="text-xs text-[#026a75] font-medium">{item.form_id}</p>
+                                                <p className="text-xs text-brand-600 font-medium">{item.form_id}</p>
                                                 <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                                                     <User size={11} /> <span className="font-bold">{item.created_by}</span> {item.firstname} {item.lastname} ฝ่าย: {item.department_name_th}
                                                     {(item.form_code === "FORM-MNT-IT-002_DELETE" || item.form_code === "FORM-MNT-IT-002_ADD") && item.values && (
@@ -1103,7 +1104,7 @@ const SurveyStatusDialog = ({
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
             <DialogContent className="sm:max-w-2xl p-0 flex flex-col max-h-[90vh] gap-0 overflow-hidden">
                 {/* Header with gradient */}
-                <DialogHeader className="bg-linear-to-r from-[#026a75] to-[#038a96] p-5 sm:p-6 shrink-0 text-white">
+                <DialogHeader className="bg-linear-to-r from-brand-600 to-brand-500 p-5 sm:p-6 shrink-0 text-white">
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
                             <div className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center shrink-0">
@@ -1123,7 +1124,7 @@ const SurveyStatusDialog = ({
                                 <button
                                     onClick={() => setShowTopUsers(v => !v)}
                                     disabled={pending.length === 0}
-                                    className={`relative shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${showTopUsers ? 'bg-white text-[#026a75]' : 'bg-white/15 hover:bg-white/25 text-white'}`}
+                                    className={`relative shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${showTopUsers ? 'bg-white text-brand-600' : 'bg-white/15 hover:bg-white/25 text-white'}`}
                                     title="ดู Top 5 ผู้ใช้ที่ยังไม่ประเมินมากที่สุด"
                                     aria-label="Top 5 ผู้ใช้ที่ยังไม่ประเมิน"
                                     aria-pressed={showTopUsers}
@@ -1243,7 +1244,7 @@ const SurveyStatusDialog = ({
                         <button
                             onClick={() => onTabChange('pending')}
                             className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${tab === 'pending'
-                                ? 'bg-white text-[#026a75] shadow-sm'
+                                ? 'bg-white text-brand-600 shadow-sm'
                                 : 'text-gray-600 hover:text-gray-800'
                                 }`}
                         >
@@ -1257,7 +1258,7 @@ const SurveyStatusDialog = ({
                         <button
                             onClick={() => onTabChange('evaluated')}
                             className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${tab === 'evaluated'
-                                ? 'bg-white text-[#026a75] shadow-sm'
+                                ? 'bg-white text-brand-600 shadow-sm'
                                 : 'text-gray-600 hover:text-gray-800'
                                 }`}
                         >
@@ -1279,7 +1280,7 @@ const SurveyStatusDialog = ({
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="ค้นหารหัสคำร้อง, ชื่อแบบฟอร์ม, ผู้สร้าง..."
-                                className="w-full pl-9 pr-9 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:bg-white focus:border-[#026a75]/40 focus:ring-2 focus:ring-[#026a75]/10 transition-all"
+                                className="w-full pl-9 pr-9 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:bg-white focus:border-brand-600/40 focus:ring-2 focus:ring-brand-600/10 transition-all"
                             />
                             {search && (
                                 <button
@@ -1327,14 +1328,14 @@ const SurveyStatusDialog = ({
                                 <li
                                     key={item.form_id}
                                     className={`group bg-white border rounded-xl p-3 transition-all ${tab === 'pending'
-                                        ? 'border-gray-200 hover:border-[#026a75] hover:shadow-md'
+                                        ? 'border-gray-200 hover:border-brand-600 hover:shadow-md'
                                         : 'border-gray-200 hover:border-emerald-300'
                                         }`}
                                 >
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0 flex-1">
                                             <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-[#026a75] bg-[#026a75]/10 px-1.5 py-0.5 rounded">
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-600/10 px-1.5 py-0.5 rounded">
                                                     {item.form_code}
                                                 </span>
                                                 {tab === 'evaluated' && item.point != null && (
@@ -1367,7 +1368,7 @@ const SurveyStatusDialog = ({
                                         {tab === 'pending' && (
                                             <button
                                                 onClick={() => handleNavigate(item.form_id)}
-                                                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-linear-to-r from-[#026a75] to-[#038a96] text-white text-xs font-semibold shadow-sm hover:shadow-md hover:scale-[1.03] transition-all cursor-pointer self-start"
+                                                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-linear-to-r from-brand-600 to-brand-500 text-white text-xs font-semibold shadow-sm hover:shadow-md hover:scale-[1.03] transition-all cursor-pointer self-start"
                                                 title="เปิดหน้าประเมินในแท็บใหม่"
                                             >
                                                 <Star size={12} className="fill-yellow-300 text-yellow-300" />
@@ -1457,15 +1458,20 @@ export const Viewer = ({
         });
     }, []);
 
+    // History only needs form_id — start it as soon as the viewer opens
     useEffect(() => {
-        if (!isOpen || !selectTicketBack || !ticket || formStructure) return;
+        if (!isOpen || !ticket) return;
         setIsLoadingForm(true);
-        const timer = setTimeout(() => {
-            handlePullForm();
-            handleHistory();
-        }, 1000);
-        return () => clearTimeout(timer);
-    }, [isOpen, selectTicketBack?.form_version, ticket?.form_id]);
+        handleHistory();
+    }, [isOpen, ticket?.form_id]);
+
+    // The form structure needs form_version from the detail record. Right after a
+    // row click selectTicketBack may still be the previously opened ticket, so wait
+    // until it belongs to this one.
+    useEffect(() => {
+        if (!isOpen || !ticket || formStructure || selectTicketBack?.form_id !== ticket.form_id) return;
+        handlePullForm();
+    }, [isOpen, ticket?.form_id, selectTicketBack?.form_id, selectTicketBack?.form_version]);
 
     useEffect(() => {
         // GET IMAGE S3 URL
@@ -1487,6 +1493,7 @@ export const Viewer = ({
     // Prefill form values เมื่อ selectTicketBack.values มาถึงหลัง formStructure โหลดเสร็จแล้ว
     useEffect(() => {
         if (!isOpen || !formStructure?.questions || !selectTicketBack?.values) return;
+        if (selectTicketBack.form_id !== ticket?.form_id) return; // stale record of the previous ticket
         if (Object.keys(formValues).length > 0) return; // already prefilled
         const initialValues = prefillFormValues(formStructure.questions, selectTicketBack.values);
         setFormValues(initialValues);
@@ -1748,7 +1755,7 @@ export const Viewer = ({
                         {/* Ticket Info */}
                         <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                             {[
-                                { label: 'รหัสแบบฟอร์ม', value: ticket.form_code, color: '#026a75' },
+                                { label: 'รหัสแบบฟอร์ม', value: ticket.form_code, color: '#1c6ef2' },
                                 { label: 'รหัสคำร้อง', value: ticket.form_id },
                                 { label: 'ชื่อแบบฟอร์ม', value: ticket.form_name },
                                 ...(selectTicketBack?.form_type !== 'Issue' ? [
@@ -1871,7 +1878,7 @@ export const Viewer = ({
                                         {imageUrls.length > 0 && (
                                             <>
                                                 <div className="flex items-center gap-2 mb-1.5">
-                                                    <div className="flex items-center justify-center w-5 h-5 rounded-md bg-[#026a75]/10 text-[#026a75] text-[10px] font-bold shrink-0">
+                                                    <div className="flex items-center justify-center w-5 h-5 rounded-md bg-brand-600/10 text-brand-600 text-[10px] font-bold shrink-0">
                                                         {formStructure.questions.length + 1}
                                                     </div>
                                                     <label className="text-sm font-medium text-gray-700">แนบรูปภาพ (ถ้ามี)</label>
@@ -1883,7 +1890,7 @@ export const Viewer = ({
                                                             href={url}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="group relative block rounded-xl overflow-hidden border border-gray-200 hover:border-[#026a75]/40 transition-all"
+                                                            className="group relative block rounded-xl overflow-hidden border border-gray-200 hover:border-brand-600/40 transition-all"
                                                         >
                                                             <img
                                                                 src={url}
@@ -1929,7 +1936,7 @@ export const Viewer = ({
                                 )}
                             </div>
                             <div className="flex items-center justify-between">
-                                <textarea className="text-sm bg-white text-gray-700 border overflow-x-hidden border-gray-300 rounded-md p-3 w-full min-h-20 resize-none focus:ring-2 focus:ring-[#026a75]/50 focus:outline-none"
+                                <textarea className="text-sm bg-white text-gray-700 border overflow-x-hidden border-gray-300 rounded-md p-3 w-full min-h-20 resize-none focus:ring-2 focus:ring-brand-600/50 focus:outline-none"
                                     value={adminComment}
                                     onChange={(e) => {
                                         handleChangeNote(e);
@@ -1984,7 +1991,7 @@ export const Viewer = ({
                                                 }
                                             } else if (log.action === 'UPDATE_VALUE') {
                                                 label = 'แก้ไขข้อมูล';
-                                                dotColor = 'bg-[#026a75]';
+                                                dotColor = 'bg-brand-600';
                                             } else {
                                                 label = log.action;
                                                 dotColor = 'bg-gray-400';
@@ -2007,7 +2014,7 @@ export const Viewer = ({
                                 </div>
                             ) : (
                                 <div className="flex items-start gap-3">
-                                    <div className="w-3 h-3 bg-[#026a75] rounded-full mt-1" />
+                                    <div className="w-3 h-3 bg-brand-600 rounded-full mt-1" />
                                     <div>
                                         <p className="text-sm font-medium text-gray-800">สร้างคำร้อง</p>
                                         <p className="text-xs text-gray-500">{formatDatetime(ticket.created_at)}</p>
@@ -2162,7 +2169,7 @@ export const Viewer = ({
                                         href={`https://menait-service.vercel.app/survey-it/${ticket?.form_id}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 px-2 py-2.5 mr-5 rounded-xl bg-linear-to-r from-[#026a75] to-[#038a96] text-white text-sm font-semibold shadow-md hover:shadow-lg hover:from-[#025f68] hover:to-[#026a75] transition-all duration-300 hover:scale-[1.02] shrink-0 group"
+                                        className="inline-flex items-center gap-2 px-2 py-2.5 mr-5 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:from-brand-700 hover:to-brand-600 transition-all duration-300 hover:scale-[1.02] shrink-0 group"
                                     >
                                         <Star size={16} className="fill-yellow-300 text-yellow-300 group-hover:animate-pulse" />
                                         <span className="hidden sm:inline">ให้คะแนนประเมิน</span>
@@ -2196,7 +2203,7 @@ export const Viewer = ({
                                     href={`https://menait-service.vercel.app/survey-it/${ticket?.form_id}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 px-2 py-2.5 mr-5 rounded-xl bg-linear-to-r from-[#026a75] to-[#038a96] text-white text-sm font-semibold shadow-md hover:shadow-lg hover:from-[#025f68] hover:to-[#026a75] transition-all duration-300 hover:scale-[1.02] shrink-0 group"
+                                    className="inline-flex items-center gap-2 px-2 py-2.5 mr-5 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:from-brand-700 hover:to-brand-600 transition-all duration-300 hover:scale-[1.02] shrink-0 group"
                                 >
                                     <Star size={16} className="fill-yellow-300 text-yellow-300 group-hover:animate-pulse" />
                                     <span className="hidden sm:inline">ให้คะแนนประเมิน</span>

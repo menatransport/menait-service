@@ -264,7 +264,7 @@ export const InactiveUsersDialog = memo(({ open, onOpenChange }: InactiveUsersDi
                             <p className="text-sm text-gray-600">{error}</p>
                             <button
                                 onClick={fetchInactive}
-                                className="inline-flex items-center gap-1.5 text-xs font-medium text-[#026a75] hover:underline cursor-pointer"
+                                className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:underline cursor-pointer"
                             >
                                 <RotateCcw className="w-3.5 h-3.5" />
                                 ลองใหม่

@@ -40,20 +40,20 @@ const DepartmentHeaderRow = memo(({
     onToggle: () => void;
 }) => (
     <tr
-        className="bg-[#026a75]/5 cursor-pointer hover:bg-[#026a75]/10 transition-colors select-none"
+        className="bg-brand-600/5 cursor-pointer hover:bg-brand-600/10 transition-colors select-none"
         onClick={onToggle}
     >
         <td colSpan={USER_COLUMNS.length} className="px-4 py-2.5">
             <div className="flex items-center gap-2.5">
                 {isOpen
-                    ? <ChevronDown className="w-4 h-4 text-[#026a75] shrink-0" />
-                    : <ChevronRight className="w-4 h-4 text-[#026a75] shrink-0" />
+                    ? <ChevronDown className="w-4 h-4 text-brand-600 shrink-0" />
+                    : <ChevronRight className="w-4 h-4 text-brand-600 shrink-0" />
                 }
-                <Building2 className="w-4 h-4 text-[#026a75] shrink-0" />
-                <span className="text-sm font-semibold text-[#026a75]">
+                <Building2 className="w-4 h-4 text-brand-600 shrink-0" />
+                <span className="text-sm font-semibold text-brand-600">
                     {department || 'ไม่ระบุฝ่าย'}
                 </span>
-                <span className="text-[11px] text-[#026a75]/60 font-medium bg-[#026a75]/10 px-2 py-0.5 rounded-full">
+                <span className="text-[11px] text-brand-600/60 font-medium bg-brand-600/10 px-2 py-0.5 rounded-full">
                     {count} คน
                 </span>
             </div>
@@ -70,7 +70,7 @@ const UserRow = memo(({
 }) => (
     <tr className="transition-colors hover:bg-gray-50/80 even:bg-gray-50/40">
         <td className="whitespace-nowrap px-4 py-2.5 pl-11">
-            <span className="font-mono text-xs font-semibold text-[#026a75]">
+            <span className="font-mono text-xs font-semibold text-brand-600">
                 {user.employee_id}
             </span>
         </td>
@@ -82,7 +82,7 @@ const UserRow = memo(({
                     email={user.email}
                     className="w-7 h-7"
                     rounded="rounded-lg"
-                    fallbackClassName="bg-[#026a75]/10 text-[#026a75]"
+                    fallbackClassName="bg-brand-600/10 text-brand-600"
                     textClassName="text-[10px] font-bold"
                 />
                 <div className="min-w-0">
@@ -101,9 +101,9 @@ const UserRow = memo(({
         </td>
         <td className="whitespace-nowrap px-4 py-2.5">
             {user.position_level ? (
-                <span className="inline-flex items-center gap-1.5 h-6 px-2 text-xs font-medium rounded-md bg-[#026a75]/10 text-[#026a75]">
+                <span className="inline-flex items-center gap-1.5 h-6 px-2 text-xs font-medium rounded-md bg-brand-600/10 text-brand-600">
                     <span className="font-bold">Lv.{parseLevelNum(user.position_level)}</span>
-                    <span className="text-[#026a75]/60">{user.position_level}</span>
+                    <span className="text-brand-600/60">{user.position_level}</span>
                 </span>
             ) : (
                 <span className="text-sm text-gray-400">-</span>
@@ -115,7 +115,7 @@ const UserRow = memo(({
         <td className="whitespace-nowrap px-4 py-2.5">
             <button
                 onClick={() => onView(user)}
-                className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-[#026a75] hover:bg-[#026a75]/10 transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-600/10 transition-colors cursor-pointer"
                 title="ดูรายละเอียด"
             >
                 <Eye className="w-4 h-4" />
@@ -140,7 +140,7 @@ const UserMobileCard = memo(({
                     email={user.email}
                     className="w-8 h-8"
                     rounded="rounded-lg"
-                    fallbackClassName="bg-[#026a75]/10 text-[#026a75]"
+                    fallbackClassName="bg-brand-600/10 text-brand-600"
                     textClassName="text-[10px] font-bold"
                 />
                 <div className="min-w-0">
@@ -163,7 +163,7 @@ const UserMobileCard = memo(({
             </div>
             {user.position_level && (
                 <div className="col-span-2">
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-[#026a75]/10 text-[#026a75]">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-brand-600/10 text-brand-600">
                         Lv.{parseLevelNum(user.position_level)} · {user.position_level}
                     </span>
                 </div>
@@ -184,17 +184,17 @@ const MobileDepartmentGroup = memo(({
     <div className="border border-gray-100 rounded-xl overflow-hidden">
         <button
             onClick={onToggle}
-            className="w-full flex items-center gap-2.5 px-3.5 py-3 bg-[#026a75]/5 hover:bg-[#026a75]/10 transition-colors"
+            className="w-full flex items-center gap-2.5 px-3.5 py-3 bg-brand-600/5 hover:bg-brand-600/10 transition-colors"
         >
             {isOpen
-                ? <ChevronDown className="w-4 h-4 text-[#026a75] shrink-0" />
-                : <ChevronRight className="w-4 h-4 text-[#026a75] shrink-0" />
+                ? <ChevronDown className="w-4 h-4 text-brand-600 shrink-0" />
+                : <ChevronRight className="w-4 h-4 text-brand-600 shrink-0" />
             }
-            <Building2 className="w-4 h-4 text-[#026a75] shrink-0" />
-            <span className="text-sm font-semibold text-[#026a75] flex-1 text-left truncate">
+            <Building2 className="w-4 h-4 text-brand-600 shrink-0" />
+            <span className="text-sm font-semibold text-brand-600 flex-1 text-left truncate">
                 {group.department || 'ไม่ระบุฝ่าย'}
             </span>
-            <span className="text-[11px] text-[#026a75]/60 font-medium bg-[#026a75]/10 px-2 py-0.5 rounded-full shrink-0">
+            <span className="text-[11px] text-brand-600/60 font-medium bg-brand-600/10 px-2 py-0.5 rounded-full shrink-0">
                 {group.users.length} คน
             </span>
         </button>
@@ -342,11 +342,11 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
                         จัดกลุ่มตามฝ่าย · เรียงตามระดับตำแหน่ง (มาก → น้อย)
                     </p>
                     <div className="flex items-center gap-1.5">
-                        <button onClick={expandAll} className="text-[11px] text-[#026a75] hover:underline cursor-pointer px-1.5 py-0.5">
+                        <button onClick={expandAll} className="text-[11px] text-brand-600 hover:underline cursor-pointer px-1.5 py-0.5">
                             ขยายทั้งหมด
                         </button>
                         <span className="text-gray-300">|</span>
-                        <button onClick={collapseAll} className="text-[11px] text-[#026a75] hover:underline cursor-pointer px-1.5 py-0.5">
+                        <button onClick={collapseAll} className="text-[11px] text-brand-600 hover:underline cursor-pointer px-1.5 py-0.5">
                             ย่อทั้งหมด
                         </button>
                     </div>
@@ -435,7 +435,7 @@ const FormRow = memo(({ form }: { form: FormData }) => {
     return (
         <tr className="transition-colors hover:bg-gray-50/80 even:bg-gray-50/40">
             <td className="whitespace-nowrap px-4 py-3">
-                <span className="font-mono text-xs font-semibold text-[#026a75] bg-[#026a75]/10 px-2 py-1 rounded">
+                <span className="font-mono text-xs font-semibold text-brand-600 bg-brand-600/10 px-2 py-1 rounded">
                     {form.form_code}
                 </span>
             </td>
@@ -459,9 +459,9 @@ const FormRow = memo(({ form }: { form: FormData }) => {
                     variant="outline"
                     size="sm"
                     onClick={handleOpenBuilder}
-                    className="cursor-pointer hover:scale-110 h-8 px-3 text-xs font-medium text-[#026a75] border-[#026a75]/30 hover:bg-[#026a75]/10 hover:border-[#026a75] transition-colors"
+                    className="cursor-pointer hover:scale-110 h-8 px-3 text-xs font-medium text-brand-600 border-brand-600/30 hover:bg-brand-600/10 hover:border-brand-600 transition-colors"
                 >
-                    <ExternalLink className="w-3.5 h-3.5 text-[#026a75]" />
+                    <ExternalLink className="w-3.5 h-3.5 text-brand-600" />
                 </Button>
             </td>
         </tr>
@@ -477,7 +477,7 @@ const FormMobileCard = memo(({ form }: { form: FormData }) => {
     return (
         <div className="bg-white border border-gray-100 rounded-xl p-3.5 space-y-2.5">
             <div className="flex items-center justify-between">
-                <span className="font-mono text-xs font-semibold text-[#026a75] bg-[#026a75]/10 px-2 py-1 rounded">
+                <span className="font-mono text-xs font-semibold text-brand-600 bg-brand-600/10 px-2 py-1 rounded">
                     {form.form_code}
                 </span>
                 <StatusBadge status={form.form_status} />
@@ -495,7 +495,7 @@ const FormMobileCard = memo(({ form }: { form: FormData }) => {
                     variant="outline"
                     size="sm"
                     onClick={handleOpenBuilder}
-                    className="h-7 px-2.5 text-xs font-medium text-[#026a75] border-[#026a75]/30 hover:bg-[#026a75]/10"
+                    className="h-7 px-2.5 text-xs font-medium text-brand-600 border-brand-600/30 hover:bg-brand-600/10"
                 >
                     <ExternalLink className="w-3 h-3" />
                 </Button>

@@ -42,8 +42,8 @@ const RatingScale = ({
                                 w-9 h-9 sm:w-11 sm:h-11 rounded-lg border-2 transition-all duration-200 
                                 flex items-center justify-center text-sm font-bold cursor-pointer
                                 ${isSelected
-                                    ? 'bg-[#026a75] border-[#026a75] text-white shadow-md'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:border-[#026a75]/50 hover:bg-[#026a75]/5'
+                                    ? 'bg-brand-600 border-brand-600 text-white shadow-md'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:border-brand-600/50 hover:bg-brand-600/5'
                                 }
                             `}
                             aria-label={`ให้คะแนน ${rating} - ${RATING_LABELS[rating - 1]}`}
@@ -70,7 +70,7 @@ const SectionHeader = ({
     <div className="mb-6 pb-4 border-b border-gray-200">
         <div className="flex flex-wrap items-center gap-3 mb-2">
             <div>
-                <h2 className="text-lg sm:text-xl font-semibold text-[#055058] mb-1">{title}</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-brand-800 mb-1">{title}</h2>
                 <p className="text-xs text-gray-500">{description}</p>
             </div>
         </div>
@@ -155,7 +155,7 @@ export function SurveyITForm({ id }: { id?: string }) {
     }
 
     return (
-        <main className="flex-1 min-h-0 bg-[#f0fafa] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
+        <main className="flex-1 min-h-0 v2-canvas rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
                 {/* Form Content */}
@@ -175,28 +175,28 @@ export function SurveyITForm({ id }: { id?: string }) {
                                 <div className="space-y-4 p-4 bg-gray-50 rounded-xl">
                                     <div className="space-y-1">
                                         <Label className="text-gray-500 text-xs flex items-center gap-2">
-                                            <User className="w-3 h-3 text-[#026a75]" />
+                                            <User className="w-3 h-3 text-brand-600" />
                                             ชื่อ-สกุล
                                         </Label>
                                         <p className="text-gray-800 font-medium">{user?.firstname} {user?.lastname}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-gray-500 text-xs flex items-center gap-2">
-                                            <Building2 className="w-3 h-3 text-[#026a75]" />
+                                            <Building2 className="w-3 h-3 text-brand-600" />
                                             ฝ่าย
                                         </Label>
                                         <p className="text-gray-800 font-medium">{user?.department || '-'}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-gray-500 text-xs flex items-center gap-2">
-                                            <Briefcase className="w-3 h-3 text-[#026a75]" />
+                                            <Briefcase className="w-3 h-3 text-brand-600" />
                                             ตำแหน่ง
                                         </Label>
                                         <p className="text-gray-800 font-medium">{user?.position || '-'}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-gray-500 text-xs flex items-center gap-2">
-                                            <Briefcase className="w-3 h-3 text-[#026a75]" />
+                                            <Briefcase className="w-3 h-3 text-brand-600" />
                                             เลขเคสที่ประเมิน
                                         </Label>
                                         <a href={`https://menait-service.vercel.app/mytickets/${formData.form_id}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 font-medium">{formData.form_id || '-'}</a>
@@ -217,7 +217,7 @@ export function SurveyITForm({ id }: { id?: string }) {
                 
                                         <div
                                 
-                                            className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl transition-colors duration-200 ${formData.point ? 'bg-[#026a75]/10' : 'bg-gray-50'}`}
+                                            className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl transition-colors duration-200 ${formData.point ? 'bg-brand-600/10' : 'bg-gray-50'}`}
                                         >
                                             
                                             <RatingScale
@@ -242,7 +242,7 @@ export function SurveyITForm({ id }: { id?: string }) {
                                     placeholder=""
                                     value={formData.comment}
                                     onChange={(e) => handleInputChange('comment', e.target.value)}
-                                    className="min-h-32 border-gray-300 focus:border-[#026a75] focus:ring-[#026a75]/20 resize-none"
+                                    className="min-h-32 border-gray-300 focus:border-brand-600 focus:ring-brand-600/20 resize-none"
                                     rows={5}
                                 />
                             </div>
@@ -252,7 +252,7 @@ export function SurveyITForm({ id }: { id?: string }) {
                                 <Button
                                     type="submit"
                                     disabled={formData.point === undefined || isSubmitting}
-                                    className="flex-1 h-12 sm:h-14 bg-linear-to-r from-[#026a75] to-[#037a86] hover:from-[#025f68] hover:to-[#026a75] text-white font-semibold rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                    className="flex-1 h-12 sm:h-14 bg-linear-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-semibold rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                                 >
                                     {isSubmitting ? (
                                         <div className="flex items-center gap-2">
@@ -270,7 +270,7 @@ export function SurveyITForm({ id }: { id?: string }) {
                                     type="button"
                                     variant="ghost"
                                     onClick={handleClearForm}
-                                    className="h-12 sm:h-14 px-6 sm:px-8 text-[#026a75] font-medium rounded-xl sm:rounded-2xl hover:bg-[#026a75]/10 hover:text-[#025f68] transition-all duration-300 group"
+                                    className="h-12 sm:h-14 px-6 sm:px-8 text-brand-600 font-medium rounded-xl sm:rounded-2xl hover:bg-brand-600/10 hover:text-brand-700 transition-all duration-300 group"
                                 >
                                     <svg
                                         className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:rotate-180 transition-transform duration-500"
@@ -290,13 +290,13 @@ export function SurveyITForm({ id }: { id?: string }) {
 
             {/* Loading Overlay */}
             {isSubmitting && (
-                <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
+                <div className="fixed inset-0 z-9999 flex items-center justify-center v2-loader-overlay">
                     <Loading />
                 </div>
             )}
 
             {isLoading && (
-                <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
+                <div className="fixed inset-0 z-9999 flex items-center justify-center v2-loader-overlay">
                     <Loading />
                 </div>
             )}

@@ -24,6 +24,7 @@ export interface RenderFieldProps {
     compact?: boolean;
     allQuestions?: Question[];
     readOnly?: boolean;
+    minDate?: string;
 }
 
 export interface SubmitValue {
@@ -36,7 +37,7 @@ export interface SubmitValue {
 
 // ===================== HELPER FUNCTIONS =====================
 
-const INPUT_BASE_CLASS = `w-full h-11 px-4 bg-white border rounded-xl text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/40`;
+const INPUT_BASE_CLASS = `w-full h-11 px-4 bg-white border rounded-xl text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600 hover:border-brand-600/40`;
 
 export const formatDatetime = (dateString: string): string => {
     if (!dateString) return '-';
@@ -92,10 +93,16 @@ const sortOptions = (opts: Option[]): Option[] =>
         return a.label.localeCompare(b.label, 'th');
     });
 
+// 'YYYY-MM-DD' → local Date (no timezone drift)
+const toLocalDate = (isoDate: string): Date => {
+    const [y, m, d] = isoDate.split('-').map(Number);
+    return new Date(y, m - 1, d);
+};
+
 // ===================== FIELD LABEL (rerender-memo) =====================
 const FieldLabel = memo(({ index, label, required }: { index: number; label: string; required: boolean }) => (
     <div className="flex items-center gap-2 mb-1.5">
-        <div className="flex items-center justify-center w-5 h-5 rounded-md bg-[#026a75]/10 text-[#026a75] text-[10px] font-bold shrink-0">
+        <div className="flex items-center justify-center w-5 h-5 rounded-md bg-brand-600/10 text-brand-600 text-[10px] font-bold shrink-0">
             {index + 1}
         </div>
         <Label className="text-sm font-medium text-gray-700 flex items-center gap-1">
@@ -127,7 +134,8 @@ export const FormField = memo(({
     onInputChange,
     compact = false,
     allQuestions,
-    readOnly = false
+    readOnly = false,
+    minDate
 }: RenderFieldProps) => {
     const widthClass = compact ? '' : 'w-full';
     const hasError = !!errors[question.name];
@@ -251,7 +259,7 @@ export const FormField = memo(({
                             <Button
                                 variant="outline"
                                 disabled={readOnly}
-                                className={`w-full h-11 justify-start text-left font-normal bg-white border rounded-xl transition-all duration-200 hover:border-[#026a75]/40 ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
+                                className={`w-full h-11 justify-start text-left font-normal bg-white border rounded-xl transition-all duration-200 hover:border-brand-600/40 ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
                                     } ${!currentValue && "text-gray-400"} ${readOnly && 'cursor-not-allowed hover:border-gray-200 opacity-70 focus:border-gray-200'}`}
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
@@ -274,6 +282,7 @@ export const FormField = memo(({
                                         setCalendarOpen(false);
                                     }
                                 }}
+                                disabled={minDate ? { before: toLocalDate(minDate) } : undefined}
                                 initialFocus
                             />
 
@@ -303,7 +312,7 @@ export const FormField = memo(({
                                             onInputChange(question.name, currentValues.filter(v => v !== option.value));
                                         }
                                     }}
-                                    className="border-gray-300 data-[state=checked]:bg-[#026a75] data-[state=checked]:border-[#026a75]"
+                                    className="border-gray-300 data-[state=checked]:bg-brand-600 data-[state=checked]:border-brand-600"
                                 />
                                 <span className="text-sm text-gray-700">{option.label}</span>
                             </label>
@@ -333,7 +342,7 @@ export const FormField = memo(({
                         placeholder="กรุณาระบุรายละเอียดเพิ่มเติม..."
                         rows={2}
                         readOnly={readOnly}
-                        className={`w-full px-4 py-3 bg-white border rounded-xl text-sm resize-none transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#026a75]/20 focus:border-[#026a75] hover:border-[#026a75]/40 overflow-hidden ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
+                        className={`w-full px-4 py-3 bg-white border rounded-xl text-sm resize-none transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600 hover:border-brand-600/40 overflow-hidden ${hasError ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200'
                             } ${readOnly && 'cursor-not-allowed opacity-70 hover:border-gray-200 focus:border-gray-200'}`}
                     />
                     <FieldError message={errorMsg} />

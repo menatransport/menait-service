@@ -4,9 +4,9 @@ import type { ColumnConfig } from './types';
 // rendering-hoist-jsx: Hoist theme constants outside components
 
 export const THEME = {
-    primary: '#026a75',
-    primaryDark: '#064b50',
-    primaryLight: '#046c75',
+    primary: '#1c6ef2',
+    primaryDark: '#0f3f99',
+    primaryLight: '#2584f7',
 } as const;
 
 // ===================== STATUS STYLES =====================

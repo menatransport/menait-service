@@ -112,7 +112,7 @@ export const SearchInput = memo(({
             value={value}
             onChange={onChange}
             placeholder={placeholder}
-            className={`${className} sm:w-1/3 h-10 pl-10 pr-10 bg-[#f6fefffd] border border-white/15 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#026a75] focus:ring-opacity-50 transition-all`}
+            className={`${className} sm:w-1/3 h-10 pl-10 pr-10 bg-[#f6fefffd] border border-white/15 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:ring-opacity-50 transition-all`}
         />
         {value && (
             <button
@@ -149,7 +149,7 @@ export const TableHeader = memo(({
     onSearchClear,
     searchPlaceholder
 }: TableHeaderProps) => (
-    <div className="bg-linear-to-r from-[#064b50] to-[#046c75] px-4 sm:px-6 py-4 sm:py-5">
+    <div className="bg-linear-to-r from-brand-800 to-brand-500 px-4 sm:px-6 py-4 sm:py-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">

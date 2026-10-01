@@ -8,7 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { SubmitSuccess } from '@/components/ui/submit-success';
 import Loading from '@/components/loading';
-import { Send, User, Building2, Briefcase, Monitor } from 'lucide-react';
+import { Send, User, Building2, Briefcase, Monitor, Lock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useSessionContext, type UserInfo } from '@/app/context/SessionContext';
 
 interface RatingQuestion {
@@ -80,8 +81,8 @@ const RatingScale = ({
                                 w-9 h-9 sm:w-11 sm:h-11 rounded-lg border-2 transition-all duration-200 
                                 flex items-center justify-center text-sm font-bold cursor-pointer
                                 ${isSelected
-                                    ? 'bg-[#026a75] border-[#026a75] text-white shadow-md'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:border-[#026a75]/50 hover:bg-[#026a75]/5'
+                                    ? 'bg-brand-600 border-brand-600 text-white shadow-md'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:border-brand-600/50 hover:bg-brand-600/5'
                                 }
                             `}
                             aria-label={`ให้คะแนน ${rating} - ${RATING_LABELS[rating - 1]}`}
@@ -107,18 +108,25 @@ const SectionHeader = ({
 }) => (
     <div className="mb-6 pb-4 border-b border-gray-200">
         <div className="flex flex-wrap items-center gap-3 mb-2">
-            {/* <div className="w-10 h-10 bg-linear-to-br from-[#026a75] to-[#03969a] rounded-xl flex items-center justify-center shadow-md">
+            {/* <div className="w-10 h-10 bg-linear-to-br from-brand-600 to-brand-500 rounded-xl flex items-center justify-center shadow-md">
                 <Icon className="w-5 h-5 text-white" />
             </div> */}
             <div>
-                <h2 className="text-lg sm:text-xl font-semibold text-[#055058] mb-1">{title}</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-brand-800 mb-1">{title}</h2>
                 <p className="text-xs text-gray-500">{description}</p>
             </div>
         </div>
     </div>
 );
 
-export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string; system: string }> }) {
+export function SurveyOPSForm({ systems, locked = false, doneHref }: {
+    systems: Array<{ system_id: string; system: string }>;
+    /** Opened from an OPS review: the system is fixed to that project */
+    locked?: boolean;
+    /** Where the success screen sends the user (e.g. back to Project Status) */
+    doneHref?: string;
+}) {
+    const router = useRouter();
     const { user } = useSessionContext();
     const [formData, setFormData] = useState<FormData>({
         fullName: '',
@@ -173,12 +181,12 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
     const handleClearForm = useCallback(() => {
         setFormData(prev => ({
             ...prev,
-            system: '',
+            system: locked ? prev.system : '',
             section2Ratings: {},
             section3Ratings: {},
             additionalComments: '',
         }));
-    }, []);
+    }, [locked]);
 
     const isFormValid = () => {
         const hasBasicInfo = formData.fullName && formData.department && formData.position && formData.system;
@@ -218,8 +226,9 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
             <SubmitSuccess
                 title="ส่งแบบประเมินสำเร็จ!"
                 description="ขอบคุณสำหรับความคิดเห็นของท่าน"
-                buttonText="ทำแบบประเมินใหม่"
+                buttonText={doneHref ? 'กลับไปหน้า Project Status' : 'ทำแบบประเมินใหม่'}
                 onButtonClick={() => {
+                    if (doneHref) { router.push(doneHref); return; }
                     setIsSubmitted(false);
                     handleClearForm();
                 }}
@@ -228,7 +237,7 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
     }
 
     return (
-        <main className="flex-1 min-h-0 bg-[#f0fafa] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
+        <main className="flex-1 min-h-0 v2-canvas rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
                 {/* Form Content */}
@@ -248,21 +257,21 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
                                 <div className="space-y-4 p-4 bg-gray-50 rounded-xl">
                                     <div className="space-y-1">
                                         <Label className="text-gray-500 text-xs flex items-center gap-2">
-                                            <User className="w-3 h-3 text-[#026a75]" />
+                                            <User className="w-3 h-3 text-brand-600" />
                                             ชื่อ-สกุล
                                         </Label>
                                         <p className="text-gray-800 font-medium">{formData.fullName || '-'}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-gray-500 text-xs flex items-center gap-2">
-                                            <Building2 className="w-3 h-3 text-[#026a75]" />
+                                            <Building2 className="w-3 h-3 text-brand-600" />
                                             ฝ่าย
                                         </Label>
                                         <p className="text-gray-800 font-medium">{formData.department || '-'}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-gray-500 text-xs flex items-center gap-2">
-                                            <Briefcase className="w-3 h-3 text-[#026a75]" />
+                                            <Briefcase className="w-3 h-3 text-brand-600" />
                                             ตำแหน่ง
                                         </Label>
                                         <p className="text-gray-800 font-medium">{formData.position || '-'}</p>
@@ -272,7 +281,7 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
                                 {/* คอลัมน์ 2: ระบบที่ทำการประเมิน */}
                                 <div className="space-y-2">
                                     <Label htmlFor="system" className="text-gray-700 font-medium flex items-center gap-2">
-                                        <Monitor className="w-4 h-4 text-[#026a75]" />
+                                        <Monitor className="w-4 h-4 text-brand-600" />
                                         ระบบที่ทำการประเมิน <span className="text-red-500">*</span>
                                     </Label>
                                     <DropdownSearch
@@ -283,7 +292,14 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
                                             option_label: sys.system_id + " " + sys.system
                                         }))}
                                         placeholder="-- กรุณาเลือกระบบ --"
+                                        disabled={locked}
                                     />
+                                    {locked && (
+                                        <p className="flex items-center gap-1.5 text-xs text-gray-500">
+                                            <Lock className="w-3 h-3 text-brand-600" />
+                                            ระบบนี้มาจากการตรวจรับงาน — กรุณาประเมินให้ครบเพื่อปิดขั้นตอน
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
@@ -303,7 +319,7 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
                                                 }`}
                                         >
                                             <div className="flex items-start gap-3">
-                                                <span className="w-6 h-6 bg-[#026a75] text-white rounded-full flex items-center justify-center text-sm font-semibold shrink-0">
+                                                <span className="w-6 h-6 bg-brand-600 text-white rounded-full flex items-center justify-center text-sm font-semibold shrink-0">
                                                     {q.id}
                                                 </span>
                                                 <span className="text-gray-700 font-medium">{q.question}</span>
@@ -333,7 +349,7 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
                                                 }`}
                                         >
                                             <div className="flex items-start gap-3">
-                                                <span className="w-6 h-6 bg-[#026a75] text-white rounded-full flex items-center justify-center text-sm font-semibold shrink-0">
+                                                <span className="w-6 h-6 bg-brand-600 text-white rounded-full flex items-center justify-center text-sm font-semibold shrink-0">
                                                     {q.id}
                                                 </span>
                                                 <span className="text-gray-700 font-medium">{q.question}</span>
@@ -360,7 +376,7 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
                                     placeholder=""
                                     value={formData.additionalComments}
                                     onChange={(e) => handleInputChange('additionalComments', e.target.value)}
-                                    className="min-h-32 border-gray-300 focus:border-[#026a75] focus:ring-[#026a75]/20 resize-none"
+                                    className="min-h-32 border-gray-300 focus:border-brand-600 focus:ring-brand-600/20 resize-none"
                                     rows={5}
                                 />
                             </div>
@@ -370,7 +386,7 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
                                 <Button
                                     type="submit"
                                     disabled={!isFormValid() || isSubmitting}
-                                    className="flex-1 h-12 sm:h-14 bg-linear-to-r from-[#026a75] to-[#037a86] hover:from-[#025f68] hover:to-[#026a75] text-white font-semibold rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                    className="flex-1 h-12 sm:h-14 bg-linear-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-semibold rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                                 >
                                     {isSubmitting ? (
                                         <div className="flex items-center gap-2">
@@ -388,7 +404,7 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
                                     type="button"
                                     variant="ghost"
                                     onClick={handleClearForm}
-                                    className="h-12 sm:h-14 px-6 sm:px-8 text-[#026a75] font-medium rounded-xl sm:rounded-2xl hover:bg-[#026a75]/10 hover:text-[#025f68] transition-all duration-300 group"
+                                    className="h-12 sm:h-14 px-6 sm:px-8 text-brand-600 font-medium rounded-xl sm:rounded-2xl hover:bg-brand-600/10 hover:text-brand-700 transition-all duration-300 group"
                                 >
                                     <svg
                                         className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:rotate-180 transition-transform duration-500"
@@ -408,7 +424,7 @@ export function SurveyOPSForm({ systems }: { systems: Array<{ system_id: string;
 
             {/* Loading Overlay */}
             {isSubmitting && (
-                <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
+                <div className="fixed inset-0 z-9999 flex items-center justify-center v2-loader-overlay">
                     <Loading />
                 </div>
             )}

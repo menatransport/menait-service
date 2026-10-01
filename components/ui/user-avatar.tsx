@@ -45,7 +45,7 @@ export const UserAvatar = memo(({
     email,
     className = 'w-10 h-10',
     rounded = 'rounded-full',
-    fallbackClassName = 'bg-linear-to-br from-[#026a75] to-[#034d54] text-white',
+    fallbackClassName = 'bg-linear-to-br from-brand-600 to-brand-800 text-white',
     textClassName = 'text-sm font-semibold',
 }: UserAvatarProps) => {
     // Track the src that failed rather than a boolean, so a new image_url

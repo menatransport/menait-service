@@ -86,11 +86,11 @@ const SectionHeader = memo(({ icon: Icon, title, subtitle }: {
     icon: LucideIcon; title: string; subtitle: string;
 }) => (
     <div className="flex items-center gap-2 mb-4">
-        <div className="w-8 h-8 bg-linear-to-br from-[#026a75] to-[#03969a] rounded-lg flex items-center justify-center shadow-sm">
+        <div className="w-8 h-8 bg-linear-to-br from-brand-600 to-brand-500 rounded-lg flex items-center justify-center shadow-sm">
             <Icon className="w-4 h-4 text-white" />
         </div>
         <div>
-            <h3 className="text-sm font-semibold text-[#055058]">{title}</h3>
+            <h3 className="text-sm font-semibold text-brand-800">{title}</h3>
             <p className="text-[11px] text-gray-400">{subtitle}</p>
         </div>
     </div>
@@ -113,7 +113,7 @@ const FormField = memo(({ label, icon: Icon, value, readonly, onChange }: {
             readOnly={readonly}
             className={`text-sm transition-colors duration-200 ${readonly
                 ? 'bg-gray-50/80'
-                : 'bg-white hover:border-[#026a75]/40 focus:border-[#026a75]'
+                : 'bg-white hover:border-brand-600/40 focus:border-brand-600'
                 }`}
         />
     </div>
@@ -235,7 +235,7 @@ export const ProfileForm = memo(({
             {editable && onSave && (
                 <div className="pt-4 border-t border-gray-200">
                     <div className={`flex items-center justify-between rounded-xl px-4 sm:px-5 py-3 sm:py-3.5 transition-all duration-300 ${isDirty
-                        ? 'bg-[#f0fafa] border border-[#026a75]/20'
+                        ? 'bg-brand-50 border border-brand-600/20'
                         : 'bg-gray-50 border border-gray-200'
                         }`}>
                         <div className="flex items-center gap-2 min-w-0">
@@ -263,7 +263,7 @@ export const ProfileForm = memo(({
                             onClick={handleSubmit}
                             disabled={isSaving || !isDirty}
                             className={`shrink-0 h-10 sm:h-12 px-5 sm:px-7 font-semibold rounded-xl transition-all duration-300 ${isDirty
-                                ? 'cursor-pointer bg-linear-to-r from-[#026a75] to-[#037a86] hover:from-[#025f68] hover:to-[#026a75] text-white shadow-lg hover:shadow-xl hover:scale-[1.02]'
+                                ? 'cursor-pointer bg-linear-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white shadow-lg hover:shadow-xl hover:scale-[1.02]'
                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                 }`}
                         >

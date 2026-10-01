@@ -37,12 +37,12 @@ export const SettingComponent: React.FC<SettingComponentProps> = ({
     }, []);
 
     return (
-        <main className="flex-1 min-h-0 bg-[#f0fafa] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
+        <main className="flex-1 min-h-0 v2-canvas rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
                 {/* Loading */}
                 {isLoading ? (
-                    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
+                    <div className="fixed inset-0 z-9999 flex items-center justify-center v2-loader-overlay">
                         <Loading />
                     </div>
 

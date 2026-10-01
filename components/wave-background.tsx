@@ -6,19 +6,19 @@ export const WaveBackground = () => {
             <svg className="w-full h-24 xs:h-28 sm:h-36 md:h-44 lg:h-52 xl:h-60" viewBox="0 0 1440 320" preserveAspectRatio="none">
                 <defs>
                     <linearGradient id="waveGradient1" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#8ce4cb" stopOpacity="0.35" />
+                        <stop offset="0%" stopColor="#5be3a8" stopOpacity="0.35" />
                         <stop offset="50%" stopColor="#0ea5e9" stopOpacity="0.25" />
-                        <stop offset="100%" stopColor="#8ce4cb" stopOpacity="0.35" />
+                        <stop offset="100%" stopColor="#5be3a8" stopOpacity="0.35" />
                     </linearGradient>
                     <linearGradient id="waveGradient2" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#026a75" stopOpacity="0.25" />
-                        <stop offset="50%" stopColor="#8ce4cb" stopOpacity="0.2" />
-                        <stop offset="100%" stopColor="#026a75" stopOpacity="0.25" />
+                        <stop offset="0%" stopColor="#1c6ef2" stopOpacity="0.25" />
+                        <stop offset="50%" stopColor="#5be3a8" stopOpacity="0.2" />
+                        <stop offset="100%" stopColor="#1c6ef2" stopOpacity="0.25" />
                     </linearGradient>
                     <linearGradient id="waveGradient3" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#8ce4cb" stopOpacity="0.15" />
-                        <stop offset="50%" stopColor="#026a75" stopOpacity="0.1" />
-                        <stop offset="100%" stopColor="#8ce4cb" stopOpacity="0.15" />
+                        <stop offset="0%" stopColor="#5be3a8" stopOpacity="0.15" />
+                        <stop offset="50%" stopColor="#1c6ef2" stopOpacity="0.1" />
+                        <stop offset="100%" stopColor="#5be3a8" stopOpacity="0.15" />
                     </linearGradient>
                 </defs>
                 {/* Wave 1 - Back */}

@@ -127,7 +127,7 @@ export const ServiceComponent = ({
 
 
     return (
-       <main className="flex-1 min-h-0 bg-[#026a75] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto relative">
+       <main className="flex-1 min-h-0 bg-brand-600 rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto relative">
             <WaveBackground />
             <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 z-10 relative">
 
@@ -135,7 +135,7 @@ export const ServiceComponent = ({
                 <Card className="border border-gray-100 shadow-sm rounded-2xl mb-5 sm:mb-6">
                     <CardContent className="p-4 sm:p-5">
                         <div className="flex items-center gap-3 mb-3">
-                            <div className="w-9 h-9 bg-[#026a75] rounded-lg flex items-center justify-center">
+                            <div className="w-9 h-9 bg-brand-600 rounded-lg flex items-center justify-center">
                                 <Search className="w-4 h-4 text-white" />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -146,7 +146,7 @@ export const ServiceComponent = ({
 
                         <div className="relative">
                             {isLoadingForms ? (
-                                <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
+                                <div className="fixed inset-0 z-9999 flex items-center justify-center v2-loader-overlay">
                                     <Loading />
                                 </div>
                             ) : (
@@ -162,14 +162,14 @@ export const ServiceComponent = ({
 
                 {/* ── Form Content ── */}
                 {isLoadingFormData ? (
-                    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
+                    <div className="fixed inset-0 z-9999 flex items-center justify-center v2-loader-overlay">
                         <Loading />
                     </div>
                 ) : formData ? (
                     <Card className="border border-gray-100 shadow-md rounded-2xl overflow-hidden p-0 gap-0">
 
                         {/* Form Header */}
-                        <div className="bg-linear-to-r from-[#026a75] to-[#037a86] px-4 sm:px-6 py-4 sm:py-5">
+                        <div className="bg-linear-to-r from-brand-600 to-brand-500 px-4 sm:px-6 py-4 sm:py-5">
                             <div className="flex items-start gap-3">
                                 <div className="w-10 h-10 bg-white/15 backdrop-blur-sm rounded-xl flex items-center justify-center shrink-0">
                                     <FileText className="w-5 h-5 text-white" />
@@ -218,7 +218,7 @@ export const ServiceComponent = ({
                                 </div>
                                 <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                                     <div
-                                        className="h-full bg-linear-to-r from-[#026a75] to-[#8ce4cb] rounded-full transition-all duration-500 ease-out"
+                                        className="h-full bg-linear-to-r from-brand-600 to-mint-400 rounded-full transition-all duration-500 ease-out"
                                         style={{ width: `${progress.total > 0 ? (progress.filled / progress.total) * 100 : 0}%` }}
                                     />
                                 </div>
@@ -287,7 +287,7 @@ export const ServiceComponent = ({
                                 <div className="pt-5 sm:pt-6 border-t border-gray-100 flex flex-col sm:flex-row gap-2.5">
                                     <Button
                                         type="submit"
-                                        className="flex-1 h-11 sm:h-12 bg-[#026a75] hover:bg-[#025f68] text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.01] cursor-pointer"
+                                        className="flex-1 h-11 sm:h-12 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.01] cursor-pointer"
                                     >
                                         <Send className="w-4 h-4 mr-2" />
                                         ส่งคำร้อง

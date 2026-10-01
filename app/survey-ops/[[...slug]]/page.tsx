@@ -2,9 +2,12 @@
 
 import { Navbar } from "@/components/navbar";
 import { SurveyOPSForm } from "@/app/survey-ops/[[...slug]]/survey-ops-form";
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useEffect, useState, useMemo, useCallback } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import Loading from "@/components/loading";
+import { useSessionContext } from "@/app/context/SessionContext";
+import { listProjects } from "@/app/ops/api";
+import { toPerson } from "@/app/ops/components";
 
 const SYSTEMS_API_URL = process.env.NEXT_PUBLIC_SYSTEM_SCRIPT || '';
 const CACHE_KEY = 'survey_ops_systems';
@@ -20,15 +23,44 @@ interface CachedData {
     timestamp: number;
 }
 
-export default function SurveyOPSPage() {
+function SurveyOPSContent() {
     const [allSystems, setAllSystems] = useState<SystemData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const { user, loading: sessionLoading } = useSessionContext();
+    // OPS projects that were delivered (Review / Done) — null until loaded
+    const [opsSystems, setOpsSystems] = useState<SystemData[] | null>(null);
     const params = useParams();
+    const searchParams = useSearchParams();
     const systemId = useMemo(() => params?.slug?.[0] as string | undefined, [params?.slug]);
+
+    useEffect(() => {
+        if (!user) return;
+        let alive = true;
+        listProjects('all', { me: toPerson(user) })
+            .then(list => {
+                if (!alive) return;
+                setOpsSystems(list
+                    .filter(p => p.status === 'Review' || p.status === 'Done')
+                    .map(p => ({ system_id: p.project_id, system: p.title })));
+            })
+            .catch(err => { console.error('Error fetching OPS projects:', err); if (alive) setOpsSystems([]); });
+        return () => { alive = false; };
+    }, [user]);
+
+    // OPS projects first; systems from the external script stay so older e-mailed links keep working
+    const merged = useMemo(() => {
+        const ops = opsSystems ?? [];
+        return [...ops, ...allSystems.filter(s => !ops.some(o => o.system_id === s.system_id))];
+    }, [opsSystems, allSystems]);
+
     const systems = useMemo(() => {
-        if (!systemId) return allSystems;
-        return allSystems.filter(sys => sys.system_id === systemId);
-    }, [allSystems, systemId]);
+        if (!systemId) return merged;
+        return merged.filter(sys => sys.system_id === systemId);
+    }, [merged, systemId]);
+
+    /** Opened right after "ผ่านรีวิว": the system is fixed to the reviewed project */
+    const fromReview = searchParams.get('from') === 'review';
+    const opsLoading = sessionLoading || (Boolean(user) && opsSystems === null);
 
 
     const getCachedSystems = useCallback((): SystemData[] | null => {
@@ -95,10 +127,14 @@ export default function SurveyOPSPage() {
     return (
         <>
             <Navbar isHome={false} title="แบบประเมินการใช้งานระบบของฝ่าย OPS">
-                <SurveyOPSForm systems={systems} />
+                <SurveyOPSForm
+                    systems={systems}
+                    locked={fromReview && systems.length === 1}
+                    doneHref={fromReview ? '/ops/status' : undefined}
+                />
             </Navbar>
-            {isLoading && (
-                <div className="fixed inset-0 z-9999 flex items-center justify-center bg-gray-500/60">
+            {(isLoading || opsLoading) && (
+                <div className="fixed inset-0 z-9999 flex items-center justify-center v2-loader-overlay">
                     <Loading />
                 </div>
             )}
@@ -106,3 +142,10 @@ export default function SurveyOPSPage() {
     );
 }
 
+export default function SurveyOPSPage() {
+    return (
+        <Suspense>
+            <SurveyOPSContent />
+        </Suspense>
+    );
+}

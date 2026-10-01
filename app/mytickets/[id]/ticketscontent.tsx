@@ -155,7 +155,7 @@ export const TicketComponent = ({
     }, [onTabChange]);
 
     return (
-        <main className="flex-1 min-h-0 bg-[#026a75] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto relative">
+        <main className="flex-1 min-h-0 bg-brand-600 rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto relative">
             <WaveBackground />
             <div className="w-full max-w-screen-2xl mx-auto px-3 py-6 sm:px-6 lg:px-10 sm:py-8 relative z-10">
                 <Tabs value={activeTab} onValueChange={handleTabChange}>
@@ -163,19 +163,19 @@ export const TicketComponent = ({
                         <TabsList className="mb-6 bg-gray-800/50 backdrop-blur-sm p-1 rounded-full">
                             <TabsTrigger
                                 value="apv"
-                                className="px-5 py-2 rounded-full text-white/70 font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-md hover:text-white"
+                                className="px-5 py-2 rounded-full text-white/70 font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-brand-700 data-[state=active]:shadow-md hover:text-white"
                             >
                                 งานรออนุมัติ
                             </TabsTrigger>
                             <TabsTrigger
                                 value="my"
-                                className="px-5 py-2 rounded-full text-white/70 font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-md hover:text-white"
+                                className="px-5 py-2 rounded-full text-white/70 font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-brand-700 data-[state=active]:shadow-md hover:text-white"
                             >
                                 งานของฉัน
                             </TabsTrigger>
                             {role == "a" && (<TabsTrigger
                                 value="suv"
-                                className="px-5 py-2 rounded-full text-white/70 font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-md hover:text-white"
+                                className="px-5 py-2 rounded-full text-white/70 font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-brand-700 data-[state=active]:shadow-md hover:text-white"
                             >
                                 แบบประเมิน
                             </TabsTrigger>
@@ -192,6 +192,8 @@ export const TicketComponent = ({
                     </div>
 
                     <DataTable
+                        // Fresh filters/page per tab & view (only the table remounts, not the page)
+                        key={`${activeTab}-${apvView}`}
                         data={filteredTickets}
                         title={activeTab === 'my' ? 'รายการคำร้องของฉัน' : activeTab === 'apv' ? (apvView === 'history' ? 'รายการอนุมัติ/ปฏิเสธแล้ว' : 'รายการรออนุมัติ') : 'รายการแบบประเมิน'}
                         loading={loading}
@@ -351,7 +353,7 @@ const MonthRangeFilter = ({
             <PopoverTrigger asChild>
                 <button
                     type="button"
-                    className="inline-flex items-center gap-2 bg-teal-800/10 hover:bg-teal-500/20 text-white text-xs sm:text-sm font-medium rounded-full px-3 sm:px-4 py-2 ring-1 ring-white/20 transition-all cursor-pointer mb-6"
+                    className="inline-flex items-center gap-2 bg-brand-800/10 hover:bg-brand-500/20 text-white text-xs sm:text-sm font-medium rounded-full px-3 sm:px-4 py-2 ring-1 ring-white/20 transition-all cursor-pointer mb-6"
                 >
                     <CalendarIcon className="w-4 h-4 opacity-90" />
                     <span>{buttonLabel}</span>
@@ -398,9 +400,9 @@ const MonthRangeFilter = ({
                                 className={[
                                     "py-2 text-xs rounded-md transition-colors cursor-pointer",
                                     isEdge
-                                        ? "bg-teal-600 text-white font-semibold shadow-sm"
+                                        ? "bg-brand-600 text-white font-semibold shadow-sm"
                                         : inRange
-                                            ? "bg-teal-100 text-teal-800"
+                                            ? "bg-brand-100 text-brand-800"
                                             : "text-gray-700 hover:bg-gray-100",
                                 ].join(' ')}
                             >
@@ -417,7 +419,7 @@ const MonthRangeFilter = ({
                             key={p.label}
                             type="button"
                             onClick={() => applyPreset(p)}
-                            className="text-[11px] px-2.5 py-1 rounded-full bg-gray-100 hover:bg-teal-100 hover:text-teal-700 text-gray-700 transition-colors cursor-pointer"
+                            className="text-[11px] px-2.5 py-1 rounded-full bg-gray-100 hover:bg-brand-100 hover:text-brand-700 text-gray-700 transition-colors cursor-pointer"
                         >
                             {p.label}
                         </button>

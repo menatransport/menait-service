@@ -1,6 +1,7 @@
 import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { filterByScope } from '@/lib/finance/scope';
 
 export async function POST(request: NextRequest) {
     const reqBody = await request.json();
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
                 [employee_id]
             );
         }
-        return NextResponse.json(surveys.rows);
+        return NextResponse.json(filterByScope(surveys.rows, 'it'));
     } catch (error) {
         console.error('Error fetching surveys:', error);
         return NextResponse.json({ error: 'Failed to fetch surveys' }, { status: 500 });

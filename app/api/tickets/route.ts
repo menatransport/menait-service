@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { filterByScope } from '@/lib/finance/scope';
 
 export async function GET(request: NextRequest) {
     const sp = request.nextUrl.searchParams;
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
     const start_date = sp.get('start_date') || '';
     const end_date = sp.get('end_date') || '';
     const form_id = sp.get('form_id') || '';
+    const scope = sp.get('scope') === 'advance' ? 'advance' : 'it';
 
     // Build query string from a record, skipping empty values
     const buildQS = (params: Record<string, string>) => {
@@ -59,7 +61,9 @@ export async function GET(request: NextRequest) {
     if (!res.ok) {
         return NextResponse.json({ error: data?.detail }, { status: res.status });
     }
-    return NextResponse.json(data);
+    // /forms, /forms/pending-approvals and /forms/approval-history all return a plain array;
+    // filterByScope keeps this safe (unchanged) if the BE ever wraps the list in an object instead.
+    return NextResponse.json(Array.isArray(data) ? filterByScope(data, scope) : data);
 }
 
 export async function POST(request: NextRequest) {

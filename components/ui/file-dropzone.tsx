@@ -94,8 +94,8 @@ export const FileDropzone = memo(({
                     ${disabled
                         ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-50'
                         : isDragging
-                            ? 'border-[#026a75] bg-[#026a75]/5 scale-[1.01]'
-                            : 'border-gray-300 bg-white hover:border-[#026a75]/40 hover:bg-[#026a75]/2'
+                            ? 'border-brand-600 bg-brand-600/5 scale-[1.01]'
+                            : 'border-gray-300 bg-white hover:border-brand-600/40 hover:bg-brand-600/2'
                     }
                 `}
             >
@@ -144,12 +144,12 @@ export const FileDropzone = memo(({
                 ) : (
                     /* Empty state */
                     <>
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isDragging ? 'bg-[#026a75]/10' : 'bg-gray-100'}`}>
-                            <Upload className={`w-5 h-5 ${isDragging ? 'text-[#026a75]' : 'text-gray-400'}`} />
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isDragging ? 'bg-brand-600/10' : 'bg-gray-100'}`}>
+                            <Upload className={`w-5 h-5 ${isDragging ? 'text-brand-600' : 'text-gray-400'}`} />
                         </div>
                         <div className="text-center">
-                            <p className={`text-sm font-medium ${isDragging ? 'text-[#026a75]' : 'text-gray-600'}`}>
-                                ลากรูปมาวางที่นี่ หรือ <span className="text-[#026a75] underline underline-offset-2">เลือกรูป</span>
+                            <p className={`text-sm font-medium ${isDragging ? 'text-brand-600' : 'text-gray-600'}`}>
+                                ลากรูปมาวางที่นี่ หรือ <span className="text-brand-600 underline underline-offset-2">เลือกรูป</span>
                             </p>
                             <p className="text-xs text-gray-400 mt-1">
                                 PNG, JPEG · ไม่เกิน {maxSizeMB} MB

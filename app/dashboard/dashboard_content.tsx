@@ -301,7 +301,7 @@ const Satisfaction = ({ surveys }: { surveys: Survey[] }) => {
                             />
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-2xl font-bold text-teal-700">{pct.toFixed(0)}%</span>
+                            <span className="text-2xl font-bold text-brand-700">{pct.toFixed(0)}%</span>
                         </div>
                     </div>
                     <div className="flex items-center gap-1 mb-1">
@@ -388,7 +388,7 @@ export const DashboardContent = ({
         <div className="space-y-5">
             {/* Metric cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <MetricCard icon={ListTodo} label="งานทั้งหมด" value={stats.total} accent="bg-gradient-to-br from-teal-500 to-teal-700" />
+                <MetricCard icon={ListTodo} label="งานทั้งหมด" value={stats.total} accent="bg-gradient-to-br from-brand-500 to-brand-700" />
                 <MetricCard icon={TriangleAlert} label="แจ้งปัญหา" value={stats.issue} accent="bg-gradient-to-br from-rose-500 to-rose-700" />
                 <MetricCard icon={ClipboardList} label="ขอบริการ" value={stats.service} accent="bg-gradient-to-br from-sky-500 to-sky-700" />
                 <MetricCard icon={CircleCheck} label="เสร็จสิ้น" value={stats.done} accent="bg-gradient-to-br from-emerald-500 to-emerald-700" />

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense, useCallback, use } from "react";
+import { safeNextPath } from "@/lib/safeRedirect";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
 import { CircleUserRound, KeyRound } from 'lucide-react';
@@ -42,7 +43,7 @@ function LoginForm() {
                 setUser(data.user);
             }
             sessionStorage.setItem("showWelcome", "true")
-            router.push("/home");
+            router.push(safeNextPath(searchParams.get('next')) ?? "/home");
 
             return true;
         } catch (error) {
@@ -51,7 +52,7 @@ function LoginForm() {
             setIsLoading(false);
             return false;
         }
-    }, [router, setUser]);
+    }, [router, setUser, searchParams]);
 
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
@@ -72,13 +73,14 @@ function LoginForm() {
 
     const handleAuthengoogle = useCallback(() => {
         setIsLoading(true);
-        signIn('google', { callbackUrl: '/login?google=true' });
-    }, []);
+        const next = safeNextPath(searchParams.get('next'));
+        signIn('google', { callbackUrl: `/login?google=true${next ? `&next=${encodeURIComponent(next)}` : ''}` });
+    }, [searchParams]);
 
     return (
-        <div className="min-h-screen bg-linear-to-br from-[#026a75] via-[#037a86] to-[#025f68] flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="min-h-screen v2-shell flex items-center justify-center p-4 relative overflow-hidden">
             {isLoading && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(107, 114, 128, 0.6)' }}>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 60, 130, 0.35)', backdropFilter: 'blur(6px)' }}>
                     <Loading />
                 </div>
             )}
@@ -109,8 +111,8 @@ function LoginForm() {
                     </div>
 
                     <CardHeader className="space-y-1">
-                        <CardTitle className="text-2xl md:text-3xl font-bold text-[#026a75]">Login</CardTitle>
-                        <div className="h-1 w-20 bg-[#026a75] rounded-md"></div>
+                        <CardTitle className="text-2xl md:text-3xl font-bold text-brand-600">Login</CardTitle>
+                        <div className="h-1 w-20 bg-brand-600 rounded-md"></div>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-5">
@@ -144,7 +146,7 @@ function LoginForm() {
                                         placeholder="Enter your password"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="pl-10 h-11 focus-visible:ring-[#026a75]"
+                                        className="pl-10 h-11 focus-visible:ring-brand-600"
                                         required
                                     />
                                 </div>
@@ -156,7 +158,7 @@ function LoginForm() {
                                         id="rememberMe"
                                         checked={rememberMe}
                                         onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                                        className="data-[state=checked]:bg-[#026a75] data-[state=checked]:border-[#026a75]"
+                                        className="data-[state=checked]:bg-brand-600 data-[state=checked]:border-brand-600"
                                     />
                                     <Label
                                         htmlFor="rememberMe"
@@ -167,7 +169,7 @@ function LoginForm() {
                                 </div>
                                 <a
                                     href="#"
-                                    className="text-sm text-[#026a75] hover:underline font-medium transition-colors"
+                                    className="text-sm text-brand-600 hover:underline font-medium transition-colors"
                                 >
                                     Forgot password?
                                 </a>
@@ -175,7 +177,7 @@ function LoginForm() {
 
                             <Button
                                 type="submit"
-                                className="w-full h-11 bg-[#026a75] hover:bg-[#025f68] text-white font-medium transition-all duration-200 shadow-md hover:shadow-lg"
+                                className="w-full h-11 bg-brand-600 hover:bg-brand-700 text-white font-medium transition-all duration-200 shadow-md hover:shadow-lg"
                             >
                                 Login
                             </Button>
@@ -209,7 +211,7 @@ function LoginForm() {
 export default function LoginPage() {
     return (
         <Suspense fallback={
-            <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(107, 114, 128, 0.6)' }}>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 60, 130, 0.35)', backdropFilter: 'blur(6px)' }}>
                 <Loading />
             </div>
         }>

@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2 } from 'lucide-react';
+import { MascotLoader } from '@/components/loading';
 
 interface LoadingSpinnerProps {
     text?: string;
@@ -16,7 +17,7 @@ export function LoadingSpinner({ text = 'กำลังโหลด...', size =
 
     return (
         <div className="flex flex-col items-center justify-center gap-3 py-8">
-            <Loader2 className={`${sizeClasses[size]} text-[#026a75] animate-spin`} />
+            <Loader2 className={`${sizeClasses[size]} text-brand-600 animate-spin`} />
             {text && <span className="text-gray-500 text-sm">{text}</span>}
         </div>
     );
@@ -24,17 +25,9 @@ export function LoadingSpinner({ text = 'กำลังโหลด...', size =
 
 export function PageLoading() {
     return (
-        <div className="h-screen flex flex-col overflow-hidden bg-linear-to-br from-[#026a75] via-[#037a86] to-[#025f68]">
-            <div className="flex-1 min-h-0 bg-[#f0fafa] rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center animate-pulse">
-                        <Loader2 className="w-8 h-8 text-[#026a75] animate-spin" />
-                    </div>
-                    <div className="text-center">
-                        <p className="text-[#026a75] font-semibold">กำลังโหลด...</p>
-                        <p className="text-gray-400 text-sm">กรุณารอสักครู่</p>
-                    </div>
-                </div>
+        <div className="h-screen flex flex-col overflow-hidden v2-shell">
+            <div className="flex-1 min-h-0 v2-canvas rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl flex items-center justify-center">
+                <MascotLoader text="กำลังโหลด" />
             </div>
         </div>
     );

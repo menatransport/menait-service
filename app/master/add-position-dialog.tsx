@@ -95,7 +95,7 @@ export const AddPositionDialog = memo(({ open, onOpenChange, onAdded }: AddPosit
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-[#026a75]">
+                    <DialogTitle className="flex items-center gap-2 text-brand-600">
                         <Briefcase className="w-5 h-5" />
                         เพิ่มตำแหน่งใหม่
                     </DialogTitle>
@@ -112,7 +112,7 @@ export const AddPositionDialog = memo(({ open, onOpenChange, onAdded }: AddPosit
                         <Input
                             value={form.position_name_th}
                             onChange={e => setForm(prev => ({ ...prev, position_name_th: e.target.value }))}
-                            className="h-10 text-sm rounded-lg border-gray-200 focus:ring-[#026a75] focus:border-[#026a75]"
+                            className="h-10 text-sm rounded-lg border-gray-200 focus:ring-brand-600 focus:border-brand-600"
                             autoFocus
                         />
                     </div>
@@ -123,12 +123,12 @@ export const AddPositionDialog = memo(({ open, onOpenChange, onAdded }: AddPosit
                         <Input
                             value={form.position_name_en}
                             onChange={e => setForm(prev => ({ ...prev, position_name_en: e.target.value }))}
-                            className="h-10 text-sm rounded-lg border-gray-200 focus:ring-[#026a75] focus:border-[#026a75]"
+                            className="h-10 text-sm rounded-lg border-gray-200 focus:ring-brand-600 focus:border-brand-600"
                         />
                     </div>
                     <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                            <BarChart3 className="w-3.5 h-3.5 text-[#026a75]" />
+                            <BarChart3 className="w-3.5 h-3.5 text-brand-600" />
                             ระดับตำแหน่ง
                         </Label>
                         <DropdownSearch
@@ -159,7 +159,7 @@ export const AddPositionDialog = memo(({ open, onOpenChange, onAdded }: AddPosit
                         <Button
                             type="submit"
                             disabled={saving}
-                            className="rounded-xl bg-[#026a75] hover:bg-[#055058] text-white cursor-pointer"
+                            className="rounded-xl bg-brand-600 hover:bg-brand-800 text-white cursor-pointer"
                         >
                             {saving ? (
                                 <>

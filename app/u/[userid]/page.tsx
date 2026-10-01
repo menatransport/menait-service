@@ -46,11 +46,11 @@ export default function UserPage() {
     
     return (
             <>
-                <div className="h-screen flex flex-col overflow-hidden bg-linear-to-br from-[#026a75] via-[#037a86] to-[#025f68]">
+                <div className="h-screen flex flex-col overflow-hidden v2-shell">
                     <UserContent user={data} />
                 </div>
                 {isLoading && (
-                    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-linear-to-br from-[#026a75] via-[#037a86] to-[#025f68]">
+                    <div className="fixed inset-0 z-9999 flex items-center justify-center v2-loader-screen">
                         <Loading />
                     </div>
                 )}

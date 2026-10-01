@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Prompt } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Sans_Thai, Prompt } from "next/font/google";
 import { SessionProvider } from "@/app/context/SessionContext";
 import "./globals.css";
 
@@ -13,6 +13,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const notoThai = Noto_Sans_Thai({
+  variable: "--font-noto-thai",
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
 const promptThai = Prompt({
   variable: "--font-prompt",
   subsets: ["thai", "latin"],
@@ -21,7 +27,7 @@ const promptThai = Prompt({
 
 export const metadata: Metadata = {
   title: "MenaIT Service",
-  description: "MenaIT Service Application",
+  description: "MenaIT Service — IT, OPS & Finance service hub",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -34,7 +40,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#2563eb",
+  themeColor: "#1c6ef2",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -46,17 +52,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="th">
       <head>
-        <link rel="icon" type="image/png" sizes="32x32" href="/logonew/ios/32.png" />
+        <link rel="icon" type="image/svg+xml" href="/mascot.svg" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/mascot/32.png" />
         {/* <link rel="icon" type="image/png" sizes="16x16" href="/logonew/ios/16.png" /> */}
-        <link rel="shortcut icon" href="/logonew/ios/32.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/logonew/ios/180.png" />
+        <link rel="shortcut icon" href="/mascot/32.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/mascot/180.png" />
         {/* <link rel="apple-touch-icon" sizes="152x152" href="/logonew/ios/152.png" />
         <link rel="apple-touch-icon" sizes="120x120" href="/logonew/ios/120.png" /> */}
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${promptThai.variable} antialiased overflow-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} ${notoThai.variable} ${promptThai.variable} antialiased overflow-hidden`}
       >
         <SessionProvider>
           {children}
