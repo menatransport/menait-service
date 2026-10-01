@@ -268,7 +268,7 @@ these questions and show "-".
     - "จำนวนเงินรวม" in a box, with the format 5,000.00.
     - "จำนวนเงิน (ตัวอักษร)" in italics, using the Thai baht-text function, which handles satang (Excel BAHTTEXT
       rules).
-    - "รอบการเบิกเงิน" and "วันที่จะมีการใช้เงิน" as d/m/yyyy.
+    - "วันที่จะมีการใช้เงิน" as d/m/yyyy. ("รอบการเบิกเงิน" was removed by the user on 2026-10-01.)
     - "รายละเอียดเพิ่มเติม" with 2 lines.
   - **ส่วนที่ 3 เงื่อนไขและข้อตกลง:** the 5 static clauses, reproduced exactly.
   - **ส่วนที่ 4 ลงนามและอนุมัติ:** a 4-column bordered table (ผู้ขอเบิก | หัวหน้าหน่วยงาน | ผู้จัดการ |

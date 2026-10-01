@@ -21,7 +21,6 @@ export interface CashAdvanceFormData {
   centers: string[];
   center_other_text: string;
   items: { description: string; amount: number }[];
-  disbursement_round: string;
   use_date: string;
   additional_details: string;
   /** Document Ref / เลขที่ (the form_id) shown in the meta box and the Document Control footer. */
@@ -171,7 +170,7 @@ ${sec(1, 'ข้อมูลพนักงานผู้เบิกเงิ�
 
 ${sec(2, 'ประเภทและวัตถุประสงค์ในการเบิกเงินล่วงหน้า', 'Purpose')}
 <table class="items"><thead><tr><th colspan="2">วัตถุประสงค์ในการเบิกเงินล่วงหน้า</th><th class="a">(บาท)</th></tr></thead><tbody>${rows}</tbody></table>
-<div class="sum"><div class="dates">${field('รอบการเบิกเงิน', dmy(data.disbursement_round))}${field('วันที่จะมีการใช้เงิน', dmy(data.use_date))}
+<div class="sum"><div class="dates">${field('วันที่จะมีการใช้เงิน', dmy(data.use_date))}
 <div class="more"><span class="l">รายละเอียดเพิ่มเติม</span><div class="ln">${esc(data.additional_details)}</div><div class="ln"></div></div></div>
 <div class="tot"><div class="k">จำนวนเงินรวม</div><div class="amt">${money(total)}<span>บาท</span></div><div class="words">จำนวนเงิน (ตัวอักษร) : ${esc(bahtText(total))}</div></div></div>
 
@@ -228,7 +227,6 @@ export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
     centers: center.centers,
     center_other_text: center.other,
     items: [{ description: r.purpose ?? '', amount: Number(r.amount ?? 0) }],
-    disbursement_round: toBkkDate(detail.fin?.transfer_date ?? detail.fin?.voucher_date),
     use_date: toBkkDate(r.use_date),
     additional_details: '',
     signatures: {

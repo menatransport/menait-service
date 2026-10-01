@@ -72,7 +72,7 @@ describe('cash advance form', () => {
     expect(d.employee.bank_account_no).toBe('123-4-56789-0');
     expect(d.employee.position).toBe('เจ้าหน้าที่');
     expect(d.items).toEqual([{ description: 'ค่าน้ำมัน', amount: 1500 }]);
-    expect(d.disbursement_round).toBe('2026-08-18');
+    expect('disbursement_round' in d).toBe(false); // รอบการเบิกเงิน removed (user, 2026-10-01)
     expect(d.request_date).toBe('2026-08-13');
     expect(d.signatures.approver.name).toBe('ผู้จัดการ หนึ่ง');
     expect(d.signatures.approver.date).toBe('14/8/2026');
@@ -80,7 +80,6 @@ describe('cash advance form', () => {
     const o = toCashAdvanceData({ ...detail, requester: { ...detail.requester, site: 'ศูนย์บางปะกง', site_code: 'ศบก.' }, fin: { voucher_date: '2026-08-14', transfer_date: null } });
     expect(o.centers).toEqual(['สระบุรี/ระยอง/บางปะกง']);
     expect(o.center_other_text).toBe('');
-    expect(o.disbursement_round).toBe('2026-08-14');
     const u = toCashAdvanceData({ ...detail, requester: { ...detail.requester, site: 'สำนักงานใหม่', site_code: null } });
     expect(u.centers).toEqual(['อื่นๆ']);
     expect(u.center_other_text).toBe('สำนักงานใหม่');
