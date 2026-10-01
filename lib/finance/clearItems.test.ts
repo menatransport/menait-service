@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { rowTotals, sumItems, validateItems, vat7, type ClearItemRow } from './clearItems';
+import { parseAmount } from './status';
+import { invalidNumberErrors, rowTotals, sumItems, validateItems, vat7, type ClearItemRow } from './clearItems';
 
 const row = (o: Partial<ClearItemRow> = {}): ClearItemRow => ({
   expense_date: '2026-09-30', vehicle: '', has_receipt: true, description: 'ค่าทางด่วน',
@@ -36,4 +37,11 @@ describe('validateItems', () => {
   });
   test('negative amount', () => expect(validateItems([row({ vat_amount: -1 })])[0]).toBe('รายการที่ 1: ยอด VATต้องไม่ติดลบ'));
   test('net negative', () => expect(validateItems([row({ wht_amount: 108 })])[0]).toContain('รายการที่ 1: ยอดสุทธิต้องไม่ติดลบ'));
+});
+
+describe('invalidNumberErrors', () => {
+  test('flags non-numeric text, allows blank', () => {
+    const e = invalidNumberErrors([{ a: '12abc', b: '', d: '-' }, { a: '1,000.50', b: '7', d: '' }], parseAmount);
+    expect(e).toEqual(['รายการที่ 1: ยอดก่อน VAT รูปแบบตัวเลขไม่ถูกต้อง', 'รายการที่ 1: หัก ณ ที่จ่าย รูปแบบตัวเลขไม่ถูกต้อง']);
+  });
 });

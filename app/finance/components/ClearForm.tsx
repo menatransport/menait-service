@@ -5,7 +5,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { MAX_CLEAR_ITEMS, rowTotals, sumItems, validateItems, vat7, type ClearItemRow } from '@/lib/finance/clearItems';
+import { MAX_CLEAR_ITEMS, invalidNumberErrors, rowTotals, sumItems, validateItems, vat7, type ClearItemRow } from '@/lib/finance/clearItems';
 import { computeSettle, formatBaht, parseAmount, settleLabel } from '@/lib/finance/status';
 import { fetchJson, putAction, showAlert, uploadFiles } from '../api';
 import { CLEAR_ATTACHMENT_REQUIRED } from '../labels';
@@ -15,6 +15,7 @@ import { FilePicker } from './FilePicker';
 import { Panel } from './FinanceShell';
 
 interface DraftRow {
+  id: number;
   expense_date: string;
   vehicle: string;
   has_receipt: boolean;
@@ -26,7 +27,9 @@ interface DraftRow {
   bTouched: boolean;
 }
 
-const emptyRow = (): DraftRow => ({ expense_date: '', vehicle: '', has_receipt: true, description: '', a: '', b: '', d: '', bTouched: false });
+let rowSeq = 0;
+const nextId = () => ++rowSeq;
+const emptyRow = (): DraftRow => ({ id: nextId(), expense_date: '', vehicle: '', has_receipt: true, description: '', a: '', b: '', d: '', bTouched: false });
 const numStr = (n: number) => (n === 0 ? '' : String(n));
 
 function toRow(r: DraftRow): ClearItemRow {
@@ -42,8 +45,9 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
   const [rows, setRows] = useState<DraftRow[]>(() =>
     fin.clear_items?.length
       ? fin.clear_items.map(i => ({
+        id: nextId(),
         expense_date: i.expense_date, vehicle: i.vehicle ?? '', has_receipt: i.has_receipt, description: i.description,
-        a: numStr(i.amount_before_vat), b: String(i.vat_amount), d: numStr(i.wht_amount),
+        a: numStr(i.amount_before_vat), b: numStr(i.vat_amount), d: numStr(i.wht_amount),
         // saved B may be hand-edited: keep it as-is unless it already equals the 7% value
         bTouched: i.vat_amount !== vat7(i.amount_before_vat),
       }))
@@ -83,7 +87,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clearDate) return showAlert({ icon: 'warning', title: 'กรุณาระบุวันที่ส่งเอกสารเคลียร์' });
-    const itemErrors = validateItems(itemRows);
+    const itemErrors = [...invalidNumberErrors(rows, parseAmount), ...validateItems(itemRows)];
     if (itemErrors.length) return showAlert({ icon: 'warning', title: 'กรุณาตรวจรายการค่าใช้จ่าย', text: itemErrors.slice(0, 5).join('\n') });
     if (settle !== null && settle > 0 && !settleDate) {
       return showAlert({ icon: 'warning', title: 'มียอดต้องคืนบริษัท', text: 'กรุณาระบุวันที่โอนเงินคืนบริษัท' });
@@ -155,7 +159,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
                 {rows.map((r, i) => {
                   const t = rowTotals(itemRows[i]);
                   return (
-                    <tr key={i} className="border-t align-top">
+                    <tr key={r.id} className="border-t align-top">
                       <td className="px-2 py-2 text-gray-500">{i + 1}</td>
                       <td className="w-40 px-2 py-2"><DateField value={r.expense_date} onChange={v => patchRow(i, { expense_date: v })} disabled={saving} /></td>
                       <td className="w-40 px-2 py-2"><Input maxLength={50} value={r.vehicle} onChange={e => patchRow(i, { vehicle: e.target.value })} disabled={saving} /></td>

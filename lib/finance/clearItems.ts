@@ -55,3 +55,17 @@ export function validateItems(rows: ClearItemRow[]): string[] {
   });
   return errs;
 }
+
+/** Flags non-empty amount text that does not parse (e.g. "12abc", "-"). `parse` returns null for unparseable text. */
+export function invalidNumberErrors(
+  raws: { a: string; b: string; d: string }[],
+  parse: (s: string) => number | null,
+): string[] {
+  const errs: string[] = [];
+  raws.forEach((r, i) => {
+    for (const [label, v] of [['ยอดก่อน VAT', r.a], ['ยอด VAT', r.b], ['หัก ณ ที่จ่าย', r.d]] as const) {
+      if (v.trim() !== '' && parse(v) === null) errs.push(`รายการที่ ${i + 1}: ${label} รูปแบบตัวเลขไม่ถูกต้อง`);
+    }
+  });
+  return errs;
+}
