@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { MAX_CLEAR_ITEMS, carryOverDefaults, invalidNumberErrors, rowTotals, sumItems, validateItems, vat7 } from '@/lib/finance/clearItems';
 import { formatDateThaiShort } from '@/lib/finance/dates';
 import { computeSettle, formatBaht, parseAmount, settleLabel } from '@/lib/finance/status';
-import { fetchJson, putAction, showAlert, uploadFiles } from '../api';
+import { fetchJson, putAction, showAlert, showConfirm, uploadFiles } from '../api';
 import { CLEAR_ATTACHMENT_REQUIRED } from '../labels';
 import type { AdvanceDetail, AttachmentFile } from '../types';
 import { ClearItemDialog, toRow, type DraftRow } from './ClearItemDialog';
@@ -72,6 +72,12 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
       return showAlert({ icon: 'warning', title: 'มียอดต้องคืนบริษัท', text: 'กรุณาระบุวันที่โอนเงินคืนบริษัท' });
     }
     if (files.length === 0 && existingClear === 0) return showAlert({ icon: 'warning', title: CLEAR_ATTACHMENT_REQUIRED });
+    const ok: any = await showConfirm({
+      icon: 'question', title: 'ยืนยันส่งเคลียร์เงิน',
+      text: `ยอดใช้จริง ${formatBaht(totals.e)} บาท (${rows.length} รายการ) — ส่งแล้วแก้ไขไม่ได้ จนกว่าบัญชีจะส่งกลับแก้ไข`,
+      confirmButtonText: 'ส่งเคลียร์เงิน',
+    });
+    if (!ok?.isConfirmed) return;
     setSaving(true);
     try {
       const failed = await uploadFiles(detail.form_id, files, 'clear');

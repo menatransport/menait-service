@@ -12,7 +12,8 @@ import { MascotLoader } from '@/components/loading';
 import { LogList } from './LogList';
 import { ShareApprovalLink } from './ShareApprovalLink';
 
-const CLEARABLE = new Set(['AWAITING_CLEARING', 'SENT_BACK', 'AWAITING_REVIEW']);
+// once submitted (AWAITING_REVIEW) the clearing is locked until Accounting sends it back
+const CLEARABLE = new Set(['AWAITING_CLEARING', 'SENT_BACK']);
 
 export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChanged?: () => void }) {
   const [detail, setDetail] = useState<AdvanceDetail | null>(null);
@@ -48,6 +49,11 @@ export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChang
         </div>
       </Panel>
       {detail.fin && CLEARABLE.has(detail.status) && <ClearForm key={refreshKey} detail={detail} onSaved={onSaved} />}
+      {detail.status === 'AWAITING_REVIEW' && (
+        <p className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">
+          ส่งเคลียร์เงินแล้ว รอบัญชีตรวจ — แก้ไขไม่ได้ หากต้องแก้ไข ให้ติดต่อบัญชีเพื่อส่งกลับแก้ไข
+        </p>
+      )}
       <LogList approvalLogs={detail.approval_logs} finLogs={detail.fin_logs} />
     </>
   );

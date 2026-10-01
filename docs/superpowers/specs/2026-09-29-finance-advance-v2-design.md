@@ -489,6 +489,16 @@ Part 1 (ใบคำขอเบิกเงินล่วงหน้า) is u
 - This replaces the §5e mapping from cost_center. The Part 1 option label "สระบุรี/ระยอง" becomes
   "สระบุรี/ระยอง/บางปะกง".
 
+## 5j. A submitted clearing is locked (user, 2026-10-01: "ถ้ากดส่งแล้วแก้ไขไม่ได้")
+
+Once the requester presses ส่งเคลียร์เงิน (status AWAITING_REVIEW, รอบัญชีตรวจ), they can no longer edit the
+clearing. The only way back is for Accounting to use ส่งกลับแก้ไข, which sets SENT_BACK and lets the requester edit
+and resubmit. This replaces the v1 rule that allowed CLEAR_EDIT during review.
+
+- **BE:** `check_clear` allows only AWAITING_CLEARING and SENT_BACK, and every clear is logged as CLEAR_SUBMIT.
+- **FE:** the form is hidden at AWAITING_REVIEW and replaced by a note. Submitting shows a confirm dialog that states the
+  lock.
+
 ## 6. Migration `scripts/migrations/2026-09-29_finance_advance_v2.sql` (user runs it in DBeaver)
 
 One transaction, idempotent, with no `DO $$` blocks (DBeaver-safe, as in v1):
