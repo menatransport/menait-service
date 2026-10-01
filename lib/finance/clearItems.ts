@@ -71,3 +71,23 @@ export function invalidNumberErrors(
   });
   return errs;
 }
+
+/** New-item popup defaults: date and vehicle come from the last row in the list (blank when none). */
+export function carryOverDefaults(rows: { expense_date: string; vehicle: string }[]): { expense_date: string; vehicle: string } {
+  const last = rows[rows.length - 1];
+  return { expense_date: last?.expense_date ?? '', vehicle: last?.vehicle ?? '' };
+}
+
+const ROW_PREFIX = /^รายการที่ \d+: /;
+
+/** Validates ONE row (raw amount text + parsed row) for the popup. Messages carry no "รายการที่ N: " prefix. Empty = valid. */
+export function validateSingleItem(
+  raw: { a: string; b: string; d: string },
+  row: ClearItemRow,
+  parse: (s: string) => number | null,
+): string[] {
+  const numErrs = invalidNumberErrors([raw], parse);
+  const rowErrs = validateItems([row]);
+  // when a number is unparseable the parsed value is null (treated as 0); skip the derived net check noise is fine, both are reported
+  return [...numErrs, ...rowErrs].map(m => m.replace(ROW_PREFIX, ''));
+}

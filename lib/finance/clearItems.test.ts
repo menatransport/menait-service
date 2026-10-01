@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { parseAmount } from './status';
-import { invalidNumberErrors, rowTotals, sumItems, validateItems, vat7, type ClearItemRow } from './clearItems';
+import { carryOverDefaults, validateSingleItem, invalidNumberErrors, rowTotals, sumItems, validateItems, vat7, type ClearItemRow } from './clearItems';
 
 const row = (o: Partial<ClearItemRow> = {}): ClearItemRow => ({
   expense_date: '2026-09-30', vehicle: '', has_receipt: true, description: 'ค่าทางด่วน',
@@ -47,4 +47,24 @@ describe('invalidNumberErrors', () => {
   test('flags more than 2 decimals', () => {
     expect(invalidNumberErrors([{ a: '0.005', b: '1,234.50', d: '' }], parseAmount)).toEqual(['รายการที่ 1: ยอดก่อน VAT ทศนิยมไม่เกิน 2 ตำแหน่ง']);
   });
+});
+
+describe('carryOverDefaults', () => {
+  test('empty list → blanks', () => expect(carryOverDefaults([])).toEqual({ expense_date: '', vehicle: '' }));
+  test('takes last row', () => expect(carryOverDefaults([
+    { expense_date: '2026-09-01', vehicle: 'A' }, { expense_date: '2026-09-02', vehicle: 'B 1234' },
+  ])).toEqual({ expense_date: '2026-09-02', vehicle: 'B 1234' }));
+});
+
+describe('validateSingleItem', () => {
+  const raw = (o: Partial<{ a: string; b: string; d: string }> = {}) => ({ a: '100', b: '7', d: '', ...o });
+  test('valid → []', () => expect(validateSingleItem(raw(), row(), parseAmount)).toEqual([]));
+  test('messages have no row prefix', () => {
+    const e = validateSingleItem(raw(), row({ expense_date: '', description: ' ' }), parseAmount);
+    expect(e).toEqual(['กรุณาระบุวันที่', 'กรุณาระบุรายละเอียด']);
+  });
+  test('bad number text reported', () => {
+    expect(validateSingleItem(raw({ a: '12abc' }), row({ amount_before_vat: null }), parseAmount)[0]).toBe('ยอดก่อน VAT รูปแบบตัวเลขไม่ถูกต้อง');
+  });
+  test('wht over total', () => expect(validateSingleItem(raw({ d: '108' }), row({ wht_amount: 108 }), parseAmount)[0]).toContain('ยอดสุทธิต้องไม่ติดลบ'));
 });

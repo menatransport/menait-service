@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { formatDateFull, isBeforeToday, isoToLocalDate, localDateToIso, toBkkDate } from './dates';
+import { formatDateFull, formatDateThaiShort, isBeforeToday, isoToLocalDate, localDateToIso, toBkkDate } from './dates';
 
 describe('isBeforeToday', () => {
   test('yesterday is before today', () => expect(isBeforeToday('2026-09-27', '2026-09-28')).toBe(true));
@@ -22,4 +22,11 @@ test('toBkkDate', () => {
   expect(toBkkDate('2026-10-01')).toBe('2026-10-01');
   expect(toBkkDate(null)).toBe('');
   expect(toBkkDate('garbage')).toBe('');
+});
+
+test('formatDateThaiShort d MMM yy (BE)', () => {
+  expect(formatDateThaiShort('2026-09-30')).toBe('30 ก.ย. 69');
+  expect(formatDateThaiShort('2026-01-05')).toBe('5 ม.ค. 69');
+  expect(formatDateThaiShort('')).toBe('');
+  expect(formatDateThaiShort('bad')).toBe('');
 });
