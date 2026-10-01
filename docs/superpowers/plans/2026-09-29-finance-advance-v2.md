@@ -2249,3 +2249,65 @@ The content is the original Task 16 / spec §5f.5, built on `printShared`.
 - **Login redirect:** check how an unauthenticated visit to `/finance/approvals?doc=…` is redirected (middleware/login page/next-auth callbackUrl). Make it return to the same URL if that is a small change; otherwise document the current behaviour in the report.
 - **Pure helper** `lib/finance/shareLink.ts`: `approvalLink(origin, formId)` and `lineShareUrl(message)` / `approvalMessage(detail, link)`, with tests covering encoding (Thai + newlines) and the amount format.
 - **Verify:** bun test lib/finance, tsc 0, build. Commit `feat(finance): share approval link (copy/LINE) + approvals deep link`.
+
+---
+
+## Part 11 (spec §5i) — clearing line items + Expense Claim Form
+
+### Task 19: BE — clearing line items
+
+- `models/finance_model.py`: add `FinAdvanceClearItem` (`fin_advance_clear_items`) with these columns:
+  - `id` PK.
+  - `advance_id` FK `fin_advances.id` ON DELETE CASCADE, not null, indexed.
+  - `line_no` int, not null.
+  - `expense_date` date, not null.
+  - `vehicle` varchar(50).
+  - `has_receipt` bool, not null, default true.
+  - `description` varchar(255), not null.
+  - `amount_before_vat`, `vat_amount`, `wht_amount`, `total_amount`, `net_amount`: numeric(12,2), not null.
+  - `created_at`.
+  - CHECKs: every amount ≥ 0.
+- New `scripts/migrations/2026-10-01_finance_advance_v2d_clear_items.sql`: `CREATE TABLE IF NOT EXISTS` + index, one transaction, DBeaver-safe. Add a model ↔ SQL parity test.
+- `advance_logic.py`: `check_clear_items(items) -> (rows, total_net)`.
+  - Rules: 1–30 rows; `expense_date` and `description` (stripped) required; A, B, D ≥ 0.
+  - It computes C = A + B and E = C − D, each ≥ 0, quantized to 0.01; Thai error messages per row ("รายการที่ N: …").
+  - `check_clear` takes `amount_actual = total_net`.
+- `schemas/finance_schema.py`: `ClearItemIn(expense_date: date, vehicle: Optional[str] ≤50, has_receipt: bool = True, description: str ≤255, amount_before_vat: Decimal, vat_amount: Decimal = 0, wht_amount: Decimal = 0)`.
+  - `ClearIn.items: list[ClearItemIn]` (required, min 1).
+  - `ClearIn.amount_actual` becomes Optional and is ignored when items are present.
+- `routes/finance/advance_routes.py` `clear_advance`:
+  - Validate the items, then set `amount_actual = Σ E`.
+  - Delete the existing items for the advance, insert the new ones with line_no 1..n, then the existing settle/status logic.
+  - Log the changes, including `{"items": [old_count, new_count], "amount_actual": [...]}`.
+- `advance_repo.serialize_fin` gains `clear_items: [{line_no, expense_date, vehicle, has_receipt, description, amount_before_vat, vat_amount, total_amount, wht_amount, net_amount}]`. Load all advances' items in one query in list/detail (no N+1); the list may omit items if that is simpler, but detail must include them.
+- **Tests (DB-free):** check_clear_items covers totals, rounding, negatives, net < 0, empty, 31 rows, a blank description and per-row message text; plus a ClearIn schema test and the model DDL/SQL parity test.
+- Commit `feat(finance): clearing line items (A/B/C/D/E) — amount_actual = Σ net`.
+
+### Task 20: FE — clearing line-items editor
+
+- `app/finance/types.ts`: `ClearItem` type plus `FinInfo.clear_items?: ClearItem[]`.
+- `ClearForm.tsx`: replace the "ยอดใช้จริง" input with an items table editor (add/remove rows, at least 1).
+  - **Columns:** วันที่ (DateField), ทะเบียนรถและประเภท, ใบกำกับ Y/N (toggle), รายละเอียด, ยอดก่อน VAT (A), VAT 7% (B), รวม (C, read-only), หัก ณ ที่จ่าย (D), สุทธิ (E, read-only).
+  - **VAT:** B auto-fills round(A × 0.07, 2) while the row's B is untouched; once edited it stays manual, with a small "คำนวณ 7%" reset.
+  - **Totals row:** sums of A/B/C/D/E.
+  - "ยอดใช้จริง (บาท)" shows Σ E read-only, and settle/รับคืน is computed from Σ E.
+  - Prefill from `fin.clear_items` on resubmit (SENT_BACK/AWAITING_REVIEW).
+  - Validation messages match the BE.
+  - Send `items` in the clear PUT and drop `amount_actual`.
+  - Mobile: the table scrolls horizontally inside its own container.
+- Pure helpers in `lib/finance/clearItems.ts`: `vat7(a)`, `rowTotals(row)`, `sumItems(rows)`, `validateItems(rows): string[]`, with tests.
+- `AdvanceSummary.tsx` clear panel: show the items table (read-only) when `clear_items` is non-empty.
+- **Verify:** bun test lib/finance, tsc 0, build. Commit `feat(finance): clearing expense items editor`.
+
+### Task 21: FE — Part 2 = Expense Claim Form (landscape) + ศูนย์ from requester site
+
+- `lib/finance/clearingForm.ts`: rebuild the body per spec §5i.2. Reuse printShared, use landscape @page for this part, and set the Document Control name to "Expense Claim Form (ADV)".
+  - Items come from `fin.clear_items`. Old clearings without items show one row: description = purpose, A = amount_actual, others "-".
+  - Fill to at least 12 rows; totals; footnote; summary box; 5-column signature table with e-sign stamps for ผู้ขอเบิก and แผนกบัญชีและการเงิน (CLOSED only); clauses verbatim.
+- **ศูนย์ from the requester site** (spec §5i.3): one shared mapper `centerFromSite(siteCode, siteName)` in `lib/finance/centers.ts`, used by both forms. Update the Part 1 option label to "สระบุรี/ระยอง/บางปะกง" and switch `toCashAdvanceData` to the site mapper; update the existing tests.
+- **Combined "ทั้งหมด" print:** Part 1 portrait, then Part 2 landscape, via named pages (`@page claim { size: A4 landscape }` with `.claim { page: claim }`). Verify in headless Chrome.
+- **Tests:**
+  - The centers mapper covers all 6 site codes with and without the trailing dot, plus unknown and empty.
+  - Clearing HTML: every column header, clause, summary label and signature title; a ≥ 12-row body; the negative summary in parentheses; escaping; the old-clearing fallback row.
+  - Render a Chrome sample `tmp/claim-sample.pdf` → PNG with the reference example data (6 rows, matching the reference PDF page 2), Read it, and confirm landscape, one page, and the footer.
+- **Verify:** bun test lib/finance, tsc 0, build. Commit `feat(finance): Part 2 Expense Claim Form (landscape) + ศูนย์ from requester site`.

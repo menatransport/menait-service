@@ -402,6 +402,82 @@ mentions in §5e/§5f/§5g.
 - Security is unchanged: the link grants nothing, and approve/reject is still checked by BE eligibility. Server-side
   identity remains on the launch gate.
 
+## 5i. Part 11 — clearing line items + Expense Claim Form print (user, 2026-10-01)
+
+Reference: `~/Documents/github/Reference_data/ADV/20260930095247.pdf`, page 2, "ใบขอเบิกค่าใช้จ่าย/เคลียร์เบิกล่วงหน้า
+(Expense Claim Form)". The other pages are not generated here: page 1 is the accounting system's journal voucher;
+pages 3–7 are receipts (already auto-attached as image pages); pages 9–10 are WMS/ATMS. The substitute-receipt
+page 8 is out of scope by user decision.
+
+**1. Clearing line items (requester).** The clearing step gets an expense table with one row per receipt:
+- **Fields per row:**
+
+  | Field | Notes |
+  |---|---|
+  | `expense_date` | date, required |
+  | `vehicle` | "ทะเบียนรถและประเภท", text ≤ 50, optional |
+  | `has_receipt` | Y/N, default Y |
+  | `description` | "รายละเอียด", text ≤ 255, required |
+  | `amount_before_vat` (A) | ≥ 0 |
+  | `vat_amount` (B) | ≥ 0. The FE pre-fills round(A × 0.07, 2) until the user edits it |
+  | `wht_amount` (D) | หัก ณ ที่จ่าย, ≥ 0, default 0 |
+
+- **Computed by the BE** (never trusted from the client): `total_amount` (C) = A + B, and `net_amount` (E) = C − D,
+  which must be ≥ 0.
+- **Limits:** 1–30 rows.
+- **ยอดใช้จริง is no longer typed in.** `amount_actual` = Σ E, computed by the BE, and the FE shows it read-only.
+  settle = amount_paid − Σ E, as before.
+- **Storage:** a new table `fin_advance_clear_items` (advance_id FK ON DELETE CASCADE, line_no, the fields above
+  plus total_amount and net_amount, numeric(12,2)). Each clear submit replaces the advance's rows in the same
+  transaction, and the CLEAR_SUBMIT/CLEAR_EDIT log records the item count and total. Detail responses include
+  `fin.clear_items` (ordered by line_no).
+- **Compatibility:** old clearings without items still display; their single `amount_actual` stays as stored. The
+  SQL is DBeaver-safe, and the user runs it.
+
+**2. Part 2 print = Expense Claim Form**, replacing the §5f.5 layout. Landscape A4, structured like the reference,
+in the Part 1 modern style, with the Document Control footer and auto image pages (`clear/` and `check/`):
+- **Header:**
+  - Logo; title "ใบขอเบิกค่าใช้จ่าย/เคลียร์เบิกล่วงหน้า"; subtitle "(Expense Claim Form)".
+  - Top right: "REF No. (โดยแผนกบัญชี)" = `fin.clear_doc_no`, and "วันที่" = clear_date as d/m/yyyy.
+  - No version box (removed 2026-09-30).
+- **Row 1:** ศูนย์ checkboxes per item 3 below.
+- **Row 2:** ชื่อ-สกุล · ตำแหน่ง · แผนก.
+- **Row 3:** โอนเงินเข้าบัญชีธนาคารเลขที่ (formatted) · ชื่อบัญชี · ธนาคาร (without the "ธนาคาร" prefix).
+- **"เงื่อนไขและข้อตกลง"**, verbatim:
+  1. ข้าพเจ้าได้อ่านและเข้าใจนโยบายและข้อปฏิบัติของการเบิกค่าใช้จ่ายของบริษัทแล้ว
+  2. ใบกำกับภาษี/ใบเสร็จรับเงินต้องออกในนามของบริษัท มีนาทรานสปอร์ต จำกัด (มหาชน) และที่อยู่ตามสาขา
+  3. กรุณาส่งเอกสารที่ได้รับอนุมัติตาม TOA ภายในวันอังคาร เพื่อรับชำระเงินภายในวันพฤหัสบดี
+- **Items table:**
+  - Columns: วันที่ | ทะเบียนรถและประเภท | ใบกำกับภาษี/ใบเสร็จรับเงิน Y/N* | รายละเอียด | ยอดเงิน(ก่อน VAT) (A) |
+    ภาษีมูลค่าเพิ่ม 7% (B) | ยอดรวม (C)=(A)+(B) | หัก ณ ที่จ่าย (D) | สุทธิ (E)=(C)-(D).
+  - At least 12 rows; empty rows stay blank. A totals row sums A/B/C/D/E.
+  - Dates use thaiShortDate format (14-ส.ค.-26), and zero amounts print as "-".
+  - Footnote: "* Y = มีใบกำกับภาษี/ใบเสร็จรับเงินแนบ N= ไม่มีใบกำกับภาษี/ใบเสร็จรับเงินแนบ".
+- **Summary box** (right, under the table):
+  - รวม = Σ E.
+  - "หัก เงินเบิกล่วงหน้า" = amount_paid.
+  - "จ่ายเงินคืนพนักงาน /(พนักงานคืนเงินบริษัท)" = Σ E − amount_paid. A positive value means the company pays the
+    employee; a negative value is printed in parentheses, meaning the employee returns money.
+- **Signatures**, 5 columns:
+  - ผู้ขอเบิก: e-Signature of the requester + `clear_submitted_at`, ref form_id.
+  - หัวหน้าหน่วยงาน and ผู้จัดการ: blank.
+  - ผู้มีอำนาจอนุมัติ: blank (the claim has no separate approval step in the system).
+  - แผนกบัญชีและการเงิน: "วันที่รับเอกสาร / ชื่อ". When CLOSED, an e-Signature of closed_by_name + closed_at, ref "ปิดรายการ".
+- **Document Control name:** "Expense Claim Form (ADV)". The combined print ("ทั้งหมด") keeps Part 1 portrait and
+  Part 2 landscape, via named @page rules.
+
+**3. ศูนย์ checkboxes = the requester's own centre**, for both Part 1 and Part 2. The data comes from
+`requester.site_code` (sites table: สกท./ศลบ./สสบ./ศรย./ศขก./ศบก.; normalize by stripping the trailing ".").
+- **Options:** กรุงเทพ / ลาดกระบัง/ขอนแก่น / สระบุรี/ระยอง/บางปะกง / MDD / อื่นๆ ____.
+- **Mapping:**
+  - สกท → กรุงเทพ
+  - ศลบ, ศขก → ลาดกระบัง/ขอนแก่น
+  - สสบ, ศรย, ศบก → สระบุรี/ระยอง/บางปะกง
+  - MDD is never auto-ticked.
+  - Unknown or empty → อื่นๆ with the site name as text.
+- This replaces the §5e mapping from cost_center. The Part 1 option label "สระบุรี/ระยอง" becomes
+  "สระบุรี/ระยอง/บางปะกง".
+
 ## 6. Migration `scripts/migrations/2026-09-29_finance_advance_v2.sql` (user runs it in DBeaver)
 
 One transaction, idempotent, with no `DO $$` blocks (DBeaver-safe, as in v1):
