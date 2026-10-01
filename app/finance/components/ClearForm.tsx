@@ -165,7 +165,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
                       <td className="w-40 px-2 py-2"><Input maxLength={50} value={r.vehicle} onChange={e => patchRow(i, { vehicle: e.target.value })} disabled={saving} /></td>
                       <td className="px-2 py-2 text-center">
                         <button type="button" disabled={saving} onClick={() => patchRow(i, { has_receipt: !r.has_receipt })}
-                          className={`h-9 w-10 rounded-lg border text-sm font-semibold ${r.has_receipt ? 'border-[#026a75] bg-[#026a75] text-white' : 'bg-white text-gray-500'}`}>
+                          className={`h-9 w-10 rounded-lg border text-sm font-semibold ${r.has_receipt ? 'border-brand-600 bg-brand-600 text-white' : 'bg-white text-gray-500'}`}>
                           {r.has_receipt ? 'Y' : 'N'}
                         </button>
                       </td>
@@ -174,7 +174,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
                       <td className="w-32 px-2 py-2">
                         <Input className="text-right" inputMode="decimal" placeholder="0.00" value={r.b} onChange={e => patchRow(i, { b: e.target.value, bTouched: true })} disabled={saving} />
                         {r.bTouched && (
-                          <button type="button" disabled={saving} onClick={() => resetVat(i)} className="mt-1 text-xs text-[#026a75] underline">คำนวณ 7%</button>
+                          <button type="button" disabled={saving} onClick={() => resetVat(i)} className="mt-1 text-xs text-brand-600 underline">คำนวณ 7%</button>
                         )}
                       </td>
                       <td className="w-28 px-2 py-2 text-right tabular-nums leading-9">{formatBaht(t.total)}</td>
