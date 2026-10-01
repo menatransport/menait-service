@@ -64,7 +64,9 @@ export function invalidNumberErrors(
   const errs: string[] = [];
   raws.forEach((r, i) => {
     for (const [label, v] of [['ยอดก่อน VAT', r.a], ['ยอด VAT', r.b], ['หัก ณ ที่จ่าย', r.d]] as const) {
-      if (v.trim() !== '' && parse(v) === null) errs.push(`รายการที่ ${i + 1}: ${label} รูปแบบตัวเลขไม่ถูกต้อง`);
+      if (v.trim() === '') continue;
+      if (parse(v) === null) errs.push(`รายการที่ ${i + 1}: ${label} รูปแบบตัวเลขไม่ถูกต้อง`);
+      else if (/\.\d{3,}\s*$/.test(v.trim())) errs.push(`รายการที่ ${i + 1}: ${label} ทศนิยมไม่เกิน 2 ตำแหน่ง`);
     }
   });
   return errs;

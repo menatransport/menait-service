@@ -44,4 +44,7 @@ describe('invalidNumberErrors', () => {
     const e = invalidNumberErrors([{ a: '12abc', b: '', d: '-' }, { a: '1,000.50', b: '7', d: '' }], parseAmount);
     expect(e).toEqual(['รายการที่ 1: ยอดก่อน VAT รูปแบบตัวเลขไม่ถูกต้อง', 'รายการที่ 1: หัก ณ ที่จ่าย รูปแบบตัวเลขไม่ถูกต้อง']);
   });
+  test('flags more than 2 decimals', () => {
+    expect(invalidNumberErrors([{ a: '0.005', b: '1,234.50', d: '' }], parseAmount)).toEqual(['รายการที่ 1: ยอดก่อน VAT ทศนิยมไม่เกิน 2 ตำแหน่ง']);
+  });
 });

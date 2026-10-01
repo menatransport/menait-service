@@ -73,7 +73,7 @@ export interface ApprovalLog {
 
 export interface FinLog {
   action: string;
-  changes: Record<string, [unknown, unknown]> | null;
+  changes: Record<string, unknown> | null; // usually [before, after]; tolerate scalars
   remark: string | null;
   action_by: string | null;
   created_at: string | null;

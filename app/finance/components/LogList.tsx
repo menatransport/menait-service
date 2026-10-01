@@ -22,9 +22,11 @@ export function LogList({ approvalLogs, finLogs }: { approvalLogs: ApprovalLog[]
             <p className="text-xs text-gray-500">{formatDate(log.created_at)}{log.remark ? ` · ${log.remark}` : ''}</p>
             {log.changes && Object.keys(log.changes).length > 0 && (
               <ul className="mt-1 text-xs text-gray-600">
-                {Object.entries(log.changes).map(([field, [before, after]]) => (
-                  <li key={field}>{FIELD_LABELS[field] ?? field}: {show(before)} → {show(after)}</li>
-                ))}
+                {Object.entries(log.changes).map(([field, v]) => {
+                  const label = FIELD_LABELS[field] ?? field;
+                  if (!Array.isArray(v)) return <li key={field}>{label}: {show(v)}</li>;
+                  return <li key={field}>{label}: {show(v[0])} → {show(v[1])}</li>;
+                })}
               </ul>
             )}
           </li>
