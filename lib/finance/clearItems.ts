@@ -49,7 +49,7 @@ export function validateItems(rows: ClearItemRow[]): string[] {
     const fields: [string, number | null][] = [['ยอดก่อน VAT', r.amount_before_vat], ['ยอด VAT', r.vat_amount], ['หัก ณ ที่จ่าย', r.wht_amount]];
     let negative = false;
     for (const [label, v] of fields) {
-      if (v !== null && v < 0) { errs.push(`${p}${label}ต้องไม่ติดลบ`); negative = true; }
+      if (v !== null && v < 0) { errs.push(`${p}${label} ต้องไม่ติดลบ`); negative = true; }
     }
     if (!negative && rowTotals(r).net < 0) errs.push(`${p}ยอดสุทธิต้องไม่ติดลบ (หัก ณ ที่จ่ายเกินยอดรวม)`);
   });

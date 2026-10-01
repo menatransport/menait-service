@@ -35,7 +35,7 @@ describe('validateItems', () => {
     const e = validateItems([row(), row({ expense_date: '', description: '  ' })]);
     expect(e).toEqual(['รายการที่ 2: กรุณาระบุวันที่', 'รายการที่ 2: กรุณาระบุรายละเอียด']);
   });
-  test('negative amount', () => expect(validateItems([row({ vat_amount: -1 })])[0]).toBe('รายการที่ 1: ยอด VATต้องไม่ติดลบ'));
+  test('negative amount', () => expect(validateItems([row({ vat_amount: -1 })])[0]).toBe('รายการที่ 1: ยอด VAT ต้องไม่ติดลบ'));
   test('net negative', () => expect(validateItems([row({ wht_amount: 108 })])[0]).toContain('รายการที่ 1: ยอดสุทธิต้องไม่ติดลบ'));
 });
 
