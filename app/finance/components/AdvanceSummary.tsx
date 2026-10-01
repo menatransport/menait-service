@@ -1,9 +1,15 @@
+import { sumItems, type ClearItemRow } from '@/lib/finance/clearItems';
 import { formatBaht, formatDate, settleLabel } from '@/lib/finance/status';
 import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
-import type { AdvanceDetail, AdvanceItem, ApprovalTierInfo } from '../types';
+import type { AdvanceDetail, AdvanceItem, ApprovalTierInfo, ClearItem } from '../types';
 import { PrintDocumentButton } from './PrintDocumentButton';
 import { Field, Panel } from './FinanceShell';
 import { StatusBadge } from './StatusBadge';
+
+const toClearRow = (i: ClearItem): ClearItemRow => ({
+  expense_date: i.expense_date, vehicle: i.vehicle ?? '', has_receipt: i.has_receipt, description: i.description,
+  amount_before_vat: i.amount_before_vat, vat_amount: i.vat_amount, wht_amount: i.wht_amount,
+});
 
 export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approval?: ApprovalTierInfo | null }; detail?: AdvanceDetail }) {
   const fin = item.fin;
@@ -55,6 +61,48 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
             <Field label="วันที่โอนเงินคืนบริษัท" value={formatDate(fin.settle_date)} />
             <Field label="หมายเหตุ" value={fin.remark} />
           </div>
+          {fin.clear_items && fin.clear_items.length > 0 && (
+            <div className="mt-4 overflow-x-auto rounded-xl border">
+              <table className="w-full min-w-[900px] text-sm">
+                <thead className="bg-gray-50 text-xs text-gray-600">
+                  <tr>
+                    <th className="px-2 py-2 text-left">วันที่</th>
+                    <th className="px-2 py-2 text-left">ทะเบียนรถและประเภท</th>
+                    <th className="px-2 py-2 text-center">ใบกำกับ</th>
+                    <th className="px-2 py-2 text-left">รายละเอียด</th>
+                    <th className="px-2 py-2 text-right">ก่อน VAT (A)</th>
+                    <th className="px-2 py-2 text-right">VAT (B)</th>
+                    <th className="px-2 py-2 text-right">รวม (C)</th>
+                    <th className="px-2 py-2 text-right">หัก ณ ที่จ่าย (D)</th>
+                    <th className="px-2 py-2 text-right">สุทธิ (E)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fin.clear_items.map(i => (
+                    <tr key={i.line_no} className="border-t">
+                      <td className="whitespace-nowrap px-2 py-2">{formatDate(i.expense_date)}</td>
+                      <td className="px-2 py-2">{i.vehicle || '-'}</td>
+                      <td className="px-2 py-2 text-center">{i.has_receipt ? 'Y' : 'N'}</td>
+                      <td className="px-2 py-2">{i.description}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{formatBaht(i.amount_before_vat)}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{formatBaht(i.vat_amount)}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{formatBaht(i.total_amount)}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{formatBaht(i.wht_amount)}</td>
+                      <td className="px-2 py-2 text-right font-semibold tabular-nums">{formatBaht(i.net_amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="border-t bg-gray-50 font-semibold">
+                  <tr>
+                    <td colSpan={4} className="px-2 py-2 text-right">รวม</td>
+                    {(['a', 'b', 'c', 'd', 'e'] as const).map(k => (
+                      <td key={k} className="px-2 py-2 text-right tabular-nums">{formatBaht(sumItems(fin.clear_items!.map(toClearRow))[k])}</td>
+                    ))}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
         </Panel>
       )}
 

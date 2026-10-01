@@ -9,6 +9,19 @@ export interface Requester {
   position?: string | null;
 }
 
+export interface ClearItem {
+  line_no: number;
+  expense_date: string;
+  vehicle: string | null;
+  has_receipt: boolean;
+  description: string;
+  amount_before_vat: number;
+  vat_amount: number;
+  total_amount: number;
+  wht_amount: number;
+  net_amount: number;
+}
+
 export interface FinInfo {
   acc_code: string | null;
   acc_name: string | null;
@@ -24,6 +37,7 @@ export interface FinInfo {
   clear_date: string | null;
   amount_actual: number | null;
   clear_doc_no: string | null;
+  clear_items?: ClearItem[];
   settle_amount: number | null;
   settle_date: string | null;
   remark: string | null;
