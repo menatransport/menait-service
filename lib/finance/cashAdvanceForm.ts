@@ -1,6 +1,7 @@
 import type { AdvanceDetail } from '@/app/finance/types';
 import { bahtText } from './bahtText';
 import { bankLabel, formatAccountNo } from './bank';
+import { centerCheckboxesHtml, centerFromSite } from './centers';
 import { toBkkDate } from './dates';
 import { documentControlFooter, esc, formatBkkDateTime, money, printedNow, stampHtml, wrapDocument, type DocumentControl } from './printShared';
 
@@ -8,18 +9,7 @@ export { formatBkkDateTime };
 
 export const PRINTABLE_STATUSES = ['AWAITING_VOUCHER', 'AWAITING_PAYMENT', 'AWAITING_CLEARING', 'SENT_BACK', 'AWAITING_REVIEW', 'CLOSED'];
 
-export const CENTER_OPTIONS = ['กรุงเทพ', 'ลาดกระบัง/ขอนแก่น', 'สระบุรี/ระยอง', 'MDD'] as const;
-export const CENTER_OTHER = 'อื่นๆ';
-
-/** ATMS cost-center code → checkbox on the form. Unknown codes fall back to "อื่นๆ" + the code as text. */
-const COST_CENTER_TO_CENTER: Record<string, { center: string; other?: string }> = {
-  'สกท': { center: 'กรุงเทพ' },
-  'ศลบ': { center: 'ลาดกระบัง/ขอนแก่น' },
-  'ศขก': { center: 'ลาดกระบัง/ขอนแก่น' },
-  'สสบ': { center: 'สระบุรี/ระยอง' },
-  'ศรย': { center: 'สระบุรี/ระยอง' },
-  'ศบก': { center: CENTER_OTHER, other: 'บางปะกง' },
-};
+export { CENTER_OPTIONS, CENTER_OTHER } from './centers';
 
 export interface Signature { name: string; date: string; esign?: { name: string; timestamp: string; ref: string } }
 export interface CashAdvanceFormData {
@@ -149,14 +139,11 @@ export function cashAdvanceBody(data: CashAdvanceFormData, opts: { logoUrl?: str
   if (errors.length) throw new Error(errors.join('\n'));
   const e = data.employee;
   const total = data.items.reduce((s, it) => s + Number(it.amount), 0);
-  const checked = new Set(data.centers ?? []);
-  const cb = (on: boolean) => `<span class="cb${on ? ' checked' : ''}"></span>`;
   const field = (label: string, value: unknown) =>
     `<div class="f"><span class="l">${label}</span><span class="v">${esc(value)}</span></div>`;
   const sec = (n: number, th: string, en: string) => `<div class="sec"><span class="n">${n}</span><h2>${th}</h2><small>${en}</small></div>`;
 
-  const centers = CENTER_OPTIONS.map(c => `<span class="cbi">${cb(checked.has(c))}${esc(c)}</span>`).join('')
-    + `<span class="cbi">${cb(checked.has(CENTER_OTHER))}${CENTER_OTHER}<span class="oth">${esc(data.center_other_text)}</span></span>`;
+  const centers = centerCheckboxesHtml(data.centers, data.center_other_text);
 
   const rows = [0, 1, 2, 3].map(i => {
     const it = data.items[i];
@@ -211,15 +198,22 @@ export function buildCashAdvanceHtml(data: CashAdvanceFormData, opts: CashAdvanc
 /** CSS a composed document (Part 1 + Part 2) needs for Part 1's body. */
 export const CASH_ADVANCE_CSS = PART_CSS;
 
-export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
-  const r = detail.request;
-  const cc = COST_CENTER_TO_CENTER[(r.cost_center ?? '').trim()];
-  const rawCc = (r.cost_center ?? '').trim();
-  const centers = cc ? [cc.center] : rawCc ? [CENTER_OTHER] : [];
-  const otherText = cc ? (cc.other ?? '') : rawCc;
-  const approved = [...(detail.approval_logs ?? [])].reverse().find(l => l.action === 'APPROVED');
+/** Payee account as printed on both forms: formatted account no. ('' when none), bank name without the "ธนาคาร" prefix. */
+export function payeeFields(r: AdvanceDetail['request']): { bank_account_no: string; bank_name: string; account_name: string } {
   const bank = r.bank_label || (r.bank ? bankLabel(r.bank) : '');
   const account = r.account_no ? formatAccountNo(r.account_no) : '';
+  return {
+    bank_account_no: account === '-' ? '' : account,
+    bank_name: bank.replace(/^ธนาคาร/, ''),
+    account_name: r.account_name ?? '',
+  };
+}
+
+export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
+  const r = detail.request;
+  const center = centerFromSite(detail.requester.site_code, detail.requester.site);
+  const approved = [...(detail.approval_logs ?? [])].reverse().find(l => l.action === 'APPROVED');
+  const payee = payeeFields(r);
   const name = detail.requester.name ?? '';
   return {
     document_no: detail.form_id,
@@ -229,12 +223,10 @@ export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
       employee_id: detail.requester.employee_id ?? '',
       position: detail.requester.position ?? '',
       department: detail.requester.department ?? '',
-      bank_account_no: account === '-' ? '' : account,
-      bank_name: bank.replace(/^ธนาคาร/, ''),
-      account_name: r.account_name ?? '',
+      ...payee,
     },
-    centers,
-    center_other_text: otherText,
+    centers: center.centers,
+    center_other_text: center.other,
     items: [{ description: r.purpose ?? '', amount: Number(r.amount ?? 0) }],
     disbursement_round: toBkkDate(detail.fin?.transfer_date ?? detail.fin?.voucher_date),
     use_date: toBkkDate(r.use_date),

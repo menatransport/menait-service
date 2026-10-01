@@ -20,7 +20,7 @@ type Props = {
 
 const OPTIONS: { value: PrintParts; title: string; subtitle: string }[] = [
   { value: 'part1', title: 'Part 1 : Cash Advance Request', subtitle: 'ใบคำขอเบิกเงินล่วงหน้า' },
-  { value: 'part2', title: 'Part 2 : Advance Clearing', subtitle: 'ใบเคลียร์เงินทดรองจ่าย' },
+  { value: 'part2', title: 'Part 2 : Expense Claim Form', subtitle: 'ใบขอเบิกค่าใช้จ่าย/เคลียร์เบิกล่วงหน้า' },
   { value: 'both', title: 'ทั้งหมด', subtitle: 'Part 1 + Part 2' },
 ];
 

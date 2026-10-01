@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { PRINT_READY_TIMEOUT_MS, attachmentPagesHtml, documentControlFooter, isImageFile, stampHtml, wrapDocument } from './printShared';
+import { PRINT_READY_TIMEOUT_MS, attachmentPagesHtml, documentControlFooter, isImageFile, stampHtml, wrapDocument, wrapSegments } from './printShared';
 
 const LABELS = { request: 'เอกสารประกอบการขอเบิก', pay: 'หลักฐานการจ่ายเงิน', clear: 'เคลียร์' };
 
@@ -44,6 +44,21 @@ describe('printShared', () => {
     expect((html.match(/class="dc">F/g) ?? []).length).toBe(2);
     expect(html).toContain('counter(page)');
     expect(html).toContain('"Page " counter(page)');
+  });
+  test('wrapDocument tableClass goes on the print-wrap table', () => {
+    expect(wrapDocument({ title: 't', body: '', footerHtml: '', fontCss: false })).toContain('<table class="print-wrap">');
+    expect(wrapDocument({ title: 't', body: '', footerHtml: '', fontCss: false, tableClass: 'claim' })).toContain('<table class="print-wrap claim">');
+  });
+  test('wrapSegments: one table per segment, visible footer in each tfoot, no fixed footer, page break between', () => {
+    const html = wrapSegments({ title: '<t>', segments: [{ body: '<p>one</p>' }, { body: '<p>two</p>', className: 'claim fill' }], footerHtml: '<div class="dc">F</div>', fontCss: false });
+    expect(html).toContain('<title>&lt;t&gt;</title>');
+    expect(html).not.toContain('class="footer-fixed"');
+    expect((html.match(/<table class="print-wrap seg/g) ?? []).length).toBe(2);
+    expect(html).toContain('<table class="print-wrap seg claim fill">');
+    expect((html.match(/<tfoot><tr><td><div class="seg-footer"><div class="dc">F<\/div><\/div>/g) ?? []).length).toBe(2);
+    expect(html).toContain('table.print-wrap.seg + table.print-wrap.seg { break-before: page; }');
+    expect(html.indexOf('<p>one</p>')).toBeLessThan(html.indexOf('<p>two</p>'));
+    expect(html).toContain('counter(page)');
   });
   test('print readiness is bounded by a timeout', () => {
     expect(PRINT_READY_TIMEOUT_MS).toBeGreaterThan(0);

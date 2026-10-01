@@ -2,6 +2,7 @@ import { sumItems, type ClearItemRow } from '@/lib/finance/clearItems';
 import { formatBaht, formatDate, settleLabel } from '@/lib/finance/status';
 import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
 import type { AdvanceDetail, AdvanceItem, ApprovalTierInfo, ClearItem } from '../types';
+import { CLAIM_TITLE } from '@/lib/finance/clearingForm';
 import { PrintDocumentButton } from './PrintDocumentButton';
 import { Field, Panel } from './FinanceShell';
 import { StatusBadge } from './StatusBadge';
@@ -52,7 +53,7 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
       )}
 
       {fin?.clear_date && (
-        <Panel title="ข้อมูลการเคลียร์เงิน" actions={detail ? <PrintDocumentButton detail={detail} initial="part2" compact /> : undefined}>
+        <Panel title="ข้อมูลการเคลียร์เงิน" actions={detail ? <PrintDocumentButton detail={detail} initial="part2" compact label={`พิมพ์${CLAIM_TITLE}`} /> : undefined}>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <Field label="วันที่ส่งเอกสารเคลียร์" value={formatDate(fin.clear_date)} />
             <Field label="ยอดใช้จริง" value={formatBaht(fin.amount_actual)} />

@@ -35,7 +35,7 @@ describe('cash advance form', () => {
     for (const s of ['ใบคำขอเบิกเงินล่วงหน้า', '(Cash Advance Request form)', 'วันที่', '13-ส.ค.-26',
       'ข้อมูลพนักงานผู้เบิกเงิน', 'ประเภทและวัตถุประสงค์ในการเบิกเงินล่วงหน้า', 'เงื่อนไขและข้อตกลง', 'ลงนามและอนุมัติ', 'นางสาวตัวอย่าง ทดสอบ', '000000', 'ผู้ช่วยหัวหน้าแผนกบัญชี',
       '000-0-00000-0', 'กสิกรไทย', '5,000.00', 'ห้าพันบาทถ้วน', '18/8/2026', 'กรุงเทพ', 'ลาดกระบัง/ขอนแก่น',
-      'สระบุรี/ระยอง', 'MDD', 'อื่นๆ', 'ผู้ขอเบิก', 'หัวหน้าหน่วยงาน', 'ผู้จัดการ', 'ผู้มีอำนาจอนุมัติ', 'counter(page)', 'Document Control &amp; Revision History',
+      'สระบุรี/ระยอง/บางปะกง', 'MDD', 'อื่นๆ', 'ผู้ขอเบิก', 'หัวหน้าหน่วยงาน', 'ผู้จัดการ', 'ผู้มีอำนาจอนุมัติ', 'counter(page)', 'Document Control &amp; Revision History',
       'ภายใน 7 วันหลังจากได้รับเงิน', 'กรุณาส่งเอกสารที่ได้รับอนุมัติตาม TOA ภายในวันอังคาร']) {
       expect(html).toContain(s);
     }
@@ -61,8 +61,8 @@ describe('cash advance form', () => {
   test('toCashAdvanceData maps an AdvanceDetail', () => {
     const detail: any = {
       status: 'AWAITING_PAYMENT', created_at: '2026-08-13T03:00:00+00:00',
-      requester: { employee_id: '123', name: 'สมชาย ใจดี', department: 'บัญชี', position: 'เจ้าหน้าที่' },
-      request: { purpose: 'ค่าน้ำมัน', amount: 1500, use_date: '2026-08-20', cost_center: 'ศขก', bank: 'KBANK', account_no: '1234567890', account_name: 'สมชาย ใจดี' },
+      requester: { employee_id: '123', name: 'สมชาย ใจดี', department: 'บัญชี', position: 'เจ้าหน้าที่', site: 'ศูนย์ขอนแก่น', site_code: 'ศขก.' },
+      request: { purpose: 'ค่าน้ำมัน', amount: 1500, use_date: '2026-08-20', cost_center: 'สกท', bank: 'KBANK', account_no: '1234567890', account_name: 'สมชาย ใจดี' },
       fin: { voucher_date: '2026-08-14', transfer_date: '2026-08-18' },
       approval_logs: [{ level_no: 2, action: 'APPROVED', action_at: '2026-08-14T05:00:00+00:00', actor_name: 'ผู้จัดการ หนึ่ง', remark: null }],
     };
@@ -76,22 +76,28 @@ describe('cash advance form', () => {
     expect(d.request_date).toBe('2026-08-13');
     expect(d.signatures.approver.name).toBe('ผู้จัดการ หนึ่ง');
     expect(d.signatures.approver.date).toBe('14/8/2026');
-    const o = toCashAdvanceData({ ...detail, request: { ...detail.request, cost_center: 'ศบก' }, fin: { voucher_date: '2026-08-14', transfer_date: null } });
-    expect(o.centers).toEqual(['อื่นๆ']);
-    expect(o.center_other_text).toBe('บางปะกง');
+    expect(d.center_other_text).toBe('');
+    const o = toCashAdvanceData({ ...detail, requester: { ...detail.requester, site: 'ศูนย์บางปะกง', site_code: 'ศบก.' }, fin: { voucher_date: '2026-08-14', transfer_date: null } });
+    expect(o.centers).toEqual(['สระบุรี/ระยอง/บางปะกง']);
+    expect(o.center_other_text).toBe('');
     expect(o.disbursement_round).toBe('2026-08-14');
+    const u = toCashAdvanceData({ ...detail, requester: { ...detail.requester, site: 'สำนักงานใหม่', site_code: null } });
+    expect(u.centers).toEqual(['อื่นๆ']);
+    expect(u.center_other_text).toBe('สำนักงานใหม่');
   });
   test.each([
-    ['สกท', ['กรุงเทพ'], ''],
-    ['ศลบ', ['ลาดกระบัง/ขอนแก่น'], ''],
+    ['สกท.', ['กรุงเทพ'], ''],
+    ['ศลบ.', ['ลาดกระบัง/ขอนแก่น'], ''],
     ['ศขก', ['ลาดกระบัง/ขอนแก่น'], ''],
-    ['สสบ', ['สระบุรี/ระยอง'], ''],
-    ['ศรย', ['สระบุรี/ระยอง'], ''],
-    ['ศบก', ['อื่นๆ'], 'บางปะกง'],
-  ])('cost center %s maps to centers', (code, centers, other) => {
+    ['สสบ.', ['สระบุรี/ระยอง/บางปะกง'], ''],
+    ['ศรย', ['สระบุรี/ระยอง/บางปะกง'], ''],
+    ['ศบก.', ['สระบุรี/ระยอง/บางปะกง'], ''],
+    ['สขข.', ['อื่นๆ'], 'สาขาทดสอบ'],
+    [null, ['อื่นๆ'], 'สาขาทดสอบ'],
+  ])('requester site %s maps to centers (cost_center is ignored)', (code, centers, other) => {
     const d = toCashAdvanceData({
       status: 'AWAITING_PAYMENT', created_at: '2026-08-13T03:00:00+00:00',
-      requester: { employee_id: '1', name: 'x' }, request: { purpose: 'p', amount: 1, cost_center: code },
+      requester: { employee_id: '1', name: 'x', site: 'สาขาทดสอบ', site_code: code }, request: { purpose: 'p', amount: 1, cost_center: 'สกท' },
       fin: null, approval_logs: [],
     } as any);
     expect(d.centers).toEqual(centers as string[]);

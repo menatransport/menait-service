@@ -106,15 +106,45 @@ table.print-wrap > thead > tr > td, table.print-wrap > tbody > tr > td, table.pr
 .esign-note { font-size: 9px; color: var(--stamp); margin-top: 4px; }
 `;
 
-/** Wrap part bodies into a print document: fixed Document Control footer + repeating tfoot spacer of the same height. */
-export function wrapDocument(opts: { title: string; body: string; footerHtml: string; extraCss?: string; fontCss?: boolean }): string {
-  const font = opts.fontCss === false ? '' :
-    '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">';
-  return `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>${esc(opts.title)}</title>${font}<style>${SHARED_CSS}${opts.extraCss ?? ''}</style></head><body>
+const fontLinks = (fontCss?: boolean) => fontCss === false ? '' :
+  '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">';
+
+const head = (title: string, css: string, fontCss?: boolean) =>
+  `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>${esc(title)}</title>${fontLinks(fontCss)}<style>${SHARED_CSS}${css}</style></head>`;
+
+/**
+ * Wrap part bodies into a print document: fixed Document Control footer + repeating tfoot spacer of the same height.
+ * `tableClass` goes on the print-wrap table (e.g. a named-page class, so every page of the document uses it).
+ */
+export function wrapDocument(opts: { title: string; body: string; footerHtml: string; extraCss?: string; fontCss?: boolean; tableClass?: string }): string {
+  const cls = opts.tableClass ? ` ${esc(opts.tableClass)}` : '';
+  return `${head(opts.title, opts.extraCss ?? '', opts.fontCss)}<body>
 <div class="footer-fixed">${opts.footerHtml}</div>
-<table class="print-wrap"><thead><tr><td><div class="head-space"></div></td></tr></thead><tbody><tr><td>${opts.body}</td></tr></tbody><tfoot><tr><td><div class="footer-space">${opts.footerHtml}</div></td></tr></tfoot></table>
+<table class="print-wrap${cls}"><thead><tr><td><div class="head-space"></div></td></tr></thead><tbody><tr><td>${opts.body}</td></tr></tbody><tfoot><tr><td><div class="footer-space">${opts.footerHtml}</div></td></tr></tfoot></table>
 </body></html>`;
 }
+
+export interface DocSegment { body: string; className?: string }
+
+/**
+ * Several print-wrap tables in one document (each starts a new page), for segments on different page sizes
+ * (named @page rules, e.g. portrait Part 1 + landscape Part 2). Chrome lays out position:fixed against the first
+ * page's size, so wrapDocument's fixed footer would land off-page on the other orientation; here each segment
+ * repeats the Document Control footer as a visible <tfoot> instead (at the page bottom except on the segment's
+ * last page, where it follows the content).
+ */
+export function wrapSegments(opts: { title: string; segments: DocSegment[]; footerHtml: string; extraCss?: string; fontCss?: boolean }): string {
+  const tables = opts.segments.map(sg =>
+    `<table class="print-wrap seg${sg.className ? ` ${esc(sg.className)}` : ''}"><thead><tr><td><div class="head-space"></div></td></tr></thead><tbody><tr><td>${sg.body}</td></tr></tbody><tfoot><tr><td><div class="seg-footer">${opts.footerHtml}</div></td></tr></tfoot></table>`);
+  return `${head(opts.title, (opts.extraCss ?? '') + SEGMENT_CSS, opts.fontCss)}<body>
+${tables.join('\n')}
+</body></html>`;
+}
+
+const SEGMENT_CSS = `
+table.print-wrap.seg + table.print-wrap.seg { break-before: page; }
+.seg-footer { padding-top: 3mm; }
+`;
 
 export const PRINT_READY_TIMEOUT_MS = 15000;
 

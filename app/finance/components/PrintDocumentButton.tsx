@@ -11,7 +11,8 @@ import { FOLDER_LABELS } from '../labels';
 import type { AdvanceDetail } from '../types';
 import PrintDialog from './PrintDialog';
 
-export function PrintDocumentButton({ detail, initial, compact = false }: { detail: AdvanceDetail; initial?: PrintParts; compact?: boolean }) {
+/** `label` = tooltip + aria-label of the trigger (e.g. which document the clearing panel prints). */
+export function PrintDocumentButton({ detail, initial, compact = false, label }: { detail: AdvanceDetail; initial?: PrintParts; compact?: boolean; label?: string }) {
   const [open, setOpen] = useState(false);
   const [preparing, setPreparing] = useState(false);
   if (!PRINTABLE_STATUSES.includes(detail.status)) return null;
@@ -44,7 +45,7 @@ export function PrintDocumentButton({ detail, initial, compact = false }: { deta
   };
 
   const trigger = (
-    <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+    <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)} title={label} aria-label={label}>
       <Printer className="mr-1 h-4 w-4" />{compact ? 'พิมพ์' : 'พิมพ์เอกสาร'}
     </Button>
   );
