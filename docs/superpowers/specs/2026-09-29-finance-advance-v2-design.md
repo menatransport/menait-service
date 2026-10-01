@@ -466,6 +466,17 @@ in the Part 1 modern style, with the Document Control footer and auto image page
 - **Document Control name:** "Expense Claim Form (ADV)". The combined print ("ทั้งหมด") keeps Part 1 portrait and
   Part 2 landscape, via named @page rules.
 
+**2b. One document, one name (user, 2026-10-01: "ใบขอเบิกค่าใช้จ่ายล่วงหน้า/เคลียร์เบิกล่วงหน้า ซึ่งคือใบเดียวกัน").**
+Part 2 is that single form, not a separate "ใบเคลียร์เงิน". Every UI label that names Part 2 changes from "ใบเคลียร์เงิน"
+to "ใบขอเบิกค่าใช้จ่าย/เคลียร์เบิกล่วงหน้า":
+- the print dialog's option title;
+- the clearing panel's print button tooltip and aria text;
+- the print window `<title>`;
+- the Document Control "Document" cell.
+
+The printed heading keeps the company form's wording ("ใบขอเบิกค่าใช้จ่าย/เคลียร์เบิกล่วงหน้า" + "(Expense Claim Form)").
+Part 1 (ใบคำขอเบิกเงินล่วงหน้า) is unchanged.
+
 **3. ศูนย์ checkboxes = the requester's own centre**, for both Part 1 and Part 2. The data comes from
 `requester.site_code` (sites table: สกท./ศลบ./สสบ./ศรย./ศขก./ศบก.; normalize by stripping the trailing ".").
 - **Options:** กรุงเทพ / ลาดกระบัง/ขอนแก่น / สระบุรี/ระยอง/บางปะกง / MDD / อื่นๆ ____.

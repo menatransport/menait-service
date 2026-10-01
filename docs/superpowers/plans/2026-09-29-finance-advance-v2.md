@@ -2305,6 +2305,7 @@ The content is the original Task 16 / spec §5f.5, built on `printShared`.
   - Items come from `fin.clear_items`. Old clearings without items show one row: description = purpose, A = amount_actual, others "-".
   - Fill to at least 12 rows; totals; footnote; summary box; 5-column signature table with e-sign stamps for ผู้ขอเบิก and แผนกบัญชีและการเงิน (CLOSED only); clauses verbatim.
 - **ศูนย์ from the requester site** (spec §5i.3): one shared mapper `centerFromSite(siteCode, siteName)` in `lib/finance/centers.ts`, used by both forms. Update the Part 1 option label to "สระบุรี/ระยอง/บางปะกง" and switch `toCashAdvanceData` to the site mapper; update the existing tests.
+- **Rename Part 2 everywhere** (spec §5i.2b): every user-visible "ใบเคลียร์เงิน" in `app/` and `lib/finance/` (print dialog option, clearing-panel print button, window title, Document Control "Document" cell) becomes "ใบขอเบิกค่าใช้จ่าย/เคลียร์เบิกล่วงหน้า". Afterwards `grep -rn "ใบเคลียร์เงิน" app lib` returns nothing.
 - **Combined "ทั้งหมด" print:** Part 1 portrait, then Part 2 landscape, via named pages (`@page claim { size: A4 landscape }` with `.claim { page: claim }`). Verify in headless Chrome.
 - **Tests:**
   - The centers mapper covers all 6 site codes with and without the trailing dot, plus unknown and empty.
