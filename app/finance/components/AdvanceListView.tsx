@@ -14,6 +14,9 @@ const ITEMS_PER_PAGE = 10;
 
 const TH = 'px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap';
 const TD = 'px-4 py-3 text-sm whitespace-nowrap';
+// finance queue: 9 compact columns so the table fits a laptop width inside the card
+const FTH = 'px-3 py-3 text-left text-xs font-semibold text-gray-700 whitespace-nowrap';
+const FTD = 'px-3 py-2.5 text-sm whitespace-nowrap align-top';
 
 export interface AdvanceListTab {
   key: string;
@@ -306,7 +309,7 @@ export function AdvanceListView({
         )}
 
         {/* Mobile cards */}
-        <div className={`block lg:hidden ${loading ? 'min-h-52' : ''}`}>
+        <div className={`block ${mode === 'finance' ? 'xl:hidden' : 'lg:hidden'} ${loading ? 'min-h-52' : ''}`}>
           {!loading && paginated.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               <FileText size={56} className="mx-auto mb-4 text-gray-300" />
@@ -349,24 +352,22 @@ export function AdvanceListView({
         </div>
 
         {/* Desktop table */}
-        <div className={`hidden lg:block ${loading ? 'min-h-52' : ''}`}>
+        {/* finance: 9 columns need ≥1280px; narrower screens use the cards above */}
+        <div className={`hidden ${mode === 'finance' ? 'xl:block' : 'lg:block'} overflow-x-auto ${loading ? 'min-h-52' : ''}`}>
           <table className="w-full">
             <thead className="bg-gray-100">
               <tr>
                 {mode === 'finance' ? (
                   <>
-                    <th className={TH}>ลำดับ</th>
-                    <th className={TH}>เลขที่เอกสาร</th>
-                    <th className={TH}>ผู้เบิก</th>
-                    <th className={TH}>แผนก</th>
-                    <th className={TH}>ศูนย์</th>
-                    <th className={TH}>ศูนย์ค่าใช้จ่าย</th>
-                    <th className={TH}>วัตถุประสงค์</th>
-                    <th className={`${TH} text-right`}>ยอดเงิน</th>
-                    <th className={TH}>วันที่ใช้เงิน</th>
-                    <th className={TH}>วันที่โอนเงิน</th>
-                    <th className={TH}>กำหนดการเคลียร์</th>
-                    <th className={TH}>สถานะ</th>
+                    <th className={FTH}>เลขที่เอกสาร</th>
+                    <th className={FTH}>ผู้เบิก</th>
+                    <th className={FTH}>ศูนย์ค่าใช้จ่าย</th>
+                    <th className={FTH}>วัตถุประสงค์</th>
+                    <th className={`${FTH} text-right`}>ยอดเงิน</th>
+                    <th className={FTH}>วันที่ใช้เงิน</th>
+                    <th className={FTH}>วันที่โอนเงิน</th>
+                    <th className={FTH}>กำหนดเคลียร์</th>
+                    <th className={FTH}>สถานะ</th>
                   </>
                 ) : (
                   <>
@@ -383,12 +384,12 @@ export function AdvanceListView({
             <tbody className="divide-y divide-gray-100">
               {!loading && paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={mode === 'finance' ? 11 : 6} className="px-6 py-16 text-center text-gray-500">
+                  <td colSpan={mode === 'finance' ? 9 : 6} className="px-6 py-16 text-center text-gray-500">
                     <FileText size={56} className="mx-auto mb-4 text-gray-300" />
                     <p className="text-lg">ไม่มีรายการ</p>
                   </td>
                 </tr>
-              ) : paginated.map((item, idx) => (
+              ) : paginated.map(item => (
                 <tr
                   key={item.form_id}
                   onClick={() => onOpen(item)}
@@ -396,18 +397,26 @@ export function AdvanceListView({
                 >
                   {mode === 'finance' ? (
                     <>
-                      <td className={TD}>{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}</td>
-                      <td className={`${TD} font-medium text-brand-800`}>{item.form_id}</td>
-                      <td className={TD}>{item.requester.name ?? item.requester.employee_id}</td>
-                      <td className={TD}>{item.requester.department ?? '-'}</td>
-                      <td className={TD}>{item.requester.site_code ?? item.requester.site ?? '-'}</td>
-                      <td className={TD}>{item.request.cost_center ?? '-'}</td>
-                      <td className={`${TD} max-w-xs truncate`}>{item.fin?.purpose ?? item.request.purpose ?? '-'}</td>
-                      <td className={`${TD} text-right`}>{formatBaht(item.fin?.amount_paid ?? item.request.amount)}</td>
-                      <td className={TD}>{formatDate(item.request.use_date)}</td>
-                      <td className={TD}>{formatDate(item.fin?.transfer_date)}</td>
-                      <td className={TD}>{formatDate(item.fin?.clear_due_date)}</td>
-                      <td className={TD}><StatusBadge status={item.status} overdue={item.overdue} /></td>
+                      <td className={`${FTD} font-medium text-brand-800`}>{item.form_id}</td>
+                      <td className="px-3 py-2.5 text-sm align-top">
+                        <div className="min-w-44 max-w-60">
+                          <p className="font-medium text-gray-800 leading-snug">{item.requester.name ?? item.requester.employee_id}</p>
+                          <p className="text-xs text-gray-500 leading-snug">
+                            {[item.requester.department, item.requester.site_code ?? item.requester.site].filter(Boolean).join(' · ') || '-'}
+                          </p>
+                        </div>
+                      </td>
+                      <td className={FTD}>{item.request.cost_center ?? '-'}</td>
+                      <td className="px-3 py-2.5 text-sm align-top">
+                        <div className="max-w-[9rem] xl:max-w-[15rem] 2xl:max-w-[24rem] truncate" title={item.fin?.purpose ?? item.request.purpose ?? undefined}>
+                          {item.fin?.purpose ?? item.request.purpose ?? '-'}
+                        </div>
+                      </td>
+                      <td className={`${FTD} text-right tabular-nums`}>{formatBaht(item.fin?.amount_paid ?? item.request.amount)}</td>
+                      <td className={`${FTD} tabular-nums`}>{formatDate(item.request.use_date)}</td>
+                      <td className={`${FTD} tabular-nums`}>{formatDate(item.fin?.transfer_date)}</td>
+                      <td className={`${FTD} tabular-nums`}>{formatDate(item.fin?.clear_due_date)}</td>
+                      <td className="px-3 py-2.5 align-top w-36"><StatusBadge status={item.status} overdue={item.overdue} /></td>
                     </>
                   ) : (
                     <>
