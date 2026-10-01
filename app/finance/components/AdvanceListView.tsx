@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MonthRangeFilter, currentMonth, shiftMonths, ymToNum } from '@/components/month-range-filter';
 import { PaginationControls } from '@/components/pagination-controls';
 import { exportAdvancesXlsx } from '@/lib/finance/export';
-import { formatBaht, formatDate, todayBkk, toBkkYM } from '@/lib/finance/status';
+import { formatBaht, formatDate, settleLabel, todayBkk, toBkkYM } from '@/lib/finance/status';
 import type { AdvanceItem } from '../types';
 import { StatusBadge } from './StatusBadge';
 
@@ -17,6 +17,14 @@ const TD = 'px-4 py-3 text-sm whitespace-nowrap';
 // finance queue: 9 compact columns so the table fits a laptop width inside the card
 const FTH = 'px-3 py-3 text-left text-xs font-semibold text-gray-700 whitespace-nowrap';
 const FTD = 'px-3 py-2.5 text-sm whitespace-nowrap align-top';
+
+/** Settlement after clearing: "รับคืน 500.00 บาท" (employee returns) / "เบิกเพิ่ม 450.00 บาท" (company pays more). */
+function settleText(amount: number | null | undefined): string | null {
+  if (amount === null || amount === undefined) return null;
+  if (amount === 0) return 'พอดี';
+  return `${settleLabel(amount)} ${formatBaht(Math.abs(amount))} บาท`;
+}
+const settleTone = (amount: number | null | undefined) => (amount !== null && amount !== undefined && amount < 0 ? 'text-orange-700' : 'text-brand-700');
 
 export interface AdvanceListTab {
   key: string;
@@ -336,7 +344,10 @@ export function AdvanceListView({
                         <p className="text-xs text-gray-500 mt-0.5">ศูนย์ค่าใช้จ่าย: {item.request.cost_center ?? '-'}</p>
                       )}
                       {mode === 'finance' && (
-                        <p className="text-xs text-gray-500 mt-0.5">วันที่โอนเงิน: {formatDate(item.fin?.transfer_date)}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          วันที่โอนเงินคืนบริษัท: {formatDate(item.fin?.settle_date)}
+                          {settleText(item.fin?.settle_amount) && <span className={`ml-1 font-medium ${settleTone(item.fin?.settle_amount)}`}>· {settleText(item.fin?.settle_amount)}</span>}
+                        </p>
                       )}
                     </div>
                     <StatusBadge status={item.status} overdue={item.overdue} />
@@ -365,7 +376,7 @@ export function AdvanceListView({
                     <th className={FTH}>วัตถุประสงค์</th>
                     <th className={`${FTH} text-right`}>ยอดเงิน</th>
                     <th className={FTH}>วันที่ใช้เงิน</th>
-                    <th className={FTH}>วันที่โอนเงิน</th>
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 leading-tight">วันที่โอนเงิน<br />คืนบริษัท</th>
                     <th className={FTH}>กำหนดเคลียร์</th>
                     <th className={FTH}>สถานะ</th>
                   </>
@@ -414,7 +425,12 @@ export function AdvanceListView({
                       </td>
                       <td className={`${FTD} text-right tabular-nums`}>{formatBaht(item.fin?.amount_paid ?? item.request.amount)}</td>
                       <td className={`${FTD} tabular-nums`}>{formatDate(item.request.use_date)}</td>
-                      <td className={`${FTD} tabular-nums`}>{formatDate(item.fin?.transfer_date)}</td>
+                      <td className={`${FTD} tabular-nums`}>
+                        <p>{formatDate(item.fin?.settle_date)}</p>
+                        {settleText(item.fin?.settle_amount) && (
+                          <p className={`text-xs font-medium ${settleTone(item.fin?.settle_amount)}`}>{settleText(item.fin?.settle_amount)}</p>
+                        )}
+                      </td>
                       <td className={`${FTD} tabular-nums`}>{formatDate(item.fin?.clear_due_date)}</td>
                       <td className="px-3 py-2.5 align-top w-36"><StatusBadge status={item.status} overdue={item.overdue} /></td>
                     </>
