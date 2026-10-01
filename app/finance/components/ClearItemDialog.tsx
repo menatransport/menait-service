@@ -91,7 +91,7 @@ export function ClearItemDialog({ initial, index, isNew, canAddNext, onSave, onC
 
           {errors.length > 0 && (
             <ul role="alert" className="list-disc space-y-0.5 rounded-xl border border-red-200 bg-red-50 py-2 pl-7 pr-3 text-sm text-red-700">
-              {errors.map(m => <li key={m}>{m}</li>)}
+              {errors.map((m, i) => <li key={`${i}-${m}`}>{m}</li>)}
             </ul>
           )}
 

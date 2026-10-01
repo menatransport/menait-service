@@ -40,5 +40,6 @@ const TH_MONTHS_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', '
 export function formatDateThaiShort(iso: string | null | undefined): string {
   if (!iso || !ISO_DAY.test(iso)) return '';
   const [y, m, d] = iso.split('-').map(Number);
+  if (!TH_MONTHS_SHORT[m - 1]) return '';
   return `${d} ${TH_MONTHS_SHORT[m - 1]} ${String((y + 543) % 100).padStart(2, '0')}`;
 }

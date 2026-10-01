@@ -88,6 +88,6 @@ export function validateSingleItem(
 ): string[] {
   const numErrs = invalidNumberErrors([raw], parse);
   const rowErrs = validateItems([row]);
-  // when a number is unparseable the parsed value is null (treated as 0); skip the derived net check noise is fine, both are reported
+  // an unparseable number parses to null (treated as 0), so the net check may also fire; both messages are shown
   return [...numErrs, ...rowErrs].map(m => m.replace(ROW_PREFIX, ''));
 }
