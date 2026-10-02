@@ -25,6 +25,8 @@ export interface RenderFieldProps {
     allQuestions?: Question[];
     readOnly?: boolean;
     minDate?: string;
+    /** number fields only: lowest allowed value (e.g. 0 blocks negative amounts). Unset = no limit. */
+    minNumber?: number;
 }
 
 export interface SubmitValue {
@@ -135,7 +137,8 @@ export const FormField = memo(({
     compact = false,
     allQuestions,
     readOnly = false,
-    minDate
+    minDate,
+    minNumber
 }: RenderFieldProps) => {
     const widthClass = compact ? '' : 'w-full';
     const hasError = !!errors[question.name];
@@ -356,7 +359,11 @@ export const FormField = memo(({
                     <input
                         type="number"
                         value={currentValue as string || ''}
-                        onChange={handleTextChange}
+                        min={minNumber}
+                        onKeyDown={minNumber !== undefined && minNumber >= 0 ? (e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E') e.preventDefault(); } : undefined}
+                        onChange={minNumber !== undefined
+                            ? (e) => { const n = Number(e.target.value); if (e.target.value !== '' && Number.isFinite(n) && n < minNumber) return; handleTextChange(e); }
+                            : handleTextChange}
                         placeholder=""
                         readOnly={readOnly}
                         className={`${inputClass} ${readOnly && 'cursor-not-allowed opacity-70 hover:border-gray-200 focus:border-gray-200'}`}

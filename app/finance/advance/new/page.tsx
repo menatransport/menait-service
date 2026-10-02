@@ -189,6 +189,7 @@ export default function NewAdvancePage() {
                 {renderFormField({
                   question: q, index, formValues: values, errors, onInputChange, allQuestions: form.questions,
                   minDate: useDateQuestion && q.id === useDateQuestion.id ? todayBkk() : undefined,
+                  minNumber: amountQuestion && q.id === amountQuestion.id ? 0 : undefined,
                 })}
                 {amountQuestion && q.id === amountQuestion.id && hint && (
                   <p className={`mt-2 inline-flex items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-xs ${hint.error ? 'bg-rose-50 text-rose-700' : 'bg-mint-300/25 text-mint-700'}`}>
