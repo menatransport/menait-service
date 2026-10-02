@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, BadgeCheck, Building2, HandCoins, IdCard, Landmark, MapPin, Paperclip, User } from 'lucide-react';
+import { AlertCircle, BadgeCheck, Building2, ChevronRight, ScrollText, HandCoins, IdCard, Landmark, MapPin, Paperclip, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Loading, { MascotLoader } from '@/components/loading';
 import { Mascot } from '@/components/mascot';
@@ -15,6 +15,7 @@ import { parseAmount, todayBkk } from '@/lib/finance/status';
 import { fetchJson, showAlert, uploadFiles } from '../../api';
 import { FilePicker } from '../../components/FilePicker';
 import { FinanceShell } from '../../components/FinanceShell';
+import { ToaDialog } from '../../components/ToaDialog';
 
 interface AdvForm { form_code: string; form_name: string; form_status: string; questions: Question[] }
 
@@ -40,7 +41,8 @@ export default function NewAdvancePage() {
     [form]
   );
 
-  const [hint, setHint] = useState<{ text: string; error: boolean } | null>(null);
+  const [hint, setHint] = useState<{ text: string; error: boolean; clause?: string; requiredLevel?: number } | null>(null);
+  const [toaOpen, setToaOpen] = useState(false);
   const amountQuestion = useMemo(
     () => form?.questions.find(q => q.name === 'adv_amount') ?? form?.questions.find(q => q.type === 'number'),
     [form]
@@ -54,7 +56,7 @@ export default function NewAdvancePage() {
     const timer = setTimeout(() => {
       fetchJson<{ clause: string; approver_label: string; required_level: number }>(
         `/api/finance/approval-preview?amount=${encodeURIComponent(String(amount))}`)
-        .then(r => { if (!cancelled) setHint({ text: `ต้องอนุมัติโดยระดับ ${r.required_level} ขึ้นไป (ข้อ ${r.clause} · ${r.approver_label})`, error: false }); })
+        .then(r => { if (!cancelled) setHint({ text: `ต้องอนุมัติโดยระดับ ${r.required_level} ขึ้นไป (ข้อ ${r.clause} · ${r.approver_label})`, error: false, clause: r.clause, requiredLevel: r.required_level }); })
         .catch(err => { if (!cancelled) setHint({ text: err.message, error: true }); });
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
@@ -191,11 +193,22 @@ export default function NewAdvancePage() {
                   minDate: useDateQuestion && q.id === useDateQuestion.id ? todayBkk() : undefined,
                   minNumber: amountQuestion && q.id === amountQuestion.id ? 0 : undefined,
                 })}
-                {amountQuestion && q.id === amountQuestion.id && hint && (
-                  <p className={`mt-2 inline-flex items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-xs ${hint.error ? 'bg-rose-50 text-rose-700' : 'bg-mint-300/25 text-mint-700'}`}>
-                    {hint.error ? <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" /> : <BadgeCheck className="w-3.5 h-3.5 shrink-0 mt-px" />}
-                    {hint.text}
+                {amountQuestion && q.id === amountQuestion.id && hint?.error && (
+                  <p className="mt-2 inline-flex items-start gap-1.5 rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" />{hint.text}
                   </p>
+                )}
+                {amountQuestion && q.id === amountQuestion.id && hint && !hint.error && (
+                  <button type="button" onClick={() => setToaOpen(true)} title="ดูตาราง TOA ระดับขั้นอนุมัติ"
+                    className="mt-2 inline-flex items-start gap-1.5 rounded-lg bg-mint-300/25 px-2.5 py-1.5 text-left text-xs text-mint-700 underline decoration-dotted underline-offset-2 hover:bg-mint-300/40">
+                    <BadgeCheck className="w-3.5 h-3.5 shrink-0 mt-px" />{hint.text}<ChevronRight className="w-3.5 h-3.5 shrink-0 mt-px" />
+                  </button>
+                )}
+                {amountQuestion && q.id === amountQuestion.id && !hint && (
+                  <button type="button" onClick={() => setToaOpen(true)}
+                    className="mt-2 inline-flex items-center gap-1 text-xs text-brand-600 underline underline-offset-2 hover:text-brand-700">
+                    <ScrollText className="w-3.5 h-3.5" />ดูตาราง TOA ระดับขั้นอนุมัติ
+                  </button>
                 )}
               </div>
             )}
@@ -215,6 +228,7 @@ export default function NewAdvancePage() {
           </form>
         )}
       </section>
+      <ToaDialog open={toaOpen} onOpenChange={setToaOpen} clause={hint?.clause} requiredLevel={hint?.requiredLevel} />
     </FinanceShell>
   );
 }
