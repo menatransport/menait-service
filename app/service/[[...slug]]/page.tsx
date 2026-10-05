@@ -115,11 +115,11 @@ export default function ServicePage() {
                         fetchFormList(),
                         fetchFormData(formId),
                     ]);
-                    setForm(formList);
+                    setForm(Array.isArray(formList) ? formList : []);
                     if (formDetail) setFormData(formDetail);
                 } else {
                     const formList = await fetchFormList();
-                    setForm(formList);
+                    setForm(Array.isArray(formList) ? formList : []);
                     setFormData(null);
                 }
             } catch (error) {

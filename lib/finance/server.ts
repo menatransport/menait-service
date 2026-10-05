@@ -85,13 +85,33 @@ type AdvUser = Pick<UserInfo, 'employee_id' | 'is_finance'>;
 /** GET a BE JSON resource; null on any non-2xx, network or parse error (callers fail closed). */
 async function beJsonOrNull(url: string): Promise<unknown | null> {
   try {
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
     console.error('finance BE lookup error:', err);
     return null;
   }
+}
+
+// Per-user lists used by canViewAdv (pending queue, approval history). The approvals page checks many ADVs
+// at once, so share in-flight requests and keep array results briefly instead of re-asking the BE per row.
+const LIST_TTL_MS = 45_000;
+const listCache = new Map<string, { at: number; value: Promise<unknown | null> }>();
+
+function cachedList(url: string): Promise<unknown | null> {
+  const now = Date.now();
+  const hit = listCache.get(url);
+  if (hit && now - hit.at < LIST_TTL_MS) return hit.value;
+  const value = beJsonOrNull(url).then(v => {
+    if (!Array.isArray(v)) listCache.delete(url); // only successful lists are reused
+    return v;
+  });
+  listCache.set(url, { at: now, value });
+  if (listCache.size > 500) {
+    for (const [k, e] of listCache) if (now - e.at >= LIST_TTL_MS) listCache.delete(k);
+  }
+  return value;
 }
 
 /**
@@ -106,9 +126,9 @@ export async function canViewAdv(user: AdvUser, formId: string): Promise<boolean
   const detail = await beJsonOrNull(beUrl(`/finance/advances/${encodeURIComponent(formId)}`));
   if (detail === null) return false;
   if (advDetailGrantsView(detail, user.employee_id)) return true;
-  const pending = await beJsonOrNull(beUrl('/finance/approvals/pending', { employee_id: user.employee_id }));
+  const pending = await cachedList(beUrl('/finance/approvals/pending', { employee_id: user.employee_id }));
   if (listHasForm(pending, formId)) return true;
-  const history = await beJsonOrNull(beUrl('/forms/approval-history', { employee_id: user.employee_id }));
+  const history = await cachedList(beUrl('/forms/approval-history', { employee_id: user.employee_id }));
   return listHasForm(history, formId);
 }
 
