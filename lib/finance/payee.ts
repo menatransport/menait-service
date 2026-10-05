@@ -79,3 +79,15 @@ export function sanitizePayeeFileName(name: string): string {
   const cleaned = base.replace(/[^\w.฀-๿-]+/g, '_').replace(/^\.+/, '').slice(-100);
   return cleaned || 'file';
 }
+
+/** Detect file type from magic bytes. Returns a MIME type from PAYEE_FILE_TYPES or null. */
+export function sniffPayeeFileType(b: Uint8Array): (typeof PAYEE_FILE_TYPES)[number] | null {
+  const at = (i: number, s: number[]) => s.every((v, k) => b[i + k] === v);
+  if (b.length >= 3 && at(0, [0xff, 0xd8, 0xff])) return 'image/jpeg';
+  if (b.length >= 4 && at(0, [0x89, 0x50, 0x4e, 0x47])) return 'image/png';
+  if (b.length >= 12 && at(0, [0x52, 0x49, 0x46, 0x46]) && at(8, [0x57, 0x45, 0x42, 0x50])) return 'image/webp';
+  if (b.length >= 4 && at(0, [0x25, 0x50, 0x44, 0x46])) return 'application/pdf';
+  return null;
+}
+
+export const PAYEE_MAX_FILES = 10;

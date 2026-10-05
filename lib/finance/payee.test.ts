@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  PAYEE_SELF, PAYEE_SUPPLIER, canSubmitPayee, kbankAccountError, sanitizePayeeFileName, selfPayeeState,
+  PAYEE_SELF, PAYEE_SUPPLIER, canSubmitPayee, kbankAccountError, sanitizePayeeFileName, selfPayeeState, sniffPayeeFileType,
 } from './payee';
 
 const acc = (status: 'ACTIVE' | 'INACTIVE') => ({ status }) as any;
@@ -60,5 +60,20 @@ describe('sanitizePayeeFileName', () => {
     expect(sanitizePayeeFileName('../../etc/passwd')).toBe('passwd');
     expect(sanitizePayeeFileName('.hidden')).toBe('hidden');
     expect(sanitizePayeeFileName('')).toBe('file');
+  });
+});
+
+describe('sniffPayeeFileType', () => {
+  const u = (...n: number[]) => new Uint8Array(n);
+  test('detects supported types', () => {
+    expect(sniffPayeeFileType(u(0xff, 0xd8, 0xff, 0xe0))).toBe('image/jpeg');
+    expect(sniffPayeeFileType(u(0x89, 0x50, 0x4e, 0x47, 0x0d))).toBe('image/png');
+    expect(sniffPayeeFileType(u(0x52, 0x49, 0x46, 0x46, 1, 2, 3, 4, 0x57, 0x45, 0x42, 0x50))).toBe('image/webp');
+    expect(sniffPayeeFileType(new TextEncoder().encode('%PDF-1.7'))).toBe('application/pdf');
+  });
+  test('rejects others', () => {
+    expect(sniffPayeeFileType(u())).toBeNull();
+    expect(sniffPayeeFileType(u(0x52, 0x49, 0x46, 0x46, 1, 2, 3, 4, 0x57, 0x41, 0x56, 0x45))).toBeNull();
+    expect(sniffPayeeFileType(new TextEncoder().encode('<html>'))).toBeNull();
   });
 });

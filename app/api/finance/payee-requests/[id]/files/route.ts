@@ -2,35 +2,18 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { BASE_PATH, BUCKET_NAME, s3 } from '@/lib/s3';
-import { beUrl, requireUser } from '@/lib/finance/server';
-import { PAYEE_FILE_MAX_BYTES, PAYEE_FILE_TYPES, sanitizePayeeFileName } from '@/lib/finance/payee';
+import { loadPayeeRequestFor, requireUser } from '@/lib/finance/server';
+import { PAYEE_FILE_MAX_BYTES, PAYEE_FILE_TYPES, PAYEE_MAX_FILES, sanitizePayeeFileName, sniffPayeeFileType } from '@/lib/finance/payee';
 
 type Ctx = { params: Promise<{ id: string }> };
-
-/** Fetch the request from BE so ownership / status can be checked server-side. */
-async function loadRequest(id: string): Promise<{ data?: any; error?: NextResponse }> {
-  try {
-    const res = await fetch(beUrl(`/finance/payee-requests/${id}`), { cache: 'no-store' });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) return { error: NextResponse.json({ error: data?.detail ?? 'ไม่พบรายการ' }, { status: res.status }) };
-    return { data };
-  } catch (err) {
-    console.error('payee request lookup error:', err);
-    return { error: NextResponse.json({ error: 'ไม่สามารถเชื่อมต่อระบบได้' }, { status: 502 }) };
-  }
-}
 
 /** Owner or Finance: list bookbank files with 1 h presigned URLs. */
 export async function GET(req: NextRequest, { params }: Ctx) {
   const guard = await requireUser(req);
   if ('error' in guard) return guard.error;
   const { id } = await params;
-  if (!/^\d+$/.test(id)) return NextResponse.json({ error: 'ไม่พบรายการ' }, { status: 404 });
-  const found = await loadRequest(id);
-  if (found.error) return found.error;
-  if (!guard.user.is_finance && found.data?.employee_id !== guard.user.employee_id) {
-    return NextResponse.json({ error: 'ไม่มีสิทธิ์ดูรายการนี้' }, { status: 403 });
-  }
+  const found = await loadPayeeRequestFor(id, guard.user);
+  if ('error' in found) return found.error;
   const prefix = `${BASE_PATH}/payee-requests/${id}/`;
   try {
     const listed = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET_NAME, Prefix: prefix }));
@@ -55,14 +38,24 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const guard = await requireUser(req);
   if ('error' in guard) return guard.error;
   const { id } = await params;
-  if (!/^\d+$/.test(id)) return NextResponse.json({ error: 'ไม่พบรายการ' }, { status: 404 });
-  const found = await loadRequest(id);
-  if (found.error) return found.error;
-  if (found.data?.employee_id !== guard.user.employee_id) {
-    return NextResponse.json({ error: 'ไม่มีสิทธิ์แนบไฟล์ในรายการนี้' }, { status: 403 });
-  }
+  const found = await loadPayeeRequestFor(id, guard.user, { ownerOnly: true });
+  if ('error' in found) return found.error;
   if (found.data?.status !== 'PENDING') {
     return NextResponse.json({ error: 'คำขอนี้ไม่อยู่ในสถานะรอตรวจสอบ' }, { status: 409 });
+  }
+  const declared = Number(req.headers.get('content-length') ?? 0);
+  if (declared > PAYEE_FILE_MAX_BYTES + 1024 * 1024) {
+    return NextResponse.json({ error: 'ไฟล์ต้องมีขนาดไม่เกิน 10 MB' }, { status: 413 });
+  }
+  const prefix = `${BASE_PATH}/payee-requests/${id}/`;
+  try {
+    const listed = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET_NAME, Prefix: prefix, MaxKeys: PAYEE_MAX_FILES + 1 }));
+    if ((listed.KeyCount ?? listed.Contents?.length ?? 0) >= PAYEE_MAX_FILES) {
+      return NextResponse.json({ error: 'แนบไฟล์ได้ไม่เกิน 10 ไฟล์ต่อคำขอ' }, { status: 400 });
+    }
+  } catch (err) {
+    console.error('payee files count error:', err);
+    return NextResponse.json({ error: 'ตรวจสอบไฟล์แนบไม่สำเร็จ กรุณาลองใหม่' }, { status: 502 });
   }
   const form = await req.formData().catch(() => null);
   const file = form?.get('file');
@@ -73,12 +66,16 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (file.size > PAYEE_FILE_MAX_BYTES) {
     return NextResponse.json({ error: 'ไฟล์ต้องมีขนาดไม่เกิน 10 MB' }, { status: 400 });
   }
-  const key = `${BASE_PATH}/payee-requests/${id}/${Date.now()}-${sanitizePayeeFileName(file.name)}`;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (sniffPayeeFileType(bytes) !== file.type) {
+    return NextResponse.json({ error: 'ชนิดไฟล์ไม่ถูกต้อง' }, { status: 400 });
+  }
+  const key = `${prefix}${Date.now()}-${sanitizePayeeFileName(file.name)}`;
   try {
     await s3.send(new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key,
-      Body: Buffer.from(await file.arrayBuffer()),
+      Body: Buffer.from(bytes),
       ContentType: file.type,
     }));
     return NextResponse.json({ success: true, path: key });

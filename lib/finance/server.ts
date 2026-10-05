@@ -51,3 +51,28 @@ export async function proxy(url: string, init: RequestInit = {}): Promise<NextRe
     return NextResponse.json({ error: 'ไม่สามารถเชื่อมต่อระบบได้' }, { status: 502 });
   }
 }
+
+/**
+ * Load a payee request from BE and enforce owner-or-finance.
+ * Returns the request JSON, or a ready-made error response (404/403/502).
+ */
+export async function loadPayeeRequestFor(
+  id: string,
+  user: { employee_id: string; is_finance?: boolean },
+  opts: { ownerOnly?: boolean } = {},
+): Promise<{ data: any } | { error: NextResponse }> {
+  if (!/^\d+$/.test(id)) return { error: NextResponse.json({ error: 'ไม่พบรายการ' }, { status: 404 }) };
+  try {
+    const res = await fetch(beUrl(`/finance/payee-requests/${id}`), { cache: 'no-store' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) return { error: NextResponse.json({ error: data?.detail ?? 'ไม่พบรายการ' }, { status: res.status }) };
+    const isOwner = data?.employee_id === user.employee_id;
+    if (!isOwner && (opts.ownerOnly || !user.is_finance)) {
+      return { error: NextResponse.json({ error: 'ไม่มีสิทธิ์ในรายการนี้' }, { status: 403 }) };
+    }
+    return { data };
+  } catch (err) {
+    console.error('payee request lookup error:', err);
+    return { error: NextResponse.json({ error: 'ไม่สามารถเชื่อมต่อระบบได้' }, { status: 502 }) };
+  }
+}
