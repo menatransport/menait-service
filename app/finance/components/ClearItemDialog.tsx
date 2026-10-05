@@ -83,19 +83,7 @@ export function ClearItemDialog({ initial, index, isNew, canAddNext, onSave, onC
           )}
 
           <Field label="วันที่" required><DateField value={r.expense_date} onChange={v => patch({ expense_date: v })} /></Field>
-          <Field label="ทะเบียนรถ/ประเภท">
-            <Input maxLength={50} value={r.vehicle} onChange={e => patch({ vehicle: e.target.value })} />
-          </Field>
-          <Field label="ใบกำกับภาษี/ใบเสร็จ">
-            <div className="inline-flex rounded-xl border p-0.5" role="group">
-              {([true, false] as const).map(v => (
-                <button key={String(v)} type="button" aria-pressed={r.has_receipt === v} onClick={() => patch({ has_receipt: v })}
-                  className={`h-9 rounded-[10px] px-4 text-sm font-medium transition-colors ${r.has_receipt === v ? 'bg-brand-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-                  {v ? 'มี (Y)' : 'ไม่มี (N)'}
-                </button>
-              ))}
-            </div>
-          </Field>
+          {/* ทะเบียนรถ / ใบกำกับ Y/N are not entered here any more (user, 2026-10-05); stored values are kept as-is */}
           <Field label="รายละเอียด" required>
             <Input ref={descRef} maxLength={255} value={r.description} onChange={e => patch({ description: e.target.value })} />
           </Field>

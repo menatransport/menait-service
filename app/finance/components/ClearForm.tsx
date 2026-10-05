@@ -142,8 +142,6 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
                     <span className="w-6 text-gray-500">{i + 1}</span>
                     <span className="whitespace-nowrap text-gray-600">{formatDateThaiShort(r.expense_date)}</span>
                     <span className="min-w-0 flex-1 truncate basis-40">{r.description}</span>
-                    {r.vehicle && <span className="text-xs text-gray-500">{r.vehicle}</span>}
-                    <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${r.has_receipt ? 'bg-brand-50 text-brand-700' : 'bg-gray-100 text-gray-500'}`}>{r.has_receipt ? 'Y' : 'N'}</span>
                     <span className="ml-auto w-full text-right font-semibold tabular-nums sm:w-28">{formatBaht(rowTotals(itemRows[i]).net)}</span>
                   </button>
                   <Button type="button" variant="ghost" size="icon" aria-label={`แก้ไขรายการที่ ${i + 1}`} disabled={saving} onClick={() => openEdit(i)}>
