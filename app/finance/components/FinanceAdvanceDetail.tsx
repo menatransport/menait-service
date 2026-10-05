@@ -37,7 +37,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
     if (inFlight.current) return;
     const res = await showConfirm({
       title: 'ตีกลับให้ผู้เบิกแก้ไข?', text: detail?.form_id,
-      input: 'textarea', inputPlaceholder: 'เหตุผลที่ตีกลับ',
+      input: 'textarea', inputPlaceholder: 'เหตุผลที่ตีกลับ', inputAttributes: { maxlength: '1000' },
       inputValidator: (v: string) => (v?.trim() ? undefined : 'กรุณาระบุเหตุผลที่ตีกลับ'),
     });
     if (!res.isConfirmed) return;
