@@ -12,6 +12,7 @@ import type { AdvanceDetail } from '../types';
 import { DateField } from './DateField';
 import { FilePicker } from './FilePicker';
 import { Panel } from './FinanceShell';
+import { PayeeTypeBadge } from './PayeeTypeBadge';
 
 export function PayForm({ detail, onSaved }: {
   detail: AdvanceDetail; onSaved: (d: AdvanceDetail) => void;
@@ -63,6 +64,7 @@ export function PayForm({ detail, onSaved }: {
 
   return (
     <Panel title={isEdit ? 'แก้ไขข้อมูลการจ่ายเงิน' : 'จ่ายเงิน'}>
+      <div className="mb-4"><PayeeTypeBadge payeeType={detail.request.payee_type} withHint /></div>
       <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {detail.request.account_no && (
           <div className="sm:col-span-2 rounded-xl border border-mint-400 bg-mint-400/10 p-3 text-sm">

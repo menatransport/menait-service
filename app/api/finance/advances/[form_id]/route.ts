@@ -3,7 +3,7 @@ import { BASE_PATH, FORM_ID_PATTERN, hasFiles } from '@/lib/s3';
 import { CLEAR_ATTACHMENT_REQUIRED } from '@/app/finance/labels';
 import { beUrl, proxy, requireFinance, requireUser } from '@/lib/finance/server';
 
-const FINANCE_ACTIONS = new Set(['voucher', 'pay', 'send-back', 'confirm', 'reject-voucher']);
+const FINANCE_ACTIONS = new Set(['voucher', 'pay', 'send-back', 'confirm', 'return']);
 
 type Ctx = { params: Promise<{ form_id: string }> };
 
@@ -28,10 +28,10 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 export async function PUT(req: NextRequest, { params }: Ctx) {
   const { form_id } = await params;
   const { action, ...fields } = await req.json();
-  if (action !== 'clear' && !FINANCE_ACTIONS.has(action)) {
+  if (action !== 'clear' && action !== 'resubmit' && !FINANCE_ACTIONS.has(action)) {
     return NextResponse.json({ error: 'action ไม่ถูกต้อง' }, { status: 400 });
   }
-  const guard = action === 'clear' ? await requireUser(req) : await requireFinance(req);
+  const guard = action === 'clear' || action === 'resubmit' ? await requireUser(req) : await requireFinance(req);
   if ('error' in guard) return guard.error;
   if (action === 'clear') {
     if (!FORM_ID_PATTERN.test(form_id)) return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });

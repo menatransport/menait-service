@@ -1,4 +1,4 @@
-import { Banknote, CircleCheck, CircleX, FilePen, Hourglass, ReceiptText, SearchCheck, TriangleAlert, Undo2, type LucideIcon } from 'lucide-react';
+import { Banknote, CircleCheck, CornerUpLeft, CircleX, FilePen, Hourglass, ReceiptText, SearchCheck, TriangleAlert, Undo2, type LucideIcon } from 'lucide-react';
 import { STATUS_LABELS, STATUS_STYLES, type AdvanceStatus } from '@/lib/finance/status';
 
 const STATUS_ICONS: Record<AdvanceStatus, LucideIcon> = {
@@ -7,6 +7,7 @@ const STATUS_ICONS: Record<AdvanceStatus, LucideIcon> = {
   AWAITING_VOUCHER: FilePen,
   AWAITING_PAYMENT: Banknote,
   AWAITING_CLEARING: ReceiptText,
+  RETURNED: CornerUpLeft,
   SENT_BACK: Undo2,
   AWAITING_REVIEW: SearchCheck,
   CLOSED: CircleCheck,

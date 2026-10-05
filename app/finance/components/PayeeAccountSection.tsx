@@ -20,20 +20,26 @@ const fmtDate = (iso: string | null) => {
 const inputCls = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none';
 
 /** "บัญชีรับเงิน" section of the ADV new-request page: own account (Master) or supplier account. */
-export function PayeeAccountSection({ errors, onPayeeChange, onStatusChange, fullName, disabled }: {
+export function PayeeAccountSection({ errors, onPayeeChange, onStatusChange, fullName, disabled, initial }: {
   errors: Record<string, string>;
   onPayeeChange: (patch: Record<string, any>) => void;
   onStatusChange: (s: PayeeSectionStatus) => void;
   fullName: string;
   disabled?: boolean;
+  /** Edit mode: prefill the saved choice (SELF / SUPPLIER + supplier account). Read once at mount. */
+  initial?: { type?: string | null; bank?: string | null; no?: string | null; name?: string | null };
 }) {
-  const [type, setType] = useState<string>(PAYEE_SELF);
+  const [type, setType] = useState<string>(initial?.type === PAYEE_SUPPLIER ? PAYEE_SUPPLIER : PAYEE_SELF);
   const [me, setMe] = useState<PayeeMe | null>(null);
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [supplier, setSupplier] = useState({ bank: '', no: '', name: '' });
+  const [supplier, setSupplier] = useState({
+    bank: initial?.type === PAYEE_SUPPLIER ? initial.bank ?? '' : '',
+    no: initial?.type === PAYEE_SUPPLIER ? initial.no ?? '' : '',
+    name: initial?.type === PAYEE_SUPPLIER ? initial.name ?? '' : '',
+  });
   const attachRef = useRef<HTMLInputElement>(null);
   const attachingRef = useRef(false);
 

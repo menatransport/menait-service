@@ -105,6 +105,7 @@ export interface RequestInfo {
   bank_label?: string | null;
   account_no?: string | null;
   account_name?: string | null;
+  payee_type?: 'SELF' | 'SUPPLIER' | null;
 }
 
 export interface ApprovalStep { step: number; required_level: number; label: string }

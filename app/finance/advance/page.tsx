@@ -14,6 +14,7 @@ const TABS: AdvanceListTab[] = [
   { key: 'pending', label: 'รออนุมัติ', match: i => i.status === 'PENDING_APPROVAL' },
   { key: 'pay', label: 'รอจ่าย', match: i => i.status === 'AWAITING_VOUCHER' || i.status === 'AWAITING_PAYMENT' },
   { key: 'clear', label: 'ต้องเคลียร์', match: i => i.status === 'AWAITING_CLEARING' || i.status === 'SENT_BACK' },
+  { key: 'returned', label: 'ต้องแก้ไข', match: i => i.status === 'RETURNED' },
   { key: 'review', label: 'รอบัญชีตรวจ', match: i => i.status === 'AWAITING_REVIEW' },
   { key: 'closed', label: 'ปิดแล้ว', match: i => i.status === 'CLOSED' || i.status === 'REJECTED' },
 ];

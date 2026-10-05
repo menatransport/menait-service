@@ -7,6 +7,7 @@ import { CLAIM_TITLE } from '@/lib/finance/clearingForm';
 import { PrintDocumentButton } from './PrintDocumentButton';
 import { Field, Panel } from './FinanceShell';
 import { StatusBadge } from './StatusBadge';
+import { PayeeTypeBadge } from './PayeeTypeBadge';
 
 const toClearRow = (i: ClearItem): ClearItemRow => ({
   expense_date: i.expense_date, vehicle: i.vehicle ?? '', has_receipt: i.has_receipt, description: i.description,
@@ -26,6 +27,9 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
           <Field label="วันที่ใช้เงิน" value={formatDate(item.request.use_date)} />
           <Field label="วันที่ขอ" value={formatDate(item.created_at)} />
           <Field label="ค่าใช้จ่ายรายศูนย์" value={item.request.cost_center ?? '-'} />
+          {item.request.payee_type && (
+            <div className="col-span-2 sm:col-span-3"><Field label="ประเภทบัญชีรับเงิน" value={<PayeeTypeBadge payeeType={item.request.payee_type} withHint />} /></div>
+          )}
           <Field label="ธนาคาร" value={item.request.bank ? bankLabel(item.request.bank) : '-'} />
           <Field label="เลขที่บัญชี" value={item.request.account_no ? formatAccountNo(item.request.account_no) : '-'} />
           <Field label="ชื่อบัญชี" value={item.request.account_name ?? '-'} />

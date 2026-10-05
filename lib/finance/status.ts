@@ -1,6 +1,6 @@
 export type AdvanceStatus =
   | 'PENDING_APPROVAL' | 'REJECTED' | 'AWAITING_VOUCHER' | 'AWAITING_PAYMENT' | 'AWAITING_CLEARING'
-  | 'SENT_BACK' | 'AWAITING_REVIEW' | 'CLOSED';
+  | 'RETURNED' | 'SENT_BACK' | 'AWAITING_REVIEW' | 'CLOSED';
 
 export const STATUS_LABELS: Record<AdvanceStatus, string> = {
   PENDING_APPROVAL: 'รออนุมัติ',
@@ -8,6 +8,7 @@ export const STATUS_LABELS: Record<AdvanceStatus, string> = {
   AWAITING_VOUCHER: 'รอตั้งเบิกทำจ่าย',
   AWAITING_PAYMENT: 'รอจ่าย',
   AWAITING_CLEARING: 'จ่ายแล้วรอเคลียร์',
+  RETURNED: 'ตีกลับให้ผู้เบิกแก้ไข',
   SENT_BACK: 'ส่งกลับแก้ไข',
   AWAITING_REVIEW: 'รอบัญชีตรวจ',
   CLOSED: 'ปิดแล้ว',
@@ -21,6 +22,7 @@ export const STATUS_STYLES: Record<AdvanceStatus, string> = {
   AWAITING_VOUCHER: 'bg-aqua-50 text-aqua-700 border-aqua-200',
   AWAITING_PAYMENT: 'bg-brand-50 text-brand-700 border-brand-200',
   AWAITING_CLEARING: 'bg-slate-50 text-ink-700 border-slate-200',
+  RETURNED: 'bg-amber-50 text-amber-700 border-amber-200',
   SENT_BACK: 'bg-orange-50 text-sun-700 border-orange-200',
   AWAITING_REVIEW: 'bg-violet-50 text-violet-700 border-violet-200',
   CLOSED: 'bg-emerald-50 text-mint-700 border-emerald-200',

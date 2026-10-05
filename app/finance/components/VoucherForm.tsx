@@ -8,6 +8,7 @@ import { putAction, showAlert } from '../api';
 import type { AdvanceDetail } from '../types';
 import { DateField } from './DateField';
 import { Panel } from './FinanceShell';
+import { PayeeTypeBadge } from './PayeeTypeBadge';
 
 export function VoucherForm({ detail, onSaved }: {
   detail: AdvanceDetail; onSaved: (d: AdvanceDetail) => void;
@@ -46,6 +47,7 @@ export function VoucherForm({ detail, onSaved }: {
           การเงินตีกลับ: {rejectRemark || '-'}
         </div>
       )}
+      <div className="mb-4"><PayeeTypeBadge payeeType={detail.request.payee_type} withHint /></div>
       <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="space-y-1 text-sm">เลขที่ใบเบิก
           <Input value={voucherNo} onChange={e => setVoucherNo(e.target.value)} placeholder="เช่น SADV2607-005" disabled={saving} />

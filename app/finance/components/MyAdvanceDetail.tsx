@@ -1,6 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Pencil } from 'lucide-react';
+import { latestReturnRemark } from '@/lib/finance/returnInfo';
 import { fetchJson } from '../api';
 import type { AdvanceDetail } from '../types';
 import { AdvanceSummary } from './AdvanceSummary';
@@ -37,6 +40,14 @@ export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChang
     <>
       <PrintDocumentButton detail={detail} />
       <AdvanceSummary item={detail} detail={detail} />
+      {detail.status === 'RETURNED' && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="min-w-0 break-words">บัญชีตีกลับให้แก้ไข: {latestReturnRemark(detail.fin_logs) || '-'}</p>
+          <Link href={`/finance/advance/new?edit=${encodeURIComponent(formId)}`} className="v2-btn text-sm">
+            <Pencil className="h-4 w-4" /> แก้ไขและส่งใหม่
+          </Link>
+        </div>
+      )}
       {detail.status === 'PENDING_APPROVAL' && <ShareApprovalLink detail={detail} />}
       <Panel title="ไฟล์แนบ">
         <div className="grid gap-5 sm:grid-cols-2">

@@ -13,6 +13,7 @@ import { LogList } from './LogList';
 import { PayForm } from './PayForm';
 import { ReviewPanel } from './ReviewPanel';
 import { VoucherForm } from './VoucherForm';
+import { latestReturnRemark } from '@/lib/finance/returnInfo';
 
 export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; onChanged?: () => void }) {
   const [detail, setDetail] = useState<AdvanceDetail | null>(null);
@@ -29,16 +30,16 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
 
   const onSaved = (d: AdvanceDetail) => { setDetail(d); setRefreshKey(k => k + 1); onChanged?.(); };
 
-  const rejectVoucher = async () => {
+  const returnToRequester = async () => {
     const res = await showConfirm({
-      title: 'ตีกลับไปตั้งเบิกใหม่?', text: detail?.form_id,
+      title: 'ตีกลับให้ผู้เบิกแก้ไข?', text: detail?.form_id,
       input: 'textarea', inputPlaceholder: 'เหตุผลที่ตีกลับ',
       inputValidator: (v: string) => (v?.trim() ? undefined : 'กรุณาระบุเหตุผลที่ตีกลับ'),
     });
     if (!res.isConfirmed) return;
     try {
-      const saved = await putAction(formId, 'reject-voucher', { remark: String(res.value).trim() });
-      await showAlert({ icon: 'success', title: 'ตีกลับไปตั้งเบิกใหม่แล้ว' });
+      const saved = await putAction(formId, 'return', { remark: String(res.value).trim() });
+      await showAlert({ icon: 'success', title: 'ตีกลับให้ผู้เบิกแก้ไขแล้ว' });
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ตีกลับไม่สำเร็จ', text: (err as Error).message });
@@ -63,15 +64,20 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
           <AttachmentPanel formId={formId} folder="check" canUpload={detail.status === 'AWAITING_REVIEW'} refreshKey={refreshKey} />
         </div>
       </Panel>
-      {canVoucher && <VoucherForm key={`v-${refreshKey}`} detail={detail} onSaved={onSaved} />}
-      {detail.status === 'AWAITING_PAYMENT' && (
+      {detail.status === 'RETURNED' && (
+        <p className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          ตีกลับให้ผู้เบิกแก้ไข — รอผู้เบิกแก้ไขและส่งใหม่: {latestReturnRemark(detail.fin_logs) || '-'}
+        </p>
+      )}
+      {(canVoucher || detail.status === 'AWAITING_PAYMENT') && (
         <div className="mb-4">
-          <Button type="button" variant="outline" onClick={rejectVoucher}
+          <Button type="button" variant="outline" onClick={returnToRequester}
             className="border-rose-400 text-rose-600 hover:bg-rose-50 hover:text-rose-700">
-            ตีกลับไปตั้งเบิกใหม่
+            ตีกลับให้ผู้เบิกแก้ไข
           </Button>
         </div>
       )}
+      {canVoucher && <VoucherForm key={`v-${refreshKey}`} detail={detail} onSaved={onSaved} />}
       {canPay && <PayForm key={`pay-${refreshKey}`} detail={detail} onSaved={onSaved} />}
       {detail.status === 'AWAITING_REVIEW' && <ReviewPanel key={`rev-${refreshKey}`} detail={detail} onSaved={onSaved} />}
       <LogList approvalLogs={detail.approval_logs} finLogs={detail.fin_logs} />

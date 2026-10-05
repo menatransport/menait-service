@@ -1,20 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, BadgeCheck, Building2, ChevronRight, ScrollText, HandCoins, IdCard, Landmark, MapPin, Paperclip, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Loading, { MascotLoader } from '@/components/loading';
 import { Mascot } from '@/components/mascot';
-import { buildSubmitValues, renderFormField } from '@/components/renderForm';
+import { buildSubmitValues, prefillFormValues, renderFormField } from '@/components/renderForm';
 import type { Question } from '@/app/service/[[...slug]]/page';
 import { useSessionContext } from '@/app/context/SessionContext';
 import { accountNoError, normalizeAccountNo } from '@/lib/finance/bank';
 import { isBeforeToday } from '@/lib/finance/dates';
 import { parseAmount, todayBkk } from '@/lib/finance/status';
 import { stepChainText } from '@/lib/finance/approvalSteps';
-import type { ApprovalTierInfo } from '../../types';
-import { fetchJson, showAlert, uploadFiles } from '../../api';
+import type { AdvanceDetail, ApprovalTierInfo, AttachmentFile } from '../../types';
+import { fetchJson, putAction, showAlert, uploadFiles } from '../../api';
+import { AttachmentPanel } from '../../components/AttachmentPanel';
 import { FilePicker } from '../../components/FilePicker';
 import { PayeeAccountSection, type PayeeSectionStatus } from '../../components/PayeeAccountSection';
 import { canSubmitPayee, PAYEE_SELF, PAYEE_SUPPLIER } from '@/lib/finance/payee';
@@ -32,8 +34,13 @@ const findUseDateQuestion = (questions: Question[]): Question | undefined =>
   questions.find(q => q.name === 'adv_use_date') ??
   questions.find(q => q.type === 'datetime' || q.type === 'date');
 
-export default function NewAdvancePage() {
+function NewAdvance() {
   const router = useRouter();
+  const editId = useSearchParams().get('edit');
+  const isEdit = Boolean(editId);
+  // edit mode: 'loading' until the submission is read; 'blocked' (with a message) unless RETURNED + owner
+  const [editState, setEditState] = useState<{ phase: 'loading' | 'ready' | 'blocked'; message?: string }>({ phase: isEdit ? 'loading' : 'ready' });
+  const [existingCount, setExistingCount] = useState(0);
   const { user } = useSessionContext();
   const [form, setForm] = useState<AdvForm | null>(null);
   const [values, setValues] = useState<Record<string, any>>({});
@@ -75,6 +82,35 @@ export default function NewAdvancePage() {
       .catch(err => showAlert({ icon: 'error', title: 'โหลดแบบฟอร์มไม่สำเร็จ', text: err.message }))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!editId || !form || !user?.employee_id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const id = encodeURIComponent(editId);
+        const [detail, sub, uploads] = await Promise.all([
+          fetchJson<AdvanceDetail>(`/api/finance/advances/${id}`),
+          fetchJson<any[]>(`/api/formselect?path=${id}`),
+          fetchJson<{ files?: AttachmentFile[] }>(`/api/uploads3?form_id=${id}`).catch(() => ({ files: [] })),
+        ]);
+        if (cancelled) return;
+        if (detail.status !== 'RETURNED') {
+          return setEditState({ phase: 'blocked', message: 'แก้ไขได้เฉพาะคำขอที่บัญชีตีกลับให้ผู้เบิกแก้ไข (สถานะปัจจุบันไม่ใช่ "ตีกลับให้ผู้เบิกแก้ไข")' });
+        }
+        if (detail.requester.employee_id !== user.employee_id) {
+          return setEditState({ phase: 'blocked', message: 'เฉพาะผู้เบิกเงินเท่านั้นที่แก้ไขคำขอนี้ได้' });
+        }
+        const submission = Array.isArray(sub) ? sub[0] : null;
+        setValues(prefillFormValues(form.questions, submission?.values ?? []));
+        setExistingCount((uploads.files ?? []).filter(f => f.folder === 'request').length);
+        setEditState({ phase: 'ready' });
+      } catch (err) {
+        if (!cancelled) setEditState({ phase: 'blocked', message: (err as Error).message || 'โหลดคำขอไม่สำเร็จ' });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [editId, form, user?.employee_id]);
 
   const onInputChange = useCallback((name: string, value: any) => {
     setValues(prev => ({ ...prev, [name]: value }));
@@ -130,7 +166,7 @@ export default function NewAdvancePage() {
         else { const msg = accountNoError(values.adv_bank, values.adv_account_no); if (msg) next.adv_account_no = msg; }
         if (isBlank(values.adv_account_name)) next.adv_account_name = 'กรุณาระบุชื่อบัญชี';
       }
-      if (!canSubmitPayee(isSupplier ? PAYEE_SUPPLIER : PAYEE_SELF, payeeStatus.loaded ? payeeStatus.state : 'none', files.length)) {
+      if (!canSubmitPayee(isSupplier ? PAYEE_SUPPLIER : PAYEE_SELF, payeeStatus.loaded ? payeeStatus.state : 'none', files.length + existingCount)) {
         setErrors(next);
         return showAlert(isSupplier
           ? { icon: 'warning', title: 'กรุณาแนบ bookbank หรือใบแจ้งหนี้ที่มีเลขบัญชี' }
@@ -145,6 +181,25 @@ export default function NewAdvancePage() {
       for (const q of form.questions) {
         if (q.type === 'number' && !isBlank(normalized[q.name])) normalized[q.name] = parseAmount(normalized[q.name]);
         if (q.name === 'adv_account_no' && !isBlank(normalized[q.name])) normalized[q.name] = normalizeAccountNo(normalized[q.name]);
+      }
+      if (editId) {
+        await fetchJson<unknown>(`/api/formsubmit?form_id=${encodeURIComponent(editId)}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            updated_by: user.employee_id,
+            values: buildSubmitValues(form.questions, normalized).filter(v =>
+              v.value_text !== null || v.value_number !== null || v.value_date !== null || v.value_boolean !== null),
+          }),
+        });
+        const failedEdit = await uploadFiles(editId, files);
+        await putAction(editId, 'resubmit', {});
+        await showAlert({
+          icon: failedEdit.length ? 'warning' : 'success',
+          title: 'ส่งคำขอใหม่แล้ว รออนุมัติ',
+          text: failedEdit.length ? `อัปโหลดไม่สำเร็จ: ${failedEdit.join(', ')} (แนบเพิ่มได้ในหน้ารายการ)` : undefined,
+        });
+        router.push(`/finance/advance/${encodeURIComponent(editId)}`);
+        return;
       }
       const payload = {
         form_code: form.form_code,
@@ -161,17 +216,17 @@ export default function NewAdvancePage() {
       });
       router.push(`/finance/advance/${encodeURIComponent(res.form_id)}`);
     } catch (err) {
-      showAlert({ icon: 'error', title: 'ส่งคำขอไม่สำเร็จ', text: (err as Error).message });
+      showAlert({ icon: 'error', title: isEdit ? 'บันทึกและส่งใหม่ไม่สำเร็จ' : 'ส่งคำขอไม่สำเร็จ', text: (err as Error).message });
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <FinanceShell title="ขอเบิกเงิน Advance">
+    <FinanceShell title={isEdit ? 'แก้ไขคำขอ Advance' : 'ขอเบิกเงิน Advance'}>
       {submitting && (
         <div className="fixed inset-0 z-9999 flex items-center justify-center v2-loader-overlay">
-          <Loading text="กำลังส่งคำขอ" />
+          <Loading text={isEdit ? 'กำลังบันทึกและส่งใหม่' : 'กำลังส่งคำขอ'} />
         </div>
       )}
       <section className="rounded-2xl sm:rounded-3xl bg-white shadow-xl p-4 sm:p-6 lg:p-8">
@@ -180,13 +235,20 @@ export default function NewAdvancePage() {
             <HandCoins className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h2 className="font-display text-xl font-semibold text-brand-800">{form?.form_name ?? 'ขอเบิกเงิน Advance'}</h2>
-            <p className="text-xs text-gray-500">เงินทดรองจ่าย — กรอกข้อมูลแล้วส่งให้ผู้มีอำนาจอนุมัติ</p>
+            <h2 className="font-display text-xl font-semibold text-brand-800">{isEdit ? `แก้ไขและส่งใหม่ ${editId}` : form?.form_name ?? 'ขอเบิกเงิน Advance'}</h2>
+            <p className="text-xs text-gray-500">{isEdit ? 'แก้ไขตามที่บัญชีตีกลับ แล้วส่งให้ผู้มีอำนาจอนุมัติอีกครั้ง' : 'เงินทดรองจ่าย — กรอกข้อมูลแล้วส่งให้ผู้มีอำนาจอนุมัติ'}</p>
           </div>
         </div>
 
-        {loading ? (
-          <div className="py-10"><MascotLoader text="กำลังโหลดแบบฟอร์ม" /></div>
+        {loading || (isEdit && editState.phase === 'loading') ? (
+          <div className="py-10"><MascotLoader text={loading ? 'กำลังโหลดแบบฟอร์ม' : 'กำลังโหลดคำขอ'} /></div>
+        ) : isEdit && editState.phase === 'blocked' ? (
+          <div className="py-8 flex flex-col items-center text-center gap-3">
+            <Mascot size={88} />
+            <p className="font-display font-semibold text-ink-900">แก้ไขคำขอนี้ไม่ได้</p>
+            <p className="text-sm text-ink-500">{editState.message}</p>
+            <Link href={editId ? `/finance/advance/${encodeURIComponent(editId)}` : '/finance/advance'} className="v2-btn text-sm">กลับไปหน้าคำขอ</Link>
+          </div>
         ) : !form || form.form_status !== 'Active' ? (
           <div className="py-8 flex flex-col items-center text-center gap-3">
             <Mascot size={88} />
@@ -219,7 +281,8 @@ export default function NewAdvancePage() {
             {form.questions.map((q, index) => hasPayeeType && payeeNames.includes(q.name) ? (
               q.name === 'adv_payee_type' ? (
                 <PayeeAccountSection key={q.id} errors={errors} onPayeeChange={onPayeeChange} onStatusChange={setPayeeStatus}
-                  fullName={user ? `${user.firstname} ${user.lastname}`.trim() : ''} disabled={submitting} />
+                  fullName={user ? `${user.firstname} ${user.lastname}`.trim() : ''} disabled={submitting}
+                  initial={isEdit ? { type: values.adv_payee_type, bank: values.adv_bank, no: values.adv_account_no, name: values.adv_account_name } : undefined} />
               ) : null
             ) :
               <div key={q.id}>
@@ -256,6 +319,11 @@ export default function NewAdvancePage() {
               <p className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700">
                 <Paperclip className="w-4 h-4 text-brand-600" /> {isSupplier ? <>แนบ bookbank หรือใบแจ้งหนี้ที่มีเลขบัญชี <span className="text-rose-600">*</span></> : <>เอกสารประกอบ <span className="text-gray-400 font-normal">(ถ้ามี)</span></>}
               </p>
+              {isEdit && editId && (
+                <div className="mb-2 rounded-xl bg-gray-50 p-3">
+                  <AttachmentPanel formId={editId} folder="request" />
+                </div>
+              )}
               <FilePicker files={files} onChange={setFiles} disabled={submitting} />
             </div>
             <Button
@@ -263,12 +331,20 @@ export default function NewAdvancePage() {
               disabled={submitting}
               className="w-full h-12 sm:h-14 bg-linear-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-semibold rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-60"
             >
-              {submitting ? 'กำลังส่ง...' : 'ส่งคำขอเบิกเงิน'}
+              {submitting ? 'กำลังส่ง...' : isEdit ? 'บันทึกและส่งใหม่' : 'ส่งคำขอเบิกเงิน'}
             </Button>
           </form>
         )}
       </section>
       <ToaDialog open={toaOpen} onOpenChange={setToaOpen} clause={hint?.clause} requiredLevel={hint?.requiredLevel} />
     </FinanceShell>
+  );
+}
+
+export default function NewAdvancePage() {
+  return (
+    <Suspense fallback={<FinanceShell title="ขอเบิกเงิน Advance"><div className="py-10"><MascotLoader text="กำลังโหลดแบบฟอร์ม" /></div></FinanceShell>}>
+      <NewAdvance />
+    </Suspense>
   );
 }

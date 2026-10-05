@@ -11,6 +11,7 @@ export const LOG_ACTION_LABELS: Record<string, string> = {
   PAY: 'บันทึกการจ่ายเงิน', PAY_EDIT: 'แก้ไขข้อมูลการจ่าย', CLEAR_SUBMIT: 'ส่งเคลียร์เงิน',
   CLEAR_EDIT: 'แก้ไขข้อมูลเคลียร์', SEND_BACK: 'ส่งกลับแก้ไข', CONFIRM: 'ยืนยันปิดรายการ',
   VOUCHER_REJECT: 'ตีกลับไปตั้งเบิกใหม่',
+  RETURN: 'ตีกลับให้ผู้เบิกแก้ไข', RETURNED: 'ตีกลับให้ผู้เบิกแก้ไข', RESUBMITTED: 'ส่งใหม่หลังแก้ไข',
   APPROVED: 'อนุมัติ', REJECTED: 'ไม่อนุมัติ',
 };
 
