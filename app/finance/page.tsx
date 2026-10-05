@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Landmark } from 'lucide-react';
+import Link from 'next/link';
+import { Landmark, UserRoundCheck } from 'lucide-react';
 import { useSessionContext } from '@/app/context/SessionContext';
 import { formatBaht } from '@/lib/finance/status';
 import { fetchJson, showAlert } from './api';
@@ -27,6 +28,7 @@ export default function FinanceQueuePage() {
   const [tab, setTab] = useState('voucher');
   const [openFormId, setOpenFormId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [pendingPayees, setPendingPayees] = useState(0);
 
   const load = useCallback(() => {
     if (!user?.is_finance) return;
@@ -36,6 +38,13 @@ export default function FinanceQueuePage() {
   }, [user?.is_finance]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!user?.is_finance) return;
+    fetchJson<unknown[]>('/api/finance/payee-requests?status=PENDING')
+      .then(r => setPendingPayees(Array.isArray(r) ? r.length : 0))
+      .catch(() => setPendingPayees(0));
+  }, [user?.is_finance]);
 
   const outstanding = useMemo(() => (items ?? [])
     .filter(i => i.fin && i.status !== 'CLOSED')
@@ -67,7 +76,17 @@ export default function FinanceQueuePage() {
 
   return (
     <FinanceCanvas title="งานเบิกเงิน Advance">
-      <FinanceHeading icon={Landmark} title="งานเบิกเงิน Advance" caption="ตั้งเบิก จ่ายเงิน และตรวจเคลียร์เงินทดรองจ่าย" />
+      <FinanceHeading icon={Landmark} title="งานเบิกเงิน Advance" caption="ตั้งเบิก จ่ายเงิน และตรวจเคลียร์เงินทดรองจ่าย"
+        actions={(
+          <Link href="/finance/payee-accounts" className="v2-glass inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-ink-900 transition-shadow hover:shadow-md">
+            <UserRoundCheck className="size-4" />
+            บัญชีรับเงินพนักงาน
+            {pendingPayees > 0 && (
+              <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 text-xs font-semibold tabular-nums text-white" aria-label={`รอตรวจ ${pendingPayees} คำขอ`}>{pendingPayees}</span>
+            )}
+          </Link>
+        )}
+      />
       <SummaryTiles items={stats} />
       <AdvanceListView
         mode="finance"
