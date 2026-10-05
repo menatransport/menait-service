@@ -54,7 +54,9 @@ export function MasterTab({ accounts, loading, query, onQueryChange, onChanged }
       .some(v => (v ?? '').toLowerCase().includes(q)));
   }, [accounts, query]);
 
+  const [toggling, setToggling] = useState(false);
   const toggle = async (a: PayeeAccount) => {
+    if (toggling) return;
     const next = a.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     const res = await showConfirm({
       icon: 'question',
@@ -62,11 +64,14 @@ export function MasterTab({ accounts, loading, query, onQueryChange, onChanged }
       text: `${a.employee_name ?? a.employee_id} · ${formatAccountNo(a.account_no)}`,
     });
     if (!res.isConfirmed) return;
+    setToggling(true);
     try {
       await fetchJson(`/api/finance/payee-accounts/${a.id}`, { method: 'PUT', body: JSON.stringify({ status: next }) });
       await onChanged();
     } catch (err) {
       await showAlert({ icon: 'error', title: 'ดำเนินการไม่สำเร็จ', text: (err as Error).message });
+    } finally {
+      setToggling(false);
     }
   };
 
@@ -147,10 +152,11 @@ export function MasterTab({ accounts, loading, query, onQueryChange, onChanged }
 function AddAccountDialog({ open, onOpenChange, onDone }: { open: boolean; onOpenChange: (o: boolean) => void; onDone: () => void | Promise<void> }) {
   const [empId, setEmpId] = useState('');
   const [person, setPerson] = useState<PersonInfo | null>(null);
-  const [lookup, setLookup] = useState<'idle' | 'loading' | 'notfound'>('idle');
+  const [lookup, setLookup] = useState<'idle' | 'loading' | 'notfound' | 'error'>('idle');
   const [accountNo, setAccountNo] = useState('');
   const [accountName, setAccountName] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [lookupError, setLookupError] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -163,15 +169,21 @@ function AddAccountDialog({ open, onOpenChange, onDone }: { open: boolean; onOpe
     if (!id) { setLookup('idle'); return; }
     setLookup('loading');
     try {
-      const p = await fetchJson<PersonInfo>(`/api/finance/people/${encodeURIComponent(id)}`);
+      const res = await fetch(`/api/finance/people/${encodeURIComponent(id)}`, { cache: 'no-store' });
+      const data = await res.json().catch(() => null);
+      if (res.status === 404) { setLookup('notfound'); return; }
+      if (!res.ok) throw new Error(data?.error ?? `เกิดข้อผิดพลาด (${res.status})`);
+      const p = data as PersonInfo;
       setPerson(p); setLookup('idle');
       setAccountName(prev => prev.trim() ? prev : (p.name ?? ''));
-    } catch {
-      setLookup('notfound');
+    } catch (err) {
+      setLookupError((err as Error).message);
+      setLookup('error');
     }
   };
 
   const submit = async () => {
+    if (lookup === 'loading') return;
     const next: Record<string, string> = {};
     if (!person) next.employee_id = 'กรุณาระบุรหัสพนักงานที่มีอยู่ในระบบ';
     const accErr = kbankAccountError(accountNo);
@@ -207,6 +219,7 @@ function AddAccountDialog({ open, onOpenChange, onDone }: { open: boolean; onOpe
             <label htmlFor="pa-emp" className={LABEL}>รหัสพนักงาน</label>
             <Input id="pa-emp" value={empId} onChange={e => { setEmpId(e.target.value); setPerson(null); setLookup('idle'); }} onBlur={doLookup} />
             {lookup === 'loading' && <p className="mt-1 text-xs text-gray-500">กำลังค้นหา...</p>}
+            {lookup === 'error' && <p className="mt-1 text-xs text-rose-600">{lookupError}</p>}
             {lookup === 'notfound' && <p className="mt-1 text-xs text-rose-600">ไม่พบรหัสพนักงาน</p>}
             {person && (
               <p className="mt-1 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs text-emerald-800">
@@ -227,7 +240,7 @@ function AddAccountDialog({ open, onOpenChange, onDone }: { open: boolean; onOpe
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" className={BTN_GHOST} onClick={() => onOpenChange(false)} disabled={busy}>ยกเลิก</button>
-            <button type="button" className={BTN_PRIMARY} onClick={submit} disabled={busy}>{busy ? 'กำลังบันทึก...' : 'บันทึก'}</button>
+            <button type="button" className={BTN_PRIMARY} onClick={submit} disabled={busy || lookup === 'loading'}>{busy ? 'กำลังบันทึก...' : 'บันทึก'}</button>
           </div>
         </div>
       </DialogContent>
@@ -330,7 +343,7 @@ function LogsDialog({ account, onClose }: { account: PayeeAccount | null; onClos
                   <p className="font-medium">{PAYEE_LOG_ACTION_LABELS[log.action] ?? log.action} · {log.action_by_name ?? log.action_by ?? '-'}</p>
                   <p className="text-xs text-gray-500">{formatDate(log.created_at)}{log.remark ? ` · ${log.remark}` : ''}</p>
                   {lines.length > 0 && (
-                    <ul className="mt-1 text-xs text-gray-600">{lines.map(l => <li key={l}>{l}</li>)}</ul>
+                    <ul className="mt-1 text-xs text-gray-600">{lines.map((l, j) => <li key={j}>{l}</li>)}</ul>
                   )}
                 </li>
               );

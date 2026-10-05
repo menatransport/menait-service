@@ -26,11 +26,11 @@ function PayeeAccountsContent() {
   const [accounts, setAccounts] = useState<PayeeAccount[] | null>(null);
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
-  const [openId, setOpenId] = useState<number | null>(deepId);
+  const [openId, setOpenId] = useState<number | null>(null);
 
   const isFinance = !!user?.is_finance;
 
-  useEffect(() => { if (deepId !== null) { setOpenId(deepId); setTab('requests'); } }, [deepId]);
+  useEffect(() => { if (isFinance && deepId !== null) { setOpenId(deepId); setTab('requests'); } }, [isFinance, deepId]);
   useEffect(() => { const t = setTimeout(() => setDebounced(query.trim()), 300); return () => clearTimeout(t); }, [query]);
 
   const loadRequests = useCallback(async () => {
@@ -81,7 +81,7 @@ function PayeeAccountsContent() {
           )}
         </section>
       </Tabs>
-      <RequestReviewDialog requestId={openId} onClose={closeReview} onChanged={refetchBoth} />
+      {isFinance && <RequestReviewDialog requestId={openId} onClose={closeReview} onChanged={refetchBoth} />}
     </FinanceCanvas>
   );
 }
