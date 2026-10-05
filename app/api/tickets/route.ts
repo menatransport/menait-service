@@ -2,19 +2,25 @@ import { requireUser } from '@/lib/finance/server';
 import { FORM_ID_PATTERN } from '@/lib/s3';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { filterByScope } from '@/lib/finance/scope';
+import { canListAll, filterByScope } from '@/lib/finance/scope';
 
 export async function GET(request: NextRequest) {
+    const guard = await requireUser(request);
+    if ('error' in guard) return guard.error;
     const sp = request.nextUrl.searchParams;
-    const param = sp.get('employee_id');
+    // lists are always the session user's; the browser's employee_id is ignored
+    const param = guard.user.employee_id;
     const tab = sp.get('tab') || 'pending';
     const view = sp.get('view') || '';
-    const role = sp.get('role') || '';
     const status = sp.get('status') || '';
     const start_date = sp.get('start_date') || '';
     const end_date = sp.get('end_date') || '';
     const form_id = sp.get('form_id') || '';
     const scope = sp.get('scope') === 'advance' ? 'advance' : 'it';
+    // role 'a' (every user's forms) only when the session is entitled to it for this scope: IT admin for IT, Finance for ADV
+    const role = canListAll({
+        clientRole: sp.get('role'), scope, sessionRole: guard.user.role, isFinance: guard.user.is_finance,
+    }) ? 'a' : '';
 
     // Build query string from a record, skipping empty values
     const buildQS = (params: Record<string, string>) => {
@@ -36,23 +42,23 @@ export async function GET(request: NextRequest) {
     if (tab === 'my') {
         endpoint = `${process.env.URL_API}/forms${buildQS({
             ...baseParams,
-            ...(role === 'a' ? {} : { employee_id: param ?? '' }),
+            ...(role === 'a' ? {} : { employee_id: param }),
             status,
         })}`;
     } else if (status === 'Done') {
         endpoint = `${process.env.URL_API}/forms${buildQS({
             ...baseParams,
-            ...(role === 'a' ? { status: 'Done' } : { employee_id: param ?? '', status: 'Done' }),
+            ...(role === 'a' ? { status: 'Done' } : { employee_id: param, status: 'Done' }),
         })}`;
     } else if (view === 'history') {
         endpoint = `${process.env.URL_API}/forms/approval-history${buildQS({
             ...baseParams,
-            employee_id: param ?? '',
+            employee_id: param,
         })}`;
     } else {
         endpoint = `${process.env.URL_API}/forms/pending-approvals${buildQS({
             ...baseParams,
-            employee_id: param ?? '',
+            employee_id: param,
             status,
         })}`;
     }
@@ -63,9 +69,9 @@ export async function GET(request: NextRequest) {
     if (!res.ok) {
         return NextResponse.json({ error: data?.detail }, { status: res.status });
     }
-    // /forms, /forms/pending-approvals and /forms/approval-history all return a plain array;
-    // filterByScope keeps this safe (unchanged) if the BE ever wraps the list in an object instead.
-    return NextResponse.json(Array.isArray(data) ? filterByScope(data, scope) : data);
+    // /forms, /forms/pending-approvals and /forms/approval-history all return a plain array; anything else can't
+    // be scope-filtered, so it is dropped rather than passed through (every caller treats a non-array as []).
+    return NextResponse.json(Array.isArray(data) ? filterByScope(data, scope) : []);
 }
 
 export async function POST(request: NextRequest) {

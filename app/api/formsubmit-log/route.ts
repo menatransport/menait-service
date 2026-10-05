@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { requireUser } from '@/lib/finance/server';
+import { denyUnlessAdvViewer, requireUser } from '@/lib/finance/server';
 import { FORM_ID_PATTERN } from '@/lib/s3';
 
 export async function GET(request: NextRequest) {
@@ -12,6 +12,8 @@ export async function GET(request: NextRequest) {
         if (!path || !FORM_ID_PATTERN.test(path)) {
             return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
         }
+        const denied = await denyUnlessAdvViewer(guard.user, path);
+        if (denied) return denied;
         const res = await fetch(`${process.env.URL_API}/forms/${path}/logs`, {
             'method': 'GET',
         });

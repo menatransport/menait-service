@@ -12,3 +12,17 @@ export function filterByScope<T>(items: T, scope: 'it' | 'advance'): T {
   if (!Array.isArray(items)) return items;
   return items.filter(item => (scope === 'advance' ? isAdvanceItem(item) : !isAdvanceItem(item))) as T;
 }
+
+/**
+ * /api/tickets: role 'a' lists every user's forms. Honour it only when the session user is entitled to that
+ * scope — IT admins (session role 'a') for IT forms, Finance for ADV. A client-sent role never widens access.
+ */
+export function canListAll(opts: {
+  clientRole: string | null | undefined;
+  scope: 'it' | 'advance';
+  sessionRole?: string | null;
+  isFinance?: boolean | null;
+}): boolean {
+  if (opts.clientRole !== 'a') return false;
+  return opts.scope === 'advance' ? opts.isFinance === true : opts.sessionRole === 'a';
+}

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { filterByScope, isAdvanceItem } from './scope';
+import { canListAll, filterByScope, isAdvanceItem } from './scope';
 
 describe('isAdvanceItem', () => {
   test('form_code ADV', () => expect(isAdvanceItem({ form_code: 'ADV' })).toBe(true));
@@ -34,5 +34,20 @@ describe('filterByScope', () => {
     const notArray = { error: 'oops' };
     expect(filterByScope(notArray, 'it')).toBe(notArray);
     expect(filterByScope(null, 'advance')).toBe(null);
+  });
+});
+
+describe('canListAll', () => {
+  test('IT scope: only a session IT admin who asks for role a', () => {
+    expect(canListAll({ clientRole: 'a', scope: 'it', sessionRole: 'a' })).toBe(true);
+    expect(canListAll({ clientRole: 'a', scope: 'it', sessionRole: 'u' })).toBe(false);
+    expect(canListAll({ clientRole: 'u', scope: 'it', sessionRole: 'a' })).toBe(false);
+    expect(canListAll({ clientRole: '', scope: 'it', sessionRole: 'a' })).toBe(false);
+  });
+  test('ADV scope: only finance, never the IT admin role', () => {
+    expect(canListAll({ clientRole: 'a', scope: 'advance', sessionRole: 'a', isFinance: false })).toBe(false);
+    expect(canListAll({ clientRole: 'a', scope: 'advance', sessionRole: 'a' })).toBe(false);
+    expect(canListAll({ clientRole: 'a', scope: 'advance', sessionRole: 'u', isFinance: true })).toBe(true);
+    expect(canListAll({ clientRole: 'u', scope: 'advance', sessionRole: 'u', isFinance: true })).toBe(false);
   });
 });

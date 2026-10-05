@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifyToken, COOKIE_NAME } from '@/lib/jwt';
 import type { UserInfo } from '@/app/context/SessionContext';
+import { FORM_ID_PATTERN } from '@/lib/s3';
+import { isAdvTarget } from '@/lib/finance/formsubmit-guard';
+import { advDetailGrantsView, isAdvRequester, listHasForm } from '@/lib/finance/adv-access';
 
 export type Guard = { user: UserInfo } | { error: NextResponse };
 
@@ -75,4 +78,50 @@ export async function loadPayeeRequestFor(
     console.error('payee request lookup error:', err);
     return { error: NextResponse.json({ error: 'ไม่สามารถเชื่อมต่อระบบได้' }, { status: 502 }) };
   }
+}
+
+type AdvUser = Pick<UserInfo, 'employee_id' | 'is_finance'>;
+
+/** GET a BE JSON resource; null on any non-2xx, network or parse error (callers fail closed). */
+async function beJsonOrNull(url: string): Promise<unknown | null> {
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.error('finance BE lookup error:', err);
+    return null;
+  }
+}
+
+/**
+ * Who may see an ADV (its values, logs and attachments): Finance; the requester; an approver of the current
+ * round (approval.step_approvals); anyone whose ADV approval queue holds it now; and anyone who approved or
+ * rejected it before (the detail's approval_logs carry only actor_name, so past actors are matched by id
+ * through /forms/approval-history instead). Fails closed on any BE error.
+ */
+export async function canViewAdv(user: AdvUser, formId: string): Promise<boolean> {
+  if (!user?.employee_id || typeof formId !== 'string' || !FORM_ID_PATTERN.test(formId)) return false;
+  if (user.is_finance === true) return true;
+  const detail = await beJsonOrNull(beUrl(`/finance/advances/${encodeURIComponent(formId)}`));
+  if (detail === null) return false;
+  if (advDetailGrantsView(detail, user.employee_id)) return true;
+  const pending = await beJsonOrNull(beUrl('/finance/approvals/pending', { employee_id: user.employee_id }));
+  if (listHasForm(pending, formId)) return true;
+  const history = await beJsonOrNull(beUrl('/forms/approval-history', { employee_id: user.employee_id }));
+  return listHasForm(history, formId);
+}
+
+/** The requester of the ADV (BE detail). Fails closed on any BE error. */
+export async function isAdvOwner(user: AdvUser, formId: string): Promise<boolean> {
+  if (!user?.employee_id || typeof formId !== 'string' || !FORM_ID_PATTERN.test(formId)) return false;
+  const detail = await beJsonOrNull(beUrl(`/finance/advances/${encodeURIComponent(formId)}`));
+  return isAdvRequester(detail, user.employee_id);
+}
+
+/** For an ADV form id: a 403 response unless canViewAdv. Non-ADV ids pass (null) — their rules are unchanged. */
+export async function denyUnlessAdvViewer(user: AdvUser, formId: string): Promise<NextResponse | null> {
+  if (!isAdvTarget({ formId })) return null;
+  if (await canViewAdv(user, formId)) return null;
+  return NextResponse.json({ error: 'ไม่มีสิทธิ์ดูรายการนี้' }, { status: 403 });
 }
