@@ -12,6 +12,8 @@ import { useSessionContext } from '@/app/context/SessionContext';
 import { accountNoError, normalizeAccountNo } from '@/lib/finance/bank';
 import { isBeforeToday } from '@/lib/finance/dates';
 import { parseAmount, todayBkk } from '@/lib/finance/status';
+import { stepChainText } from '@/lib/finance/approvalSteps';
+import type { ApprovalTierInfo } from '../../types';
 import { fetchJson, showAlert, uploadFiles } from '../../api';
 import { FilePicker } from '../../components/FilePicker';
 import { PayeeAccountSection, type PayeeSectionStatus } from '../../components/PayeeAccountSection';
@@ -59,9 +61,9 @@ export default function NewAdvancePage() {
     if (amount === null || amount <= 0) return;
     let cancelled = false;
     const timer = setTimeout(() => {
-      fetchJson<{ clause: string; approver_label: string; required_level: number }>(
+      fetchJson<ApprovalTierInfo>(
         `/api/finance/approval-preview?amount=${encodeURIComponent(String(amount))}`)
-        .then(r => { if (!cancelled) setHint({ text: `ต้องอนุมัติโดยระดับ ${r.required_level} ขึ้นไป (ข้อ ${r.clause} · ${r.approver_label})`, error: false, clause: r.clause, requiredLevel: r.required_level }); })
+        .then(r => { if (!cancelled) setHint({ text: stepChainText(r.steps) ?? `ต้องอนุมัติโดยระดับ ${r.required_level} ขึ้นไป (ข้อ ${r.clause} · ${r.approver_label})`, error: false, clause: r.clause, requiredLevel: r.required_level }); })
         .catch(err => { if (!cancelled) setHint({ text: err.message, error: true }); });
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };

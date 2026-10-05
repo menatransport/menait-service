@@ -8,6 +8,7 @@ import { Mascot } from '@/components/mascot';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { FormValue } from '@/app/mytickets/[id]/types';
 import { formatBaht, formatDate } from '@/lib/finance/status';
+import { stepBadge } from '@/lib/finance/approvalSteps';
 import { fetchJson, showAlert, showConfirm } from '../api';
 import type { PendingApprovalItem } from '../types';
 import { AttachmentPanel } from '../components/AttachmentPanel';
@@ -161,6 +162,7 @@ function PendingCard({
   item: PendingApprovalItem; processing: boolean; highlight?: boolean; onApprove: () => void; onReject: () => void;
 }) {
   const { requester, request, tier } = item;
+  const badge = stepBadge(item.step, item.total_steps);
   const requesterName = requester?.name?.trim() || '-';
 
   return (
@@ -171,7 +173,7 @@ function PendingCard({
           <p className="text-xs text-gray-500">{requesterName}{requester?.department ? ` · ${requester.department}` : ''}</p>
         </div>
         <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-          <Clock className="h-3 w-3" /> รออนุมัติ
+          <Clock className="h-3 w-3" /> รออนุมัติ{badge ? ` · ${badge}` : ''}
         </span>
       </div>
 

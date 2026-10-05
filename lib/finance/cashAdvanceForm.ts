@@ -211,6 +211,23 @@ export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
   const r = detail.request;
   const center = centerFromSite(detail.requester.site_code);
   const approved = [...(detail.approval_logs ?? [])].reverse().find(l => l.action === 'APPROVED');
+  // Two-step chain: step-1 stamp -> unit head, step-2 stamp -> approver. One step (or old BE): stamp -> approver.
+  const stepApprovals = detail.approval?.step_approvals ?? [];
+  const stepOf = (n: number) => stepApprovals.find(a => a.step === n && a.action_at);
+  const twoSteps = (detail.approval?.steps?.length ?? 0) >= 2;
+  const mkStamp = (name: string | null | undefined, at: string | null | undefined): Signature => ({
+    name: name ?? '', date: dmy(at),
+    ...(at ? { esign: {
+      name: name ?? '', timestamp: at,
+      ref: detail.approval ? `ข้อ ${detail.approval.clause}` : detail.form_id,
+    } } : {}),
+  });
+  let s1 = twoSteps ? stepOf(1) : undefined;
+  let s2 = twoSteps ? stepOf(2) : undefined;
+  const mapped = twoSteps && stepApprovals.length > 0;
+  // Dynamic skip: completed at step 1 and no separate step-2 approver -> one stamp, in the approver column.
+  if (mapped && s1 && !s2 && detail.approval?.current_step == null) { s2 = s1; s1 = undefined; }
+  const finalStep = mapped ? s2 : undefined;
   const payee = payeeFields(r);
   const name = detail.requester.name ?? '';
   return {
@@ -232,15 +249,11 @@ export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
         name, date: dmy(detail.created_at),
         ...(detail.created_at ? { esign: { name, timestamp: detail.created_at, ref: detail.form_id } } : {}),
       },
-      unit_head: { name: '', date: '' },
+      unit_head: s1 ? mkStamp(s1.name, s1.action_at) : { name: '', date: '' },
       manager: { name: '', date: '' },
-      approver: {
-        name: approved?.actor_name ?? '', date: dmy(approved?.action_at),
-        ...(approved?.action_at ? { esign: {
-          name: approved.actor_name ?? '', timestamp: approved.action_at,
-          ref: detail.approval ? `ข้อ ${detail.approval.clause}` : detail.form_id,
-        } } : {}),
-      },
+      approver: mapped
+        ? (finalStep ? mkStamp(finalStep.name, finalStep.action_at) : { name: '', date: '' })
+        : mkStamp(approved?.actor_name, approved?.action_at),
     },
   };
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Copy, MessageSquareText } from 'lucide-react';
 import { approvalLink, approvalMessage } from '@/lib/finance/shareLink';
+import { stepBadge } from '@/lib/finance/approvalSteps';
 import { fetchJson } from '../api';
 import type { AdvanceDetail, SuggestedApprovers } from '../types';
 import { Panel } from './FinanceShell';
@@ -60,7 +61,7 @@ export function ShareApprovalLink({ detail }: { detail: AdvanceDetail }) {
             <p className="text-sm text-gray-600">ยังดึงรายชื่อผู้อนุมัติไม่ได้ ส่งลิงก์ให้หัวหน้าตามสายงานได้เลย</p>
           ) : data && (
             <>
-              <p className="mb-2 text-sm text-gray-700">{`ข้อ ${data.clause} · ${data.approver_label} — ผู้อนุมัติระดับ ${data.required_level} ขึ้นไป`}</p>
+              <p className="mb-2 text-sm text-gray-700">{`${stepBadge(data.step, data.total_steps) ? `${stepBadge(data.step, data.total_steps)} · ` : ''}ข้อ ${data.clause} · ${data.approver_label} — ผู้อนุมัติระดับ ${data.required_level} ขึ้นไป`}</p>
               {data.approvers.length === 0 ? (
                 <p className="text-sm text-amber-700">ไม่พบผู้อนุมัติที่เหมาะสม กรุณาติดต่อฝ่ายการเงิน</p>
               ) : (

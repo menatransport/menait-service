@@ -41,6 +41,10 @@ export function ToaDialog({ open, onOpenChange, clause, requiredLevel }: {
         {error && <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         {!tiers && !error && <p className="py-6 text-center text-sm text-gray-500">กำลังโหลด...</p>}
 
+        <p className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          อนุมัติ 2 ขั้น: ขั้น 1 หัวหน้าถัดไป (ระดับสูงกว่าผู้เบิก 1 ระดับ) แล้วขั้น 2 ผู้มีอำนาจตามตารางนี้ ถ้าหัวหน้าขั้น 1 มีระดับถึงขั้น 2 อยู่แล้ว จะอนุมัติจบในขั้นเดียว
+        </p>
+
         {tiers && (
           <div className="overflow-x-auto rounded-xl border">
             <table className="w-full text-sm">

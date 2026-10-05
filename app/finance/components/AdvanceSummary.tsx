@@ -1,5 +1,6 @@
 import { sumItems, type ClearItemRow } from '@/lib/finance/clearItems';
 import { formatBaht, formatDate, settleLabel } from '@/lib/finance/status';
+import { formatBkkDateTime } from '@/lib/finance/printShared';
 import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
 import type { AdvanceDetail, AdvanceItem, ApprovalTierInfo, ClearItem } from '../types';
 import { CLAIM_TITLE } from '@/lib/finance/clearingForm';
@@ -31,6 +32,23 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
           {item.approval && (
             <div className="col-span-2 sm:col-span-3">
               <Field label="ขั้นอนุมัติ" value={`ข้อ ${item.approval.clause} · ${item.approval.approver_label} — ผู้อนุมัติระดับ ${item.approval.required_level} ขึ้นไป`} />
+              {(item.approval.steps?.length ?? 0) >= 2 && (
+                <ol className="mt-2 space-y-1.5">
+                  {item.approval.steps!.map(st => {
+                    const done = item.approval!.step_approvals?.find(a => a.step === st.step && a.action_at);
+                    const when = done?.action_at ? formatBkkDateTime(done.action_at) : null;
+                    return (
+                      <li key={st.step} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+                        <span className="font-medium">ขั้น {st.step}</span> · {st.label}
+                        {' — '}
+                        {done
+                          ? <span className="text-emerald-700">{done.name ?? '-'}{when ? ` · ${when.date} ${when.time.slice(0, 5)} น.` : ''}</span>
+                          : <span className="text-amber-700">รอ</span>}
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
             </div>
           )}
           <div className="col-span-2 sm:col-span-3"><Field label="เบิกเงิน Advance สำหรับ" value={item.request.purpose} /></div>

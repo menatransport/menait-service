@@ -107,7 +107,19 @@ export interface RequestInfo {
   account_name?: string | null;
 }
 
-export interface ApprovalTierInfo { clause: string; approver_label: string; required_level: number }
+export interface ApprovalStep { step: number; required_level: number; label: string }
+export interface StepApproval { step: number; employee_id: string | null; name: string | null; action_at: string | null }
+
+export interface ApprovalTierInfo {
+  clause: string;
+  approver_label: string;
+  required_level: number;
+  /** Two-step chain (absent on an old BE = single step). */
+  steps?: ApprovalStep[];
+  current_step?: number | null;
+  /** Current round only. */
+  step_approvals?: StepApproval[];
+}
 
 export interface PendingApprovalItem {
   form_id: string;
@@ -116,6 +128,8 @@ export interface PendingApprovalItem {
   requester: Requester;
   request: RequestInfo;
   tier: ApprovalTierInfo;
+  step?: number;
+  total_steps?: number;
   tab: 'mine' | 'delegable';
 }
 
@@ -131,5 +145,8 @@ export interface SuggestedApprovers {
   clause: string;
   approver_label: string;
   required_level: number;
+  /** Current step of a two-step chain (absent on an old BE). */
+  step?: number | null;
+  total_steps?: number | null;
   approvers: SuggestedApprover[];
 }
