@@ -192,7 +192,7 @@ function PendingCard({
 
       <div className="mt-4 border-t border-gray-100 pt-3">
         {item.tab === 'delegable' && (
-          <p className="mb-2 flex items-center gap-1.5 text-xs text-gray-500"><Info className="h-3.5 w-3.5 text-brand-600" /> อนุมัติแทนได้ — มีผู้มีสิทธิ์ระดับ {tier.required_level}+ ที่ใกล้กว่า</p>
+          <p className="mb-2 flex items-center gap-1.5 text-xs text-gray-500"><Info className="h-3.5 w-3.5 text-brand-600" /> อนุมัติแทนได้ — มีผู้มีสิทธิ์ระดับ {item.step_required_level ?? tier.required_level}+ ที่ใกล้กว่า</p>
         )}
         <div className="flex justify-end gap-2">
           <button

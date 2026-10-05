@@ -131,6 +131,9 @@ export interface PendingApprovalItem {
   tier: ApprovalTierInfo;
   step?: number;
   total_steps?: number;
+  /** Current step's level/label (absent on an old BE -> use tier.required_level). */
+  step_required_level?: number;
+  step_label?: string;
   tab: 'mine' | 'delegable';
 }
 
@@ -149,5 +152,7 @@ export interface SuggestedApprovers {
   /** Current step of a two-step chain (absent on an old BE). */
   step?: number | null;
   total_steps?: number | null;
+  step_required_level?: number | null;
+  step_label?: string | null;
   approvers: SuggestedApprover[];
 }

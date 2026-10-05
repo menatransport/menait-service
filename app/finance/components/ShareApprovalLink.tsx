@@ -61,7 +61,7 @@ export function ShareApprovalLink({ detail }: { detail: AdvanceDetail }) {
             <p className="text-sm text-gray-600">ยังดึงรายชื่อผู้อนุมัติไม่ได้ ส่งลิงก์ให้หัวหน้าตามสายงานได้เลย</p>
           ) : data && (
             <>
-              <p className="mb-2 text-sm text-gray-700">{`${stepBadge(data.step, data.total_steps) ? `${stepBadge(data.step, data.total_steps)} · ` : ''}ข้อ ${data.clause} · ${data.approver_label} — ผู้อนุมัติระดับ ${data.required_level} ขึ้นไป`}</p>
+              <p className="mb-2 text-sm text-gray-700">{[stepBadge(data.step, data.total_steps), data.step_label ?? `ข้อ ${data.clause} · ${data.approver_label} — ผู้อนุมัติระดับ ${data.step_required_level ?? data.required_level} ขึ้นไป`].filter(Boolean).join(' · ')}</p>
               {data.approvers.length === 0 ? (
                 <p className="text-sm text-amber-700">ไม่พบผู้อนุมัติที่เหมาะสม กรุณาติดต่อฝ่ายการเงิน</p>
               ) : (

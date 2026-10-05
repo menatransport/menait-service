@@ -184,6 +184,11 @@ describe('cash advance form', () => {
     const skip = toCashAdvanceData({ ...detail, approval: { ...detail.approval, step_approvals: [detail.approval.step_approvals[0]] } });
     expect(skip.signatures.unit_head.esign).toBeUndefined();
     expect(skip.signatures.approver.esign?.name).toBe('หัวหน้า');
+    // same employee at both steps (BE skip writes a second log) -> one stamp in approver
+    const sa = detail.approval.step_approvals;
+    const same = toCashAdvanceData({ ...detail, approval: { ...detail.approval, step_approvals: [sa[0], { ...sa[1], employee_id: '2', name: 'หัวหน้า', action_at: sa[0].action_at }] } });
+    expect(same.signatures.unit_head.esign).toBeUndefined();
+    expect(same.signatures.approver.esign?.name).toBe('หัวหน้า');
     // single-step chain keeps today's log-based mapping
     const one = toCashAdvanceData({ ...detail, approval: { clause: '6.7', approver_label: 'x', required_level: 4, steps: [{ step: 1, required_level: 4, label: 'a' }] } });
     expect(one.signatures.unit_head.esign).toBeUndefined();

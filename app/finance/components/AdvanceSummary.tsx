@@ -40,6 +40,7 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
                 <ol className="mt-2 space-y-1.5">
                   {item.approval.steps!.map(st => {
                     const done = item.approval!.step_approvals?.find(a => a.step === st.step && a.action_at);
+                    const waiting = item.status === 'PENDING_APPROVAL' && item.approval!.current_step != null;
                     const when = done?.action_at ? formatBkkDateTime(done.action_at) : null;
                     return (
                       <li key={st.step} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-800">
@@ -47,7 +48,7 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
                         {' — '}
                         {done
                           ? <span className="text-emerald-700">{done.name ?? '-'}{when ? ` · ${when.date} ${when.time.slice(0, 5)} น.` : ''}</span>
-                          : <span className="text-amber-700">รอ</span>}
+                          : waiting ? <span className="text-amber-700">รอ</span> : <span className="text-gray-400">-</span>}
                       </li>
                     );
                   })}
