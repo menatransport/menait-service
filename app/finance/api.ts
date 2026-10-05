@@ -49,3 +49,19 @@ export const showConfirm = (options: Record<string, unknown>) =>
     showCancelButton: true, confirmButtonColor: '#1c6ef2', cancelButtonColor: '#d33',
     confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', ...options,
   }));
+
+/** Uploads bookbank files to a payee request one by one (multipart field "file"); returns names that failed. */
+export async function uploadPayeeFiles(requestId: number | string, files: File[]): Promise<string[]> {
+  const failed: string[] = [];
+  for (const file of files) {
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const res = await fetch(`/api/finance/payee-requests/${encodeURIComponent(String(requestId))}/files`, { method: 'POST', body: fd });
+      if (!res.ok) failed.push(file.name);
+    } catch {
+      failed.push(file.name);
+    }
+  }
+  return failed;
+}

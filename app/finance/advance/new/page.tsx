@@ -14,10 +14,14 @@ import { isBeforeToday } from '@/lib/finance/dates';
 import { parseAmount, todayBkk } from '@/lib/finance/status';
 import { fetchJson, showAlert, uploadFiles } from '../../api';
 import { FilePicker } from '../../components/FilePicker';
+import { PayeeAccountSection, type PayeeSectionStatus } from '../../components/PayeeAccountSection';
+import { canSubmitPayee, PAYEE_SELF, PAYEE_SUPPLIER } from '@/lib/finance/payee';
 import { FinanceShell } from '../../components/FinanceShell';
 import { ToaDialog } from '../../components/ToaDialog';
 
 interface AdvForm { form_code: string; form_name: string; form_status: string; questions: Question[] }
+
+const payeeNames = ['adv_payee_type', 'adv_bank', 'adv_account_no', 'adv_account_name'];
 
 const isBlank = (v: unknown) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
 
@@ -35,6 +39,7 @@ export default function NewAdvancePage() {
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [payeeStatus, setPayeeStatus] = useState<PayeeSectionStatus>({ loaded: false, state: 'none' });
 
   const useDateQuestion = useMemo(
     () => (form ? findUseDateQuestion(form.questions) : undefined),
@@ -78,6 +83,19 @@ export default function NewAdvancePage() {
     });
   }, []);
 
+  // Payee section: only when the form has adv_payee_type (after the migration); otherwise generic bank/account inputs.
+  const hasPayeeType = !!form?.questions.some(q => q.name === 'adv_payee_type');
+  const onPayeeChange = useCallback((patch: Record<string, any>) => {
+    setValues(prev => ({ ...prev, ...patch }));
+    setErrors(prev => {
+      if (!payeeNames.some(n => prev[n])) return prev;
+      const rest = { ...prev };
+      for (const n of payeeNames) delete rest[n];
+      return rest;
+    });
+  }, []);
+  const isSupplier = hasPayeeType && values.adv_payee_type === PAYEE_SUPPLIER;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form) return;
@@ -86,6 +104,7 @@ export default function NewAdvancePage() {
     }
     const next: Record<string, string> = {};
     for (const q of form.questions) {
+      if (hasPayeeType && payeeNames.includes(q.name)) continue;
       if (q.required && isBlank(values[q.name])) next[q.name] = `กรุณาระบุ${q.label}`;
       if (q.type === 'number' && !isBlank(values[q.name])) {
         const amount = parseAmount(values[q.name]);
@@ -98,9 +117,23 @@ export default function NewAdvancePage() {
     }
     const bankQ = form.questions.find(q => q.name === 'adv_bank');
     const accountQ = form.questions.find(q => q.name === 'adv_account_no');
-    if (accountQ && !next[accountQ.name] && !isBlank(values[accountQ.name])) {
+    if (!hasPayeeType && accountQ && !next[accountQ.name] && !isBlank(values[accountQ.name])) {
       const msg = accountNoError(bankQ ? values[bankQ.name] : null, values[accountQ.name]);
       if (msg) next[accountQ.name] = msg;
+    }
+    if (hasPayeeType) {
+      if (isSupplier) {
+        if (isBlank(values.adv_bank)) next.adv_bank = 'กรุณาเลือกธนาคาร';
+        if (isBlank(values.adv_account_no)) next.adv_account_no = 'กรุณาระบุเลขที่บัญชี';
+        else { const msg = accountNoError(values.adv_bank, values.adv_account_no); if (msg) next.adv_account_no = msg; }
+        if (isBlank(values.adv_account_name)) next.adv_account_name = 'กรุณาระบุชื่อบัญชี';
+      }
+      if (!canSubmitPayee(isSupplier ? PAYEE_SUPPLIER : PAYEE_SELF, payeeStatus.loaded ? payeeStatus.state : 'none', files.length)) {
+        setErrors(next);
+        return showAlert(isSupplier
+          ? { icon: 'warning', title: 'กรุณาแนบ bookbank หรือใบแจ้งหนี้ที่มีเลขบัญชี' }
+          : { icon: 'warning', title: 'ยังไม่มีบัญชีรับเงินที่บัญชีอนุมัติ — กรุณาขอเพิ่มบัญชีรับเงิน หรือเลือกบัญชี Supplier' });
+      }
     }
     if (Object.keys(next).length) { setErrors(next); return; }
 
@@ -181,7 +214,12 @@ export default function NewAdvancePage() {
                 </span>
               </div>
             </div>
-            {form.questions.map((q, index) =>
+            {form.questions.map((q, index) => hasPayeeType && payeeNames.includes(q.name) ? (
+              q.name === 'adv_payee_type' ? (
+                <PayeeAccountSection key={q.id} errors={errors} onPayeeChange={onPayeeChange} onStatusChange={setPayeeStatus}
+                  fullName={user ? `${user.firstname} ${user.lastname}`.trim() : ''} disabled={submitting} />
+              ) : null
+            ) :
               <div key={q.id}>
                 {q.name === 'adv_bank' && (
                   <p className="mb-3 border-t border-gray-100 pt-5 flex items-center gap-2 text-sm font-semibold text-brand-800">
@@ -214,7 +252,7 @@ export default function NewAdvancePage() {
             )}
             <div>
               <p className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700">
-                <Paperclip className="w-4 h-4 text-brand-600" /> เอกสารประกอบ <span className="text-gray-400 font-normal">(ถ้ามี)</span>
+                <Paperclip className="w-4 h-4 text-brand-600" /> {isSupplier ? <>แนบ bookbank หรือใบแจ้งหนี้ที่มีเลขบัญชี <span className="text-rose-600">*</span></> : <>เอกสารประกอบ <span className="text-gray-400 font-normal">(ถ้ามี)</span></>}
               </p>
               <FilePicker files={files} onChange={setFiles} disabled={submitting} />
             </div>
