@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { requireUser } from '@/lib/finance/server';
 
 export async function GET(request: NextRequest) {
+    const guard = await requireUser(request);
+    if ('error' in guard) return guard.error;
     try {
         const { searchParams } = new URL(request.url);
         const path = searchParams.get('form_id');

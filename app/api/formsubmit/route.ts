@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { requireUser } from '@/lib/finance/server';
+import { forceAdvActor } from '@/lib/finance/formsubmit-guard';
 
 const formCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; 
 
 export async function GET(request: NextRequest) {
+    const guard = await requireUser(request);
+    if ('error' in guard) return guard.error;
     const { searchParams } = new URL(request.url);
     const path = searchParams.get('path');
 
@@ -43,8 +47,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+    const guard = await requireUser(request);
+    if ('error' in guard) return guard.error;
     try {
-        const reqBody = await request.json();
+        const reqBody = forceAdvActor(await request.json(), guard.user.employee_id, {});
 
         const res = await fetch(`${process.env.URL_API}/forms/submit`, {
             method: "POST",
@@ -69,10 +75,12 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+    const guard = await requireUser(request);
+    if ('error' in guard) return guard.error;
     try {
-        const reqBody = await request.json();
         const { searchParams } = new URL(request.url);
         const path = searchParams.get('form_id');
+        const reqBody = forceAdvActor(await request.json(), guard.user.employee_id, { formId: path });
         const res = await fetch(`${process.env.URL_API}/forms/${path}`, {
             method: "PUT",
             headers: {
