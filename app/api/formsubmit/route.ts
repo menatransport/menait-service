@@ -23,15 +23,18 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid path parameter' }, { status: 400 });
     }
 
-    const cached = formCache.get(path);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-        return NextResponse.json(cached.data);
-    }
     const version = searchParams.get('version');
     if (version && !/^\d{1,6}$/.test(version)) {
         return NextResponse.json({ error: 'Invalid version' }, { status: 400 });
     }
     const versionQuery = version ? `?version=${version}` : '';
+    // a versioned request must never be answered with the cached latest version (or another version)
+    const cacheKey = version ? `${path}@v${version}` : path;
+
+    const cached = formCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        return NextResponse.json(cached.data);
+    }
 
     try {
         const res = await fetch(`${process.env.URL_API}/forms/${path}${versionQuery}`, {
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: data?.detail }, { status: res.status });
         }
 
-        formCache.set(path, { data, timestamp: Date.now() });
+        formCache.set(cacheKey, { data, timestamp: Date.now() });
 
         return NextResponse.json(data);
     } catch (error) {

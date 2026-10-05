@@ -1548,7 +1548,9 @@ export const Viewer = ({
         setIsLoadingForm(true);
         try {
             const currentBack = selectTicketBackRef.current;
-            const response = await fetch(`/api/formsubmit?path=${ticket.form_code}?version=${currentBack?.form_version}`, {
+            const version = currentBack?.form_version;
+            const versionQS = version !== undefined && version !== null ? `&version=${encodeURIComponent(String(version))}` : '';
+            const response = await fetch(`/api/formsubmit?path=${encodeURIComponent(ticket.form_code)}${versionQS}`, {
                 method: "GET",
             });
             const data = await response.json();
