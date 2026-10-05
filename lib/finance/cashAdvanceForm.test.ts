@@ -163,7 +163,7 @@ describe('cash advance form', () => {
       form_id: 'ADV-2610-001', status: 'AWAITING_PAYMENT', created_at: '2026-09-15T02:12:45+00:00',
       requester: { employee_id: '1', name: 'ผู้ขอ' }, request: { purpose: 'p', amount: 1 }, fin: null,
       approval: {
-        clause: '6.5', approver_label: 'x', required_level: 5, current_step: null,
+        clause: '6.5', approver_label: 'x', required_level: 5, current_step: 2,
         steps: [{ step: 1, required_level: 4, label: 'a' }, { step: 2, required_level: 5, label: 'b' }],
         step_approvals: [
           { step: 1, employee_id: '2', name: 'หัวหน้า', action_at: '2026-09-16T01:00:00+00:00' },
@@ -177,13 +177,17 @@ describe('cash advance form', () => {
     expect(d.signatures.approver.esign).toEqual({ name: 'ผู้อำนวยการ', timestamp: '2026-09-17T02:00:00+00:00', ref: 'ข้อ 6.5' });
     expect(d.signatures.manager.esign).toBeUndefined();
     // step 2 pending: approver blank, unit head stamped
-    const pend = toCashAdvanceData({ ...detail, approval: { ...detail.approval, current_step: 2, step_approvals: [detail.approval.step_approvals[0]] }, approval_logs: [] });
+    const pend = toCashAdvanceData({ ...detail, status: 'PENDING_APPROVAL', approval: { ...detail.approval, current_step: 2, step_approvals: [detail.approval.step_approvals[0]] }, approval_logs: [] });
     expect(pend.signatures.unit_head.esign?.name).toBe('หัวหน้า');
     expect(pend.signatures.approver.esign).toBeUndefined();
-    // dynamic skip: only step 1 recorded and completed -> single stamp in approver
-    const skip = toCashAdvanceData({ ...detail, approval: { ...detail.approval, step_approvals: [detail.approval.step_approvals[0]] } });
+    // only step 1 recorded and approval complete (BE still sends current_step = 1) -> single stamp in approver
+    const skip = toCashAdvanceData({ ...detail, approval: { ...detail.approval, current_step: 1, step_approvals: [detail.approval.step_approvals[0]] } });
     expect(skip.signatures.unit_head.esign).toBeUndefined();
     expect(skip.signatures.approver.esign?.name).toBe('หัวหน้า');
+    // pending at step 1 (nothing recorded) -> no stamps moved
+    const p1 = toCashAdvanceData({ ...detail, status: 'PENDING_APPROVAL', approval: { ...detail.approval, current_step: 1, step_approvals: [] }, approval_logs: [] });
+    expect(p1.signatures.unit_head.esign).toBeUndefined();
+    expect(p1.signatures.approver.esign).toBeUndefined();
     // same employee at both steps (BE skip writes a second log) -> one stamp in approver
     const sa = detail.approval.step_approvals;
     const same = toCashAdvanceData({ ...detail, approval: { ...detail.approval, step_approvals: [sa[0], { ...sa[1], employee_id: '2', name: 'หัวหน้า', action_at: sa[0].action_at }] } });

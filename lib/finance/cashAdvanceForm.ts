@@ -228,7 +228,9 @@ export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
   // Dynamic skip: completed at step 1 and no separate step-2 approver -> one stamp, in the approver column.
   // Also when the same employee approved both (BE logs step 2 for the skipped step).
   const sameApprover = !!(s1 && s2 && s1.employee_id && s1.employee_id === s2.employee_id);
-  if (mapped && s1 && ((!s2 && detail.approval?.current_step == null) || sameApprover)) { s2 = s1; s1 = undefined; }
+  // BE keeps current_step numeric after completion, so "complete" comes from the document status
+  const approvalDone = detail.status !== 'PENDING_APPROVAL' && detail.status !== 'REJECTED';
+  if (mapped && s1 && ((!s2 && approvalDone) || sameApprover)) { s2 = s1; s1 = undefined; }
   const finalStep = mapped ? s2 : undefined;
   const payee = payeeFields(r);
   const name = detail.requester.name ?? '';
