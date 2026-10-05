@@ -154,7 +154,7 @@ export function PayeeAccountSection({ errors, onPayeeChange, onStatusChange, ful
         </div>
       );
     }
-    if (state === 'ready' || state === 'ready_change_pending') {
+    if (state === 'ready' || state === 'ready_change_pending' || state === 'ready_change_rejected') {
       return (
         <div className="rounded-xl bg-mint-300/25 px-3 py-2.5 text-sm space-y-1">
           <p className="font-medium text-brand-800 break-words">
@@ -166,11 +166,16 @@ export function PayeeAccountSection({ errors, onPayeeChange, onStatusChange, ful
               {req && pendingBox}
             </>
           ) : (
+            <>
+            {state === 'ready_change_rejected' && (
+              <p className="text-xs text-rose-700 break-words">คำขอเปลี่ยนบัญชีไม่ได้รับอนุมัติ: {req?.review_remark || '-'}</p>
+            )}
             <p className="text-xs text-gray-500">
               หากต้องการเปลี่ยนบัญชี{' '}
               <button type="button" disabled={disabled || busy} onClick={() => setDialogOpen(true)}
                 className="text-brand-600 underline underline-offset-2">ขอเปลี่ยนบัญชี</button>
             </p>
+            </>
           )}
         </div>
       );

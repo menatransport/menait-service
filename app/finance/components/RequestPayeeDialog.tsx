@@ -79,14 +79,14 @@ export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone }: 
         <div className="space-y-4">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">เลขที่บัญชีกสิกรไทย <span className="text-rose-600">*</span></label>
-            <Input value={accountNo} inputMode="numeric" disabled={busy} placeholder="เช่น 123-4-56789-0"
+            <Input value={accountNo} maxLength={20} inputMode="numeric" disabled={busy} placeholder="เช่น 123-4-56789-0"
               onChange={(e) => { setAccountNo(e.target.value); setErrors(p => ({ ...p, account_no: '' })); }} />
             {(errors.account_no || liveAccountError) && <p className="mt-1 text-xs text-rose-600">{errors.account_no || liveAccountError}</p>}
             {!liveAccountError && accountNo && <p className="mt-1 text-xs text-gray-400">{formatAccountNo(accountNo)}</p>}
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">ชื่อบัญชี <span className="text-rose-600">*</span></label>
-            <Input value={accountName} disabled={busy}
+            <Input value={accountName} maxLength={150} disabled={busy}
               onChange={(e) => { setAccountName(e.target.value); setErrors(p => ({ ...p, account_name: '' })); }} />
             {errors.account_name && <p className="mt-1 text-xs text-rose-600">{errors.account_name}</p>}
           </div>
@@ -97,7 +97,7 @@ export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone }: 
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">หมายเหตุ</label>
-            <Input value={remark} disabled={busy} onChange={(e) => setRemark(e.target.value)} />
+            <Input value={remark} maxLength={500} disabled={busy} onChange={(e) => setRemark(e.target.value)} />
           </div>
           <Button type="button" onClick={submit} disabled={busy}
             className="w-full h-11 bg-linear-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-semibold rounded-xl disabled:opacity-60">

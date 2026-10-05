@@ -149,6 +149,10 @@ export function RequestReviewDialog({ requestId, onClose, onChanged }: {
                 )}
             </div>
 
+            {pending && !rejecting && files !== null && files.length === 0 && (
+              <p className="text-sm text-amber-700">ยังไม่มีไฟล์ bookbank — รอผู้ขอแนบไฟล์ก่อนอนุมัติ</p>
+            )}
+
             {pending && rejecting && (
               <div>
                 <label htmlFor="payee-reject-reason" className="mb-1 block text-xs font-semibold text-gray-600">เหตุผลที่ไม่อนุมัติ (จำเป็น)</label>
@@ -166,7 +170,7 @@ export function RequestReviewDialog({ requestId, onClose, onChanged }: {
                 ) : (
                   <>
                     <button type="button" className={BTN_REJECT} onClick={() => setRejecting(true)} disabled={busy}>ไม่อนุมัติ</button>
-                    <button type="button" className={BTN_APPROVE} onClick={() => act('approve')} disabled={busy}>อนุมัติ</button>
+                    <button type="button" className={BTN_APPROVE} onClick={() => act('approve')} disabled={busy || files === null || files.length === 0}>อนุมัติ</button>
                   </>
                 )}
               </div>

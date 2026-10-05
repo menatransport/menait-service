@@ -47,7 +47,7 @@ export type PayeeRequest = {
 
 export type PayeeMe = { account: PayeeAccount | null; request: PayeeRequest | null };
 
-export type SelfPayeeState = 'ready' | 'ready_change_pending' | 'pending' | 'rejected' | 'none';
+export type SelfPayeeState = 'ready' | 'ready_change_pending' | 'ready_change_rejected' | 'pending' | 'rejected' | 'none';
 
 /** K-Bank employee account: exactly 10 digits after stripping spaces and dashes. */
 export function kbankAccountError(raw: string | null | undefined): string | null {
@@ -57,7 +57,16 @@ export function kbankAccountError(raw: string | null | undefined): string | null
 export function selfPayeeState(me: Partial<PayeeMe> | null | undefined): SelfPayeeState {
   const active = me?.account?.status === 'ACTIVE';
   const reqStatus = me?.request?.status;
-  if (active) return reqStatus === 'PENDING' ? 'ready_change_pending' : 'ready';
+  if (active) {
+    if (reqStatus === 'PENDING') return 'ready_change_pending';
+    if (reqStatus === 'REJECTED') {
+      // Only surface a rejection that is newer than the current account (an older one was superseded).
+      const reqAt = Date.parse(me?.request?.created_at ?? '');
+      const accAt = Date.parse(me?.account?.updated_at ?? '');
+      if (!Number.isNaN(reqAt) && (Number.isNaN(accAt) || reqAt > accAt)) return 'ready_change_rejected';
+    }
+    return 'ready';
+  }
   if (reqStatus === 'PENDING') return 'pending';
   if (reqStatus === 'REJECTED') return 'rejected';
   return 'none';
@@ -65,13 +74,14 @@ export function selfPayeeState(me: Partial<PayeeMe> | null | undefined): SelfPay
 
 /** Whether the ADV form may be submitted given the payee choice. */
 export function canSubmitPayee(type: string, state: SelfPayeeState, supplierFileCount: number): boolean {
-  if (type === PAYEE_SELF) return state === 'ready' || state === 'ready_change_pending';
+  if (type === PAYEE_SELF) return state === 'ready' || state === 'ready_change_pending' || state === 'ready_change_rejected';
   if (type === PAYEE_SUPPLIER) return supplierFileCount >= 1;
   return false;
 }
 
 export const PAYEE_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const;
-export const PAYEE_FILE_MAX_BYTES = 10 * 1024 * 1024;
+/** Vercel's function body limit is ~4.5 MB, so keep files under 4 MB. */
+export const PAYEE_FILE_MAX_BYTES = 4 * 1024 * 1024;
 
 /** Keep [\w.-] and Thai; everything else becomes "_". Prefixed with a timestamp by the caller. */
 export function sanitizePayeeFileName(name: string): string {
@@ -98,7 +108,7 @@ export function checkPayeeFiles(files: { name: string; type: string; size: numbe
   const warnings: string[] = [];
   files.forEach((f, i) => {
     if (!(PAYEE_FILE_TYPES as readonly string[]).includes(f.type)) warnings.push(`${f.name}: รองรับเฉพาะไฟล์ JPG, PNG, WebP หรือ PDF`);
-    else if (f.size > PAYEE_FILE_MAX_BYTES) warnings.push(`${f.name}: ไฟล์ต้องมีขนาดไม่เกิน 10 MB`);
+    else if (f.size > PAYEE_FILE_MAX_BYTES) warnings.push(`${f.name}: ไฟล์ต้องมีขนาดไม่เกิน 4 MB`);
     else if (valid.length >= PAYEE_MAX_FILES) warnings.push(`${f.name}: แนบไฟล์ได้ไม่เกิน ${PAYEE_MAX_FILES} ไฟล์ต่อครั้ง`);
     else valid.push(i);
   });

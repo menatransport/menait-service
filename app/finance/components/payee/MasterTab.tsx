@@ -230,12 +230,12 @@ function AddAccountDialog({ open, onOpenChange, onDone }: { open: boolean; onOpe
           </div>
           <div>
             <label htmlFor="pa-no" className={LABEL}>เลขที่บัญชี K-Bank</label>
-            <Input id="pa-no" inputMode="numeric" value={accountNo} onChange={e => setAccountNo(e.target.value)} placeholder="10 หลัก" />
+            <Input id="pa-no" maxLength={20} inputMode="numeric" value={accountNo} onChange={e => setAccountNo(e.target.value)} placeholder="10 หลัก" />
             {errors.account_no && <p className="mt-1 text-xs text-rose-600">{errors.account_no}</p>}
           </div>
           <div>
             <label htmlFor="pa-name" className={LABEL}>ชื่อบัญชี</label>
-            <Input id="pa-name" value={accountName} onChange={e => setAccountName(e.target.value)} />
+            <Input id="pa-name" maxLength={150} value={accountName} onChange={e => setAccountName(e.target.value)} />
             {errors.account_name && <p className="mt-1 text-xs text-rose-600">{errors.account_name}</p>}
           </div>
           <div className="flex justify-end gap-2 pt-1">
@@ -292,12 +292,12 @@ function EditAccountDialog({ account, onClose, onDone }: { account: PayeeAccount
         <div className="space-y-3">
           <div>
             <label htmlFor="pe-no" className={LABEL}>เลขที่บัญชี K-Bank</label>
-            <Input id="pe-no" inputMode="numeric" value={accountNo} onChange={e => setAccountNo(e.target.value)} />
+            <Input id="pe-no" maxLength={20} inputMode="numeric" value={accountNo} onChange={e => setAccountNo(e.target.value)} />
             {errors.account_no && <p className="mt-1 text-xs text-rose-600">{errors.account_no}</p>}
           </div>
           <div>
             <label htmlFor="pe-name" className={LABEL}>ชื่อบัญชี</label>
-            <Input id="pe-name" value={accountName} onChange={e => setAccountName(e.target.value)} />
+            <Input id="pe-name" maxLength={150} value={accountName} onChange={e => setAccountName(e.target.value)} />
             {errors.account_name && <p className="mt-1 text-xs text-rose-600">{errors.account_name}</p>}
           </div>
           <div className="flex justify-end gap-2 pt-1">

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  PAYEE_SELF, PAYEE_SUPPLIER, canSubmitPayee, kbankAccountError, sanitizePayeeFileName, selfPayeeState, sniffPayeeFileType,
+  PAYEE_FILE_MAX_BYTES, checkPayeeFiles, PAYEE_SELF, PAYEE_SUPPLIER, canSubmitPayee, kbankAccountError, sanitizePayeeFileName, selfPayeeState, sniffPayeeFileType,
 } from './payee';
 
 const acc = (status: 'ACTIVE' | 'INACTIVE') => ({ status }) as any;
@@ -24,7 +24,12 @@ describe('kbankAccountError', () => {
 describe('selfPayeeState', () => {
   test('rules', () => {
     expect(selfPayeeState({ account: acc('ACTIVE'), request: req('PENDING') })).toBe('ready_change_pending');
-    expect(selfPayeeState({ account: acc('ACTIVE'), request: req('REJECTED') })).toBe('ready');
+    const rej = (created_at: string | null) => ({ status: 'REJECTED', created_at }) as any;
+    const accAt = { status: 'ACTIVE', updated_at: '2026-10-01T00:00:00Z' } as any;
+    expect(selfPayeeState({ account: accAt, request: rej('2026-10-02T00:00:00Z') })).toBe('ready_change_rejected');
+    expect(selfPayeeState({ account: accAt, request: rej('2026-09-30T00:00:00Z') })).toBe('ready');
+    expect(selfPayeeState({ account: accAt, request: rej(null) })).toBe('ready');
+    expect(selfPayeeState({ account: acc('ACTIVE'), request: rej('2026-10-02T00:00:00Z') })).toBe('ready_change_rejected');
     expect(selfPayeeState({ account: acc('ACTIVE'), request: null })).toBe('ready');
     expect(selfPayeeState({ account: null, request: req('PENDING') })).toBe('pending');
     expect(selfPayeeState({ account: acc('INACTIVE'), request: req('PENDING') })).toBe('pending');
@@ -41,6 +46,7 @@ describe('canSubmitPayee', () => {
   test('SELF needs an active master', () => {
     expect(canSubmitPayee(PAYEE_SELF, 'ready', 0)).toBe(true);
     expect(canSubmitPayee(PAYEE_SELF, 'ready_change_pending', 0)).toBe(true);
+    expect(canSubmitPayee(PAYEE_SELF, 'ready_change_rejected', 0)).toBe(true);
     for (const s of ['pending', 'rejected', 'none'] as const) expect(canSubmitPayee(PAYEE_SELF, s, 5)).toBe(false);
   });
   test('SUPPLIER needs at least one file, ignores self state', () => {
@@ -75,5 +81,17 @@ describe('sniffPayeeFileType', () => {
     expect(sniffPayeeFileType(u())).toBeNull();
     expect(sniffPayeeFileType(u(0x52, 0x49, 0x46, 0x46, 1, 2, 3, 4, 0x57, 0x41, 0x56, 0x45))).toBeNull();
     expect(sniffPayeeFileType(new TextEncoder().encode('<html>'))).toBeNull();
+  });
+});
+
+describe('payee file size limit', () => {
+  test('4 MB cap', () => {
+    expect(PAYEE_FILE_MAX_BYTES).toBe(4 * 1024 * 1024);
+    const r = checkPayeeFiles([
+      { name: 'a.pdf', type: 'application/pdf', size: PAYEE_FILE_MAX_BYTES },
+      { name: 'b.pdf', type: 'application/pdf', size: PAYEE_FILE_MAX_BYTES + 1 },
+    ]);
+    expect(r.valid).toEqual([0]);
+    expect(r.warnings[0]).toContain('4 MB');
   });
 });

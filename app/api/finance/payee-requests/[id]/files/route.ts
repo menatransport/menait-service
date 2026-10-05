@@ -44,8 +44,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'คำขอนี้ไม่อยู่ในสถานะรอตรวจสอบ' }, { status: 409 });
   }
   const declared = Number(req.headers.get('content-length') ?? 0);
-  if (declared > PAYEE_FILE_MAX_BYTES + 1024 * 1024) {
-    return NextResponse.json({ error: 'ไฟล์ต้องมีขนาดไม่เกิน 10 MB' }, { status: 413 });
+  if (declared > PAYEE_FILE_MAX_BYTES + 256 * 1024) {
+    return NextResponse.json({ error: 'ไฟล์ต้องมีขนาดไม่เกิน 4 MB' }, { status: 413 });
   }
   const prefix = `${BASE_PATH}/payee-requests/${id}/`;
   try {
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'รองรับเฉพาะไฟล์ JPG, PNG, WebP หรือ PDF' }, { status: 400 });
   }
   if (file.size > PAYEE_FILE_MAX_BYTES) {
-    return NextResponse.json({ error: 'ไฟล์ต้องมีขนาดไม่เกิน 10 MB' }, { status: 400 });
+    return NextResponse.json({ error: 'ไฟล์ต้องมีขนาดไม่เกิน 4 MB' }, { status: 400 });
   }
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (sniffPayeeFileType(bytes) !== file.type) {
