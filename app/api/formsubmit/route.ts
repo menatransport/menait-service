@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { requireUser } from '@/lib/finance/server';
 import { forceAdvActor } from '@/lib/finance/formsubmit-guard';
+import { FORM_ID_PATTERN } from '@/lib/s3';
+
+// path segments go straight into the BE URL — validate them so `../` or `?` can't reach other BE routes
+const FORM_CODE_PATTERN = /^[A-Za-z0-9_-]{1,50}$/;
 
 const formCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; 
@@ -15,12 +19,18 @@ export async function GET(request: NextRequest) {
     if (!path) {
         return NextResponse.json({ error: 'Missing path parameter' }, { status: 400 });
     }
+    if (!FORM_CODE_PATTERN.test(path)) {
+        return NextResponse.json({ error: 'Invalid path parameter' }, { status: 400 });
+    }
 
     const cached = formCache.get(path);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
         return NextResponse.json(cached.data);
     }
     const version = searchParams.get('version');
+    if (version && !/^\d{1,6}$/.test(version)) {
+        return NextResponse.json({ error: 'Invalid version' }, { status: 400 });
+    }
     const versionQuery = version ? `?version=${version}` : '';
 
     try {
@@ -80,6 +90,9 @@ export async function PUT(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const path = searchParams.get('form_id');
+        if (!path || !FORM_ID_PATTERN.test(path)) {
+            return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
+        }
         const reqBody = forceAdvActor(await request.json(), guard.user.employee_id, { formId: path });
         const res = await fetch(`${process.env.URL_API}/forms/${path}`, {
             method: "PUT",

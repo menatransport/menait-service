@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { requireUser } from '@/lib/finance/server';
+import { FORM_ID_PATTERN } from '@/lib/s3';
 
 export async function GET(request: NextRequest) {
     const guard = await requireUser(request);
@@ -8,6 +9,9 @@ export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const path = searchParams.get('form_id');
+        if (!path || !FORM_ID_PATTERN.test(path)) {
+            return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
+        }
         const res = await fetch(`${process.env.URL_API}/forms/${path}/logs`, {
             'method': 'GET',
         });

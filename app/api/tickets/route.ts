@@ -1,3 +1,5 @@
+import { requireUser } from '@/lib/finance/server';
+import { FORM_ID_PATTERN } from '@/lib/s3';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { filterByScope } from '@/lib/finance/scope';
@@ -67,9 +69,19 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const { form_id, employee_id, action, remark } = await request.json();
+    // approve/reject act as the logged-in user: employee_id comes from the session, never the browser
+    const guard = await requireUser(request);
+    if ('error' in guard) return guard.error;
+    const { form_id, action, remark } = await request.json();
+    if (typeof form_id !== 'string' || !FORM_ID_PATTERN.test(form_id)) {
+        return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
+    }
+    if (action !== 'approve' && action !== 'reject') {
+        return NextResponse.json({ error: 'action ไม่ถูกต้อง' }, { status: 400 });
+    }
+    const qs = new URLSearchParams({ employee_id: guard.user.employee_id, remark: typeof remark === 'string' ? remark : '' });
 
-    const res = await fetch(`${process.env.URL_API}/forms/${form_id}/${action}?employee_id=${employee_id}&remark=${remark || ''}`, {
+    const res = await fetch(`${process.env.URL_API}/forms/${form_id}/${action}?${qs.toString()}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
