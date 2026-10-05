@@ -10,6 +10,8 @@ import { DateField } from './DateField';
 import { Panel } from './FinanceShell';
 import { PayeeTypeBadge } from './PayeeTypeBadge';
 
+const FRESH_VOUCHER_STATUSES = new Set(['RESUBMITTED', 'VOUCHER_REJECTED', 'RETURNED']);
+
 export function VoucherForm({ detail, onSaved }: {
   detail: AdvanceDetail; onSaved: (d: AdvanceDetail) => void;
 }) {
@@ -18,6 +20,8 @@ export function VoucherForm({ detail, onSaved }: {
   const [voucherDate, setVoucherDate] = useState(fin?.voucher_date ?? todayBkk());
   const [saving, setSaving] = useState(false);
   const rejected = fin?.fin_status === 'VOUCHER_REJECTED';
+  // a fin row exists after a return/resubmit/voucher rejection too, but no voucher stands for this round yet
+  const editing = Boolean(fin) && !FRESH_VOUCHER_STATUSES.has(fin?.fin_status ?? '');
   const rejectRemark = rejected
     ? [...detail.fin_logs].filter(l => l.action === 'VOUCHER_REJECT')
         .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? '')).pop()?.remark ?? ''
@@ -41,7 +45,7 @@ export function VoucherForm({ detail, onSaved }: {
   };
 
   return (
-    <Panel title={rejected ? 'ตั้งเบิกทำจ่าย (แก้ไขตามที่ตีกลับ)' : fin ? 'แก้ไขข้อมูลตั้งเบิก' : 'ตั้งเบิกทำจ่าย'}>
+    <Panel title={rejected ? 'ตั้งเบิกทำจ่าย (แก้ไขตามที่ตีกลับ)' : editing ? 'แก้ไขข้อมูลตั้งเบิก' : 'ตั้งเบิกทำจ่าย'}>
       {rejected && (
         <div className="mb-4 rounded-lg border border-orange-300 bg-orange-50 px-4 py-3 text-sm text-orange-800">
           การเงินตีกลับ: {rejectRemark || '-'}
