@@ -197,7 +197,13 @@ function NewAdvance() {
         const uploaded = files.filter(f => !failedEdit.includes(f.name));
         setFiles(files.filter(f => failedEdit.includes(f.name)));
         setExistingCount(c => c + uploaded.length);
-        await putAction(editId, 'resubmit', {});
+        try {
+          await putAction(editId, 'resubmit', {});
+        } catch (err) {
+          // a lost response on an earlier try may already have resubmitted it: treat "already pending approval" as success
+          const now = await fetchJson<{ status?: string }>(`/api/finance/advances/${encodeURIComponent(editId)}`).catch(() => null);
+          if (now?.status !== 'PENDING_APPROVAL') throw err;
+        }
         await showAlert({
           icon: failedEdit.length ? 'warning' : 'success',
           title: 'ส่งคำขอใหม่แล้ว รออนุมัติ',
