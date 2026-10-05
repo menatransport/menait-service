@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { fetchJson, putAction, showAlert, showConfirm } from '../api';
 import type { AdvanceDetail } from '../types';
@@ -30,19 +30,28 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
 
   const onSaved = (d: AdvanceDetail) => { setDetail(d); setRefreshKey(k => k + 1); onChanged?.(); };
 
+  const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
+
   const returnToRequester = async () => {
+    if (inFlight.current) return;
     const res = await showConfirm({
       title: 'ตีกลับให้ผู้เบิกแก้ไข?', text: detail?.form_id,
       input: 'textarea', inputPlaceholder: 'เหตุผลที่ตีกลับ',
       inputValidator: (v: string) => (v?.trim() ? undefined : 'กรุณาระบุเหตุผลที่ตีกลับ'),
     });
     if (!res.isConfirmed) return;
+    inFlight.current = true;
+    setBusy(true);
     try {
       const saved = await putAction(formId, 'return', { remark: String(res.value).trim() });
       await showAlert({ icon: 'success', title: 'ตีกลับให้ผู้เบิกแก้ไขแล้ว' });
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ตีกลับไม่สำเร็จ', text: (err as Error).message });
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
     }
   };
 
@@ -71,7 +80,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
       )}
       {(canVoucher || detail.status === 'AWAITING_PAYMENT') && (
         <div className="mb-4">
-          <Button type="button" variant="outline" onClick={returnToRequester}
+          <Button type="button" variant="outline" onClick={returnToRequester} disabled={busy}
             className="border-rose-400 text-rose-600 hover:bg-rose-50 hover:text-rose-700">
             ตีกลับให้ผู้เบิกแก้ไข
           </Button>

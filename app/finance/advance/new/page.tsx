@@ -41,6 +41,7 @@ function NewAdvance() {
   // edit mode: 'loading' until the submission is read; 'blocked' (with a message) unless RETURNED + owner
   const [editState, setEditState] = useState<{ phase: 'loading' | 'ready' | 'blocked'; message?: string }>({ phase: isEdit ? 'loading' : 'ready' });
   const [existingCount, setExistingCount] = useState(0);
+  const [listWarning, setListWarning] = useState(false);
   const { user } = useSessionContext();
   const [form, setForm] = useState<AdvForm | null>(null);
   const [values, setValues] = useState<Record<string, any>>({});
@@ -92,7 +93,7 @@ function NewAdvance() {
         const [detail, sub, uploads] = await Promise.all([
           fetchJson<AdvanceDetail>(`/api/finance/advances/${id}`),
           fetchJson<any[]>(`/api/formselect?path=${id}`),
-          fetchJson<{ files?: AttachmentFile[] }>(`/api/uploads3?form_id=${id}`).catch(() => ({ files: [] })),
+          fetchJson<{ files?: AttachmentFile[] }>(`/api/uploads3?form_id=${id}`).catch(() => { if (!cancelled) setListWarning(true); return { files: [] }; }),
         ]);
         if (cancelled) return;
         if (detail.status !== 'RETURNED') {
@@ -192,6 +193,10 @@ function NewAdvance() {
           }),
         });
         const failedEdit = await uploadFiles(editId, files);
+        // uploaded files must not be re-sent if resubmit fails and the user retries
+        const uploaded = files.filter(f => !failedEdit.includes(f.name));
+        setFiles(files.filter(f => failedEdit.includes(f.name)));
+        setExistingCount(c => c + uploaded.length);
         await putAction(editId, 'resubmit', {});
         await showAlert({
           icon: failedEdit.length ? 'warning' : 'success',
@@ -319,6 +324,9 @@ function NewAdvance() {
               <p className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700">
                 <Paperclip className="w-4 h-4 text-brand-600" /> {isSupplier ? <>แนบ bookbank หรือใบแจ้งหนี้ที่มีเลขบัญชี <span className="text-rose-600">*</span></> : <>เอกสารประกอบ <span className="text-gray-400 font-normal">(ถ้ามี)</span></>}
               </p>
+              {isEdit && listWarning && (
+                <p className="mb-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">โหลดรายการไฟล์แนบเดิมไม่สำเร็จ — หากเป็นบัญชี Supplier กรุณาแนบ bookbank อีกครั้ง</p>
+              )}
               {isEdit && editId && (
                 <div className="mb-2 rounded-xl bg-gray-50 p-3">
                   <AttachmentPanel formId={editId} folder="request" />
