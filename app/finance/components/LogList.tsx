@@ -1,9 +1,29 @@
+import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
 import { formatDate } from '@/lib/finance/status';
 import { FIELD_LABELS, LOG_ACTION_LABELS } from '../labels';
 import type { ApprovalLog, FinLog } from '../types';
 import { Panel } from './FinanceShell';
 
 const show = (v: unknown) => (v === null || v === undefined || v === '' ? '-' : String(v));
+
+const PAYEE_TYPE_LABELS: Record<string, string> = { SELF: 'บัญชีตัวเอง', SUPPLIER: 'บัญชี Supplier' };
+
+/** "account_no_forced" → base field + note that the system took the value from the payee Master. */
+function fieldLabel(field: string): string {
+  const forced = field.endsWith('_forced');
+  const base = forced ? field.slice(0, -'_forced'.length) : field;
+  const label = FIELD_LABELS[base] ?? base;
+  return forced ? `${label} (ระบบดึงจาก Master)` : label;
+}
+
+function showValue(field: string, v: unknown): string {
+  if (v === null || v === undefined || v === '') return '-';
+  const base = field.replace(/_forced$/, '');
+  if (base === 'payee_type') return PAYEE_TYPE_LABELS[String(v)] ?? String(v);
+  if (base === 'bank') return bankLabel(String(v)) || String(v);
+  if (base === 'account_no') return formatAccountNo(String(v));
+  return show(v);
+}
 
 export function LogList({ approvalLogs, finLogs }: { approvalLogs: ApprovalLog[]; finLogs: FinLog[] }) {
   if (approvalLogs.length === 0 && finLogs.length === 0) return null;
@@ -23,9 +43,9 @@ export function LogList({ approvalLogs, finLogs }: { approvalLogs: ApprovalLog[]
             {log.changes && Object.keys(log.changes).length > 0 && (
               <ul className="mt-1 text-xs text-gray-600">
                 {Object.entries(log.changes).map(([field, v]) => {
-                  const label = FIELD_LABELS[field] ?? field;
-                  if (!Array.isArray(v)) return <li key={field}>{label}: {show(v)}</li>;
-                  return <li key={field}>{label}: {show(v[0])} → {show(v[1])}</li>;
+                  const label = fieldLabel(field);
+                  if (!Array.isArray(v)) return <li key={field}>{label}: {showValue(field, v)}</li>;
+                  return <li key={field}>{label}: {showValue(field, v[0])} → {showValue(field, v[1])}</li>;
                 })}
               </ul>
             )}

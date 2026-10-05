@@ -4,6 +4,9 @@ export const FIELD_LABELS: Record<string, string> = {
   clear_date: 'วันที่ส่งเอกสารเคลียร์', amount_actual: 'ยอดใช้จริง', clear_doc_no: 'เอกสารเคลียร์',
   settle_amount: 'รับคืน (เบิกเพิ่ม)', settle_date: 'วันที่โอนเงินคืนบริษัท', remark: 'หมายเหตุ',
   items: 'จำนวนรายการค่าใช้จ่าย', items_total: 'ยอดรวมสุทธิ (รายการ)',
+  // request fields changed by the requester while ตีกลับ (RESUBMIT log); `<field>_forced` = system took it from the Master
+  amount: 'จำนวนเงินที่ขอ', use_date: 'วันที่ใช้เงิน', cost_center: 'ศูนย์ค่าใช้จ่าย', payee_type: 'บัญชีรับเงิน',
+  bank: 'ธนาคาร', account_no: 'เลขที่บัญชี', account_name: 'ชื่อบัญชี',
 };
 
 export const LOG_ACTION_LABELS: Record<string, string> = {
