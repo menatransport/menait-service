@@ -81,8 +81,7 @@ export default function MasterPage() {
         setIsLoading(true);
         setError(null);
         try {
-            const q = `SELECT id, form_type, form_code, form_name, form_status, created_at FROM form_masters WHERE is_latest = true ORDER BY id DESC`;
-            const res = await fetch('/api/form/?query=' + encodeURIComponent(q));
+            const res = await fetch('/api/form-masters?list=all');
             const data = await res.json();
             // console.log("Fetched form data:", data);
             if (res.ok) {

@@ -474,8 +474,7 @@ function ServiceSearch({ className, inputClassName, placeholder = 'ค้นห�
         if (fetched || isLoading) return;
         setIsLoading(true);
         try {
-            const q = `SELECT id, form_code, form_name FROM form_masters WHERE form_type = 'Service' AND form_status = 'Active' AND is_latest = true ORDER BY form_code DESC`;
-            const res = await fetch('/api/form/?query=' + encodeURIComponent(q));
+            const res = await fetch('/api/form-masters?list=service');
             const data = await res.json();
             setForms(Array.isArray(data) ? data : []);
         } catch (error) {
