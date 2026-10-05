@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { rowTotals, validateSingleItem, vat7, type ClearItemRow } from '@/lib/finance/clearItems';
+import { rowTotals, validateSingleItem, type ClearItemRow } from '@/lib/finance/clearItems';
 import { formatBaht, parseAmount } from '@/lib/finance/status';
 import { DateField } from './DateField';
 
@@ -15,16 +15,13 @@ export interface DraftRow {
   has_receipt: boolean;
   description: string;
   a: string;
-  b: string;
   d: string;
-  /** B edited by hand: stop auto-filling 7% (UI state only, never sent) */
-  bTouched: boolean;
 }
 
 export function toRow(r: DraftRow): ClearItemRow {
   return {
     expense_date: r.expense_date, vehicle: r.vehicle, has_receipt: r.has_receipt, description: r.description,
-    amount_before_vat: parseAmount(r.a), vat_amount: parseAmount(r.b), wht_amount: parseAmount(r.d),
+    amount_before_vat: parseAmount(r.a), vat_amount: 0, wht_amount: parseAmount(r.d),
   };
 }
 
@@ -52,16 +49,6 @@ export function ClearItemDialog({ initial, index, isNew, canAddNext, onSave, onC
   const [errors, setErrors] = useState<string[]>([]);
   const descRef = useRef<HTMLInputElement>(null);
   const patch = (p: Partial<DraftRow>) => setR(x => ({ ...x, ...p }));
-
-  const setA = (a: string) => setR(x => {
-    if (x.bTouched) return { ...x, a };
-    const n = parseAmount(a);
-    return { ...x, a, b: n === null ? '' : String(vat7(n)) };
-  });
-  const resetVat = () => setR(x => {
-    const n = parseAmount(x.a);
-    return { ...x, b: n === null ? '' : String(vat7(n)), bTouched: false };
-  });
 
   const t = rowTotals(toRow(r));
 
@@ -112,22 +99,15 @@ export function ClearItemDialog({ initial, index, isNew, canAddNext, onSave, onC
           <Field label="รายละเอียด" required>
             <Input ref={descRef} maxLength={255} value={r.description} onChange={e => patch({ description: e.target.value })} />
           </Field>
-          <Field label="ยอดก่อน VAT (A)" required>
-            <Input className="text-right" inputMode="decimal" placeholder="0.00" value={r.a} onChange={e => setA(e.target.value)} />
+          <Field label="ยอดเงิน" required>
+            <Input className="text-right" inputMode="decimal" placeholder="0.00" value={r.a} onChange={e => patch({ a: e.target.value })} />
           </Field>
-          <Field label="VAT 7% (B)">
-            <Input className="text-right" inputMode="decimal" placeholder="0.00" value={r.b} onChange={e => patch({ b: e.target.value, bTouched: true })} />
-            {r.bTouched && (
-              <button type="button" onClick={resetVat} className="mt-1 text-xs text-brand-600 underline">↺ คำนวณ 7%</button>
-            )}
-          </Field>
-          <Field label="หัก ณ ที่จ่าย (D)">
+          <Field label="หัก ณ ที่จ่าย">
             <Input className="text-right" inputMode="decimal" placeholder="0.00" value={r.d} onChange={e => patch({ d: e.target.value })} />
           </Field>
 
-          <div className="flex items-center justify-between rounded-xl bg-brand-50 px-4 py-2.5 text-sm">
-            <span className="text-gray-600">ยอดรวม (C) <b className="ml-1 tabular-nums text-gray-800">{formatBaht(t.total)}</b></span>
-            <span className="text-gray-600">สุทธิ (E) <b className="ml-1 tabular-nums text-brand-800">{formatBaht(t.net)}</b></span>
+          <div className="flex items-center justify-end rounded-xl bg-brand-50 px-4 py-2.5 text-sm">
+            <span className="text-gray-600">สุทธิ <b className="ml-1 tabular-nums text-brand-800">{formatBaht(t.net)}</b></span>
           </div>
 
           <DialogFooter className="gap-2 sm:justify-end">

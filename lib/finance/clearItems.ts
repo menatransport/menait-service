@@ -7,7 +7,7 @@ export interface ClearItemRow {
   vehicle: string;
   has_receipt: boolean;
   description: string;
-  /** null = blank input */
+  /** null = blank input. New entries: A = ยอดเงิน (the total as typed) and B = 0 (spec v3 §3: no VAT split in the UI). */
   amount_before_vat: number | null;
   vat_amount: number | null;
   wht_amount: number | null;
@@ -15,11 +15,6 @@ export interface ClearItemRow {
 
 const toSatang = (n: number | null | undefined): number => Math.round((n ?? 0) * 100);
 const fromSatang = (s: number): number => s / 100;
-
-/** VAT 7% of A, round-half-up to 2 decimals (computed in satang). 100 → 7, 0.5 → 0.04, 1875.34 → 131.27 */
-export function vat7(a: number | null | undefined): number {
-  return Math.round((toSatang(a) * 7) / 100) / 100;
-}
 
 /** C = A + B, E = C − D */
 export function rowTotals(row: Pick<ClearItemRow, 'amount_before_vat' | 'vat_amount' | 'wht_amount'>): { total: number; net: number } {
@@ -46,30 +41,40 @@ export function validateItems(rows: ClearItemRow[]): string[] {
     const p = `รายการที่ ${i + 1}: `;
     if (!r.expense_date) errs.push(`${p}กรุณาระบุวันที่`);
     if (!r.description.trim()) errs.push(`${p}กรุณาระบุรายละเอียด`);
-    const fields: [string, number | null][] = [['ยอดก่อน VAT', r.amount_before_vat], ['ยอด VAT', r.vat_amount], ['หัก ณ ที่จ่าย', r.wht_amount]];
+    const fields: [string, number | null][] = [['ยอดเงิน', r.amount_before_vat], ['หัก ณ ที่จ่าย', r.wht_amount]];
     let negative = false;
     for (const [label, v] of fields) {
       if (v !== null && v < 0) { errs.push(`${p}${label} ต้องไม่ติดลบ`); negative = true; }
     }
-    if (!negative && rowTotals(r).net < 0) errs.push(`${p}ยอดสุทธิต้องไม่ติดลบ (หัก ณ ที่จ่ายเกินยอดรวม)`);
+    if (!negative && rowTotals(r).net < 0) errs.push(`${p}ยอดสุทธิต้องไม่ติดลบ (หัก ณ ที่จ่ายเกินยอดเงิน)`);
   });
   return errs;
 }
 
 /** Flags non-empty amount text that does not parse (e.g. "12abc", "-"). `parse` returns null for unparseable text. */
 export function invalidNumberErrors(
-  raws: { a: string; b: string; d: string }[],
+  raws: { a: string; d: string }[],
   parse: (s: string) => number | null,
 ): string[] {
   const errs: string[] = [];
   raws.forEach((r, i) => {
-    for (const [label, v] of [['ยอดก่อน VAT', r.a], ['ยอด VAT', r.b], ['หัก ณ ที่จ่าย', r.d]] as const) {
+    for (const [label, v] of [['ยอดเงิน', r.a], ['หัก ณ ที่จ่าย', r.d]] as const) {
       if (v.trim() === '') continue;
       if (parse(v) === null) errs.push(`รายการที่ ${i + 1}: ${label} รูปแบบตัวเลขไม่ถูกต้อง`);
       else if (/\.\d{3,}\s*$/.test(v.trim())) errs.push(`รายการที่ ${i + 1}: ${label} ทศนิยมไม่เกิน 2 ตำแหน่ง`);
     }
   });
   return errs;
+}
+
+/**
+ * ยอดเงิน to prefill when editing a saved row: its total (C). Old rows may carry VAT; the total keeps the sums identical
+ * once re-saved as A = total, B = 0.
+ */
+export function savedAmount(i: { total_amount?: number | string | null; amount_before_vat?: number | string | null; vat_amount?: number | string | null }): number {
+  const t = i.total_amount;
+  if (t !== null && t !== undefined && t !== '' && !Number.isNaN(Number(t))) return Number(t);
+  return (Number(i.amount_before_vat) || 0) + (Number(i.vat_amount) || 0);
 }
 
 /** New-item popup defaults: date and vehicle come from the last row in the list (blank when none). */
@@ -82,7 +87,7 @@ const ROW_PREFIX = /^รายการที่ \d+: /;
 
 /** Validates ONE row (raw amount text + parsed row) for the popup. Messages carry no "รายการที่ N: " prefix. Empty = valid. */
 export function validateSingleItem(
-  raw: { a: string; b: string; d: string },
+  raw: { a: string; d: string },
   row: ClearItemRow,
   parse: (s: string) => number | null,
 ): string[] {

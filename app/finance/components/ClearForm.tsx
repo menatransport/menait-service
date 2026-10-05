@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { MAX_CLEAR_ITEMS, carryOverDefaults, invalidNumberErrors, rowTotals, sumItems, validateItems, vat7 } from '@/lib/finance/clearItems';
+import { MAX_CLEAR_ITEMS, carryOverDefaults, invalidNumberErrors, rowTotals, savedAmount, sumItems, validateItems } from '@/lib/finance/clearItems';
 import { formatDateThaiShort } from '@/lib/finance/dates';
 import { computeSettle, formatBaht, parseAmount, settleLabel } from '@/lib/finance/status';
 import { fetchJson, putAction, showAlert, showConfirm, uploadFiles } from '../api';
@@ -17,7 +17,7 @@ import { Panel } from './FinanceShell';
 
 let rowSeq = 0;
 const nextId = () => ++rowSeq;
-const newRow = (d: { expense_date: string; vehicle: string }): DraftRow => ({ id: nextId(), ...d, has_receipt: true, description: '', a: '', b: '', d: '', bTouched: false });
+const newRow = (d: { expense_date: string; vehicle: string }): DraftRow => ({ id: nextId(), ...d, has_receipt: true, description: '', a: '', d: '' });
 const numStr = (n: number) => (n === 0 ? '' : String(n));
 
 export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved: (d: AdvanceDetail) => void }) {
@@ -28,9 +28,8 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
       ? fin.clear_items.map(i => ({
         id: nextId(),
         expense_date: i.expense_date, vehicle: i.vehicle ?? '', has_receipt: i.has_receipt, description: i.description,
-        a: numStr(i.amount_before_vat), b: numStr(i.vat_amount), d: numStr(i.wht_amount),
-        // saved B may be hand-edited: keep it as-is unless it already equals the 7% value
-        bTouched: i.vat_amount !== vat7(i.amount_before_vat),
+        // old rows may carry VAT: ยอดเงิน = the saved total, re-sent as A = total, B = 0 (sums stay identical)
+        a: numStr(savedAmount(i)), d: numStr(i.wht_amount),
       }))
       : []);
   const [settleDate, setSettleDate] = useState(fin.settle_date ?? '');

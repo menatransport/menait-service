@@ -12,7 +12,7 @@ export const s3 = new S3Client({
 
 export const BUCKET_NAME = 'mn-bucket';
 export const BASE_PATH = 'menait-service';
-export const FORM_ID_PATTERN = /^[A-Za-z0-9_-]+-\d{4}-\d{4,}$/;
+export const FORM_ID_PATTERN = /^[A-Za-z0-9_-]+-\d{4}-\d{3,}$/;
 
 /** True when at least one object exists under `prefix`. */
 export async function hasFiles(prefix: string): Promise<boolean> {

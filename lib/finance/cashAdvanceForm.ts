@@ -9,7 +9,7 @@ export { formatBkkDateTime };
 
 export const PRINTABLE_STATUSES = ['AWAITING_VOUCHER', 'AWAITING_PAYMENT', 'AWAITING_CLEARING', 'SENT_BACK', 'AWAITING_REVIEW', 'CLOSED'];
 
-export { CENTER_OPTIONS, CENTER_OTHER } from './centers';
+export { CENTER_OPTIONS } from './centers';
 
 export interface Signature { name: string; date: string; esign?: { name: string; timestamp: string; ref: string } }
 export interface CashAdvanceFormData {
@@ -19,7 +19,6 @@ export interface CashAdvanceFormData {
     bank_account_no: string; bank_name: string; account_name: string;
   };
   centers: string[];
-  center_other_text: string;
   items: { description: string; amount: number }[];
   use_date: string;
   additional_details: string;
@@ -66,6 +65,7 @@ const CLAUSES = [
   'ข้าพเจ้ารับทราบว่าการที่ข้าพเจ้าไม่สามารถชี้แจงและนำส่งรายละเอียดการใช้เงินภายใน 7 วันหลังจากได้รับเงินแล้วนั้น จำนวนเงินดังกล่าวจะถูกหักจากเงินเดือนของข้าพเจ้า',
   'ตามที่ได้ลงนามไว้ข้างล่างนี้ ข้าพเจ้าตกลงและยอมรับให้บริษัทหักเงินเดือนของข้าพเจ้าโดยไม่มีข้อโต้แย้งใด ๆ',
   'กรุณาส่งเอกสารที่ได้รับอนุมัติตาม TOA ภายในวันอังคาร เพื่อรับชำระเงินคืนภายในวันพฤหัสบดี',
+  'กรณีมีการจ่ายเงินค่าบริการ รบกวนติดต่อทางบัญชี accountbkk@menatransport.co.th',
 ];
 
 const PART_CSS = `
@@ -93,7 +93,6 @@ const PART_CSS = `
 .cb { width: 12px; height: 12px; border: 1.3px solid var(--ink); border-radius: 2px; display: inline-grid; place-items: center; font-size: 10px; line-height: 1; }
 .cb.checked { background: var(--teal); border-color: var(--teal); color: #fff; }
 .cb.checked::after { content: '\\2713'; }
-.oth { display: inline-block; min-width: 70px; border-bottom: 1px solid var(--line); }
 table.items { width: 100%; border-collapse: collapse; margin-top: 2px; }
 table.items th { background: var(--mint); color: var(--teal); font-size: 10.5px; font-weight: 600; text-align: left; padding: 4px 8px; }
 table.items th.a, table.items td.a { text-align: right; width: 34mm; }
@@ -142,7 +141,7 @@ export function cashAdvanceBody(data: CashAdvanceFormData, opts: { logoUrl?: str
     `<div class="f"><span class="l">${label}</span><span class="v">${esc(value)}</span></div>`;
   const sec = (n: number, th: string, en: string) => `<div class="sec"><span class="n">${n}</span><h2>${th}</h2><small>${en}</small></div>`;
 
-  const centers = centerCheckboxesHtml(data.centers, data.center_other_text);
+  const centers = centerCheckboxesHtml(data.centers);
 
   const rows = [0, 1, 2, 3].map(i => {
     const it = data.items[i];
@@ -210,7 +209,7 @@ export function payeeFields(r: AdvanceDetail['request']): { bank_account_no: str
 
 export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
   const r = detail.request;
-  const center = centerFromSite(detail.requester.site_code, detail.requester.site);
+  const center = centerFromSite(detail.requester.site_code);
   const approved = [...(detail.approval_logs ?? [])].reverse().find(l => l.action === 'APPROVED');
   const payee = payeeFields(r);
   const name = detail.requester.name ?? '';
@@ -225,7 +224,6 @@ export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
       ...payee,
     },
     centers: center.centers,
-    center_other_text: center.other,
     items: [{ description: r.purpose ?? '', amount: Number(r.amount ?? 0) }],
     use_date: toBkkDate(r.use_date),
     additional_details: '',

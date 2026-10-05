@@ -1,17 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { parseAmount } from './status';
-import { carryOverDefaults, validateSingleItem, invalidNumberErrors, rowTotals, sumItems, validateItems, vat7, type ClearItemRow } from './clearItems';
+import { carryOverDefaults, validateSingleItem, invalidNumberErrors, rowTotals, savedAmount, sumItems, validateItems, type ClearItemRow } from './clearItems';
 
 const row = (o: Partial<ClearItemRow> = {}): ClearItemRow => ({
   expense_date: '2026-09-30', vehicle: '', has_receipt: true, description: 'ค่าทางด่วน',
-  amount_before_vat: 100, vat_amount: 7, wht_amount: 0, ...o,
-});
-
-describe('vat7', () => {
-  test('100 → 7', () => expect(vat7(100)).toBe(7));
-  test('0.5 → 0.04 (half-up)', () => expect(vat7(0.5)).toBe(0.04));
-  test('1875.34 → 131.27', () => expect(vat7(1875.34)).toBe(131.27));
-  test('null/0 → 0', () => { expect(vat7(null)).toBe(0); expect(vat7(0)).toBe(0); });
+  amount_before_vat: 107, vat_amount: 0, wht_amount: 0, ...o,
 });
 
 describe('rowTotals / sumItems', () => {
@@ -23,7 +16,7 @@ describe('rowTotals / sumItems', () => {
   });
   test('sums all columns', () => {
     const s = sumItems([row(), row({ amount_before_vat: 200, vat_amount: 14, wht_amount: 6 })]);
-    expect(s).toEqual({ a: 300, b: 21, c: 321, d: 6, e: 315 });
+    expect(s).toEqual({ a: 307, b: 14, c: 321, d: 6, e: 315 });
   });
 });
 
@@ -35,17 +28,17 @@ describe('validateItems', () => {
     const e = validateItems([row(), row({ expense_date: '', description: '  ' })]);
     expect(e).toEqual(['รายการที่ 2: กรุณาระบุวันที่', 'รายการที่ 2: กรุณาระบุรายละเอียด']);
   });
-  test('negative amount', () => expect(validateItems([row({ vat_amount: -1 })])[0]).toBe('รายการที่ 1: ยอด VAT ต้องไม่ติดลบ'));
+  test('negative amount', () => expect(validateItems([row({ amount_before_vat: -1 })])[0]).toBe('รายการที่ 1: ยอดเงิน ต้องไม่ติดลบ'));
   test('net negative', () => expect(validateItems([row({ wht_amount: 108 })])[0]).toContain('รายการที่ 1: ยอดสุทธิต้องไม่ติดลบ'));
 });
 
 describe('invalidNumberErrors', () => {
   test('flags non-numeric text, allows blank', () => {
-    const e = invalidNumberErrors([{ a: '12abc', b: '', d: '-' }, { a: '1,000.50', b: '7', d: '' }], parseAmount);
-    expect(e).toEqual(['รายการที่ 1: ยอดก่อน VAT รูปแบบตัวเลขไม่ถูกต้อง', 'รายการที่ 1: หัก ณ ที่จ่าย รูปแบบตัวเลขไม่ถูกต้อง']);
+    const e = invalidNumberErrors([{ a: '12abc', d: '-' }, { a: '1,000.50', d: '' }], parseAmount);
+    expect(e).toEqual(['รายการที่ 1: ยอดเงิน รูปแบบตัวเลขไม่ถูกต้อง', 'รายการที่ 1: หัก ณ ที่จ่าย รูปแบบตัวเลขไม่ถูกต้อง']);
   });
   test('flags more than 2 decimals', () => {
-    expect(invalidNumberErrors([{ a: '0.005', b: '1,234.50', d: '' }], parseAmount)).toEqual(['รายการที่ 1: ยอดก่อน VAT ทศนิยมไม่เกิน 2 ตำแหน่ง']);
+    expect(invalidNumberErrors([{ a: '0.005', d: '' }], parseAmount)).toEqual(['รายการที่ 1: ยอดเงิน ทศนิยมไม่เกิน 2 ตำแหน่ง']);
   });
 });
 
@@ -57,14 +50,25 @@ describe('carryOverDefaults', () => {
 });
 
 describe('validateSingleItem', () => {
-  const raw = (o: Partial<{ a: string; b: string; d: string }> = {}) => ({ a: '100', b: '7', d: '', ...o });
+  const raw = (o: Partial<{ a: string; d: string }> = {}) => ({ a: '107', d: '', ...o });
   test('valid → []', () => expect(validateSingleItem(raw(), row(), parseAmount)).toEqual([]));
   test('messages have no row prefix', () => {
     const e = validateSingleItem(raw(), row({ expense_date: '', description: ' ' }), parseAmount);
     expect(e).toEqual(['กรุณาระบุวันที่', 'กรุณาระบุรายละเอียด']);
   });
   test('bad number text reported', () => {
-    expect(validateSingleItem(raw({ a: '12abc' }), row({ amount_before_vat: null }), parseAmount)[0]).toBe('ยอดก่อน VAT รูปแบบตัวเลขไม่ถูกต้อง');
+    expect(validateSingleItem(raw({ a: '12abc' }), row({ amount_before_vat: null }), parseAmount)[0]).toBe('ยอดเงิน รูปแบบตัวเลขไม่ถูกต้อง');
   });
   test('wht over total', () => expect(validateSingleItem(raw({ d: '108' }), row({ wht_amount: 108 }), parseAmount)[0]).toContain('ยอดสุทธิต้องไม่ติดลบ'));
+});
+
+describe('savedAmount (prefill of ยอดเงิน from a saved row)', () => {
+  test('uses total_amount (old rows with VAT)', () => expect(savedAmount({ amount_before_vat: 100, vat_amount: 7, total_amount: 107 })).toBe(107));
+  test('falls back to A + B without a total', () => expect(savedAmount({ amount_before_vat: 100, vat_amount: 7 })).toBe(107));
+  test('no-VAT row', () => expect(savedAmount({ amount_before_vat: 50, vat_amount: 0, total_amount: 50 })).toBe(50));
+  test('re-saved as A = total, B = 0 keeps the totals identical', () => {
+    const old = row({ amount_before_vat: 100, vat_amount: 7, wht_amount: 3 });
+    const resaved = row({ amount_before_vat: savedAmount({ total_amount: 107 }), vat_amount: 0, wht_amount: 3 });
+    expect(rowTotals(resaved)).toEqual(rowTotals(old));
+  });
 });

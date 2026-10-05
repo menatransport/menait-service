@@ -44,7 +44,6 @@ describe('expense claim form (Part 2)', () => {
     expect(d.ref_no).toBe('CL-2609-0012');
     expect(d.clear_date).toBe('2026-09-10');
     expect(d.centers).toEqual(['สระบุรี/ระยอง/บางปะกง']);
-    expect(d.center_other_text).toBe('');
     expect(d.employee).toEqual({ name: 'สุนิสา ทาระเวท', position: 'หัวหน้าแผนกค่าจ้างและสวัสดิการ', department: 'ทรัพยากรบุคคล',
       bank_account_no: '041-3-95456-8', bank_name: 'กสิกรไทย', account_name: 'สุนิสา ทาระเวท' });
     expect(d.amount_paid).toBe(2000);
@@ -80,8 +79,8 @@ describe('expense claim form (Part 2)', () => {
       'เงื่อนไขและข้อตกลง', CLAIM_FOOTNOTE, 'วันที่รับเอกสาร', 'Expense Claim Form (ADV)']) expect(t).toContain(s);
     expect(t).not.toContain('ธนาคาร ธนาคาร');
     const headers = CLAIM_COLUMNS.map(([m, sub]) => (sub ? `${m} ${sub}` : m));
-    expect(headers).toEqual(['วันที่', 'ทะเบียนรถและประเภท', 'ใบกำกับภาษี/ใบเสร็จรับเงิน Y/N*', 'รายละเอียด', 'ยอดเงิน(ก่อน VAT) (A)',
-      'ภาษีมูลค่าเพิ่ม 7% (B)', 'ยอดรวม (C)=(A)+(B)', 'หัก ณ ที่จ่าย (D)', 'สุทธิ (E)=(C)-(D)']);
+    expect(headers).toEqual(['วันที่', 'ทะเบียนรถและประเภท', 'ใบกำกับภาษี/ใบเสร็จรับเงิน Y/N*', 'รายละเอียด', 'ยอดเงิน', 'หัก ณ ที่จ่าย', 'สุทธิ']);
+    expect(headers.length).toBe(7);
     expect(headerTexts(html)).toEqual(headers);
     expect(CLAIM_CLAUSES).toEqual([
       'ข้าพเจ้าได้อ่านและเข้าใจนโยบายและข้อปฏิบัติของการเบิกค่าใช้จ่ายของบริษัทแล้ว',
@@ -95,6 +94,8 @@ describe('expense claim form (Part 2)', () => {
     for (const s of CLAIM_SIGNERS) expect(html).toContain(`<th>${s}</th>`);
     expect((html.match(/class="cb checked"/g) ?? []).length).toBe(1);
     expect(html).toContain('<span class="cb checked"></span>สระบุรี/ระยอง/บางปะกง');
+    expect((html.match(/<span class="cbi">/g) ?? []).length).toBe(3); // 3 ศูนย์ options only
+    for (const gone of ['MDD', 'อื่นๆ']) expect(html).not.toContain(gone);
     // landscape named page, page counter, no version box
     expect(html).toContain('@page claim { size: A4 landscape; }');
     expect(html).toContain('<table class="print-wrap claim">');
@@ -102,13 +103,13 @@ describe('expense claim form (Part 2)', () => {
     expect(html).not.toContain('เริ่มใช้');
     expect(html).not.toContain('1 Nov 22');
   });
-  test('rows: dates thaiShortDate, zero amounts "-", at least 12 rows, totals of A..E', () => {
+  test('rows: dates thaiShortDate, zero amounts "-", at least 12 rows, totals of ยอดเงิน/หัก/สุทธิ', () => {
     const html = buildClearingHtml(toClearingData(detail()), {});
     expect(bodyRows(html)).toBe(CLAIM_MIN_ROWS);
     expect(html).toContain('<td class="c">14-ส.ค.-26</td>');
-    expect(html).toContain('<td class="n">66.00</td><td class="n">-</td><td class="n">66.00</td><td class="n">-</td><td class="n">66.00</td>');
-    expect(html).toContain('<td class="n">398.13</td><td class="n">27.87</td><td class="n">426.00</td><td class="n">-</td><td class="n">426.00</td>');
-    expect(html).toContain('<td class="n">1,875.34</td><td class="n">126.66</td><td class="n">2,002.00</td><td class="n">-</td><td class="n">2,002.00</td>');
+    expect(html).toContain('<td class="n">66.00</td><td class="n">-</td><td class="n">66.00</td></tr>');
+    expect(html).toContain('<td class="n">426.00</td><td class="n">-</td><td class="n">426.00</td></tr>');
+    expect(html).toContain('<td class="n">2,002.00</td><td class="n">-</td><td class="n">2,002.00</td></tr>');
     const many = clearItems(Array.from({ length: 15 }, (_, i) => REF_ITEMS[i % 6]));
     expect(bodyRows(buildClearingHtml(toClearingData(detail({}, { clear_items: many })), {}))).toBe(15);
     const one = buildClearingHtml(toClearingData(detail({}, { clear_items: clearItems([[100, 7]]) })), {});
@@ -139,6 +140,9 @@ describe('expense claim form (Part 2)', () => {
     const zero = buildClearingHtml(toClearingData(detail({}, { amount_paid: 2002 })), {});
     expect(zero).toContain('<tr class="diff"><td class="k">จ่ายเงินคืนพนักงาน /(พนักงานคืนเงินบริษัท)</td><td class="v">-</td></tr>');
     // หัก ณ ที่จ่าย lowers E and the summary
+    const whtRow = buildClearingHtml(toClearingData(detail({}, { clear_items: [{ ...clearItems([[1000, 0]])[0], wht_amount: 30, net_amount: 970 }] })), {});
+    expect(whtRow).toContain('<td class="n">1,000.00</td><td class="n">30.00</td><td class="n">970.00</td></tr>');
+    expect(whtRow).toContain('<td class="lb" colspan="4">รวม</td><td class="n">1,000.00</td><td class="n">30.00</td><td class="n">970.00</td>');
     const wht = claimSummary([{ expense_date: '', vehicle: '', receipt: 'Y', description: 'x', amount_before_vat: 1000, vat_amount: 70, wht_amount: 30 }], 1000);
     expect(wht).toMatchObject({ c: 1070, d: 30, e: 1040, diff: 40 });
   });
@@ -147,7 +151,7 @@ describe('expense claim form (Part 2)', () => {
       const d = toClearingData(detail({}, { clear_items: items, amount_actual: 1500 }));
       expect(d.items).toEqual([{ expense_date: '', vehicle: '-', receipt: '-', description: 'กาแฟเครื่องดื่ม ศบก.', amount_before_vat: 1500, vat_amount: null, wht_amount: null }]);
       const html = buildClearingHtml(d, {});
-      expect(html).toContain('<tr class="r"><td class="c">-</td><td class="w">-</td><td class="c">-</td><td class="w">กาแฟเครื่องดื่ม ศบก.</td><td class="n">1,500.00</td><td class="n">-</td><td class="n">1,500.00</td><td class="n">-</td><td class="n">1,500.00</td></tr>');
+      expect(html).toContain('<tr class="r"><td class="c">-</td><td class="w">-</td><td class="c">-</td><td class="w">กาแฟเครื่องดื่ม ศบก.</td><td class="n">1,500.00</td><td class="n">-</td><td class="n">1,500.00</td></tr>');
       expect(bodyRows(html)).toBe(12);
       expect(html).toContain('<td class="v">(500.00)</td>');
     }
@@ -156,8 +160,8 @@ describe('expense claim form (Part 2)', () => {
   test('escapes interpolated strings', () => {
     const items = clearItems().map((x, i) => (i === 0 ? { ...x, description: '<script>x</script>', vehicle: '"&' } : x));
     const html = buildClearingHtml(toClearingData(detail({ requester: { ...detail().requester, name: '<b>n</b>', site_code: null, site: '<i>s</i>' } }, { clear_items: items, clear_doc_no: '<r>' })), {});
-    for (const bad of ['<script>x', '<b>n</b>', '<i>s</i>', '<r>']) expect(html).not.toContain(bad);
-    for (const ok of ['&lt;script&gt;x&lt;/script&gt;', '&quot;&amp;', '&lt;b&gt;n&lt;/b&gt;', '&lt;i&gt;s&lt;/i&gt;', '&lt;r&gt;']) expect(html).toContain(ok);
+    for (const bad of ['<script>x', '<b>n</b>', '<r>']) expect(html).not.toContain(bad);
+    for (const ok of ['&lt;script&gt;x&lt;/script&gt;', '&quot;&amp;', '&lt;b&gt;n&lt;/b&gt;', '&lt;r&gt;']) expect(html).toContain(ok);
   });
   test('window title and Document Control use the new Part 2 name', () => {
     const html = buildClearingHtml(toClearingData(detail()), {});

@@ -19,11 +19,9 @@ export const CLAIM_COLUMNS: [string, string][] = [
   ['ทะเบียนรถและประเภท', ''],
   ['ใบกำกับภาษี/ใบเสร็จรับเงิน', 'Y/N*'],
   ['รายละเอียด', ''],
-  ['ยอดเงิน(ก่อน VAT)', '(A)'],
-  ['ภาษีมูลค่าเพิ่ม 7%', '(B)'],
-  ['ยอดรวม', '(C)=(A)+(B)'],
-  ['หัก ณ ที่จ่าย', '(D)'],
-  ['สุทธิ', '(E)=(C)-(D)'],
+  ['ยอดเงิน', ''],
+  ['หัก ณ ที่จ่าย', ''],
+  ['สุทธิ', ''],
 ];
 
 export const CLAIM_CLAUSES = [
@@ -42,7 +40,7 @@ export const CLAIM_SUMMARY_LABELS = {
 
 export const CLAIM_SIGNERS = ['ผู้ขอเบิก', 'หัวหน้าหน่วยงาน', 'ผู้จัดการ', 'ผู้มีอำนาจอนุมัติ', 'แผนกบัญชีและการเงิน'] as const;
 
-/** One printed expense row. Amounts null = blank; C and E are always computed from A, B, D. */
+/** One printed expense row. Amounts null = blank; ยอดเงิน prints C = A + B (old rows may carry VAT) and สุทธิ prints E = C − D. */
 export interface ClaimRow {
   /** 'YYYY-MM-DD'; '' prints "-" (old clearings without items). */
   expense_date: string;
@@ -64,7 +62,6 @@ export interface ClearingFormData {
   /** 'YYYY-MM-DD' */
   clear_date: string;
   centers: string[];
-  center_other_text: string;
   employee: { name: string; position: string; department: string; bank_account_no: string; account_name: string; bank_name: string };
   items: ClaimRow[];
   /** หัก เงินเบิกล่วงหน้า */
@@ -88,7 +85,7 @@ export function toClearingData(detail: AdvanceDetail): ClearingFormData {
   const fin = detail.fin;
   const name = detail.requester.name ?? '';
   const closed = detail.status === 'CLOSED' && fin?.closed_at;
-  const center = centerFromSite(detail.requester.site_code, detail.requester.site);
+  const center = centerFromSite(detail.requester.site_code);
   const items: ClaimRow[] = fin?.clear_items?.length
     ? [...fin.clear_items].sort((a, b) => a.line_no - b.line_no).map(toRow)
     // Old clearings (before line items): one row, purpose + the stored ยอดใช้จริง as A.
@@ -99,7 +96,6 @@ export function toClearingData(detail: AdvanceDetail): ClearingFormData {
     ref_no: fin?.clear_doc_no ?? '',
     clear_date: toBkkDate(fin?.clear_date),
     centers: center.centers,
-    center_other_text: center.other,
     employee: {
       name,
       position: detail.requester.position ?? '',
@@ -214,7 +210,7 @@ table.csum tr.diff td.k { font-weight: 600; }
 `;
 
 /** Column widths in mm (รายละเอียด takes the rest). The summary value cell uses the same width as (E). */
-const COL_WIDTHS = ['18mm', '28mm', '25mm', '', '24mm', '24mm', '24mm', '24mm', '24mm'];
+const COL_WIDTHS = ['18mm', '30mm', '28mm', '', '30mm', '28mm', '30mm'];
 
 export function clearingFooter(data: ClearingFormData, printed?: string, name = CLEARING_DOC_NAME): DocumentControl {
   const a = data.signatures.accounting;
@@ -234,13 +230,13 @@ export function clearingBody(data: ClearingFormData, opts: { logoUrl?: string; b
   const cols = `<colgroup>${COL_WIDTHS.map(w => (w ? `<col style="width:${w}">` : '<col>')).join('')}</colgroup>`;
   const rows = Array.from({ length: claimRowCount(data.items) }, (_, i) => {
     const r = data.items[i];
-    if (!r) return `<tr class="r">${'<td></td>'.repeat(9)}</tr>`;
+    if (!r) return `<tr class="r">${'<td></td>'.repeat(7)}</tr>`;
     const t = rowTotals(r);
     return `<tr class="r"><td class="c">${esc(thaiShortDate(r.expense_date) || '-')}</td><td class="w">${esc(r.vehicle)}</td><td class="c">${esc(r.receipt)}</td>`
-      + `<td class="w">${esc(r.description)}</td><td class="n">${amt(r.amount_before_vat)}</td><td class="n">${amt(r.vat_amount)}</td>`
+      + `<td class="w">${esc(r.description)}</td>`
       + `<td class="n">${amt(t.total)}</td><td class="n">${amt(r.wht_amount)}</td><td class="n">${amt(t.net)}</td></tr>`;
   }).join('');
-  const total = `<tr class="sumrow"><td class="lb" colspan="4">${CLAIM_SUMMARY_LABELS.total}</td>${[s.a, s.b, s.c, s.d, s.e].map(v => `<td class="n">${amt(v)}</td>`).join('')}</tr>`;
+  const total = `<tr class="sumrow"><td class="lb" colspan="4">${CLAIM_SUMMARY_LABELS.total}</td>${[s.c, s.d, s.e].map(v => `<td class="n">${amt(v)}</td>`).join('')}</tr>`;
 
   const sg = data.signatures;
   const valid = (x?: ClearingSignature) => (x?.esign && formatBkkDateTime(x.esign.timestamp).date ? x.esign : null);
@@ -259,7 +255,7 @@ export function clearingBody(data: ClearingFormData, opts: { logoUrl?: string; b
 <div class="meta"><div><span>REF No. (โดยแผนกบัญชี)</span><b>${esc(data.ref_no)}</b></div><div class="date"><span>วันที่</span><b>${esc(dmy(data.clear_date))}</b></div></div></header>
 
 <div class="who">
-<div class="cbs"><span class="lbl">ศูนย์</span>${centerCheckboxesHtml(data.centers, data.center_other_text)}</div>
+<div class="cbs"><span class="lbl">ศูนย์</span>${centerCheckboxesHtml(data.centers)}</div>
 <div class="line ppl">${fi('ชื่อ-สกุล', e.name)}${fi('ตำแหน่ง', e.position)}${fi('แผนก', e.department)}</div>
 <div class="line acc">${fi('โอนเงินเข้าบัญชีธนาคารเลขที่', e.bank_account_no)}${fi('ชื่อบัญชี', e.account_name)}${fi('ธนาคาร', e.bank_name)}</div>
 </div>

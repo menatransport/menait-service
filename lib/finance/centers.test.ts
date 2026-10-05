@@ -1,10 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { CENTER_OPTIONS, CENTER_OTHER, centerCheckboxesHtml, centerFromSite, normalizeSiteCode } from './centers';
+import { CENTER_OPTIONS, centerCheckboxesHtml, centerFromSite, normalizeSiteCode } from './centers';
 
 describe('centers (ศูนย์ from the requester site)', () => {
-  test('options: Part 1 label is now สระบุรี/ระยอง/บางปะกง', () => {
-    expect([...CENTER_OPTIONS]).toEqual(['กรุงเทพ', 'ลาดกระบัง/ขอนแก่น', 'สระบุรี/ระยอง/บางปะกง', 'MDD']);
-    expect(CENTER_OTHER).toBe('อื่นๆ');
+  test('options: exactly three (no MDD, no อื่นๆ)', () => {
+    expect([...CENTER_OPTIONS]).toEqual(['กรุงเทพ', 'ลาดกระบัง/ขอนแก่น', 'สระบุรี/ระยอง/บางปะกง']);
   });
   test('normalizeSiteCode strips the trailing dot and spaces', () => {
     expect(normalizeSiteCode('สกท.')).toBe('สกท');
@@ -21,27 +20,23 @@ describe('centers (ศูนย์ from the requester site)', () => {
     ['ศบก', 'สระบุรี/ระยอง/บางปะกง'],
   ];
   test.each(cases)('%s (with and without the trailing dot) → %s', (code, center) => {
-    expect(centerFromSite(code, 'ชื่อสาขา')).toEqual({ centers: [center], other: '' });
-    expect(centerFromSite(`${code}.`, 'ชื่อสาขา')).toEqual({ centers: [center], other: '' });
+    expect(centerFromSite(code)).toEqual({ centers: [center] });
+    expect(centerFromSite(`${code}.`)).toEqual({ centers: [center] });
   });
-  test('MDD is never auto-ticked', () => {
-    expect(centerFromSite('MDD', 'MDD').centers).toEqual([CENTER_OTHER]);
+  test('MDD, unknown, empty → no box ticked', () => {
+    expect(centerFromSite('MDD').centers).toEqual([]);
+    expect(centerFromSite('สขข.').centers).toEqual([]);
+    expect(centerFromSite('').centers).toEqual([]);
+    expect(centerFromSite(null).centers).toEqual([]);
+    expect(centerFromSite(undefined).centers).toEqual([]);
   });
-  test('unknown code → อื่นๆ + site name (code when there is no name)', () => {
-    expect(centerFromSite('สขข.', 'สำนักงานใหม่')).toEqual({ centers: ['อื่นๆ'], other: 'สำนักงานใหม่' });
-    expect(centerFromSite('สขข.', null)).toEqual({ centers: ['อื่นๆ'], other: 'สขข' });
-  });
-  test('empty code → อื่นๆ + site name; nothing known → no box', () => {
-    expect(centerFromSite(null, 'สำนักงานสระบุรี')).toEqual({ centers: ['อื่นๆ'], other: 'สำนักงานสระบุรี' });
-    expect(centerFromSite('', '  ')).toEqual({ centers: [], other: '' });
-    expect(centerFromSite(undefined, undefined)).toEqual({ centers: [], other: '' });
-  });
-  test('checkbox markup ticks the mapped box and escapes the other text', () => {
-    const html = centerCheckboxesHtml(['สระบุรี/ระยอง/บางปะกง'], '');
+  test('checkbox markup: three options, the mapped one ticked', () => {
+    const html = centerCheckboxesHtml(['สระบุรี/ระยอง/บางปะกง']);
+    expect((html.match(/class="cbi"/g) ?? []).length).toBe(3);
     expect((html.match(/class="cb checked"/g) ?? []).length).toBe(1);
     expect(html).toContain('<span class="cb checked"></span>สระบุรี/ระยอง/บางปะกง');
-    const other = centerCheckboxesHtml(['อื่นๆ'], '<b>x</b>');
-    expect(other).toContain('<span class="cb checked"></span>อื่นๆ<span class="oth">&lt;b&gt;x&lt;/b&gt;</span>');
-    expect(other).not.toContain('<b>x</b>');
+    expect(html).not.toContain('MDD');
+    expect(html).not.toContain('อื่นๆ');
+    expect((centerCheckboxesHtml([]).match(/checked/g) ?? []).length).toBe(0);
   });
 });

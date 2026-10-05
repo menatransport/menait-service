@@ -35,13 +35,17 @@ describe('cash advance form', () => {
     for (const s of ['ใบคำขอเบิกเงินล่วงหน้า', '(Cash Advance Request form)', 'วันที่', '13-ส.ค.-26',
       'ข้อมูลพนักงานผู้เบิกเงิน', 'ประเภทและวัตถุประสงค์ในการเบิกเงินล่วงหน้า', 'เงื่อนไขและข้อตกลง', 'ลงนามและอนุมัติ', 'นางสาวตัวอย่าง ทดสอบ', '000000', 'ผู้ช่วยหัวหน้าแผนกบัญชี',
       '000-0-00000-0', 'กสิกรไทย', '5,000.00', 'ห้าพันบาทถ้วน', '18/8/2026', 'กรุงเทพ', 'ลาดกระบัง/ขอนแก่น',
-      'สระบุรี/ระยอง/บางปะกง', 'MDD', 'อื่นๆ', 'ผู้ขอเบิก', 'หัวหน้าหน่วยงาน', 'ผู้จัดการ', 'ผู้มีอำนาจอนุมัติ', 'counter(page)', 'Document Control &amp; Revision History',
-      'ภายใน 7 วันหลังจากได้รับเงิน', 'กรุณาส่งเอกสารที่ได้รับอนุมัติตาม TOA ภายในวันอังคาร']) {
+      'สระบุรี/ระยอง/บางปะกง', 'ผู้ขอเบิก', 'หัวหน้าหน่วยงาน', 'ผู้จัดการ', 'ผู้มีอำนาจอนุมัติ', 'counter(page)', 'Document Control &amp; Revision History',
+      'ภายใน 7 วันหลังจากได้รับเงิน', 'กรุณาส่งเอกสารที่ได้รับอนุมัติตาม TOA ภายในวันอังคาร',
+      '<li>กรณีมีการจ่ายเงินค่าบริการ รบกวนติดต่อทางบัญชี accountbkk@menatransport.co.th</li>']) {
       expect(html).toContain(s);
     }
+    for (const gone of ['MDD', 'อื่นๆ']) expect(html).not.toContain(gone);
+    expect((html.match(/<span class="cbi">/g) ?? []).length).toBe(3);
+    expect((html.match(/<li>/g) ?? []).length).toBe(6); // clauses 1–6
     expect(html).not.toContain('เริ่มใช้');
     expect(html).not.toContain('1 Nov 22');
-    expect((html.match(/class="cb checked"/g) ?? []).length).toBe(2); // ลาดกระบัง/ขอนแก่น + อื่นๆ
+    expect((html.match(/class="cb checked"/g) ?? []).length).toBe(1); // ลาดกระบัง/ขอนแก่น
   });
   test('document_no shows in the meta box and the footer; toCashAdvanceData sets it from form_id', () => {
     const html = buildCashAdvanceHtml({ ...sample, document_no: 'ADV-2026-0007' } as any, {});
@@ -76,13 +80,10 @@ describe('cash advance form', () => {
     expect(d.request_date).toBe('2026-08-13');
     expect(d.signatures.approver.name).toBe('ผู้จัดการ หนึ่ง');
     expect(d.signatures.approver.date).toBe('14/8/2026');
-    expect(d.center_other_text).toBe('');
     const o = toCashAdvanceData({ ...detail, requester: { ...detail.requester, site: 'ศูนย์บางปะกง', site_code: 'ศบก.' }, fin: { voucher_date: '2026-08-14', transfer_date: null } });
     expect(o.centers).toEqual(['สระบุรี/ระยอง/บางปะกง']);
-    expect(o.center_other_text).toBe('');
     const u = toCashAdvanceData({ ...detail, requester: { ...detail.requester, site: 'สำนักงานใหม่', site_code: null } });
-    expect(u.centers).toEqual(['อื่นๆ']);
-    expect(u.center_other_text).toBe('สำนักงานใหม่');
+    expect(u.centers).toEqual([]); // unmapped site → no box
   });
   test.each([
     ['สกท.', ['กรุงเทพ'], ''],
@@ -91,16 +92,15 @@ describe('cash advance form', () => {
     ['สสบ.', ['สระบุรี/ระยอง/บางปะกง'], ''],
     ['ศรย', ['สระบุรี/ระยอง/บางปะกง'], ''],
     ['ศบก.', ['สระบุรี/ระยอง/บางปะกง'], ''],
-    ['สขข.', ['อื่นๆ'], 'สาขาทดสอบ'],
-    [null, ['อื่นๆ'], 'สาขาทดสอบ'],
-  ])('requester site %s maps to centers (cost_center is ignored)', (code, centers, other) => {
+    ['สขข.', [], ''],
+    [null, [], ''],
+  ])('requester site %s maps to centers (cost_center is ignored)', (code, centers) => {
     const d = toCashAdvanceData({
       status: 'AWAITING_PAYMENT', created_at: '2026-08-13T03:00:00+00:00',
       requester: { employee_id: '1', name: 'x', site: 'สาขาทดสอบ', site_code: code }, request: { purpose: 'p', amount: 1, cost_center: 'สกท' },
       fin: null, approval_logs: [],
     } as any);
     expect(d.centers).toEqual(centers as string[]);
-    expect(d.center_other_text).toBe(other as string);
   });
   test('formatBkkDateTime', () => {
     expect(formatBkkDateTime('2026-09-16T07:03:10+00:00')).toEqual({ date: '16/09/2026', time: '14:03:10' });
