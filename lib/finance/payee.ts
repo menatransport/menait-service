@@ -91,3 +91,16 @@ export function sniffPayeeFileType(b: Uint8Array): (typeof PAYEE_FILE_TYPES)[num
 }
 
 export const PAYEE_MAX_FILES = 10;
+
+/** Client-side pre-check of picked files: returns the valid ones (capped at PAYEE_MAX_FILES) and Thai warnings for the rest. */
+export function checkPayeeFiles(files: { name: string; type: string; size: number }[]): { valid: number[]; warnings: string[] } {
+  const valid: number[] = [];
+  const warnings: string[] = [];
+  files.forEach((f, i) => {
+    if (!(PAYEE_FILE_TYPES as readonly string[]).includes(f.type)) warnings.push(`${f.name}: รองรับเฉพาะไฟล์ JPG, PNG, WebP หรือ PDF`);
+    else if (f.size > PAYEE_FILE_MAX_BYTES) warnings.push(`${f.name}: ไฟล์ต้องมีขนาดไม่เกิน 10 MB`);
+    else if (valid.length >= PAYEE_MAX_FILES) warnings.push(`${f.name}: แนบไฟล์ได้ไม่เกิน ${PAYEE_MAX_FILES} ไฟล์ต่อครั้ง`);
+    else valid.push(i);
+  });
+  return { valid, warnings };
+}

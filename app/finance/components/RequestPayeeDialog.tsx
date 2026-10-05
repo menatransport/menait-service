@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatAccountNo, normalizeAccountNo } from '@/lib/finance/bank';
-import { kbankAccountError, PAYEE_FILE_TYPES, PAYEE_MAX_FILES, type PayeeRequest } from '@/lib/finance/payee';
+import { checkPayeeFiles, kbankAccountError, PAYEE_MAX_FILES, type PayeeRequest } from '@/lib/finance/payee';
 import { fetchJson, showAlert, uploadPayeeFiles } from '../api';
 import { FilePicker } from './FilePicker';
 
@@ -20,23 +20,30 @@ export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone }: 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
+  const nameRef = useRef(defaultName);
+  nameRef.current = defaultName;
+  const submittingRef = useRef(false);
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (open) { setAccountNo(''); setAccountName(defaultName); setRemark(''); setFiles([]); setErrors({}); }
-  }, [open, defaultName]);
+    if (open && !wasOpen.current) { setAccountNo(''); setAccountName(nameRef.current); setRemark(''); setFiles([]); setErrors({}); }
+    wasOpen.current = open;
+  }, [open]);
 
   const liveAccountError = accountNo && kbankAccountError(accountNo) ? kbankAccountError(accountNo) : null;
 
   const submit = async () => {
+    if (submittingRef.current) return;
     const next: Record<string, string> = {};
     const accErr = kbankAccountError(accountNo);
     if (accErr) next.account_no = accErr;
     if (!accountName.trim()) next.account_name = 'กรุณาระบุชื่อบัญชี';
     if (files.length < 1) next.files = 'กรุณาแนบ bookbank อย่างน้อย 1 ไฟล์';
     else if (files.length > PAYEE_MAX_FILES) next.files = `แนบไฟล์ได้ไม่เกิน ${PAYEE_MAX_FILES} ไฟล์`;
-    else if (files.some(f => !(PAYEE_FILE_TYPES as readonly string[]).includes(f.type))) next.files = 'รองรับเฉพาะไฟล์ JPG, PNG, WebP หรือ PDF';
+    else { const { warnings } = checkPayeeFiles(files); if (warnings.length) next.files = warnings.join(' / '); }
     setErrors(next);
     if (Object.keys(next).length) return;
 
+    submittingRef.current = true;
     setBusy(true);
     let created: PayeeRequest;
     try {
@@ -45,6 +52,7 @@ export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone }: 
         body: JSON.stringify({ account_no: normalizeAccountNo(accountNo), account_name: accountName.trim(), remark: remark.trim() }),
       });
     } catch (err) {
+      submittingRef.current = false;
       setBusy(false);
       await showAlert({ icon: 'error', title: 'ส่งคำขอไม่สำเร็จ', text: (err as Error).message });
       return;
@@ -52,6 +60,7 @@ export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone }: 
     const failed = await uploadPayeeFiles(created.id, files);
     onOpenChange(false);
     try { await onDone(); } catch { /* the section shows its own retry state */ }
+    submittingRef.current = false;
     setBusy(false);
     if (failed.length) {
       await showAlert({ icon: 'warning', title: 'อัปโหลดไฟล์ไม่สำเร็จ กรุณาแนบไฟล์เพิ่มจากกล่องคำขอ', text: failed.join(', ') });

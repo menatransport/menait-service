@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, Landmark, Paperclip, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { BANKS, bankLabel, accountNoError, formatAccountNo } from '@/lib/finance/bank';
-import { PAYEE_SELF, PAYEE_SUPPLIER, selfPayeeState, type PayeeMe, type SelfPayeeState } from '@/lib/finance/payee';
+import { checkPayeeFiles, PAYEE_SELF, PAYEE_SUPPLIER, selfPayeeState, type PayeeMe, type SelfPayeeState } from '@/lib/finance/payee';
 import { fetchJson, showAlert, showConfirm, uploadPayeeFiles } from '../api';
 import { RequestPayeeDialog } from './RequestPayeeDialog';
 
@@ -35,6 +35,7 @@ export function PayeeAccountSection({ errors, onPayeeChange, onStatusChange, ful
   const [busy, setBusy] = useState(false);
   const [supplier, setSupplier] = useState({ bank: '', no: '', name: '' });
   const attachRef = useRef<HTMLInputElement>(null);
+  const attachingRef = useRef(false);
 
   const loadMe = useCallback(async () => {
     setLoading(true);
@@ -89,14 +90,23 @@ export function PayeeAccountSection({ errors, onPayeeChange, onStatusChange, ful
   };
 
   const attachMore = async (list: FileList | null) => {
-    const files = Array.from(list ?? []);
-    if (!me?.request || !files.length) return;
+    const picked = Array.from(list ?? []);
+    if (!me?.request || !picked.length || attachingRef.current) return;
+    const { valid, warnings } = checkPayeeFiles(picked);
+    const files = valid.map(i => picked[i]);
+    if (warnings.length) await showAlert({ icon: 'warning', title: 'บางไฟล์แนบไม่ได้', text: warnings.join('\n') });
+    if (!files.length) return;
+    attachingRef.current = true;
     setBusy(true);
-    const failed = await uploadPayeeFiles(me.request.id, files);
-    setBusy(false);
-    await showAlert(failed.length
-      ? { icon: 'warning', title: 'อัปโหลดไฟล์ไม่สำเร็จ', text: failed.join(', ') }
-      : { icon: 'success', title: 'แนบไฟล์เพิ่มแล้ว' });
+    try {
+      const failed = await uploadPayeeFiles(me.request.id, files);
+      await showAlert(failed.length
+        ? { icon: 'warning', title: 'อัปโหลดไฟล์ไม่สำเร็จ', text: failed.join(', ') }
+        : { icon: 'success', title: 'แนบไฟล์เพิ่มแล้ว' });
+    } finally {
+      attachingRef.current = false;
+      setBusy(false);
+    }
   };
 
   const req = me?.request ?? null;
@@ -104,6 +114,23 @@ export function PayeeAccountSection({ errors, onPayeeChange, onStatusChange, ful
     <p className="text-xs text-gray-600 break-words">
       {bankLabel(req.bank)} · {formatAccountNo(req.account_no)} · {req.account_name}
     </p>
+  );
+
+  const pendingBox = req && (
+    <div className="rounded-xl bg-amber-50 px-3 py-2.5 space-y-2">
+      <p className="text-sm font-medium text-amber-800">ส่งคำขอแล้ว รอบัญชีตรวจสอบ (ส่งเมื่อ {fmtDate(req.created_at)})</p>
+      {reqDetail}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" disabled={busy} onClick={cancelRequest}
+          className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-700 disabled:opacity-60">ยกเลิกคำขอ</button>
+        <button type="button" disabled={busy} onClick={() => attachRef.current?.click()}
+          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 disabled:opacity-60">
+          <Paperclip className="w-3.5 h-3.5" />แนบไฟล์เพิ่ม
+        </button>
+        <input ref={attachRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden"
+          onChange={(e) => { attachMore(e.target.files); e.target.value = ''; }} />
+      </div>
+    </div>
   );
 
   const radio = (value: string, label: string) => (
@@ -134,7 +161,10 @@ export function PayeeAccountSection({ errors, onPayeeChange, onStatusChange, ful
             ธนาคารกสิกรไทย · {formatAccountNo(account!.account_no)} · {account!.account_name}
           </p>
           {state === 'ready_change_pending' ? (
-            <p className="text-xs text-amber-700">มีคำขอเปลี่ยนบัญชีรอตรวจสอบ</p>
+            <>
+              <p className="text-xs text-amber-700">มีคำขอเปลี่ยนบัญชีรอตรวจสอบ</p>
+              {req && pendingBox}
+            </>
           ) : (
             <p className="text-xs text-gray-500">
               หากต้องการเปลี่ยนบัญชี{' '}
@@ -145,24 +175,7 @@ export function PayeeAccountSection({ errors, onPayeeChange, onStatusChange, ful
         </div>
       );
     }
-    if (state === 'pending' && req) {
-      return (
-        <div className="rounded-xl bg-amber-50 px-3 py-2.5 space-y-2">
-          <p className="text-sm font-medium text-amber-800">ส่งคำขอแล้ว รอบัญชีตรวจสอบ (ส่งเมื่อ {fmtDate(req.created_at)})</p>
-          {reqDetail}
-          <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={busy} onClick={cancelRequest}
-              className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-700 disabled:opacity-60">ยกเลิกคำขอ</button>
-            <button type="button" disabled={busy} onClick={() => attachRef.current?.click()}
-              className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 disabled:opacity-60">
-              <Paperclip className="w-3.5 h-3.5" />แนบไฟล์เพิ่ม
-            </button>
-            <input ref={attachRef} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden"
-              onChange={(e) => { attachMore(e.target.files); e.target.value = ''; }} />
-          </div>
-        </div>
-      );
-    }
+    if (state === 'pending' && req) return pendingBox;
     return (
       <div className="rounded-xl bg-amber-50 px-3 py-2.5 space-y-2">
         {state === 'rejected' && req ? (
