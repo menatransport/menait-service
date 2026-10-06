@@ -1,6 +1,6 @@
 import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
 import { formatDate } from '@/lib/finance/status';
-import { FIELD_LABELS, LOG_ACTION_LABELS } from '../labels';
+import { FIELD_LABELS, LOG_ACTION_LABELS, logRemarkLabel } from '../labels';
 import type { ApprovalLog, FinLog } from '../types';
 import { Panel } from './FinanceShell';
 
@@ -39,7 +39,7 @@ export function LogList({ approvalLogs, finLogs }: { approvalLogs: ApprovalLog[]
         {finLogs.map((log, i) => (
           <li key={`f-${i}`} className="border-l-2 border-brand-600 pl-3">
             <p className="font-medium">{LOG_ACTION_LABELS[log.action] ?? log.action} · {log.action_by ?? '-'}</p>
-            <p className="text-xs text-gray-500">{formatDate(log.created_at)}{log.remark ? ` · ${log.remark}` : ''}</p>
+            <p className="text-xs text-gray-500">{formatDate(log.created_at)}{logRemarkLabel(log.action, log.remark) ? ` · ${logRemarkLabel(log.action, log.remark)}` : ''}</p>
             {log.changes && Object.keys(log.changes).length > 0 && (
               <ul className="mt-1 text-xs text-gray-600">
                 {Object.entries(log.changes).map(([field, v]) => {

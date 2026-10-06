@@ -16,7 +16,15 @@ export const LOG_ACTION_LABELS: Record<string, string> = {
   VOUCHER_REJECT: 'ตีกลับไปตั้งเบิกใหม่',
   RETURN: 'ตีกลับให้ผู้เบิกแก้ไข', RETURNED: 'ตีกลับให้ผู้เบิกแก้ไข', RESUBMITTED: 'ส่งใหม่หลังแก้ไข',
   APPROVED: 'อนุมัติ', REJECTED: 'ไม่อนุมัติ',
+  OVERDUE_REMIND: 'แจ้งเตือนเกินกำหนด',
 };
+
+const OVERDUE_REMIND_REMARKS: Record<string, string> = { auto: 'อัตโนมัติ', manual: 'ส่งโดยบัญชี' };
+
+export function logRemarkLabel(action: string, remark: string | null): string | null {
+  if (!remark) return null;
+  return action === 'OVERDUE_REMIND' ? (OVERDUE_REMIND_REMARKS[remark] ?? remark) : remark;
+}
 
 export const FOLDER_LABELS: Record<string, string> = {
   request: 'เอกสารประกอบการขอเบิก', pay: 'หลักฐานการจ่ายเงิน', clear: 'เอกสารเคลียร์ / สลิปคืนเงิน',

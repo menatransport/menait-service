@@ -65,3 +65,12 @@ export async function uploadPayeeFiles(requestId: number | string, files: File[]
   }
   return failed;
 }
+
+export interface OverdueReminderResult { sent: number; skipped: { form_id: string; reason: string }[]; disabled: boolean }
+
+export function sendOverdueReminders(formIds: string[]) {
+  return fetchJson<OverdueReminderResult>('/api/finance/overdue-reminders', {
+    method: 'POST',
+    body: JSON.stringify({ form_ids: formIds }),
+  });
+}

@@ -1,11 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Landmark, UserRoundCheck } from 'lucide-react';
+import { BellRing, Landmark, UserRoundCheck } from 'lucide-react';
 import { useSessionContext } from '@/app/context/SessionContext';
 import { formatBaht } from '@/lib/finance/status';
-import { fetchJson, showAlert } from './api';
+import { fetchJson, sendOverdueReminders, showAlert, showConfirm } from './api';
 import { AdvanceListView, type AdvanceListTab } from './components/AdvanceListView';
 import { AdvanceSheet } from './components/AdvanceSheet';
 import { FinanceCanvas, FinanceHeading, NoAccess, SummaryTiles } from './components/FinanceShell';
@@ -63,6 +63,44 @@ export default function FinanceQueuePage() {
     ];
   }, [items, outstanding]);
 
+  const [reminding, setReminding] = useState(false);
+  const remindInFlight = useRef(false);
+  const overdueIds = useMemo(() => (items ?? []).filter(i => i.overdue).map(i => i.form_id), [items]);
+
+  const remindAll = async () => {
+    if (remindInFlight.current || overdueIds.length === 0) return;
+    const res = await showConfirm({ title: `ส่งอีเมลแจ้งเตือนเกินกำหนด ${overdueIds.length} รายการ?` });
+    if (!res.isConfirmed) return;
+    remindInFlight.current = true;
+    setReminding(true);
+    try {
+      let sent = 0;
+      const skipped: { form_id: string; reason: string }[] = [];
+      let disabled = false;
+      for (let i = 0; i < overdueIds.length && !disabled; i += 200) {
+        const r = await sendOverdueReminders(overdueIds.slice(i, i + 200));
+        disabled = r.disabled;
+        sent += r.sent;
+        skipped.push(...r.skipped);
+      }
+      if (disabled) await showAlert({ icon: 'warning', title: 'อีเมลยังปิดอยู่ — ยังไม่ได้ส่ง' });
+      else {
+        const reasons = [...new Set(skipped.map(s => s.reason))].join(', ');
+        await showAlert({
+          icon: sent > 0 ? 'success' : 'info',
+          title: `ส่งแล้ว ${sent} รายการ`,
+          text: skipped.length > 0 ? `ข้าม ${skipped.length} รายการ: ${reasons}` : undefined,
+        });
+      }
+      load();
+    } catch (err) {
+      showAlert({ icon: 'error', title: 'ส่งแจ้งเตือนไม่สำเร็จ', text: (err as Error).message });
+    } finally {
+      remindInFlight.current = false;
+      setReminding(false);
+    }
+  };
+
   const handleOpen = (item: AdvanceItem) => { setOpenFormId(item.form_id); setSheetOpen(true); };
   const handleClose = () => setSheetOpen(false);
   const handleChanged = () => load();
@@ -98,6 +136,12 @@ export default function FinanceQueuePage() {
         onTabChange={setTab}
         onOpen={handleOpen}
         exportFileBase="advance"
+        headerAction={tab === 'overdue' && overdueIds.length > 0 ? (
+          <button type="button" onClick={remindAll} disabled={reminding}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-all cursor-pointer disabled:opacity-50">
+            <BellRing size={14} /> <span>ส่งแจ้งเตือนทั้งหมด ({overdueIds.length})</span>
+          </button>
+        ) : undefined}
       />
 
       <AdvanceSheet mode="finance" formId={openFormId} isOpen={sheetOpen} onClose={handleClose} onChanged={handleChanged} />

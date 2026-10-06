@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { fetchJson, putAction, showAlert, showConfirm } from '../api';
+import { fetchJson, putAction, sendOverdueReminders, showAlert, showConfirm } from '../api';
 import type { AdvanceDetail } from '../types';
 import { AdvanceSummary } from './AdvanceSummary';
 import { PrintDocumentButton } from './PrintDocumentButton';
@@ -55,6 +55,28 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
     }
   };
 
+  const sendReminder = async () => {
+    if (inFlight.current) return;
+    const res = await showConfirm({ title: 'ส่งอีเมลแจ้งเตือนเกินกำหนดถึงผู้เบิก?', text: detail?.form_id });
+    if (!res.isConfirmed) return;
+    inFlight.current = true;
+    setBusy(true);
+    try {
+      const r = await sendOverdueReminders([formId]);
+      if (r.disabled) await showAlert({ icon: 'warning', title: 'อีเมลยังปิดอยู่ — ยังไม่ได้ส่ง' });
+      else if (r.sent > 0) await showAlert({ icon: 'success', title: 'ส่งแจ้งเตือนแล้ว' });
+      else await showAlert({ icon: 'info', title: 'ไม่ได้ส่งแจ้งเตือน', text: r.skipped.map(s => s.reason).join(', ') || undefined });
+      load();
+      setRefreshKey(k => k + 1);
+      onChanged?.();
+    } catch (err) {
+      showAlert({ icon: 'error', title: 'ส่งแจ้งเตือนไม่สำเร็จ', text: (err as Error).message });
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  };
+
   if (error) return <NoAccess text={error} />;
   if (!detail) return <Panel title="รายละเอียดคำขอ"><div className="py-8"><MascotLoader text="กำลังโหลดรายละเอียด" size={80} /></div></Panel>;
 
@@ -84,6 +106,11 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
             className="border-rose-400 text-rose-600 hover:bg-rose-50 hover:text-rose-700">
             ตีกลับให้ผู้เบิกแก้ไข
           </Button>
+        </div>
+      )}
+      {detail.overdue && (
+        <div className="mb-4">
+          <Button type="button" variant="outline" onClick={sendReminder} disabled={busy}>ส่งแจ้งเตือน</Button>
         </div>
       )}
       {canVoucher && <VoucherForm key={`v-${refreshKey}`} detail={detail} onSaved={onSaved} />}
