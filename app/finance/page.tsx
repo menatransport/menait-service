@@ -69,16 +69,21 @@ export default function FinanceQueuePage() {
 
   const remindAll = async () => {
     if (remindInFlight.current || overdueIds.length === 0) return;
-    const res = await showConfirm({ title: `ส่งอีเมลแจ้งเตือนเกินกำหนด ${overdueIds.length} รายการ?` });
+    const res = await showConfirm({
+      title: `ส่งอีเมลแจ้งเตือนเกินกำหนด ${overdueIds.length} รายการ?`,
+      text: 'ส่งทุกรายการที่เกินกำหนด (ไม่รวมตัวกรอง) และส่งทันทีแม้เพิ่งแจ้งเตือนไป',
+    });
     if (!res.isConfirmed) return;
     remindInFlight.current = true;
     setReminding(true);
+    // small batches: the BE sends each email inside the request, so a big batch could outlive the proxy timeout
+    const BATCH = 20;
+    let sent = 0;
     try {
-      let sent = 0;
       const skipped: { form_id: string; reason: string }[] = [];
       let disabled = false;
-      for (let i = 0; i < overdueIds.length && !disabled; i += 200) {
-        const r = await sendOverdueReminders(overdueIds.slice(i, i + 200));
+      for (let i = 0; i < overdueIds.length && !disabled; i += BATCH) {
+        const r = await sendOverdueReminders(overdueIds.slice(i, i + BATCH));
         disabled = r.disabled;
         sent += r.sent;
         skipped.push(...r.skipped);
@@ -94,7 +99,11 @@ export default function FinanceQueuePage() {
       }
       load();
     } catch (err) {
-      showAlert({ icon: 'error', title: 'ส่งแจ้งเตือนไม่สำเร็จ', text: (err as Error).message });
+      showAlert({
+        icon: 'error', title: 'ส่งแจ้งเตือนไม่สำเร็จ',
+        text: sent > 0 ? `ส่งไปแล้ว ${sent} รายการก่อนเกิดข้อผิดพลาด — ${(err as Error).message}` : (err as Error).message,
+      });
+      load();
     } finally {
       remindInFlight.current = false;
       setReminding(false);
