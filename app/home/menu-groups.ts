@@ -35,6 +35,8 @@ export interface MenuGroup {
     items: MenuItem[];
     /** Only shown to admins (user.role === 'a') */
     adminOnly?: boolean;
+    /** Usable only by admins and finance staff (canUseFinance); everyone else sees every item as "เร็ว ๆ นี้" */
+    financeAccess?: boolean;
 }
 
 /**
@@ -101,6 +103,7 @@ export const MENU_GROUPS: MenuGroup[] = [
         tagline: 'การเงินและบัญชี',
         icon: Wallet,
         tone: 'mint',
+        financeAccess: true,
         items: [
             { title: 'เบิกเงิน Advance', description: 'ขอเบิกเงินทดรองจ่ายล่วงหน้า', icon: HandCoins, href: '/finance/advance/new' },
             { title: 'ติดตามคำขอ Advance', description: 'ดูสถานะ จ่ายเงิน และเคลียร์เงินทดรอง', icon: ClipboardCheck, href: '/finance/advance' },

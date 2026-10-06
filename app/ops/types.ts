@@ -62,7 +62,6 @@ export interface ProjectRequestInput {
     estimated_users: number;
     user_groups?: string | null;
     priority: OpsPriority;
-    priority_reason: string;
     /** YYYY-MM-DD */
     target_date?: string | null;
 }
@@ -83,9 +82,19 @@ export interface Project extends ProjectRequestInput {
     /** Latest review (null = never reviewed) */
     review?: OpsReview | null;
     issue_count: number;
+    /** Where the finished system is used — OPS team / admin set it once Done (PATCH /api/ops/projects/{id}/link) */
+    link_url?: string | null;
+    /**
+     * Whether the signed-in viewer may edit the request (PATCH /api/ops/projects/{id}), until Done/Reject:
+     * imported by the system (requested_by.employee_id = "system") → its assignees; filed by a user → the requester's department.
+     */
+    can_edit?: boolean;
     created_at: string;
     updated_at: string;
 }
+
+/** PATCH /api/ops/projects/{id} — any subset of the request fields */
+export type ProjectEditInput = Partial<ProjectRequestInput>;
 
 /** POST /api/ops/issues */
 export interface ProjectIssueInput {
@@ -104,6 +113,32 @@ export interface ProjectIssue extends ProjectIssueInput {
     status_history: OpsStatusChange[];
     /** Reporter confirms the fix */
     review?: OpsReview | null;
+    created_at: string;
+    updated_at: string;
+}
+
+/** POST /api/ops/tasks — OPS team / admin, while the project is not Reject (Done allowed for follow-up fixes) */
+export interface ProjectTaskInput {
+    project_id: string;
+    title: string;
+    /** YYYY-MM-DD */
+    due_date?: string | null;
+}
+
+/** PATCH /api/ops/tasks/{id} — OPS team / admin, while the task is Open; project_id follows the same rule as creating */
+export type ProjectTaskEditInput = Partial<Pick<ProjectTaskInput, 'title' | 'project_id'>>;
+
+/** A piece of work the project's assignee creates and moves themselves. */
+export interface ProjectTask extends ProjectTaskInput {
+    task_id: string;
+    /** Denormalised for the card */
+    project_title: string;
+    status: OpsStatus;
+    /** Creator = the one responsible; co-assignees may be added until Done/Reject */
+    owner: OpsPerson;
+    /** OPS team members helping on it (owner not included); they may move it too */
+    assignees: OpsPerson[];
+    status_history: OpsStatusChange[];
     created_at: string;
     updated_at: string;
 }

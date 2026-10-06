@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { WaveBackground } from '@/components/wave-background';
 import type { UserInfo } from '@/app/context/SessionContext';
 import { cn } from '@/lib/utils';
-import type { OpsAttachment, OpsPerson, OpsPriority, OpsStatus } from './types';
+import { OPS_PRIORITIES, type OpsAttachment, type OpsPerson, type OpsPriority, type OpsStatus } from './types';
 
 // ───────────────────────────── meta / helpers ─────────────────────────────
 
@@ -62,6 +62,9 @@ export const formatThaiDate = (iso?: string | null, withTime = false) =>
     iso ? format(new Date(iso), withTime ? 'd MMM yyyy HH:mm' : 'd MMM yyyy', { locale: th }) : '-';
 
 export const formatShortDate = (iso?: string | null) => (iso ? format(new Date(iso), 'd MMM', { locale: th }) : '-');
+
+/** Done / Reject: dates and assignees are frozen. */
+export const isClosedStatus = (s: OpsStatus) => s === 'Done' || s === 'Reject';
 
 /** Planned end has passed and the project isn't finished. */
 export const isOverdue = (p: { status: OpsStatus; planned_end?: string | null }) => {
@@ -133,6 +136,40 @@ export const FieldError = ({ message }: { message?: string }) =>
             {message}
         </p>
     ) : null;
+
+/** Four priority cards (radio group); `compact` drops the hint line for narrow spaces like the detail sheet. */
+export const PriorityPicker = ({ value, onChange, compact }: {
+    value: OpsPriority | ''; onChange: (p: OpsPriority) => void; compact?: boolean;
+}) => (
+    <div role="radiogroup" aria-label="ระดับความสำคัญ" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {OPS_PRIORITIES.map(p => {
+            const m = PRIORITY_META[p];
+            const active = value === p;
+            return (
+                <button
+                    key={p}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => onChange(p)}
+                    className={cn(
+                        'text-left rounded-xl border-2 transition-all cursor-pointer',
+                        compact ? 'p-2' : 'p-3',
+                        active ? cn(m.active, 'ring-4') : 'border-gray-200 bg-white hover:border-gray-300',
+                    )}
+                >
+                    <span className="flex items-center gap-2">
+                        <span className={cn('grid size-7 shrink-0 place-items-center rounded-lg border', m.chip)}>
+                            <m.icon className="size-4" strokeWidth={2.5} />
+                        </span>
+                        <span className="text-sm font-semibold text-gray-800">{m.label}</span>
+                    </span>
+                    {!compact && <span className="block mt-2 text-[11px] leading-snug text-gray-500">{m.hint}</span>}
+                </button>
+            );
+        })}
+    </div>
+);
 
 export const SectionTitle = ({ step, title, caption }: { step: number; title: string; caption?: string }) => (
     <div className="flex items-start gap-3 pt-2">

@@ -8,54 +8,13 @@ import { SubmitSuccess } from '@/components/ui/submit-success';
 import { useSessionContext } from '@/app/context/SessionContext';
 import { cn } from '@/lib/utils';
 import { createProject, OpsRequestError } from '../api';
-import { OPS_PRIORITIES, type OpsPriority, type ProjectRequestInput } from '../types';
 import {
     AttachmentPicker, DateField, FieldError, FieldLabel, FormActions, INPUT_CLASS, OpsFormShell,
-    PRIORITY_META, RequesterCard, SectionTitle, TEXTAREA_CLASS, fieldBorder, toPerson,
+    PriorityPicker, RequesterCard, SectionTitle, TEXTAREA_CLASS, fieldBorder,
 } from '../components';
+import { EMPTY_PROJECT_FORM as EMPTY, type ProjectFormState as FormState, toProjectInput as toInput, validateProjectForm as validate } from '../project-form';
 import { RichTextEditor } from '../rich-text';
 import { UserGroupPicker } from '../user-group-picker';
-
-type FormState = Omit<ProjectRequestInput, 'estimated_users' | 'priority'> & {
-    estimated_users: string;
-    priority: OpsPriority | '';
-};
-
-const EMPTY: FormState = {
-    title: '', objective: '', requirement: '', expected_benefit: '',
-    estimated_users: '', user_groups: '', priority: '', priority_reason: '', target_date: '',
-};
-
-const REQUIRED: Partial<Record<keyof FormState, string>> = {
-    title: 'กรุณาระบุชื่อโปรเจค',
-    objective: 'กรุณาอธิบายปัญหาและวัตถุประสงค์',
-    requirement: 'กรุณาระบุรายละเอียดความต้องการ',
-    expected_benefit: 'กรุณาระบุประโยชน์และความคุ้มค่า',
-    priority: 'กรุณาเลือกระดับความสำคัญ',
-    priority_reason: 'กรุณาระบุเหตุผลประกอบ',
-};
-
-const validate = (f: FormState) => {
-    const errors: Record<string, string> = {};
-    for (const [key, msg] of Object.entries(REQUIRED)) {
-        if (!String(f[key as keyof FormState] ?? '').trim()) errors[key] = msg;
-    }
-    const users = Number(f.estimated_users);
-    if (!Number.isInteger(users) || users < 1) errors.estimated_users = 'กรุณาระบุจำนวนผู้ใช้งาน (ตัวเลขตั้งแต่ 1)';
-    return errors;
-};
-
-const toInput = (f: FormState): ProjectRequestInput => ({
-    title: f.title.trim(),
-    objective: f.objective.trim(),
-    requirement: f.requirement.trim(),
-    expected_benefit: f.expected_benefit.trim(),
-    estimated_users: Number(f.estimated_users),
-    user_groups: f.user_groups?.trim() || null,
-    priority: f.priority as OpsPriority,
-    priority_reason: f.priority_reason.trim(),
-    target_date: f.target_date || null,
-});
 
 export default function ProjectRequestPage() {
     const router = useRouter();
@@ -90,13 +49,13 @@ export default function ProjectRequestPage() {
         const found = validate(form);
         setErrors(found);
         if (Object.keys(found).length) {
-            document.getElementById(Object.keys(found)[0])?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            (document.getElementById(Object.keys(found)[0]) ?? e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
         if (!user) return;
         setSubmitting(true);
         try {
-            const { project_id } = await createProject(toInput(form), files, { me: toPerson(user) });
+            const { project_id } = await createProject(toInput(form), files);
             setCreatedId(project_id);
         } catch (err) {
             if (err instanceof OpsRequestError && err.body.field_errors) setErrors(err.body.field_errors);
@@ -179,33 +138,7 @@ export default function ProjectRequestPage() {
                     <div className="space-y-5">
                         <div id="priority">
                             <FieldLabel no={6} label="ระดับความสำคัญ (Priority)" required />
-                            <div role="radiogroup" aria-label="ระดับความสำคัญ" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                {OPS_PRIORITIES.map(p => {
-                                    const m = PRIORITY_META[p];
-                                    const active = form.priority === p;
-                                    return (
-                                        <button
-                                            key={p}
-                                            type="button"
-                                            role="radio"
-                                            aria-checked={active}
-                                            onClick={() => set('priority', p)}
-                                            className={cn(
-                                                'text-left rounded-xl border-2 p-3 transition-all cursor-pointer',
-                                                active ? cn(m.active, 'ring-4') : 'border-gray-200 bg-white hover:border-gray-300',
-                                            )}
-                                        >
-                                            <span className="flex items-center gap-2">
-                                                <span className={cn('grid size-7 shrink-0 place-items-center rounded-lg border', m.chip)}>
-                                                    <m.icon className="size-4" strokeWidth={2.5} />
-                                                </span>
-                                                <span className="text-sm font-semibold text-gray-800">{m.label}</span>
-                                            </span>
-                                            <span className="block mt-2 text-[11px] leading-snug text-gray-500">{m.hint}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                            <PriorityPicker value={form.priority} onChange={(p) => set('priority', p)} />
                             <FieldError message={errors.priority} />
                         </div>
                         <div>

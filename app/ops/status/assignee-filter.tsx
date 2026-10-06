@@ -9,12 +9,17 @@ import { PersonAvatar } from './kanban';
 /** Filter value for items nobody is assigned to yet */
 export const UNASSIGNED = '__unassigned__';
 
-/** No selection = everything; otherwise anyone selected is on it (or it is unassigned and that option is on). */
-export const matchesAssignees = (people: OpsPerson[], selected: string[]) =>
-    selected.length === 0
-    || (people.length === 0
-        ? selected.includes(UNASSIGNED)
-        : people.some(p => p.username && selected.includes(p.username)));
+/**
+ * No selection = everything. Selected people must ALL be on it (2+ people = only work they share);
+ * "ยังไม่มอบหมาย" additionally keeps items with nobody on them.
+ */
+export const matchesAssignees = (people: OpsPerson[], selected: string[]) => {
+    if (selected.length === 0) return true;
+    if (people.length === 0) return selected.includes(UNASSIGNED);
+    const wanted = selected.filter(s => s !== UNASSIGNED).map(s => s.toLowerCase());
+    const on = new Set(people.map(p => p.username?.toLowerCase()).filter(Boolean));
+    return wanted.length > 0 && wanted.every(u => on.has(u));
+};
 
 /** Toolbar pill: multi-select of the OPS team plus "ยังไม่มอบหมาย". */
 export const AssigneeFilter = ({ team, value, onChange, me }: {

@@ -22,8 +22,10 @@ const relative = (date: Date, today: Date) => {
  * Estimated completion date (planned_end) on the assignee side of the detail sheet.
  * Read-only unless `onChange` is given.
  */
-export const EstimateDate = ({ value, targetDate, onChange }: {
+export const EstimateDate = ({ value, targetDate, onChange, label = 'คาดว่าจะเสร็จ' }: {
     value?: string | null;
+    /** Tile + popover heading; tasks use กำหนดเสร็จ */
+    label?: string;
     /** Requester's wished go-live date — marked on the calendar and compared against */
     targetDate?: string | null;
     onChange?: (date: string | null) => void;
@@ -46,7 +48,7 @@ export const EstimateDate = ({ value, targetDate, onChange }: {
                 {selected ? <CalendarCheck2 className="w-4 h-4" /> : <CalendarPlus className="w-4 h-4" />}
             </span>
             <span className="flex flex-col min-w-0 flex-1">
-                <span className="text-[11px] text-ink-500">คาดว่าจะเสร็จ</span>
+                <span className="text-[11px] text-ink-500">{label}</span>
                 {selected ? (
                     <>
                         <span className="text-sm font-semibold text-ink-900">{format(selected, 'd MMM yyyy', { locale: th })}</span>
@@ -72,7 +74,7 @@ export const EstimateDate = ({ value, targetDate, onChange }: {
             <PopoverTrigger asChild>
                 <button
                     type="button"
-                    aria-label={selected ? 'แก้ไขวันที่คาดว่าจะเสร็จ' : 'กำหนดวันที่คาดว่าจะเสร็จ'}
+                    aria-label={`${selected ? 'แก้ไข' : 'ตั้ง'}วันที่${label}`}
                     className={cn(
                         tileClass,
                         'cursor-pointer transition-all hover:shadow-card',
@@ -84,7 +86,7 @@ export const EstimateDate = ({ value, targetDate, onChange }: {
             </PopoverTrigger>
             <PopoverContent align="end" sideOffset={6} className="w-auto p-0 rounded-2xl border-border shadow-card overflow-hidden">
                 <div className="px-4 pt-3.5 pb-2.5 border-b border-gray-100">
-                    <p className="text-sm font-semibold text-ink-900">วันที่คาดว่าจะเสร็จ</p>
+                    <p className="text-sm font-semibold text-ink-900">วันที่{label}</p>
                     <p className="text-[11px] text-ink-500">เลือกวันในปฏิทิน หรือกดปุ่มลัดด้านล่าง</p>
                 </div>
                 <Calendar

@@ -231,22 +231,22 @@ export const ReviewChip = ({ status, review, history }: { status: OpsStatus; rev
     const active = currentReview(status, review, history);
     if (active?.result === 'passed' && (status === 'Review' || status === 'Done')) {
         return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-mint-700" title={`โดย ${active.by.name}`}>
-                <Check className="w-3 h-3" strokeWidth={3} /> ผ่านรีวิว
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-px text-[10.5px] font-medium text-mint-700" title={`โดย ${active.by.name}`}>
+                <Check className="w-2.5 h-2.5" strokeWidth={3} /> ผ่านรีวิว
             </span>
         );
     }
     if (active?.result === 'changes_requested' && (status === 'Review' || status === 'In Progress')) {
         return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-sun-700" title={active.note ?? undefined}>
-                <RotateCcw className="w-3 h-3" /> ส่งกลับแก้ไข
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-50 px-1.5 py-px text-[10.5px] font-medium text-sun-700" title={active.note ?? undefined}>
+                <RotateCcw className="w-2.5 h-2.5" /> ส่งกลับแก้ไข
             </span>
         );
     }
     if (status === 'Review') {
         return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">
-                <Eye className="w-3 h-3" /> รอตรวจรับ
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-violet-50 px-1.5 py-px text-[10.5px] font-medium text-violet-700">
+                <Eye className="w-2.5 h-2.5" /> รอตรวจรับ
             </span>
         );
     }

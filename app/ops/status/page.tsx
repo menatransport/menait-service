@@ -1,8 +1,8 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowRight, ChartNoAxesCombined, ClipboardCheck, Search } from 'lucide-react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { ArrowRight, CalendarClock, ChartNoAxesCombined, ClipboardCheck, FolderKanban, ListChecks, RefreshCw, Search, X } from 'lucide-react';
 import {
     AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
@@ -11,16 +11,27 @@ import Loading from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import { cn } from '@/lib/utils';
 import {
-    listIssues, listProjects, submitReview, updateIssueStatus, updateProjectAssignees, updateProjectPlan, updateProjectStatus,
+    createTask, listIssues, listProjects, listTasks, submitReview, updateIssueStatus, updateProject, updateProjectAssignees, updateProjectLink,
+    updateProjectPlan, updateProjectStatus, updateTask, updateTaskAssignees, updateTaskPlan, updateTaskStatus,
 } from '../api';
-import type { OpsPerson, OpsReviewResult, OpsScope, OpsStatus, OpsStatusChange, Project, ProjectIssue } from '../types';
+import type {
+    OpsPerson, OpsReviewResult, OpsScope, OpsStatus, OpsStatusChange, Project, ProjectIssue, ProjectRequestInput, ProjectTask, ProjectTaskEditInput, ProjectTaskInput,
+} from '../types';
 import { isOverdue, toPerson } from '../components';
 import { canManageOps, useOpsTeam } from '../team';
-import { IssueDetailSheet, ProjectDetailSheet } from './detail-sheet';
-import { IssueKanbanCard, KanbanBoard, ProjectKanbanCard, sortIssues, sortProjects } from './kanban';
-import { AssigneeFilter, matchesAssignees } from './assignee-filter';
+import { IssueDetailSheet, ProjectDetailSheet, TaskDetailSheet } from './detail-sheet';
+import { IssueKanbanCard, KanbanBoard, ProjectKanbanCard, TaskKanbanCard, sortIssues, sortProjects, sortTasks, type WorkKind } from './kanban';
+import { TaskComposer } from './task-composer';
+import { StatCards } from './stats';
+import { AssigneeFilter, UNASSIGNED, matchesAssignees } from './assignee-filter';
 
 type View = 'projects' | 'issues';
+
+/** The project board also carries the Task OPS of those projects */
+type BoardItem = Project | ProjectTask;
+const isTask = (x: BoardItem): x is ProjectTask => 'task_id' in x;
+
+const sameUser = (a?: string | null, b?: string | null) => Boolean(a && b && a.toLowerCase() === b.toLowerCase());
 
 const swal = () => import('sweetalert2').then(m => m.default);
 
@@ -52,20 +63,6 @@ function withStatus<T extends { status: OpsStatus; updated_at: string; status_hi
     return { ...item, status, updated_at: now, status_history: [...item.status_history, { status, changed_at: now, changed_by: me, remark }] };
 }
 
-const Summary = ({ items }: { items: { label: string; value: number; alert?: boolean }[] }) => (
-    // one swipeable row on phones, a 5-up grid from sm
-    <dl className="-mx-4 px-4 sm:mx-0 sm:px-0 flex sm:grid sm:grid-cols-5 gap-3 overflow-x-auto pb-1 sm:pb-0">
-        {items.map(s => (
-            <div key={s.label} className="v2-glass rounded-2xl px-4 py-3 min-w-34 shrink-0 sm:min-w-0">
-                <dt className="text-xs text-ink-500">{s.label}</dt>
-                <dd className={cn('mt-0.5 font-display text-2xl font-semibold tabular-nums leading-tight', s.alert && s.value > 0 ? 'text-rose-600' : 'text-ink-900')}>
-                    {s.value}
-                </dd>
-            </div>
-        ))}
-    </dl>
-);
-
 /** Pill switch in the style of the app's primary buttons. */
 const Pills = <T extends string>({ value, onChange, options, label }: {
     value: T; onChange: (v: T) => void; options: { value: T; label: React.ReactNode }[]; label: string;
@@ -89,8 +86,25 @@ const Pills = <T extends string>({ value, onChange, options, label }: {
     </div>
 );
 
+/** /ops/status/{OPS-… | ISS-… | TSK-…} → that item's sheet */
+const detailIdFrom = (pathname: string) => {
+    const m = pathname.match(/^\/ops\/status\/([^/]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+};
+
+/**
+ * Opens/closes a sheet by URL without a Next navigation (history API, synced to usePathname),
+ * so the board keeps its data and filters. Back/forward walk through the sheets.
+ */
+const goToDetail = (id: string | null, mode: 'push' | 'replace' = 'push') => {
+    const url = `/ops/status${id ? `/${encodeURIComponent(id)}` : ''}${window.location.search}`;
+    if (mode === 'push') window.history.pushState(null, '', url);
+    else window.history.replaceState(null, '', url);
+};
+
 function ProjectStatusContent() {
     const searchParams = useSearchParams();
+    const detailId = detailIdFrom(usePathname());
     const { user } = useSessionContext();
     const router = useRouter();
     /** Set after a project passes review: the satisfaction survey is required next */
@@ -100,17 +114,25 @@ function ProjectStatusContent() {
     const [query, setQuery] = useState('');
     /** usernames (and/or UNASSIGNED); empty = everyone */
     const [assigneeFilter, setAssigneeFilter] = useState<string[]>([]);
+    /** Board filters: which kind of card, and late work only */
+    const [kind, setKind] = useState<WorkKind | 'all'>('all');
+    const [overdueOnly, setOverdueOnly] = useState(false);
     const [projects, setProjects] = useState<Project[]>([]);
     const [issues, setIssues] = useState<ProjectIssue[]>([]);
+    const [tasks, setTasks] = useState<ProjectTask[]>([]);
+    /** Projects a manager may file tasks under — "ของฉัน" is narrower, so these come from scope=all */
+    const [assigned, setAssigned] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
-    // keep only the id so the sheet always shows the latest copy after edits
-    const [openProjectId, setOpenProjectId] = useState<string | null>(null);
-    const openProject = projects.find(p => p.project_id === openProjectId) ?? null;
-    const [openIssueId, setOpenIssueId] = useState<string | null>(null);
-    const openIssue = issues.find(i => i.issue_id === openIssueId) ?? null;
+    // the URL holds only the id, so the sheet always shows the latest copy after edits
+    const openProject = projects.find(p => p.project_id === detailId)
+        ?? assigned.find(p => p.project_id === detailId) ?? null;
+    const openIssue = issues.find(i => i.issue_id === detailId) ?? null;
+    const openTask = tasks.find(t => t.task_id === detailId) ?? null;
+    const closeDetail = () => goToDetail(null, 'replace');
     const [landedKey, setLandedKey] = useState<string | null>(null);
     const team = useOpsTeam();
     const canManage = canManageOps(user);
+    const me = useMemo(() => (user ? toPerson(user) : null), [user]);
 
     // the glow on a just-dropped card lasts ~1s
     useEffect(() => {
@@ -118,6 +140,41 @@ function ProjectStatusContent() {
         const t = setTimeout(() => setLandedKey(null), 1300);
         return () => clearTimeout(t);
     }, [landedKey]);
+
+    /** Bumped per fetch so an older response never overwrites a newer one */
+    const fetchSeq = useRef(0);
+    const [syncing, setSyncing] = useState(false);
+
+    /**
+     * Pulls every list again — on load / scope change, from the refresh button, and quietly after each save,
+     * so the board matches the server without F5 (the "ของฉัน" filter, can_edit, titles copied onto tasks/issues).
+     */
+    const reload = useCallback(async () => {
+        if (!user) return;
+        const seq = ++fetchSeq.current;
+        setSyncing(true);
+        try {
+            const [p, i, t, all] = await Promise.all([
+                listProjects(scope), listIssues(scope), listTasks(scope),
+                scope === 'all' ? null : listProjects('all'),
+            ]);
+            if (seq !== fetchSeq.current) return;
+            // OPS team / admin: "ของฉัน" = projects nobody owns yet (any status from Open) + ones assigned to me
+            const mine = scope === 'mine' && canManageOps(user)
+                ? (all ?? p).filter(x => x.assignees.length === 0 || x.assignees.some(a => sameUser(a.username, user.username)))
+                : p;
+            setProjects(sortProjects(mine));
+            setIssues(sortIssues(i));
+            setTasks(sortTasks(t));
+            setAssigned(canManageOps(user) ? (all ?? p) : []);
+        } catch (err) {
+            if (seq === fetchSeq.current) toast('error', err instanceof Error ? err.message : 'โหลดข้อมูลไม่สำเร็จ');
+        } finally {
+            if (seq === fetchSeq.current) { setSyncing(false); setLoading(false); }
+        }
+    }, [user, scope]);
+
+    useEffect(() => { void reload(); }, [reload]);
 
     const moveProject = async (p: Project, to: OpsStatus) => {
         if (!user) return;
@@ -128,8 +185,9 @@ function ProjectStatusContent() {
         swap(withStatus(p, to, remark, me));
         setLandedKey(p.project_id);
         try {
-            await updateProjectStatus(p.project_id, to, remark, { me });
+            await updateProjectStatus(p.project_id, to, remark);
             toast('success', `ย้ายไป ${to} แล้ว`);
+            void reload();
         } catch (err) {
             swap(p);
             toast('error', err instanceof Error ? err.message : 'ย้ายสถานะไม่สำเร็จ');
@@ -145,14 +203,90 @@ function ProjectStatusContent() {
         swap(withStatus(i, to, remark, me));
         setLandedKey(i.issue_id);
         try {
-            await updateIssueStatus(i.issue_id, to, remark, { me });
+            await updateIssueStatus(i.issue_id, to, remark);
             toast('success', `ย้ายไป ${to} แล้ว`);
+            void reload();
         } catch (err) {
             swap(i);
             toast('error', err instanceof Error ? err.message : 'ย้ายสถานะไม่สำเร็จ');
         }
     };
 
+    /** Reject = cancelled, no reason asked. */
+    const moveTask = async (t: ProjectTask, to: OpsStatus) => {
+        if (!me) return;
+        const swap = (next: ProjectTask) => setTasks(list => sortTasks(list.map(x => (x.task_id === t.task_id ? next : x))));
+        swap(withStatus(t, to, null, me));
+        setLandedKey(t.task_id);
+        try {
+            await updateTaskStatus(t.task_id, to);
+            toast('success', `ย้ายไป ${to} แล้ว`);
+            void reload();
+        } catch (err) {
+            swap(t);
+            toast('error', err instanceof Error ? err.message : 'ย้ายสถานะไม่สำเร็จ');
+        }
+    };
+
+    const assignTask = async (t: ProjectTask, people: OpsPerson[]) => {
+        if (!me) return;
+        const swap = (next: ProjectTask) => setTasks(list => list.map(x => (x.task_id === t.task_id ? next : x)));
+        swap({ ...t, assignees: people });
+        try {
+            await updateTaskAssignees(t.task_id, people);
+            toast('success', 'บันทึกผู้ร่วมรับผิดชอบแล้ว');
+            void reload();
+        } catch (err) {
+            swap(t);
+            toast('error', err instanceof Error ? err.message : 'เพิ่มผู้รับผิดชอบไม่สำเร็จ');
+        }
+    };
+
+    const setTaskDue = async (t: ProjectTask, date: string | null) => {
+        if (!me) return;
+        const swap = (next: ProjectTask) => setTasks(list => list.map(x => (x.task_id === t.task_id ? next : x)));
+        swap({ ...t, due_date: date });
+        try {
+            await updateTaskPlan(t.task_id, { due_date: date });
+            toast('success', date ? 'บันทึกกำหนดเสร็จแล้ว' : 'ล้างกำหนดเสร็จแล้ว');
+            void reload();
+        } catch (err) {
+            swap(t);
+            toast('error', err instanceof Error ? err.message : 'บันทึกวันที่ไม่สำเร็จ');
+        }
+    };
+
+    /** While Open: rename or move to another project */
+    const editTask = async (t: ProjectTask, input: ProjectTaskEditInput) => {
+        if (!me) return;
+        const swap = (next: ProjectTask) => setTasks(list => sortTasks(list.map(x => (x.task_id === t.task_id ? next : x))));
+        const target = input.project_id ? assigned.find(p => p.project_id === input.project_id) : undefined;
+        swap({ ...t, ...input, ...(target && { project_title: target.title }) });
+        try {
+            swap(await updateTask(t.task_id, input));
+            if (target) setLandedKey(t.task_id);
+            toast('success', target ? `ย้ายไป ${target.project_id} แล้ว` : 'บันทึกชื่อ Task แล้ว');
+            void reload();
+        } catch (err) {
+            swap(t);
+            toast('error', err instanceof Error ? err.message : 'บันทึก Task ไม่สำเร็จ');
+        }
+    };
+
+    const addTask = async (input: ProjectTaskInput) => {
+        if (!me) return false;
+        try {
+            const task = await createTask(input);
+            setTasks(list => [task, ...list]);
+            setLandedKey(task.task_id);
+            toast('success', 'สร้าง Task แล้ว');
+            void reload();
+            return true;
+        } catch (err) {
+            toast('error', err instanceof Error ? err.message : 'สร้าง Task ไม่สำเร็จ');
+            return false;
+        }
+    };
 
     const applyReview = <T extends { status: OpsStatus; updated_at: string; status_history: OpsStatusChange[] }>(
         item: T, result: OpsReviewResult, note: string | null, me: OpsPerson,
@@ -169,8 +303,9 @@ function ProjectStatusContent() {
         swap(applyReview(p, result, note, me));
         setLandedKey(p.project_id);
         try {
-            await submitReview('project', p.project_id, { result, note }, { me });
+            await submitReview('project', p.project_id, { result, note });
             toast('success', result === 'passed' ? 'บันทึกผล: ผ่านรีวิว' : 'บันทึกผล: ส่งกลับแก้ไข');
+            void reload();
             if (result === 'passed') setSurveyFor(p);
             return true;
         } catch (err) {
@@ -187,8 +322,9 @@ function ProjectStatusContent() {
         swap(applyReview(i, result, note, me));
         setLandedKey(i.issue_id);
         try {
-            await submitReview('issue', i.issue_id, { result, note }, { me });
+            await submitReview('issue', i.issue_id, { result, note });
             toast('success', result === 'passed' ? 'บันทึกผล: แก้ไขแล้ว ผ่าน' : 'บันทึกผล: ส่งกลับแก้ไข');
+            void reload();
             return true;
         } catch (err) {
             swap(i);
@@ -202,8 +338,9 @@ function ProjectStatusContent() {
         const swap = (next: Project) => setProjects(list => list.map(x => (x.project_id === p.project_id ? next : x)));
         swap({ ...p, planned_end: date });
         try {
-            await updateProjectPlan(p.project_id, { planned_end: date }, { me: toPerson(user) });
+            await updateProjectPlan(p.project_id, { planned_end: date });
             toast('success', date ? 'บันทึกวันที่คาดว่าจะเสร็จแล้ว' : 'ล้างวันที่คาดว่าจะเสร็จแล้ว');
+            void reload();
         } catch (err) {
             swap(p);
             toast('error', err instanceof Error ? err.message : 'บันทึกวันที่ไม่สำเร็จ');
@@ -215,30 +352,73 @@ function ProjectStatusContent() {
         const swap = (next: Project) => setProjects(list => list.map(x => (x.project_id === p.project_id ? next : x)));
         swap({ ...p, assignees: people });
         try {
-            await updateProjectAssignees(p.project_id, people, { me: toPerson(user) });
+            await updateProjectAssignees(p.project_id, people);
+            toast('success', people.length ? 'บันทึกผู้รับผิดชอบแล้ว' : 'ล้างผู้รับผิดชอบแล้ว');
+            void reload();
         } catch (err) {
             swap(p);
             toast('error', err instanceof Error ? err.message : 'มอบหมายงานไม่สำเร็จ');
         }
     };
 
+    const setProjectLink = async (p: Project, url: string | null) => {
+        try {
+            const next = await updateProjectLink(p.project_id, url);
+            const swap = (list: Project[]) => list.map(x => (x.project_id === p.project_id ? next : x));
+            setProjects(swap);
+            setAssigned(swap);
+            toast('success', url ? 'บันทึกลิงก์แล้ว' : 'ลบลิงก์แล้ว');
+            void reload();
+            return true;
+        } catch (err) {
+            toast('error', err instanceof Error ? err.message : 'บันทึกลิงก์ไม่สำเร็จ');
+            return false;
+        }
+    };
+
+    const editProject = async (p: Project, input: ProjectRequestInput) => {
+        try {
+            const next = await updateProject(p.project_id, input);
+            const swap = (list: Project[]) => sortProjects(list.map(x => (x.project_id === p.project_id ? next : x)));
+            setProjects(swap);
+            setAssigned(swap);
+            // tasks carry the project title for their cards
+            if (next.title !== p.title) {
+                setTasks(list => list.map(t => (t.project_id === p.project_id ? { ...t, project_title: next.title } : t)));
+            }
+            toast('success', 'บันทึกการแก้ไขคำขอแล้ว');
+            void reload();
+            return true;
+        } catch (err) {
+            toast('error', err instanceof Error ? err.message : 'แก้ไขคำขอไม่สำเร็จ');
+            return false;
+        }
+    };
+
+
+    // a shared link may point outside "ของฉัน": widen to ทั้งหมด once so the sheet can open
+    const detailMissing = !loading && Boolean(detailId) && !openProject && !openIssue && !openTask;
     useEffect(() => {
-        if (!user) return;
-        let cancelled = false;
-        const caller = { me: toPerson(user) };
-        Promise.all([listProjects(scope, caller), listIssues(scope, caller)])
-            .then(([p, i]) => { if (!cancelled) { setProjects(sortProjects(p)); setIssues(sortIssues(i)); } })
-            .catch(err => console.error('Error fetching OPS status:', err))
-            .finally(() => { if (!cancelled) setLoading(false); });
-        return () => { cancelled = true; };
-    }, [user, scope]);
+        if (detailMissing && scope === 'mine') { setScope('all'); setLoading(true); }
+    }, [detailMissing, scope]);
 
     const q = query.trim().toLowerCase();
-    const visibleProjects = useMemo(
+    // assignee + search filters — what the stat cards count; the card toggles (kind / overdue) narrow the board further
+    const filteredProjects = useMemo(
         () => projects.filter(p =>
             matchesAssignees(p.assignees, assigneeFilter)
             && (!q || `${p.project_id} ${p.title}`.toLowerCase().includes(q))),
         [projects, q, assigneeFilter],
+    );
+    const filteredTasks = useMemo(
+        () => tasks.filter(t =>
+            matchesAssignees([t.owner, ...t.assignees], assigneeFilter)
+            && (!q || `${t.task_id} ${t.project_id} ${t.project_title} ${t.title}`.toLowerCase().includes(q))),
+        [tasks, q, assigneeFilter],
+    );
+    const visibleProjects = useMemo(
+        () => (kind === 'task' ? [] : filteredProjects.filter(p => !overdueOnly || isOverdue(p))),
+        [filteredProjects, kind, overdueOnly],
     );
     const visibleIssues = useMemo(
         () => issues.filter(i =>
@@ -248,22 +428,46 @@ function ProjectStatusContent() {
         [issues, q, assigneeFilter],
     );
 
-    const summary = useMemo(() => [
-        { label: 'โปรเจกต์ทั้งหมด', value: projects.length },
-        { label: 'กำลังดำเนินการ', value: projects.filter(p => p.status === 'In Progress').length },
-        { label: 'เสร็จสิ้น', value: projects.filter(p => p.status === 'Done').length },
-        { label: 'เลยกำหนดแผน', value: projects.filter(isOverdue).length, alert: true },
-        { label: 'ปัญหาค้างอยู่', value: issues.filter(i => i.status !== 'Done' && i.status !== 'Reject').length, alert: true },
-    ], [projects, issues]);
+    const visibleTasks = useMemo(
+        () => (kind === 'project' ? [] : filteredTasks.filter(t => !overdueOnly || isOverdue({ status: t.status, planned_end: t.due_date }))),
+        [filteredTasks, kind, overdueOnly],
+    );
+
+    /** Picking anyone but me looks past "ของฉัน", so switch to ทั้งหมด */
+    const pickAssignees = (next: string[]) => {
+        setAssigneeFilter(next);
+        if (scope === 'mine' && next.some(u => u !== UNASSIGNED && !sameUser(u, user?.username))) {
+            setScope('all');
+            setLoading(true);
+        }
+    };
+    /** Projects a new task may go under: not rejected — Done stays open for follow-up design fixes */
+    const taskProjects = useMemo(
+        () => sortProjects(assigned.filter(p => p.status !== 'Reject')),
+        [assigned],
+    );
+    // projects first in each column, their tasks after them
+    const boardItems = useMemo<BoardItem[]>(() => [...visibleProjects, ...visibleTasks], [visibleProjects, visibleTasks]);
+    const moveBoardItem = (x: BoardItem, to: OpsStatus) => (isTask(x) ? moveTask(x, to) : moveProject(x, to));
+
+    // stat cards are shortcuts into the board filters; from the issues tab they also bring the board back
+    const pickKind = (k: WorkKind) => {
+        setKind(cur => (view === 'projects' && cur === k ? 'all' : k));
+        setView('projects');
+    };
+    const toggleOverdue = () => {
+        setOverdueOnly(cur => (view === 'projects' ? !cur : true));
+        setView('projects');
+    };
 
     const tabs: { value: View; label: string; count: number }[] = [
-        { value: 'projects', label: 'โปรเจกต์', count: projects.length },
+        { value: 'projects', label: 'โปรเจกต์', count: projects.length + tasks.length },
         { value: 'issues', label: 'ปัญหาที่แจ้ง', count: issues.length },
     ];
 
     return (
         <main className="flex-1 min-h-0 v2-canvas rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-5">
+            <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 2xl:px-14 py-6 sm:py-8 space-y-5">
 
                 {/* heading */}
                 <div className="flex items-center gap-3">
@@ -272,37 +476,80 @@ function ProjectStatusContent() {
                     </span>
                     <div className="min-w-0">
                         <h2 className="font-display text-xl sm:text-2xl font-semibold text-ink-900 leading-tight">สถานะโปรเจกต์ OPS</h2>
-                        <p className="text-[13px] text-ink-500">
-                            {canManage ? 'ลากการ์ดเพื่อเปลี่ยนสถานะ · มอบหมายงานได้ที่การ์ดสถานะ Open' : 'อัปเดตโดยทีมผู้ดูแลโปรเจกต์ · เลือกการ์ดเพื่อดูรายละเอียด'}
-                        </p>
+
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => void reload()}
+                        disabled={syncing}
+                        aria-live="polite"
+                        title="ดึงข้อมูลล่าสุด"
+                        className="ml-auto v2-glass h-9 px-3.5 rounded-full inline-flex items-center gap-1.5 text-xs font-medium text-ink-700 hover:text-brand-700 cursor-pointer transition-colors disabled:cursor-default disabled:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50"
+                    >
+                        <RefreshCw className={cn('w-3.5 h-3.5', syncing && 'animate-spin')} />
+                        {syncing ? 'กำลังอัปเดต…' : 'อัปเดตข้อมูล'}
+                    </button>
                 </div>
 
-                <Summary items={summary} />
+                <StatCards
+                    projects={filteredProjects}
+                    tasks={filteredTasks}
+                    issues={visibleIssues}
+                    kind={kind}
+                    overdueOnly={overdueOnly}
+                    issuesView={view === 'issues'}
+                    onKind={pickKind}
+                    onOverdue={toggleOverdue}
+                    onIssues={() => setView(v => (v === 'issues' ? 'projects' : 'issues'))}
+                />
 
                 {/* tabs + filters */}
-                <div className="flex flex-col md:flex-row md:items-center gap-3">
-                    <Pills<View>
-                        label="ประเภทข้อมูล"
-                        value={view}
-                        onChange={setView}
-                        options={tabs.map(t => ({
-                            value: t.value,
-                            label: <>{t.label}<span className={cn('rounded-full px-1.5 text-[11px] tabular-nums', view === t.value ? 'bg-white/25' : 'bg-brand-50 text-brand-700')}>{t.count}</span></>,
-                        }))}
-                    />
-                    <div className="flex items-center gap-2 md:ml-auto">
-                        <div className="relative flex-1 md:w-64">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Pills<View>
+                            label="ประเภทข้อมูล"
+                            value={view}
+                            onChange={setView}
+                            options={tabs.map(t => ({
+                                value: t.value,
+                                label: <>{t.label}<span className={cn('rounded-full px-1.5 text-[11px] tabular-nums', view === t.value ? 'bg-white/25' : 'bg-brand-50 text-brand-700')}>{t.count}</span></>,
+                            }))}
+                        />
+                        {view === 'projects' && (
+                            <Pills<WorkKind | 'all'>
+                                label="ประเภทงาน"
+                                value={kind}
+                                onChange={setKind}
+                                options={[
+                                    { value: 'all', label: 'ทั้งคู่' },
+                                    { value: 'project', label: <><FolderKanban className="w-4 h-4" />Project</> },
+                                    { value: 'task', label: <><ListChecks className="w-4 h-4" />Task</> },
+                                ]}
+                            />
+                        )}
+                        {view === 'projects' && overdueOnly && (
+                            <button
+                                type="button"
+                                onClick={() => setOverdueOnly(false)}
+                                className="h-9 inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 pl-3 pr-2 text-xs font-medium text-rose-700 hover:bg-rose-100 cursor-pointer transition-colors"
+                            >
+                                <CalendarClock className="w-3.5 h-3.5" />เฉพาะงานเลยกำหนด
+                                <X className="w-3.5 h-3.5" aria-label="ล้างตัวกรอง" />
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2 lg:ml-auto">
+                        <div className="relative flex-1 lg:w-64">
                             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-300" />
                             <input
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
-                                placeholder={view === 'issues' ? 'ค้นหาปัญหา' : 'ค้นหาโปรเจกต์ / ID'}
+                                placeholder={view === 'issues' ? 'ค้นหาปัญหา' : 'ค้นหาโปรเจกต์ / Task / ID'}
                                 aria-label="ค้นหา"
                                 className="v2-glass w-full h-11 pl-10 pr-4 rounded-full text-sm text-ink-900 placeholder:text-ink-300 focus:outline-none focus:ring-2 focus:ring-brand-400/40"
                             />
                         </div>
-                        <AssigneeFilter team={team} value={assigneeFilter} onChange={setAssigneeFilter} me={user ? toPerson(user) : null} />
+                        <AssigneeFilter team={team} value={assigneeFilter} onChange={pickAssignees} me={user ? toPerson(user) : null} />
                         <Pills<OpsScope>
                             label="ขอบเขตข้อมูล"
                             value={scope}
@@ -316,27 +563,42 @@ function ProjectStatusContent() {
                 {loading ? (
                     <div className="py-20 flex justify-center"><Loading /></div>
                 ) : view === 'projects' ? (
-                    <KanbanBoard
-                        items={visibleProjects}
-                        getKey={p => p.project_id}
-                        onMove={canManage ? moveProject : undefined}
+                    <KanbanBoard<BoardItem>
+                        items={boardItems}
+                        getKey={x => (isTask(x) ? x.task_id : x.project_id)}
+                        // the OPS team / admin manage everything; everyone else views
+                        onMove={me ? moveBoardItem : undefined}
+                        canMove={() => canManage}
                         landedKey={landedKey}
-                        renderCard={p => (
-                            <ProjectKanbanCard
-                                p={p}
-                                team={team}
-                                onOpen={() => setOpenProjectId(p.project_id)}
-                                onAssign={canManage ? (people) => assignProject(p, people) : undefined}
-                            />
-                        )}
+                        columnTop={status => (status === 'Open' && me && taskProjects.length > 0 && kind !== 'project' && !overdueOnly
+                            ? <TaskComposer projects={taskProjects} me={me} onCreate={addTask} />
+                            : null)}
+                        renderCard={x => (isTask(x)
+                            ? (
+                                <TaskKanbanCard
+                                    t={x}
+                                    team={team}
+                                    onOpen={() => goToDetail(x.project_id)}
+                                    onAssign={canManage ? (people) => assignTask(x, people) : undefined}
+                                />
+                            )
+                            : (
+                                <ProjectKanbanCard
+                                    p={x}
+                                    team={team}
+                                    onOpen={() => goToDetail(x.project_id)}
+                                    onAssign={canManage ? (people) => assignProject(x, people) : undefined}
+                                />
+                            ))}
                     />
                 ) : (
                     <KanbanBoard
                         items={visibleIssues}
                         getKey={i => i.issue_id}
-                        onMove={canManage ? moveIssue : undefined}
+                        onMove={me ? moveIssue : undefined}
+                        canMove={() => canManage}
                         landedKey={landedKey}
-                        renderCard={i => <IssueKanbanCard i={i} onOpen={() => setOpenIssueId(i.issue_id)} />}
+                        renderCard={i => <IssueKanbanCard i={i} onOpen={() => goToDetail(i.issue_id)} />}
                     />
                 )}
             </div>
@@ -344,19 +606,34 @@ function ProjectStatusContent() {
             <ProjectDetailSheet
                 project={openProject}
                 issues={issues}
+                tasks={tasks}
                 team={team}
-                onClose={() => setOpenProjectId(null)}
-                onOpenIssue={(i) => { setOpenProjectId(null); setOpenIssueId(i.issue_id); }}
+                onClose={closeDetail}
+                onOpenIssue={(i) => goToDetail(i.issue_id)}
+                onOpenTask={(t) => goToDetail(t.task_id)}
                 onEstimateChange={canManage ? setEstimate : undefined}
+                onAssign={canManage ? assignProject : undefined}
                 onReview={user ? reviewProject : undefined}
                 onMove={canManage ? moveProject : undefined}
+                onEdit={user ? editProject : undefined}
+                onLinkChange={canManage ? setProjectLink : undefined}
             />
             <IssueDetailSheet
                 issue={openIssue}
                 team={team}
-                onClose={() => setOpenIssueId(null)}
+                onClose={closeDetail}
                 onReview={user ? reviewIssue : undefined}
                 onMove={canManage ? moveIssue : undefined}
+            />
+            <TaskDetailSheet
+                task={openTask}
+                team={team}
+                onClose={closeDetail}
+                onOpenProject={(id) => goToDetail(id)}
+                onDueChange={canManage ? setTaskDue : undefined}
+                onAssign={canManage ? assignTask : undefined}
+                onEdit={canManage ? editTask : undefined}
+                projects={taskProjects}
             />
 
             {/* Required next step after "ผ่านรีวิว": no cancel, Esc and outside clicks do nothing */}
