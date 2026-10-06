@@ -186,7 +186,7 @@ function GroupColumn({ group, index, onNavigate }: { group: MenuGroup; index: nu
             {group.items.length === 0 ? (
                 <div className={cn('flex items-center gap-2 p-3.5 rounded-2xl border-2 border-dashed text-sm font-medium', tone.ring, tone.text)}>
                     <Sparkles className="w-4 h-4" />
-                    เมนู {group.label.replace('Group ', '')} กำลังจะมาเร็ว ๆ นี้
+                    เมนู {group.label.replace('Service ', '')} กำลังจะมาเร็ว ๆ นี้
                 </div>
             ) : (
                 // The page never scrolls; a long group scrolls inside its own card
@@ -360,7 +360,7 @@ function MobileHome({ firstName, groups, onNavigate }: LayoutProps) {
                                     active ? 'bg-linear-to-br from-[#eaf4ff] to-[#dff9ef] text-brand-700 font-semibold' : 'text-ink-500 font-medium'
                                 )}
                             >
-                                {g.adminOnly ? 'จัดการ' : g.label.replace('Group ', '')}
+                                {g.adminOnly ? 'จัดการ' : g.label.replace('Service ', '')}
                             </button>
                         );
                     })}
