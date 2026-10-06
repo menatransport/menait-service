@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, IBM_Plex_Sans_Thai, Noto_Sans_Thai, Prompt } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { SessionProvider } from "@/app/context/SessionContext";
+import { AnalyticsButton } from "@/components/analytics-button";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -74,7 +76,10 @@ export default function RootLayout({
       >
         <SessionProvider>
           {children}
+          <AnalyticsButton />
         </SessionProvider>
+        {/* page views / visitors → Vercel dashboard (enable Analytics on the project first) */}
+        <Analytics />
       </body>
     </html>
   );
