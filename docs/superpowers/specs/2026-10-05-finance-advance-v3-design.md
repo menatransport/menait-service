@@ -126,6 +126,34 @@ The user decided: "กรอกยอดรวมอย่างเดียว 
 - Every value is escaped.
 - Each email links to `{FE_BASE_URL}` + the relevant page: approvals `?doc=` for approvers, `/finance/advance/{id}` for the requester. When `FE_BASE_URL` is unset, the email has no link.
 
+## 7b. Overdue clearing reminder (user, 2026-10-05/06)
+**Recipient:** the requester only, no CC.
+
+**Scope:** status AWAITING_CLEARING or SENT_BACK with `clear_due_date` < today (Bangkok).
+
+**Text — use the user's template verbatim:**
+- Subject: "แจ้งเตือน/ติดตาม ยอดเงินยืมทดรองจ่ายเกินกำหนดชำระ [ชื่อ-นามสกุลพนักงาน]"
+- The body as pasted, with the placeholders filled:
+  - [ชื่อ-นามสกุลพนักงาน] = firstname + lastname
+  - [ชื่อพนักงาน] = firstname
+  - [ระบุเลขที่ใบคำขอเบิกเงิน] = form_id
+  - [ระบุจำนวนเงิน] = amount_paid as 5,000.00
+  - [ระบุวันที่ครบกำหนด] = clear_due_date written in Thai with the Buddhist year (12 ตุลาคม 2569)
+- One added button "เปิดรายการในระบบ", linking to `{FE_BASE_URL}/finance/advance/{form_id}`, shown only when FE_BASE_URL is valid.
+
+**Auto send:** a scheduler job runs daily at 09:00 Asia/Bangkok. It sends when overdue ≥ 7 days AND the last reminder (any kind) was ≥ 7 days ago, or there has been none. So the reminders land on day 7, 14, 21… and continue until clearing is submitted.
+
+**Manual send (Finance):**
+- An "ส่งแจ้งเตือน" button on an overdue advance.
+- A "ส่งแจ้งเตือนทั้งหมด" button on the เกินกำหนด tab.
+- A manual send also counts as the last reminder.
+
+**Record:** every sent reminder writes a fin log `OVERDUE_REMIND`, labelled "แจ้งเตือนเกินกำหนด", with remark auto/manual. No schema change.
+
+**Emails off (FINANCE_EMAIL_ENABLED not true):**
+- The job does nothing and logs nothing.
+- The manual endpoint answers `{sent:0, disabled:true}`, and the FE shows "อีเมลยังปิดอยู่ — ยังไม่ได้ส่ง".
+
 ## 8. Out of scope
 - No BE auth (launch gate).
 - The BE goes to branch `menaIT-v2` only.
