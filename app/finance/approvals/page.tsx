@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { BadgeCheck, Check, CheckCircle2, Clock, Info, X, XCircle } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
+import { PaginationControls } from '@/components/pagination-controls';
 import { Mascot } from '@/components/mascot';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { FormValue } from '@/app/mytickets/[id]/types';
@@ -15,6 +16,7 @@ import { AttachmentPanel } from '../components/AttachmentPanel';
 import { Field, FinanceHeading, FinanceShell, Panel } from '../components/FinanceShell';
 
 type ApvView = 'pending' | 'history';
+const HISTORY_PAGE_SIZE = 20;
 
 type ApprovalListItem = {
   form_id: string;
@@ -240,9 +242,13 @@ function FinanceApprovals() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const loadSeq = useRef(0);
 
   const load = useCallback(async () => {
     if (!user?.employee_id) return;
+    const seq = ++loadSeq.current; // a slow older page must not overwrite a newer one
     setLoading(true);
     setError('');
     try {
@@ -250,14 +256,15 @@ function FinanceApprovals() {
         setPending(await fetchJson<PendingApprovalItem[]>('/api/finance/approvals'));
         return;
       }
-      const viewQS = apvView === 'history' ? '&view=history' : '';
+      const viewQS = apvView === 'history' ? `&view=history&page=${historyPage}&page_size=${HISTORY_PAGE_SIZE}` : '';
       const res = await fetch(
         `/api/tickets?employee_id=${encodeURIComponent(user.employee_id)}&tab=apv&role=${encodeURIComponent(user.role ?? '')}&scope=advance${viewQS}`,
         { cache: 'no-store' },
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `เกิดข้อผิดพลาด (${res.status})`);
-      const list: ApprovalListItem[] = Array.isArray(data) ? data : [];
+      const list: ApprovalListItem[] = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+      const histTotal = typeof data?.total === 'number' ? data.total : list.length;
 
       // pending-approvals / approval-history don't carry the form's answered values (or, for
       // pending, the department) — enrich each row the same way mytickets does when opening a
@@ -277,15 +284,18 @@ function FinanceApprovals() {
         }
       }));
 
+      if (seq !== loadSeq.current) return;
       setItems(enriched);
+      setHistoryTotal(histTotal);
     } catch (err) {
+      if (seq !== loadSeq.current) return;
       setItems([]);
       setPending([]);
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
-  }, [user?.employee_id, user?.role, apvView]);
+  }, [user?.employee_id, user?.role, apvView, historyPage]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -398,7 +408,7 @@ function FinanceApprovals() {
                 type="button"
                 role="tab"
                 aria-selected={apvView === value}
-                onClick={() => setApvView(value)}
+                onClick={() => { setApvView(value); setHistoryPage(1); }}
                 className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all cursor-pointer ${apvView === value ? 'bg-linear-to-r from-brand-600 to-brand-500 text-white shadow-md' : 'text-ink-700 hover:text-brand-600'}`}
               >
                 {label}
@@ -471,6 +481,13 @@ function FinanceApprovals() {
                 onReject={() => handleReject(item)}
               />
             ))}
+            <div className="flex justify-end pt-2">
+              <PaginationControls
+                currentPage={historyPage}
+                totalPages={Math.max(1, Math.ceil(historyTotal / HISTORY_PAGE_SIZE))}
+                onPageChange={setHistoryPage}
+              />
+            </div>
           </div>
         )}
       </Panel>

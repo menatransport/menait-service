@@ -1,50 +1,42 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { ClipboardCheck, Plus } from 'lucide-react';
-import { fetchJson, showAlert } from '../api';
+import { tabCount, type AdvanceSummary } from '@/lib/finance/advanceQuery';
 import { AdvanceListView, type AdvanceListTab } from '../components/AdvanceListView';
 import { AdvanceSheet } from '../components/AdvanceSheet';
 import { FinanceCanvas, FinanceHeading, SummaryTiles } from '../components/FinanceShell';
 import type { AdvanceItem } from '../types';
 
 const TABS: AdvanceListTab[] = [
-  { key: 'all', label: 'ทั้งหมด', match: () => true },
-  { key: 'pending', label: 'รออนุมัติ', match: i => i.status === 'PENDING_APPROVAL' },
-  { key: 'pay', label: 'รอจ่าย', match: i => i.status === 'AWAITING_VOUCHER' || i.status === 'AWAITING_PAYMENT' },
-  { key: 'clear', label: 'ต้องเคลียร์', match: i => i.status === 'AWAITING_CLEARING' || i.status === 'SENT_BACK' },
-  { key: 'returned', label: 'ต้องแก้ไข', match: i => i.status === 'RETURNED' },
-  { key: 'review', label: 'รอบัญชีตรวจ', match: i => i.status === 'AWAITING_REVIEW' },
-  { key: 'closed', label: 'ปิดแล้ว', match: i => i.status === 'CLOSED' || i.status === 'REJECTED' },
+  { key: 'all', label: 'ทั้งหมด' },
+  { key: 'pending', label: 'รออนุมัติ', status: ['PENDING_APPROVAL'] },
+  { key: 'pay', label: 'รอจ่าย', status: ['AWAITING_VOUCHER', 'AWAITING_PAYMENT'] },
+  { key: 'clear', label: 'ต้องเคลียร์', status: ['AWAITING_CLEARING', 'SENT_BACK'] },
+  { key: 'returned', label: 'ต้องแก้ไข', status: ['RETURNED'] },
+  { key: 'review', label: 'รอบัญชีตรวจ', status: ['AWAITING_REVIEW'] },
+  { key: 'closed', label: 'ปิดแล้ว', status: ['CLOSED', 'REJECTED'] },
 ];
 
 export default function MyAdvancesPage() {
-  const [items, setItems] = useState<AdvanceItem[] | null>(null);
+  const [summary, setSummary] = useState<AdvanceSummary | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [tab, setTab] = useState('all');
   const [openFormId, setOpenFormId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const load = useCallback(() => {
-    fetchJson<AdvanceItem[]>('/api/finance/advances?mine=1')
-      .then(setItems)
-      .catch(err => { setItems([]); showAlert({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ', text: err.message }); });
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
   const handleOpen = (item: AdvanceItem) => { setOpenFormId(item.form_id); setSheetOpen(true); };
   const handleClose = () => setSheetOpen(false);
-  const handleChanged = () => load();
+  const handleChanged = () => setRefreshKey(k => k + 1);
 
-  const all = items ?? [];
-  const count = (match: (i: AdvanceItem) => boolean) => all.filter(match).length;
+  const count = (...statuses: string[]) => statuses.reduce((n, s) => n + (summary?.counts?.[s] ?? 0), 0);
   const stats = [
-    { label: 'คำขอทั้งหมด', value: all.length },
-    { label: 'รออนุมัติ', value: count(i => i.status === 'PENDING_APPROVAL') },
-    { label: 'รอรับเงิน', value: count(i => i.status === 'AWAITING_VOUCHER' || i.status === 'AWAITING_PAYMENT') },
-    { label: 'ต้องเคลียร์', value: count(i => i.status === 'AWAITING_CLEARING' || i.status === 'SENT_BACK') },
-    { label: 'เกินกำหนดเคลียร์', value: count(i => i.overdue), alert: true },
+    { label: 'คำขอทั้งหมด', value: tabCount({}, summary) ?? 0 },
+    { label: 'รออนุมัติ', value: count('PENDING_APPROVAL') },
+    { label: 'รอรับเงิน', value: count('AWAITING_VOUCHER', 'AWAITING_PAYMENT') },
+    { label: 'ต้องเคลียร์', value: count('AWAITING_CLEARING', 'SENT_BACK') },
+    { label: 'เกินกำหนดเคลียร์', value: summary?.overdue ?? 0, alert: true },
   ];
 
   return (
@@ -62,12 +54,12 @@ export default function MyAdvancesPage() {
       <SummaryTiles items={stats} />
       <AdvanceListView
         mode="mine"
-        items={items}
-        loading={items === null}
         tabs={TABS}
         activeTab={tab}
         onTabChange={setTab}
         onOpen={handleOpen}
+        refreshKey={refreshKey}
+        onSummary={setSummary}
       />
 
       <AdvanceSheet mode="mine" formId={openFormId} isOpen={sheetOpen} onClose={handleClose} onChanged={handleChanged} />

@@ -1,16 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Calendar, FileSpreadsheet, FileText, Filter, Search, User, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Calendar, FileSpreadsheet, FileText, Filter, Search, User, X } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MonthRangeFilter, currentMonth, shiftMonths, ymToNum } from '@/components/month-range-filter';
+import { MonthRangeFilter, currentMonth, shiftMonths } from '@/components/month-range-filter';
 import { PaginationControls } from '@/components/pagination-controls';
 import { exportAdvancesXlsx } from '@/lib/finance/export';
-import { formatBaht, formatDate, settleLabel, todayBkk, toBkkYM } from '@/lib/finance/status';
+import {
+  ADVANCE_PAGE_SIZE, buildAdvanceQuery, fetchAllAdvances, tabCount, totalPages,
+  type AdvancePage, type AdvanceSummary, type ScopeFilter, type TabFilter,
+} from '@/lib/finance/advanceQuery';
+import { formatBaht, formatDate, settleLabel, todayBkk } from '@/lib/finance/status';
+import { fetchJson, showAlert } from '../api';
 import type { AdvanceItem } from '../types';
 import { StatusBadge } from './StatusBadge';
-
-const ITEMS_PER_PAGE = 10;
 
 const TH = 'px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap';
 const TD = 'px-4 py-3 text-sm whitespace-nowrap';
@@ -26,115 +29,133 @@ function settleText(amount: number | null | undefined): string | null {
 }
 const settleTone = (amount: number | null | undefined) => (amount !== null && amount !== undefined && amount < 0 ? 'text-orange-700' : 'text-brand-700');
 
-export interface AdvanceListTab {
+export interface AdvanceListTab extends TabFilter {
   key: string;
   label: string;
-  match: (item: AdvanceItem) => boolean;
 }
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 export function AdvanceListView({
   mode,
-  items,
-  loading,
   tabs,
   activeTab,
   onTabChange,
   onOpen,
   headerAction,
   exportFileBase,
+  refreshKey = 0,
+  onSummary,
+  onScopeChange,
 }: {
   mode: 'finance' | 'mine';
-  items: AdvanceItem[] | null;
-  loading: boolean;
   tabs: AdvanceListTab[];
   activeTab: string;
   onTabChange: (key: string) => void;
   onOpen: (item: AdvanceItem) => void;
   headerAction?: ReactNode;
   exportFileBase?: string;
+  /** bump to refetch the current page (after an action changed an advance) */
+  refreshKey?: number;
+  onSummary?: (summary: AdvanceSummary) => void;
+  /** current scope (search/month/cost center) so the parent can build matching bulk queries */
+  onScopeChange?: (scope: ScopeFilter) => void;
 }) {
   // Default range = last 12 months up to the current month (finance must not lose older open advances)
   const [startMonth, setStartMonth] = useState<string>(() => shiftMonths(11));
   const [endMonth, setEndMonth] = useState<string>(() => currentMonth());
   const [search, setSearch] = useState('');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [debouncedQ, setDebouncedQ] = useState('');
   const [ccFilter, setCcFilter] = useState('all');
-  const [deptFilter, setDeptFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+
+  const [rows, setRows] = useState<AdvanceItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState<AdvanceSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  // cost centers seen so far (the server only returns one page, so the options accumulate)
+  const [ccSeen, setCcSeen] = useState<string[]>([]);
+  const reqSeq = useRef(0);
 
   const handleMonthRangeChange = useCallback((s: string, e: string) => {
     setStartMonth(s);
     setEndMonth(e);
   }, []);
 
-  const monthFiltered = useMemo(() => {
-    const all = items ?? [];
-    const lo = ymToNum(startMonth);
-    const hi = ymToNum(endMonth);
-    return all.filter(i => {
-      const ym = toBkkYM(i.created_at);
-      if (!ym) return true; // never drop items we can't date — finance must not lose older open advances
-      const n = ymToNum(ym);
-      return n >= lo && n <= hi;
-    });
-  }, [items, startMonth, endMonth]);
-
   const activeTabDef = tabs.find(t => t.key === activeTab) ?? tabs[0];
 
-  const tabItems = useMemo(
-    () => (activeTabDef ? monthFiltered.filter(activeTabDef.match) : monthFiltered),
-    [monthFiltered, activeTabDef],
+  // search is debounced; any change of search resets to page 1 once it applies
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(search), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const scope = useMemo<ScopeFilter>(
+    () => ({ q: debouncedQ, startMonth, endMonth, costCenter: mode === 'finance' ? ccFilter : 'all' }),
+    [debouncedQ, startMonth, endMonth, ccFilter, mode],
   );
-
-  const ccOptions = useMemo(() => {
-    const seen = new Set<string>();
-    tabItems.forEach(i => { if (i.request.cost_center) seen.add(i.request.cost_center); });
-    return Array.from(seen).sort();
-  }, [tabItems]);
-
-  const deptOptions = useMemo(() => {
-    const seen = new Set<string>();
-    tabItems.forEach(i => { if (i.requester.department) seen.add(i.requester.department); });
-    return Array.from(seen);
-  }, [tabItems]);
-
-  const hasActiveFilters = search.trim() !== '' || (mode === 'finance' && (ccFilter !== 'all' || deptFilter !== 'all'));
-
-  const processedData = useMemo(() => {
-    let result = [...tabItems];
-    if (mode === 'finance' && ccFilter !== 'all') result = result.filter(i => i.request.cost_center === ccFilter);
-    if (mode === 'finance' && deptFilter !== 'all') result = result.filter(i => i.requester.department === deptFilter);
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      result = result.filter(i =>
-        i.form_id.toLowerCase().includes(q)
-        || (i.requester.name ?? '').toLowerCase().includes(q)
-        || (i.fin?.voucher_no ?? '').toLowerCase().includes(q)
-        || (i.fin?.purpose ?? i.request.purpose ?? '').toLowerCase().includes(q));
-    }
-    result.sort((a, b) => {
-      const da = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const db = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return sortOrder === 'desc' ? db - da : da - db;
-    });
-    return result;
-  }, [tabItems, mode, ccFilter, deptFilter, search, sortOrder]);
-
-  const totalPages = Math.max(1, Math.ceil(processedData.length / ITEMS_PER_PAGE));
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return processedData.slice(start, start + ITEMS_PER_PAGE);
-  }, [processedData, currentPage]);
+  useEffect(() => { onScopeChange?.(scope); }, [scope, onScopeChange]);
 
   // Reset to page 1 whenever the tab, search, filters or month range change
-  useEffect(() => { setCurrentPage(1); }, [activeTab, search, ccFilter, deptFilter, startMonth, endMonth]);
+  useEffect(() => { setCurrentPage(1); }, [activeTab, debouncedQ, ccFilter, startMonth, endMonth]);
 
-  const toggleSort = () => setSortOrder(o => (o === 'desc' ? 'asc' : 'desc'));
-  const clearFilters = () => { setSearch(''); setCcFilter('all'); setDeptFilter('all'); };
-  const handleExport = () => {
-    if (!exportFileBase) return;
-    exportAdvancesXlsx(processedData, `${exportFileBase}-${activeTab}-${todayBkk()}.xlsx`);
+  const listUrl = useCallback(
+    (query: string) => `/api/finance/advances?${mode === 'mine' ? 'mine=1&' : ''}${query}`,
+    [mode],
+  );
+
+  useEffect(() => {
+    if (!activeTabDef) return;
+    const seq = ++reqSeq.current;
+    setLoading(true);
+    fetchJson<AdvancePage>(listUrl(buildAdvanceQuery(scope, activeTabDef, currentPage, ADVANCE_PAGE_SIZE)))
+      .then(res => {
+        if (seq !== reqSeq.current) return; // a newer request superseded this one
+        const lastPage = totalPages(res.total, ADVANCE_PAGE_SIZE);
+        if (res.items.length === 0 && currentPage > lastPage) { setCurrentPage(lastPage); return; }
+        setRows(res.items);
+        setTotal(res.total);
+        setSummary(res.summary);
+        onSummary?.(res.summary);
+        setCcSeen(prev => {
+          const next = new Set(prev);
+          res.items.forEach(i => { if (i.request.cost_center) next.add(i.request.cost_center); });
+          return next.size === prev.length ? prev : Array.from(next).sort();
+        });
+        setLoading(false);
+      })
+      .catch(err => {
+        if (seq !== reqSeq.current) return;
+        setRows([]);
+        setTotal(0);
+        setLoading(false);
+        showAlert({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ', text: err.message });
+      });
+  }, [activeTabDef, scope, currentPage, listUrl, refreshKey, onSummary]);
+
+  const ccOptions = useMemo(
+    () => (ccFilter !== 'all' && !ccSeen.includes(ccFilter) ? [...ccSeen, ccFilter].sort() : ccSeen),
+    [ccSeen, ccFilter],
+  );
+
+  const pages = totalPages(total, ADVANCE_PAGE_SIZE);
+  const hasActiveFilters = search.trim() !== '' || (mode === 'finance' && ccFilter !== 'all');
+  const paginated = rows;
+
+  const clearFilters = () => { setSearch(''); setCcFilter('all'); };
+  const handleExport = async () => {
+    if (!exportFileBase || !activeTabDef || exporting) return;
+    setExporting(true);
+    try {
+      const all = await fetchAllAdvances(q => fetchJson<AdvancePage>(listUrl(q)), scope, activeTabDef);
+      exportAdvancesXlsx(all, `${exportFileBase}-${activeTab}-${todayBkk()}.xlsx`);
+    } catch (err) {
+      showAlert({ icon: 'error', title: 'ส่งออก Excel ไม่สำเร็จ', text: (err as Error).message });
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -142,14 +163,14 @@ export function AdvanceListView({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <TabsList className="max-w-full overflow-x-auto justify-start bg-gray-800/50 backdrop-blur-sm p-1 rounded-full">
           {tabs.map(t => {
-            const count = monthFiltered.filter(t.match).length;
+            const count = tabCount(t, summary);
             return (
               <TabsTrigger
                 key={t.key}
                 value={t.key}
                 className="shrink-0 px-5 py-2 rounded-full text-white/70 font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-brand-700 data-[state=active]:shadow-md hover:text-white"
               >
-                {t.label} ({count})
+                {t.label}{count === null ? '' : ` (${count})`}
               </TabsTrigger>
             );
           })}
@@ -165,19 +186,11 @@ export function AdvanceListView({
               <div>
                 <h2 className="text-lg lg:text-xl text-white font-semibold">{activeTabDef?.label ?? ''}</h2>
                 <p className="text-white/70 text-xs lg:text-sm mt-0.5">
-                  {hasActiveFilters ? `แสดง ${processedData.length} จาก ${tabItems.length} รายการ` : `${processedData.length} รายการ`}
+                  {`${total} รายการ`}
                 </p>
               </div>
 
               <div className="flex lg:hidden items-center gap-2">
-                <button
-                  type="button"
-                  onClick={toggleSort}
-                  className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-all cursor-pointer"
-                  title={sortOrder === 'desc' ? 'เรียงจากใหม่ไปเก่า' : 'เรียงจากเก่าไปใหม่'}
-                >
-                  {sortOrder === 'desc' ? <ArrowDown size={16} /> : <ArrowUp size={16} />}
-                </button>
                 {mode === 'finance' && (
                   <button
                     type="button"
@@ -217,25 +230,16 @@ export function AdvanceListView({
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={toggleSort}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-all cursor-pointer"
-                title="เรียงตามวันที่สร้าง"
-              >
-                {sortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />} <span>วันที่สร้าง</span>
-              </button>
-
               {headerAction}
 
               {exportFileBase && (
                 <button
                   type="button"
                   onClick={handleExport}
-                  disabled={!processedData.length}
+                  disabled={!total || exporting}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <FileSpreadsheet size={14} /> <span>Excel</span>
+                  <FileSpreadsheet size={14} /> <span>{exporting ? 'กำลังส่งออก...' : 'Excel'}</span>
                 </button>
               )}
             </div>
@@ -263,7 +267,7 @@ export function AdvanceListView({
               <button
                 type="button"
                 onClick={handleExport}
-                disabled={!processedData.length}
+                disabled={!total || exporting}
                 className="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-600 text-white disabled:opacity-60 cursor-pointer"
               >
                 <FileSpreadsheet size={16} />
@@ -285,17 +289,6 @@ export function AdvanceListView({
                 >
                   <option value="all">ศูนย์ค่าใช้จ่ายทั้งหมด</option>
                   {ccOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <span className="text-xs font-medium text-gray-500 shrink-0">แผนก</span>
-                <select
-                  value={deptFilter}
-                  onChange={e => setDeptFilter(e.target.value)}
-                  className={`px-3 py-1.5 rounded-lg text-sm border bg-white cursor-pointer focus:outline-none transition-colors ${deptFilter !== 'all' ? 'border-brand-600 text-brand-600 font-medium ring-1 ring-brand-600/30' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}
-                >
-                  <option value="all">ทุกแผนก</option>
-                  {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
               {hasActiveFilters && (
@@ -451,7 +444,7 @@ export function AdvanceListView({
         </div>
 
         <div className="flex justify-end p-4 border-t border-gray-100">
-          <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+          <PaginationControls currentPage={currentPage} totalPages={pages} onPageChange={setCurrentPage} />
         </div>
       </section>
     </Tabs>

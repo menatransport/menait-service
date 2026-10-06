@@ -10,35 +10,31 @@ import { AdvanceListView, type AdvanceListTab } from './components/AdvanceListVi
 import { AdvanceSheet } from './components/AdvanceSheet';
 import { FinanceCanvas, FinanceHeading, NoAccess, SummaryTiles } from './components/FinanceShell';
 import type { AdvanceItem } from './types';
+import { fetchAllAdvances, type AdvancePage, type AdvanceSummary, type ScopeFilter } from '@/lib/finance/advanceQuery';
 
 const TABS: AdvanceListTab[] = [
-  { key: 'voucher', label: 'รอตั้งเบิก', match: i => i.status === 'AWAITING_VOUCHER' },
-  { key: 'pay', label: 'รอจ่าย', match: i => i.status === 'AWAITING_PAYMENT' },
-  { key: 'clearing', label: 'จ่ายแล้วรอเคลียร์', match: i => i.status === 'AWAITING_CLEARING' },
-  { key: 'overdue', label: 'เกินกำหนด', match: i => i.overdue },
-  { key: 'returned', label: 'ตีกลับผู้เบิก', match: i => i.status === 'RETURNED' },
-  { key: 'review', label: 'รอบัญชีตรวจ', match: i => i.status === 'AWAITING_REVIEW' },
-  { key: 'sentback', label: 'ส่งกลับแก้ไข', match: i => i.status === 'SENT_BACK' },
-  { key: 'closed', label: 'ปิดแล้ว', match: i => i.status === 'CLOSED' },
-  { key: 'all', label: 'ทั้งหมด', match: () => true },
+  { key: 'voucher', label: 'รอตั้งเบิก', status: ['AWAITING_VOUCHER'] },
+  { key: 'pay', label: 'รอจ่าย', status: ['AWAITING_PAYMENT'] },
+  { key: 'clearing', label: 'จ่ายแล้วรอเคลียร์', status: ['AWAITING_CLEARING'] },
+  { key: 'overdue', label: 'เกินกำหนด', overdue: true },
+  { key: 'returned', label: 'ตีกลับผู้เบิก', status: ['RETURNED'] },
+  { key: 'review', label: 'รอบัญชีตรวจ', status: ['AWAITING_REVIEW'] },
+  { key: 'sentback', label: 'ส่งกลับแก้ไข', status: ['SENT_BACK'] },
+  { key: 'closed', label: 'ปิดแล้ว', status: ['CLOSED'] },
+  { key: 'all', label: 'ทั้งหมด' },
 ];
 
 export default function FinanceQueuePage() {
   const { user, loading } = useSessionContext();
-  const [items, setItems] = useState<AdvanceItem[] | null>(null);
+  const [summary, setSummary] = useState<AdvanceSummary | null>(null);
+  const [scope, setScope] = useState<ScopeFilter>({});
+  const [refreshKey, setRefreshKey] = useState(0);
   const [tab, setTab] = useState('voucher');
   const [openFormId, setOpenFormId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pendingPayees, setPendingPayees] = useState(0);
 
-  const load = useCallback(() => {
-    if (!user?.is_finance) return;
-    fetchJson<AdvanceItem[]>('/api/finance/advances')
-      .then(setItems)
-      .catch(err => { setItems([]); showAlert({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ', text: err.message }); });
-  }, [user?.is_finance]);
-
-  useEffect(() => { load(); }, [load]);
+  const load = useCallback(() => setRefreshKey(k => k + 1), []);
 
   useEffect(() => {
     if (!user?.is_finance) return;
@@ -47,31 +43,26 @@ export default function FinanceQueuePage() {
       .catch(() => setPendingPayees(0));
   }, [user?.is_finance]);
 
-  const outstanding = useMemo(() => (items ?? [])
-    .filter(i => i.fin && i.status !== 'CLOSED')
-    .reduce((sum, i) => sum + (i.fin?.amount_paid ?? 0), 0), [items]);
-
   const stats = useMemo(() => {
-    const all = items ?? [];
-    const count = (match: (i: AdvanceItem) => boolean) => all.filter(match).length;
+    const n = (status: string) => summary?.counts?.[status] ?? 0;
     return [
-      { label: 'ยอดค้างเคลียร์ (บาท)', value: formatBaht(outstanding) },
-      { label: 'รอตั้งเบิก', value: count(i => i.status === 'AWAITING_VOUCHER') },
-      { label: 'รอจ่าย', value: count(i => i.status === 'AWAITING_PAYMENT') },
-      { label: 'รอบัญชีตรวจ', value: count(i => i.status === 'AWAITING_REVIEW') },
-      { label: 'เกินกำหนดเคลียร์', value: count(i => i.overdue), alert: true },
+      { label: 'ยอดค้างเคลียร์ (บาท)', value: formatBaht(summary?.outstanding_amount ?? 0) },
+      { label: 'รอตั้งเบิก', value: n('AWAITING_VOUCHER') },
+      { label: 'รอจ่าย', value: n('AWAITING_PAYMENT') },
+      { label: 'รอบัญชีตรวจ', value: n('AWAITING_REVIEW') },
+      { label: 'เกินกำหนดเคลียร์', value: summary?.overdue ?? 0, alert: true },
     ];
-  }, [items, outstanding]);
+  }, [summary]);
 
   const [reminding, setReminding] = useState(false);
   const remindInFlight = useRef(false);
-  const overdueIds = useMemo(() => (items ?? []).filter(i => i.overdue).map(i => i.form_id), [items]);
+  const overdueCount = summary?.overdue ?? 0;
 
   const remindAll = async () => {
-    if (remindInFlight.current || overdueIds.length === 0) return;
+    if (remindInFlight.current || overdueCount === 0) return;
     const res = await showConfirm({
-      title: `ส่งอีเมลแจ้งเตือนเกินกำหนด ${overdueIds.length} รายการ?`,
-      text: 'ส่งทุกรายการที่เกินกำหนด (ไม่รวมตัวกรอง) และส่งทันทีแม้เพิ่งแจ้งเตือนไป',
+      title: `ส่งอีเมลแจ้งเตือนเกินกำหนด ${overdueCount} รายการ?`,
+      text: 'ส่งทุกรายการที่เกินกำหนดตามตัวกรองปัจจุบัน (ค้นหา/ช่วงเดือน/ศูนย์ค่าใช้จ่าย) และส่งทันทีแม้เพิ่งแจ้งเตือนไป',
     });
     if (!res.isConfirmed) return;
     remindInFlight.current = true;
@@ -80,6 +71,9 @@ export default function FinanceQueuePage() {
     const BATCH = 20;
     let sent = 0;
     try {
+      // every overdue id for the current scope (all pages), then send in small batches
+      const overdueIds = (await fetchAllAdvances(q => fetchJson<AdvancePage>(`/api/finance/advances?${q}`), scope, { overdue: true }))
+        .map(i => i.form_id);
       const skipped: { form_id: string; reason: string }[] = [];
       let disabled = false;
       for (let i = 0; i < overdueIds.length && !disabled; i += BATCH) {
@@ -138,17 +132,18 @@ export default function FinanceQueuePage() {
       <SummaryTiles items={stats} />
       <AdvanceListView
         mode="finance"
-        items={items}
-        loading={items === null}
         tabs={TABS}
         activeTab={tab}
         onTabChange={setTab}
         onOpen={handleOpen}
         exportFileBase="advance"
-        headerAction={tab === 'overdue' && overdueIds.length > 0 ? (
+        refreshKey={refreshKey}
+        onSummary={setSummary}
+        onScopeChange={setScope}
+        headerAction={tab === 'overdue' && overdueCount > 0 ? (
           <button type="button" onClick={remindAll} disabled={reminding}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-all cursor-pointer disabled:opacity-50">
-            <BellRing size={14} /> <span>ส่งแจ้งเตือนทั้งหมด ({overdueIds.length})</span>
+            <BellRing size={14} /> <span>ส่งแจ้งเตือนทั้งหมด ({overdueCount})</span>
           </button>
         ) : undefined}
       />

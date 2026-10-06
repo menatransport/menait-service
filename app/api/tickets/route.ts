@@ -54,6 +54,8 @@ export async function GET(request: NextRequest) {
         endpoint = `${process.env.URL_API}/forms/approval-history${buildQS({
             ...baseParams,
             employee_id: param,
+            page: sp.get('page') || '',
+            page_size: sp.get('page_size') || '',
         })}`;
     } else {
         endpoint = `${process.env.URL_API}/forms/pending-approvals${buildQS({
@@ -71,6 +73,10 @@ export async function GET(request: NextRequest) {
     }
     // /forms, /forms/pending-approvals and /forms/approval-history all return a plain array; anything else can't
     // be scope-filtered, so it is dropped rather than passed through (every caller treats a non-array as []).
+    // paged history ({items,total,page,page_size}) is scope-filtered on its items; totals pass through
+    if (view === 'history' && sp.get('page') && data && Array.isArray(data.items)) {
+        return NextResponse.json({ ...data, items: filterByScope(data.items, scope) });
+    }
     return NextResponse.json(Array.isArray(data) ? filterByScope(data, scope) : []);
 }
 
