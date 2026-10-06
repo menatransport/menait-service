@@ -12,7 +12,7 @@ import { createIssue, listProjects, OpsRequestError } from '../api';
 import type { Project } from '../types';
 import {
     AttachmentPicker, FieldError, FieldLabel, FormActions, OpsFormShell, RequesterCard,
-    StatusBadge, TEXTAREA_CLASS, fieldBorder, toPerson,
+    StatusBadge, TEXTAREA_CLASS, fieldBorder,
 } from '../components';
 
 const MIN_DESCRIPTION = 10;
@@ -33,7 +33,7 @@ function ProjectIssueForm() {
 
     useEffect(() => {
         if (!user) return;
-        listProjects('all', { me: toPerson(user) })
+        listProjects('all')
             // Issues are only for projects that were accepted
             .then(list => setProjects(list.filter(p => p.status !== 'Reject' && p.status !== 'Open')))
             .catch(err => console.error('Error fetching OPS projects:', err))
@@ -65,7 +65,7 @@ function ProjectIssueForm() {
 
         setSubmitting(true);
         try {
-            const { issue_id } = await createIssue({ project_id: projectId, description: description.trim() }, files, { me: toPerson(user) });
+            const { issue_id } = await createIssue({ project_id: projectId, description: description.trim() }, files);
             setCreatedId(issue_id);
         } catch (err) {
             if (err instanceof OpsRequestError && err.body.field_errors) setErrors(err.body.field_errors);

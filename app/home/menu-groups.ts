@@ -35,6 +35,8 @@ export interface MenuGroup {
     items: MenuItem[];
     /** Only shown to admins (user.role === 'a') */
     adminOnly?: boolean;
+    /** Usable only by admins and finance staff (canUseFinance); everyone else sees every item as "เร็ว ๆ นี้" */
+    financeAccess?: boolean;
 }
 
 /**
@@ -44,7 +46,7 @@ export interface MenuGroup {
 export const MENU_GROUPS: MenuGroup[] = [
     {
         id: 'it',
-        label: 'Group IT',
+        label: 'IT Service',
         caption: 'แจ้งปัญหา ขอบริการ และติดตามคำร้องด้าน IT',
         tagline: 'บริการด้าน IT',
         icon: Monitor,
@@ -68,7 +70,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     },
    {
     id: 'ops',
-    label: 'Group OPS',
+    label: 'OPS Service',
     caption: 'คำขอและโปรเจกต์สำหรับสนับสนุนการปฏิบัติการ',
     tagline: 'Operation Support',
     icon: Truck,
@@ -96,11 +98,12 @@ export const MENU_GROUPS: MenuGroup[] = [
     },
     {
         id: 'finance',
-        label: 'Group Finance',
+        label: 'Finance Service',
         caption: 'บริการด้านการเงินและบัญชี',
         tagline: 'การเงินและบัญชี',
         icon: Wallet,
         tone: 'mint',
+        financeAccess: true,
         items: [
             { title: 'เบิกเงิน Advance', description: 'ขอเบิกเงินทดรองจ่ายล่วงหน้า', icon: HandCoins, href: '/finance/advance/new' },
             { title: 'ติดตามคำขอ Advance', description: 'ดูสถานะ จ่ายเงิน และเคลียร์เงินทดรอง', icon: ClipboardCheck, href: '/finance/advance' },

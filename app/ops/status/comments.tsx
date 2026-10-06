@@ -51,7 +51,7 @@ export function useComments(ref: OpsCommentRef, refId: string) {
     useEffect(() => {
         if (!user) return;
         let alive = true;
-        listComments(ref, refId, { me: toPerson(user) })
+        listComments(ref, refId)
             .then(list => { if (alive) setComments(list); })
             .catch(err => console.error('Error fetching comments:', err))
             .finally(() => { if (alive) setLoading(false); });
@@ -61,7 +61,7 @@ export function useComments(ref: OpsCommentRef, refId: string) {
     const post = useCallback(async (body: string) => {
         if (!user) return false;
         try {
-            const c = await createComment(ref, refId, body, { me: toPerson(user) });
+            const c = await createComment(ref, refId, body);
             setComments(list => [...list, c]);
             setFreshId(c.comment_id);
             return true;
@@ -79,7 +79,7 @@ export function useComments(ref: OpsCommentRef, refId: string) {
             setComments(list => list.map(x => (x.comment_id === c.comment_id ? { ...x, liked_by_me, like_count } : x)));
         patch(like, c.like_count + (like ? 1 : -1));
         try {
-            const res = await setCommentLike(c.comment_id, like, { me: toPerson(user) });
+            const res = await setCommentLike(c.comment_id, like);
             patch(res.liked_by_me, res.like_count);
         } catch {
             patch(c.liked_by_me, c.like_count);
@@ -94,7 +94,7 @@ export function useComments(ref: OpsCommentRef, refId: string) {
             setComments(list => list.map(x => (x.comment_id === c.comment_id ? { ...x, ...next } : x)));
         patch({ body, edited_at: new Date().toISOString() });
         try {
-            patch(await updateComment(c.comment_id, body, { me: toPerson(user) }));
+            patch(await updateComment(c.comment_id, body));
             return true;
         } catch (err) {
             patch({ body: c.body, edited_at: c.edited_at });
@@ -109,7 +109,7 @@ export function useComments(ref: OpsCommentRef, refId: string) {
         if (!user) return;
         setRemovingIds(ids => [...ids, c.comment_id]);
         try {
-            await Promise.all([deleteComment(c.comment_id, { me: toPerson(user) }), new Promise(r => setTimeout(r, 220))]);
+            await Promise.all([deleteComment(c.comment_id), new Promise(r => setTimeout(r, 220))]);
             setComments(list => list.filter(x => x.comment_id !== c.comment_id));
         } catch (err) {
             notifyError('ลบไม่สำเร็จ', err);

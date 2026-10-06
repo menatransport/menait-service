@@ -8,6 +8,7 @@ import { useCallback, memo, useState, useRef, useEffect } from "react";
 import { signOut } from "next-auth/react";
 import { useSessionContext } from "@/app/context/SessionContext";
 import { cn } from "@/lib/utils";
+import { canUseFinance } from "@/lib/finance/role";
 
 
 interface NavbarProps {
@@ -177,7 +178,8 @@ export const NavbarHeader = memo(({ isHome = false, title, pagelock = false, cla
                                             <div className="flex-1">
                                                 <h3 className="text-xs font-semibold text-gray-500 mb-2 px-2">ทั่วไป</h3>
                                                 <div className="grid grid-cols-3 gap-2">
-                                                    {COMPONENT_DEFAULT.map((item, index) => {
+                                                    {/* finance links only once Group Finance is open to this user (see app/finance/layout.tsx) */}
+                                                    {COMPONENT_DEFAULT.filter(item => !item.href.startsWith('/finance') || (isClient && canUseFinance(user))).map((item, index) => {
                                                         const IconComponent = item.icon;
                                                         return (
                                                             <button

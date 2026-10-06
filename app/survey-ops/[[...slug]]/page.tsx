@@ -7,7 +7,6 @@ import { useParams, useSearchParams } from "next/navigation";
 import Loading from "@/components/loading";
 import { useSessionContext } from "@/app/context/SessionContext";
 import { listProjects } from "@/app/ops/api";
-import { toPerson } from "@/app/ops/components";
 
 const SYSTEMS_API_URL = process.env.NEXT_PUBLIC_SYSTEM_SCRIPT || '';
 const CACHE_KEY = 'survey_ops_systems';
@@ -36,7 +35,7 @@ function SurveyOPSContent() {
     useEffect(() => {
         if (!user) return;
         let alive = true;
-        listProjects('all', { me: toPerson(user) })
+        listProjects('all')
             .then(list => {
                 if (!alive) return;
                 setOpsSystems(list

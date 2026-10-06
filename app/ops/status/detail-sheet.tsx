@@ -3,17 +3,20 @@
 import { useId, useState } from 'react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { th } from 'date-fns/locale';
-import { Check, ChevronDown, X } from 'lucide-react';
+import { ArrowLeftRight, ArrowUpRight, Check, ChevronDown, Pencil, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import type { OpsPerson, OpsPriority, OpsReviewResult, OpsStatus, OpsStatusChange, Project, ProjectIssue } from '../types';
-import { AttachmentList, STATUS_META, StatusBadge, formatThaiDate } from '../components';
+import type { OpsPerson, OpsPriority, OpsReviewResult, OpsStatus, OpsStatusChange, Project, ProjectIssue, ProjectRequestInput, ProjectTask } from '../types';
+import { AttachmentList, STATUS_META, StatusBadge, formatThaiDate, isClosedStatus } from '../components';
 import { RichTextView, isRichText } from '../rich-text';
 import { resolvePerson } from '../team';
-import { PersonAvatar } from './kanban';
+import { AssigneePicker, KindMark, PersonAvatar } from './kanban';
 import { CommentComposer, CommentList, useComments } from './comments';
 import { EstimateDate } from './estimate-date';
+import { ProjectEditForm } from './project-edit-form';
+import { ProjectLink } from './project-link';
 import { ReviewSection } from './review-panel';
+import { ProjectPicker } from './task-composer';
 
 // ───────────────────────────── hero (blue header, like the Home hero) ─────────────────────────────
 
@@ -94,8 +97,74 @@ const HeroPills = ({ status, priority, updatedAt }: { status: OpsStatus; priorit
 };
 
 /** Sheet frame: scrolling blue hero, body cards that overlap it, composer pinned to the bottom. */
-const SheetShell = ({ onClose, id, title, status, priority, updatedAt, children, footer }: {
+/** Hero title; with `onRename` a pencil turns it into a textarea (Enter saves, Esc cancels). */
+const HeroTitle = ({ title, onRename }: { title: string; onRename?: (title: string) => void }) => {
+    const [draft, setDraft] = useState<string | null>(null);
+    const save = () => {
+        const next = draft?.trim();
+        if (next && next !== title) onRename?.(next);
+        setDraft(null);
+    };
+
+    if (draft === null) {
+        return (
+            <div className="flex items-start gap-2 pr-10">
+                <SheetTitle className="font-display text-[22px] sm:text-2xl font-semibold leading-snug text-white">{title}</SheetTitle>
+                {onRename && (
+                    <button
+                        type="button"
+                        onClick={() => setDraft(title)}
+                        aria-label="แก้ไขชื่อ"
+                        title="แก้ไขชื่อ"
+                        className="mt-1 w-7 h-7 shrink-0 rounded-full grid place-items-center bg-white/15 text-white/90 hover:bg-white/30 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                    >
+                        <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <div className="pr-10 space-y-2">
+            <SheetTitle className="sr-only">{title}</SheetTitle>
+            <textarea
+                autoFocus
+                rows={2}
+                maxLength={200}
+                value={draft}
+                aria-label="ชื่อ Task"
+                onChange={(e) => setDraft(e.target.value)}
+                onFocus={(e) => e.currentTarget.select()}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
+                    if (e.key === 'Escape') setDraft(null);
+                }}
+                // SheetShell skips its own Esc-to-close for this
+                data-local-escape
+                className="w-full resize-none rounded-xl border border-white/40 bg-white/15 px-3 py-2 font-display text-lg font-semibold leading-snug text-white placeholder:text-white/50 focus:outline-none focus:border-white focus:ring-2 focus:ring-white/30"
+            />
+            <div className="flex justify-end gap-1.5">
+                <button type="button" onClick={() => setDraft(null)} className="h-8 px-3.5 rounded-full text-xs font-medium text-white/90 hover:bg-white/15 cursor-pointer transition-colors">
+                    ยกเลิก
+                </button>
+                <button
+                    type="button"
+                    onClick={save}
+                    disabled={!draft.trim()}
+                    className="h-8 px-4 rounded-full bg-white text-xs font-semibold text-brand-700 hover:bg-brand-50 cursor-pointer transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                >
+                    บันทึก
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const SheetShell = ({ onClose, id, title, onRename, status, priority, updatedAt, children, footer }: {
     onClose: () => void; id: string; title: string; status: OpsStatus; priority?: OpsPriority; updatedAt: string;
+    /** Present when the viewer may rename it */
+    onRename?: (title: string) => void;
     children: React.ReactNode;
     /** Pinned to the bottom of the sheet (comment composer) */
     footer?: React.ReactNode;
@@ -103,6 +172,8 @@ const SheetShell = ({ onClose, id, title, status, priority, updatedAt, children,
     <Sheet open onOpenChange={(o) => !o && onClose()}>
         <SheetContent
             side="right"
+            // Esc inside an inline editor cancels that edit only
+            onEscapeKeyDown={(e) => { if ((e.target as HTMLElement | null)?.closest?.('[data-local-escape]')) e.preventDefault(); }}
             className={cn(
                 'w-full sm:max-w-xl p-0 gap-0 overflow-y-auto bg-brand-50 border-l-0',
                 // the sheet's own close button (its last child), restyled for the blue hero
@@ -113,7 +184,7 @@ const SheetShell = ({ onClose, id, title, status, priority, updatedAt, children,
         >
             <SheetHeader className="v2-shell gap-3.5 px-6 sm:px-7 pt-6 pb-19 text-white">
                 <span className="font-mono text-xs tracking-wide text-white/85">{id}</span>
-                <SheetTitle className="font-display text-[22px] sm:text-2xl font-semibold leading-snug text-white pr-10">{title}</SheetTitle>
+                <HeroTitle key={title} title={title} onRename={onRename} />
                 <SheetDescription className="sr-only">รายละเอียดและสถานะ</SheetDescription>
                 <HeroPills status={status} priority={priority} updatedAt={updatedAt} />
                 <HeroStepper status={status} />
@@ -168,6 +239,16 @@ const AssigneeRow = ({ people }: { people: OpsPerson[] }) =>
             </span>
         </div>
     );
+
+/** AssigneeRow plus the picker when editable (OPS team list minus anyone the caller leaves out). */
+const EditableAssignees = ({ people, team, onChange }: {
+    people: OpsPerson[]; team: OpsPerson[]; onChange?: (next: OpsPerson[]) => void;
+}) => (
+    <div className="flex items-center gap-2 min-w-0">
+        {(people.length > 0 || !onChange) && <div className="min-w-0 flex-1"><AssigneeRow people={people} /></div>}
+        {onChange && <AssigneePicker team={team} value={people} onChange={onChange} />}
+    </div>
+);
 
 const Facts = ({ rows }: { rows: [string, React.ReactNode, boolean?][] }) => (
     <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[13px]">
@@ -293,28 +374,43 @@ type ProjectSheetProps = {
     team: OpsPerson[];
     /** Issues already loaded on the page; filtered to this project here */
     issues: ProjectIssue[];
+    /** Tasks already loaded on the page; filtered to this project here */
+    tasks: ProjectTask[];
     onClose: () => void;
     onOpenIssue: (issue: ProjectIssue) => void;
+    onOpenTask: (task: ProjectTask) => void;
     /** Given only when the viewer may edit the plan (OPS team / admin) */
     onEstimateChange?: (project: Project, date: string | null) => void;
+    /** Given only when the viewer may assign (OPS team / admin) */
+    onAssign?: (project: Project, people: OpsPerson[]) => void;
     /** Given to anyone signed in; records the result only (status stays Review). Resolves true on success */
     onReview?: (project: Project, result: OpsReviewResult, note: string | null) => Promise<boolean>;
     /** OPS team / admin only: move the card on after a review */
     onMove?: (project: Project, to: OpsStatus) => void;
+    /** OPS team / admin: set or remove the system link once Done. Resolves true on success */
+    onLinkChange?: (project: Project, url: string | null) => Promise<boolean>;
+    /** Saves the edited request; shown only when project.can_edit. Resolves true on success */
+    onEdit?: (project: Project, input: ProjectRequestInput) => Promise<boolean>;
 };
 
 export const ProjectDetailSheet = ({ project, ...rest }: ProjectSheetProps & { project: Project | null }) =>
     // keyed so a different project starts a fresh comment thread
     project ? <ProjectSheet key={project.project_id} p={project} {...rest} /> : null;
 
-const ProjectSheet = ({ p, issues, team, onClose, onOpenIssue, onEstimateChange, onReview, onMove }: ProjectSheetProps & { p: Project }) => {
+const ProjectSheet = ({ p, issues, tasks, team, onClose, onOpenIssue, onOpenTask, onEstimateChange, onAssign, onReview, onMove, onEdit, onLinkChange }: ProjectSheetProps & { p: Project }) => {
     const thread = useComments('project', p.project_id);
+    const [editing, setEditing] = useState(false);
+    const canEdit = Boolean(onEdit && p.can_edit);
     const related = issues.filter(i => i.project_id === p.project_id);
+    const projectTasks = tasks.filter(t => t.project_id === p.project_id);
+    const liveTasks = projectTasks.filter(t => t.status !== 'Reject');
+    const doneTasks = liveTasks.filter(t => t.status === 'Done').length;
     const openIssues = related.filter(i => i.status !== 'Done' && i.status !== 'Reject').length;
     const people = p.assignees.map(a => resolvePerson(a, team));
     const requester = resolvePerson(p.requested_by, team);
     const rejectRemark = p.status === 'Reject' ? p.status_history.findLast(h => h.status === 'Reject')?.remark : null;
-    const planEditable = onEstimateChange && p.status !== 'Done' && p.status !== 'Reject';
+    // dates and assignees freeze once the project is Done/Reject
+    const closed = isClosedStatus(p.status);
 
     return (
         <SheetShell
@@ -337,14 +433,18 @@ const ProjectSheet = ({ p, issues, team, onClose, onOpenIssue, onEstimateChange,
                 </>}
                 right={<>
                     <SideLabel>ฝั่งผู้รับผิดชอบ</SideLabel>
-                    <AssigneeRow people={people} />
+                    <EditableAssignees people={people} team={team} onChange={onAssign && !closed ? (next) => onAssign(p, next) : undefined} />
                     <EstimateDate
                         value={p.planned_end}
                         targetDate={p.target_date}
-                        onChange={planEditable ? (d) => onEstimateChange(p, d) : undefined}
+                        onChange={onEstimateChange && !closed ? (d) => onEstimateChange(p, d) : undefined}
                     />
                 </>}
             />
+
+            {p.status === 'Done' && (
+                <ProjectLink url={p.link_url} onSave={onLinkChange ? (url) => onLinkChange(p, url) : undefined} />
+            )}
 
             <ReviewSection
                 kind="project"
@@ -359,23 +459,55 @@ const ProjectSheet = ({ p, issues, team, onClose, onOpenIssue, onEstimateChange,
 
             {rejectRemark && <RejectNote label="เหตุผลที่ไม่อนุมัติ" remark={rejectRemark} />}
 
-            <section className="rounded-[22px] border border-border bg-white px-5 py-1 divide-y divide-[#eef5fd]">
-                <Field label="วัตถุประสงค์และปัญหาที่ต้องการแก้ไข">{p.objective}</Field>
-                <Field label="รายละเอียดความต้องการ (Requirement)">
-                    {isRichText(p.requirement) ? <RichTextView html={p.requirement} /> : <Steps text={p.requirement} />}
-                </Field>
-                <Field label="ประโยชน์และความคุ้มค่า">{p.expected_benefit}</Field>
-                <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-4 divide-y sm:divide-y-0 divide-[#eef5fd]">
+            {editing && canEdit ? (
+                <ProjectEditForm project={p} onSave={(input) => onEdit!(p, input)} onCancel={() => setEditing(false)} />
+            ) : (
+                <section className="rounded-[22px] border border-border bg-white px-5 py-1 divide-y divide-[#eef5fd]">
+                    {canEdit && (
+                        <div className="flex items-center justify-between gap-2 py-2.5">
+                            <span className="text-xs font-semibold text-ink-500">รายละเอียดคำขอ</span>
+                            <button
+                                type="button"
+                                onClick={() => setEditing(true)}
+                                className="h-8 px-3 rounded-full inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50"
+                            >
+                                <Pencil className="w-3.5 h-3.5" /> แก้ไขคำขอ
+                            </button>
+                        </div>
+                    )}
+                    <Field label="วัตถุประสงค์และปัญหาที่ต้องการแก้ไข">{p.objective}</Field>
+                    <Field label="รายละเอียดความต้องการ (Requirement)">
+                        {isRichText(p.requirement) ? <RichTextView html={p.requirement} /> : <Steps text={p.requirement} />}
+                    </Field>
+                    <Field label="ประโยชน์และความคุ้มค่า">{p.expected_benefit}</Field>
                     <Field label="ผู้ใช้งานโดยประมาณ">
                         <span className="font-display text-lg font-semibold">{p.estimated_users.toLocaleString()}</span> คน
                         {p.user_groups && <span className="block text-xs text-ink-500">{p.user_groups}</span>}
                     </Field>
-                    <Field label="เหตุผลความสำคัญ">{p.priority_reason}</Field>
-                </div>
-            </section>
+                </section>
+            )}
 
             <div className="space-y-2.5">
                 <HistorySection items={p.status_history} />
+                {projectTasks.length > 0 && (
+                    <Collapsible
+                        title="Task OPS"
+                        count={projectTasks.length}
+                        summary={<span className="text-xs text-ink-500">เสร็จ {doneTasks}/{liveTasks.length}</span>}
+                    >
+                        <ul className="space-y-1.5">
+                            {projectTasks.map(t => (
+                                <li key={t.task_id}>
+                                    <button type="button" onClick={() => onOpenTask(t)} className="w-full text-left flex items-center gap-2 rounded-xl border border-border bg-brand-50/50 px-3 py-2.5 hover:border-brand-300 cursor-pointer transition-colors">
+                                        <PersonAvatar person={resolvePerson(t.owner, team)} className="w-6 h-6" textClassName="text-[10px] font-semibold" />
+                                        <span className={cn('text-[13px] line-clamp-1 flex-1', t.status === 'Reject' ? 'text-ink-500 line-through' : 'text-ink-900')}>{t.title}</span>
+                                        <StatusBadge status={t.status} />
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </Collapsible>
+                )}
                 {related.length > 0 && (
                     <Collapsible
                         title="ปัญหาที่แจ้ง"
@@ -473,6 +605,103 @@ const IssueSheet = ({ issue, team, onClose, onReview, onMove }: IssueSheetProps 
             </div>
 
             <CommentList thread={thread} team={team} />
+        </SheetShell>
+    );
+};
+
+// ───────────────────────────── task ─────────────────────────────
+
+type TaskSheetProps = {
+    team: OpsPerson[];
+    onClose: () => void;
+    /** Owner or co-assignee: change the due date */
+    onDueChange?: (task: ProjectTask, date: string | null) => void;
+    /** Owner only: change the co-assignees */
+    onAssign?: (task: ProjectTask, people: OpsPerson[]) => void;
+    /** Back up to the parent project's sheet */
+    onOpenProject: (projectId: string) => void;
+    /** Owner only, while Open: rename it or move it to another project */
+    onEdit?: (task: ProjectTask, input: { title?: string; project_id?: string }) => void;
+    /** Projects it may move to (same list as the composer) */
+    projects?: Project[];
+};
+
+export const TaskDetailSheet = ({ task, ...rest }: TaskSheetProps & { task: ProjectTask | null }) =>
+    task ? <TaskSheet key={task.task_id} t={task} {...rest} /> : null;
+
+/** Status moves on the board; due date and co-assignees are edited here until Done/Reject. No comment thread yet. */
+const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onEdit, projects = [] }: TaskSheetProps & { t: ProjectTask }) => {
+    const owner = resolvePerson(t.owner, team);
+    const closed = isClosedStatus(t.status);
+    // title and project are only open to change before work starts
+    const editable = Boolean(onEdit) && t.status === 'Open';
+    const rejectRemark = t.status === 'Reject' ? t.status_history.findLast(h => h.status === 'Reject')?.remark : null;
+    return (
+        <SheetShell
+            onClose={onClose}
+            id={t.task_id}
+            title={t.title}
+            onRename={editable ? (title) => onEdit!(t, { title }) : undefined}
+            status={t.status}
+            updatedAt={t.updated_at}
+        >
+            <SidesCard
+                left={<>
+                    <SideLabel>ผู้รับผิดชอบ</SideLabel>
+                    <PersonLine person={owner} sub="เจ้าของ Task" />
+                    {(t.assignees.length > 0 || (onAssign && !closed)) && (
+                        <div className="min-w-0">
+                            <p className="text-[11px] text-ink-500 mb-1">ร่วมรับผิดชอบ</p>
+                            <EditableAssignees
+                                people={t.assignees.map(a => resolvePerson(a, team))}
+                                // the owner is already on it
+                                team={team.filter(p => p.username !== owner.username)}
+                                onChange={onAssign && !closed ? (next) => onAssign(t, next) : undefined}
+                            />
+                        </div>
+                    )}
+                    <EstimateDate
+                        label="กำหนดเสร็จ"
+                        value={t.due_date}
+                        onChange={onDueChange && !closed ? (d) => onDueChange(t, d) : undefined}
+                    />
+                    <Facts rows={[['วันที่สร้าง', formatThaiDate(t.created_at)]]} />
+                </>}
+                right={<>
+                    <SideLabel>อยู่ในโปรเจกต์</SideLabel>
+                    <button
+                        type="button"
+                        onClick={() => onOpenProject(t.project_id)}
+                        className="group w-full text-left flex items-start gap-2.5 rounded-[14px] border border-border bg-brand-50/70 px-3 py-2.5 hover:border-brand-300 cursor-pointer transition-colors"
+                    >
+                        <KindMark kind="project" className="mt-0.5" />
+                        <span className="min-w-0 flex-1">
+                            <span className="block font-mono text-xs text-ink-500">{t.project_id}</span>
+                            <span className="block text-sm font-semibold text-ink-900 line-clamp-2 group-hover:text-brand-700">{t.project_title}</span>
+                        </span>
+                        <ArrowUpRight className="w-4 h-4 text-ink-500 shrink-0 group-hover:text-brand-600" />
+                    </button>
+                    {editable && projects.length > 0 && (
+                        <ProjectPicker
+                            projects={projects}
+                            value={{ project_id: t.project_id, title: t.project_title }}
+                            onChange={(id) => { if (id !== t.project_id) onEdit!(t, { project_id: id }); }}
+                        >
+                            <button
+                                type="button"
+                                className="-mt-1 self-start h-8 px-3 rounded-full inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50"
+                            >
+                                <ArrowLeftRight className="w-3.5 h-3.5" /> ย้ายโปรเจกต์
+                            </button>
+                        </ProjectPicker>
+                    )}
+                    <Facts rows={[['อัปเดตล่าสุด', formatThaiDate(t.updated_at, true)]]} />
+                </>}
+            />
+
+            {rejectRemark && <RejectNote label="เหตุผล" remark={rejectRemark} />}
+
+            <HistorySection items={t.status_history} />
         </SheetShell>
     );
 };

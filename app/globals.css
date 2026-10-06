@@ -8,6 +8,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-noto-thai), var(--font-prompt), Tahoma, sans-serif;
   --font-display: var(--font-prompt), var(--font-noto-thai), sans-serif;
+  --font-title: var(--font-plex-thai), var(--font-noto-thai), sans-serif;
   --font-mono: var(--font-geist-mono);
 
   /* ── menaIT V.2 palette (derived from MENA ATMS theme) ── */

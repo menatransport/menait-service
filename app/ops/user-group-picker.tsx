@@ -63,7 +63,8 @@ export function UserGroupPicker({ id, value, onChange, className }: {
     };
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        // modal: its own scroll scope, so the wheel scrolls the list even inside a Sheet / Dialog (whose scroll lock would swallow it)
+        <Popover open={open} onOpenChange={setOpen} modal>
             <PopoverAnchor asChild>
                 <div className={cn(
                     'flex min-h-11 w-full flex-wrap items-center gap-1.5 rounded-xl border bg-white py-1.5 pl-2 pr-1 transition-all duration-200',

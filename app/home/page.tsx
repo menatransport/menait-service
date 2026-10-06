@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Mascot } from "@/components/mascot";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { canUseFinance } from "@/lib/finance/role";
 import { MENU_GROUPS, QUICK_LINKS, isMenuItemReady, type MenuGroup, type MenuItem, type MenuTone } from "./menu-groups";
 
 const TONE = {
@@ -32,8 +33,12 @@ export default function HomePage() {
     const groups = useMemo(
         () => MENU_GROUPS
             .filter(g => !g.adminOnly || (isClient && user?.role === 'a'))
-            .map(g => ({ ...g, items: g.items.filter(i => !i.financeOnly || (isClient && user?.is_finance)) })),
-        [isClient, user?.role, user?.is_finance]
+            .map(g => ({ ...g, items: g.items.filter(i => !i.financeOnly || (isClient && user?.is_finance)) }))
+            // not open to this user yet: same items, but without a link → rendered as "เร็ว ๆ นี้"
+            .map(g => (g.financeAccess && !(isClient && canUseFinance(user))
+                ? { ...g, items: g.items.map(i => ({ ...i, href: undefined, children: undefined })) }
+                : g)),
+        [isClient, user]
     );
 
     const navigate = useCallback((href?: string) => {
@@ -181,7 +186,7 @@ function GroupColumn({ group, index, onNavigate }: { group: MenuGroup; index: nu
             {group.items.length === 0 ? (
                 <div className={cn('flex items-center gap-2 p-3.5 rounded-2xl border-2 border-dashed text-sm font-medium', tone.ring, tone.text)}>
                     <Sparkles className="w-4 h-4" />
-                    เมนู {group.label.replace('Group ', '')} กำลังจะมาเร็ว ๆ นี้
+                    <span>เปิดใช้เร็ว ๆ นี้</span>
                 </div>
             ) : (
                 // The page never scrolls; a long group scrolls inside its own card
@@ -355,7 +360,7 @@ function MobileHome({ firstName, groups, onNavigate }: LayoutProps) {
                                     active ? 'bg-linear-to-br from-[#eaf4ff] to-[#dff9ef] text-brand-700 font-semibold' : 'text-ink-500 font-medium'
                                 )}
                             >
-                                {g.adminOnly ? 'จัดการ' : g.label.replace('Group ', '')}
+                                {g.label}
                             </button>
                         );
                     })}

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Noto_Sans_Thai, Prompt } from "next/font/google";
+import { Geist, Geist_Mono, IBM_Plex_Sans_Thai, Noto_Sans_Thai, Prompt } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { SessionProvider } from "@/app/context/SessionContext";
 import "./globals.css";
 
@@ -17,6 +18,13 @@ const notoThai = Noto_Sans_Thai({
   variable: "--font-noto-thai",
   subsets: ["thai", "latin"],
   weight: ["400", "500", "600", "700"],
+});
+
+/** Card / list titles: compact, very legible Thai + Latin at small sizes (font-title) */
+const plexThai = IBM_Plex_Sans_Thai({
+  variable: "--font-plex-thai",
+  subsets: ["thai", "latin"],
+  weight: ["500", "600"],
 });
 
 const promptThai = Prompt({
@@ -63,11 +71,13 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="120x120" href="/logonew/ios/120.png" /> */}
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${notoThai.variable} ${promptThai.variable} antialiased overflow-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} ${notoThai.variable} ${promptThai.variable} ${plexThai.variable} antialiased overflow-hidden`}
       >
         <SessionProvider>
           {children}
         </SessionProvider>
+        {/* page views / visitors → Vercel dashboard (enable Analytics on the project first) */}
+        <Analytics />
       </body>
     </html>
   );
