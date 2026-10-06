@@ -154,6 +154,45 @@ The user decided: "กรอกยอดรวมอย่างเดียว 
 - The job does nothing and logs nothing.
 - The manual endpoint answers `{sent:0, disabled:true}`, and the FE shows "อีเมลยังปิดอยู่ — ยังไม่ได้ส่ง".
 
+## 9. Server-side pagination (user, 2026-10-06: "ทำ pagination ก่อนเลย")
+
+**`GET /finance/advances`**: the paged mode is opt-in. It turns on when `page` is present. Without `page`, the response is the old full array, unchanged.
+
+**Params:**
+- `page` (1-based), `page_size` (default 20, max 200).
+- `status`: a comma list of DERIVED statuses, e.g. `AWAITING_CLEARING,SENT_BACK`.
+- `overdue=true`.
+- `q`: case-insensitive match on form_id, requester employee_id or name, or purpose.
+- `date_from` / `date_to`: the same date the FE month filter uses today.
+- `cost_center`.
+- `employee_id`: the requester's own list, as today.
+
+**Response:**
+
+```
+{items: AdvanceItem[], total, page, page_size, summary}
+summary = {counts: {<STATUS>: n …}, overdue: n, outstanding_amount: number}
+```
+
+- The status filter must run in SQL. Each derived status maps to `status_approve` × `fin_status` exactly as `derive_status` defines it (In Progress wins, then Rejected, then the fin_status mapping). Overdue = fin_status in (PAID, SENT_BACK) and `clear_due_date` < today (Bangkok).
+- `summary` is computed over the same scope (employee_id, q, dates, cost_center) WITHOUT the status/overdue filter, so the tab counts and tiles stay right on any page.
+- `outstanding_amount` = Σ `amount_paid` over rows with a fin row and status ≠ CLOSED. This is today's tile rule.
+- Ordering: `created_at` desc, then id desc, so the order is stable.
+- No N+1: one query for the page, plus one batch each for people and values.
+
+**`GET /forms/approval-history`:**
+- Optional `page` / `page_size`. With them the response is `{items, total, page, page_size}`; without them it is the old array.
+- The per-row user lookup is batched into one query.
+
+**Approval context cache:** `approval_repo.load_context` (users, tiers, mappings) is cached in-process for 60 s. Level and department changes apply within a minute.
+
+**FE:**
+- **List view:** the finance queue (`/finance`) and the requester's list (`/finance/advance`) fetch one page at a time. Tabs, search (debounced), month range and cost center become server params.
+- **Counts:** tab counts and summary tiles come from `summary`.
+- **Excel export:** fetches every page for the current filters, `page_size` 200, sequentially.
+- **History:** the approvals page history tab is paged.
+- **Mobile:** the cards and the pagination controls stay as they are.
+
 ## 8. Out of scope
 - No BE auth (launch gate).
 - The BE goes to branch `menaIT-v2` only.
