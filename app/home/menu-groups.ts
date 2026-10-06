@@ -46,7 +46,7 @@ export interface MenuGroup {
 export const MENU_GROUPS: MenuGroup[] = [
     {
         id: 'it',
-        label: 'Service IT',
+        label: 'IT Service',
         caption: 'แจ้งปัญหา ขอบริการ และติดตามคำร้องด้าน IT',
         tagline: 'บริการด้าน IT',
         icon: Monitor,
@@ -70,7 +70,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     },
    {
     id: 'ops',
-    label: 'Service OPS',
+    label: 'OPS Service',
     caption: 'คำขอและโปรเจกต์สำหรับสนับสนุนการปฏิบัติการ',
     tagline: 'Operation Support',
     icon: Truck,
@@ -98,7 +98,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     },
     {
         id: 'finance',
-        label: 'Service Finance',
+        label: 'Finance Service',
         caption: 'บริการด้านการเงินและบัญชี',
         tagline: 'การเงินและบัญชี',
         icon: Wallet,

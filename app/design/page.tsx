@@ -82,9 +82,9 @@ export default function DesignPage() {
                     </div>
                     <div className="grid sm:grid-cols-3 gap-4 mt-6">
                         {[
-                            { t: 'Service IT', i: Monitor, c: 'v2-tile-blue' },
-                            { t: 'Service OPS', i: FolderKanban, c: 'v2-tile-sun' },
-                            { t: 'Service Finance', i: Wallet, c: 'v2-tile-mint' },
+                            { t: 'IT Service', i: Monitor, c: 'v2-tile-blue' },
+                            { t: 'OPS Service', i: FolderKanban, c: 'v2-tile-sun' },
+                            { t: 'Finance Service', i: Wallet, c: 'v2-tile-mint' },
                         ].map(({ t, i: Icon, c }) => (
                             <div key={t} className="rounded-[22px] bg-white border border-border p-5 flex items-center gap-4 shadow-[0_4px_14px_-8px_rgba(21,86,201,0.25)] hover:-translate-y-1 hover:shadow-lift transition-all">
                                 <span className={`w-12 h-12 rounded-2xl grid place-items-center ${c}`}><Icon className="w-5 h-5" /></span>

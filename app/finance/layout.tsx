@@ -23,7 +23,7 @@ export default function FinanceLayout({ children }: { children: React.ReactNode 
   if (canUseFinance(user)) return children;
 
   return (
-    <FinanceShell title="Service Finance">
+    <FinanceShell title="Finance Service">
       <div className="rounded-2xl sm:rounded-3xl bg-white px-6 py-10 shadow-xl flex flex-col items-center text-center gap-3">
         <Mascot size={96} motion="bob" />
         <span className="inline-flex items-center gap-1.5 rounded-full bg-mint-300/25 px-3 py-1 text-xs font-semibold text-mint-700">
