@@ -253,7 +253,8 @@ function FinanceApprovals() {
     setError('');
     try {
       if (apvView === 'pending') {
-        setPending(await fetchJson<PendingApprovalItem[]>('/api/finance/approvals'));
+        const list = await fetchJson<PendingApprovalItem[]>('/api/finance/approvals');
+        if (seq === loadSeq.current) setPending(list);
         return;
       }
       const viewQS = apvView === 'history' ? `&view=history&page=${historyPage}&page_size=${HISTORY_PAGE_SIZE}` : '';

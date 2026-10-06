@@ -70,7 +70,8 @@ export function AdvanceListView({
   const [deptFilter, setDeptFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showFilters, setShowFilters] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  // page is keyed by the filter signature, so any tab/filter/sort change is page 1 in the same render (one fetch)
+  const [pageState, setPageState] = useState<{ key: string; page: number }>({ key: '', page: 1 });
 
   const [rows, setRows] = useState<AdvanceItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -101,8 +102,9 @@ export function AdvanceListView({
   );
   useEffect(() => { onScopeChange?.(scope); }, [scope, onScopeChange]);
 
-  // Reset to page 1 whenever the tab, search, filters or month range change
-  useEffect(() => { setCurrentPage(1); }, [activeTab, debouncedQ, ccFilter, deptFilter, sortOrder, startMonth, endMonth]);
+  const filterKey = useMemo(() => JSON.stringify([activeTab, scope]), [activeTab, scope]);
+  const currentPage = pageState.key === filterKey ? pageState.page : 1;
+  const setCurrentPage = useCallback((page: number) => setPageState({ key: filterKey, page }), [filterKey]);
 
   const listUrl = useCallback(
     (query: string) => `/api/finance/advances?${mode === 'mine' ? 'mine=1&' : ''}${query}`,
@@ -132,7 +134,7 @@ export function AdvanceListView({
         setLoading(false);
         showAlert({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ', text: err.message });
       });
-  }, [activeTabDef, scope, currentPage, listUrl, refreshKey, onSummary]);
+  }, [activeTabDef, scope, currentPage, setCurrentPage, listUrl, refreshKey, onSummary]);
 
   const withSelected = (opts: string[], sel: string) => (sel !== 'all' && !opts.includes(sel) ? [...opts, sel].sort() : opts);
   const ccOptions = useMemo(() => withSelected(ccOpts, ccFilter), [ccOpts, ccFilter]);

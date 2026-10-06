@@ -1,5 +1,16 @@
 import type { AdvanceItem } from '@/app/finance/types';
 
+/** Query params the /api/finance/advances proxy forwards to the BE (paged list mode). */
+export const LIST_PARAMS = [
+  'page', 'page_size', 'status', 'overdue', 'q', 'date_from', 'date_to', 'cost_center', 'department', 'sort',
+] as const;
+
+export function pickListParams(sp: { get(name: string): string | null }): Record<string, string | null> {
+  return Object.fromEntries(LIST_PARAMS.map(k => [k, sp.get(k)]));
+}
+
+export const MAX_EXPORT_PAGES = 100;
+
 export const ADVANCE_PAGE_SIZE = 20;
 export const ADVANCE_EXPORT_PAGE_SIZE = 200;
 
@@ -90,15 +101,16 @@ export async function fetchAllAdvances(
   tab: TabFilter,
   pageSize = ADVANCE_EXPORT_PAGE_SIZE,
 ): Promise<AdvanceItem[]> {
-  const all: AdvanceItem[] = [];
+  // offset paging over a live list can repeat rows: dedupe by form_id
+  const byId = new Map<string, AdvanceItem>();
   let page = 1;
   let pages = 1;
   do {
     const res = await getPage(buildAdvanceQuery(scope, tab, page, pageSize));
-    all.push(...res.items);
+    for (const it of res.items) if (!byId.has(it.form_id)) byId.set(it.form_id, it);
     pages = totalPages(res.total, pageSize);
     if (res.items.length === 0) break;
     page += 1;
-  } while (page <= pages);
-  return all;
+  } while (page <= pages && page <= MAX_EXPORT_PAGES);
+  return Array.from(byId.values());
 }

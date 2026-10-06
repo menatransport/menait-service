@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { buildAdvanceQuery, fetchAllAdvances, monthEnd, tabCount, type AdvancePage } from './advanceQuery';
+import { LIST_PARAMS, buildAdvanceQuery, pickListParams, fetchAllAdvances, monthEnd, tabCount, type AdvancePage } from './advanceQuery';
 import type { AdvanceItem } from '@/app/finance/types';
 
 const summary = { counts: { AWAITING_CLEARING: 3, SENT_BACK: 2, CLOSED: 5 }, overdue: 4, outstanding_amount: 100 };
@@ -54,4 +54,27 @@ test('department and sort are sent; "all" department is dropped', () => {
   expect(qs.get('department')).toBe('HR');
   expect(qs.get('sort')).toBe('asc');
   expect(new URLSearchParams(buildAdvanceQuery({ department: 'all' }, {}, 1, 20)).get('department')).toBeNull();
+});
+
+test('proxy forwards department, sort, paging and scope params', () => {
+  for (const k of ['department', 'sort', 'page', 'page_size', 'status', 'overdue', 'q', 'date_from', 'date_to', 'cost_center']) {
+    expect(LIST_PARAMS).toContain(k as never);
+  }
+  const sp = new URLSearchParams('page=2&department=HR&sort=asc&evil=1');
+  const picked = pickListParams(sp);
+  expect(picked.department).toBe('HR');
+  expect(picked.sort).toBe('asc');
+  expect('evil' in picked).toBe(false);
+});
+
+test('fetchAllAdvances dedupes repeated rows and caps pages', async () => {
+  const mk = (id: string) => ({ form_id: id }) as AdvanceItem;
+  const dup = await fetchAllAdvances(async query => {
+    const page = Number(new URLSearchParams(query).get('page'));
+    return { items: page === 1 ? [mk('A'), mk('B')] : [mk('B'), mk('C')], total: 4, page, page_size: 2, summary } as AdvancePage;
+  }, {}, {}, 2);
+  expect(dup.map(i => i.form_id)).toEqual(['A', 'B', 'C']);
+  let calls = 0;
+  await fetchAllAdvances(async () => { calls++; return { items: [mk(`X${calls}`)], total: 1_000_000, page: 1, page_size: 1, summary } as AdvancePage; }, {}, {}, 1);
+  expect(calls).toBe(100);
 });

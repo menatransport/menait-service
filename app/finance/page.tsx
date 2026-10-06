@@ -10,7 +10,7 @@ import { AdvanceListView, type AdvanceListTab } from './components/AdvanceListVi
 import { AdvanceSheet } from './components/AdvanceSheet';
 import { FinanceCanvas, FinanceHeading, NoAccess, SummaryTiles } from './components/FinanceShell';
 import type { AdvanceItem } from './types';
-import { fetchAllAdvances, type AdvancePage, type AdvanceSummary, type ScopeFilter } from '@/lib/finance/advanceQuery';
+import { fetchAllAdvances, type AdvancePage, type AdvanceSummary } from '@/lib/finance/advanceQuery';
 
 const TABS: AdvanceListTab[] = [
   { key: 'voucher', label: 'รอตั้งเบิก', status: ['AWAITING_VOUCHER'] },
@@ -27,7 +27,6 @@ const TABS: AdvanceListTab[] = [
 export default function FinanceQueuePage() {
   const { user, loading } = useSessionContext();
   const [summary, setSummary] = useState<AdvanceSummary | null>(null);
-  const [scope, setScope] = useState<ScopeFilter>({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [tab, setTab] = useState('voucher');
   const [openFormId, setOpenFormId] = useState<string | null>(null);
@@ -35,6 +34,14 @@ export default function FinanceQueuePage() {
   const [pendingPayees, setPendingPayees] = useState(0);
 
   const load = useCallback(() => setRefreshKey(k => k + 1), []);
+
+  // tiles + reminder N cover ALL open advances (no month/search/cc/dept filter): one lightweight unfiltered call per load
+  useEffect(() => {
+    if (!user?.is_finance) return;
+    fetchJson<AdvancePage>('/api/finance/advances?page=1&page_size=1')
+      .then(r => setSummary(r.summary))
+      .catch(() => { /* tiles stay as they were; the list shows its own error */ });
+  }, [user?.is_finance, refreshKey]);
 
   useEffect(() => {
     if (!user?.is_finance) return;
@@ -61,8 +68,8 @@ export default function FinanceQueuePage() {
   const remindAll = async () => {
     if (remindInFlight.current || overdueCount === 0) return;
     const res = await showConfirm({
-      title: `ส่งอีเมลแจ้งเตือนเกินกำหนด ${overdueCount} รายการ?`,
-      text: 'ส่งทุกรายการที่เกินกำหนดตามตัวกรองปัจจุบัน (ค้นหา/ช่วงเดือน/ศูนย์ค่าใช้จ่าย) และส่งทันทีแม้เพิ่งแจ้งเตือนไป',
+      title: `ส่งอีเมลแจ้งเตือนเกินกำหนด ${overdueCount} รายการ (ทุกรายการที่เกินกำหนด)?`,
+      text: 'ส่งทุกรายการที่เกินกำหนด (ไม่รวมตัวกรอง) และส่งทันทีแม้เพิ่งแจ้งเตือนไป',
     });
     if (!res.isConfirmed) return;
     remindInFlight.current = true;
@@ -72,7 +79,7 @@ export default function FinanceQueuePage() {
     let sent = 0;
     try {
       // every overdue id for the current scope (all pages), then send in small batches
-      const overdueIds = (await fetchAllAdvances(q => fetchJson<AdvancePage>(`/api/finance/advances?${q}`), scope, { overdue: true }))
+      const overdueIds = (await fetchAllAdvances(q => fetchJson<AdvancePage>(`/api/finance/advances?${q}`), {}, { overdue: true }))
         .map(i => i.form_id);
       const skipped: { form_id: string; reason: string }[] = [];
       let disabled = false;
@@ -138,8 +145,6 @@ export default function FinanceQueuePage() {
         onOpen={handleOpen}
         exportFileBase="advance"
         refreshKey={refreshKey}
-        onSummary={setSummary}
-        onScopeChange={setScope}
         headerAction={tab === 'overdue' && overdueCount > 0 ? (
           <button type="button" onClick={remindAll} disabled={reminding}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-all cursor-pointer disabled:opacity-50">
