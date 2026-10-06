@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Calendar, FileSpreadsheet, FileText, Filter, Search, User, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Calendar, FileSpreadsheet, FileText, Filter, Search, User, X } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MonthRangeFilter, currentMonth, shiftMonths } from '@/components/month-range-filter';
 import { PaginationControls } from '@/components/pagination-controls';
@@ -67,6 +67,8 @@ export function AdvanceListView({
   const [search, setSearch] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
   const [ccFilter, setCcFilter] = useState('all');
+  const [deptFilter, setDeptFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -75,8 +77,9 @@ export function AdvanceListView({
   const [summary, setSummary] = useState<AdvanceSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
-  // cost centers seen so far (the server only returns one page, so the options accumulate)
-  const [ccSeen, setCcSeen] = useState<string[]>([]);
+  // distinct filter values for the current scope, from the server (response.options)
+  const [ccOpts, setCcOpts] = useState<string[]>([]);
+  const [deptOpts, setDeptOpts] = useState<string[]>([]);
   const reqSeq = useRef(0);
 
   const handleMonthRangeChange = useCallback((s: string, e: string) => {
@@ -93,13 +96,13 @@ export function AdvanceListView({
   }, [search]);
 
   const scope = useMemo<ScopeFilter>(
-    () => ({ q: debouncedQ, startMonth, endMonth, costCenter: mode === 'finance' ? ccFilter : 'all' }),
-    [debouncedQ, startMonth, endMonth, ccFilter, mode],
+    () => ({ q: debouncedQ, startMonth, endMonth, costCenter: mode === 'finance' ? ccFilter : 'all', department: mode === 'finance' ? deptFilter : 'all', sort: sortOrder }),
+    [debouncedQ, startMonth, endMonth, ccFilter, deptFilter, sortOrder, mode],
   );
   useEffect(() => { onScopeChange?.(scope); }, [scope, onScopeChange]);
 
   // Reset to page 1 whenever the tab, search, filters or month range change
-  useEffect(() => { setCurrentPage(1); }, [activeTab, debouncedQ, ccFilter, startMonth, endMonth]);
+  useEffect(() => { setCurrentPage(1); }, [activeTab, debouncedQ, ccFilter, deptFilter, sortOrder, startMonth, endMonth]);
 
   const listUrl = useCallback(
     (query: string) => `/api/finance/advances?${mode === 'mine' ? 'mine=1&' : ''}${query}`,
@@ -119,11 +122,7 @@ export function AdvanceListView({
         setTotal(res.total);
         setSummary(res.summary);
         onSummary?.(res.summary);
-        setCcSeen(prev => {
-          const next = new Set(prev);
-          res.items.forEach(i => { if (i.request.cost_center) next.add(i.request.cost_center); });
-          return next.size === prev.length ? prev : Array.from(next).sort();
-        });
+        if (res.options) { setCcOpts(res.options.cost_centers ?? []); setDeptOpts(res.options.departments ?? []); }
         setLoading(false);
       })
       .catch(err => {
@@ -135,16 +134,16 @@ export function AdvanceListView({
       });
   }, [activeTabDef, scope, currentPage, listUrl, refreshKey, onSummary]);
 
-  const ccOptions = useMemo(
-    () => (ccFilter !== 'all' && !ccSeen.includes(ccFilter) ? [...ccSeen, ccFilter].sort() : ccSeen),
-    [ccSeen, ccFilter],
-  );
+  const withSelected = (opts: string[], sel: string) => (sel !== 'all' && !opts.includes(sel) ? [...opts, sel].sort() : opts);
+  const ccOptions = useMemo(() => withSelected(ccOpts, ccFilter), [ccOpts, ccFilter]);
+  const deptOptions = useMemo(() => withSelected(deptOpts, deptFilter), [deptOpts, deptFilter]);
 
   const pages = totalPages(total, ADVANCE_PAGE_SIZE);
-  const hasActiveFilters = search.trim() !== '' || (mode === 'finance' && ccFilter !== 'all');
+  const hasActiveFilters = search.trim() !== '' || (mode === 'finance' && (ccFilter !== 'all' || deptFilter !== 'all'));
   const paginated = rows;
 
-  const clearFilters = () => { setSearch(''); setCcFilter('all'); };
+  const toggleSort = () => setSortOrder(o => (o === 'desc' ? 'asc' : 'desc'));
+  const clearFilters = () => { setSearch(''); setCcFilter('all'); setDeptFilter('all'); };
   const handleExport = async () => {
     if (!exportFileBase || !activeTabDef || exporting) return;
     setExporting(true);
@@ -191,6 +190,14 @@ export function AdvanceListView({
               </div>
 
               <div className="flex lg:hidden items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleSort}
+                  className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-all cursor-pointer"
+                  title={sortOrder === 'desc' ? 'เรียงจากใหม่ไปเก่า' : 'เรียงจากเก่าไปใหม่'}
+                >
+                  {sortOrder === 'desc' ? <ArrowDown size={16} /> : <ArrowUp size={16} />}
+                </button>
                 {mode === 'finance' && (
                   <button
                     type="button"
@@ -229,6 +236,15 @@ export function AdvanceListView({
                   <Filter size={14} /> <span>ตัวกรอง</span>
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={toggleSort}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-all cursor-pointer"
+                title="เรียงตามวันที่สร้าง"
+              >
+                {sortOrder === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />} <span>วันที่สร้าง</span>
+              </button>
 
               {headerAction}
 
@@ -289,6 +305,17 @@ export function AdvanceListView({
                 >
                   <option value="all">ศูนย์ค่าใช้จ่ายทั้งหมด</option>
                   {ccOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <span className="text-xs font-medium text-gray-500 shrink-0">แผนก</span>
+                <select
+                  value={deptFilter}
+                  onChange={e => setDeptFilter(e.target.value)}
+                  className={`px-3 py-1.5 rounded-lg text-sm border bg-white cursor-pointer focus:outline-none transition-colors ${deptFilter !== 'all' ? 'border-brand-600 text-brand-600 font-medium ring-1 ring-brand-600/30' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}
+                >
+                  <option value="all">ทุกแผนก</option>
+                  {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
               {hasActiveFilters && (

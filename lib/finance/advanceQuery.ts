@@ -15,6 +15,7 @@ export interface AdvancePage {
   page: number;
   page_size: number;
   summary: AdvanceSummary;
+  options?: { cost_centers: string[]; departments: string[] };
 }
 
 /** A tab is a server filter: a derived-status list, overdue=true, or neither (all). */
@@ -28,6 +29,8 @@ export interface ScopeFilter {
   startMonth?: string; // 'YYYY-MM'
   endMonth?: string; // 'YYYY-MM'
   costCenter?: string; // '' / 'all' = none
+  department?: string; // '' / 'all' = none
+  sort?: 'asc' | 'desc';
 }
 
 /** Last day of 'YYYY-MM' as 'YYYY-MM-DD' ('' when the month is malformed). */
@@ -50,6 +53,8 @@ export function scopeParams(scope: ScopeFilter): URLSearchParams {
   if (scope.startMonth) { const d = monthStart(scope.startMonth); if (d) sp.set('date_from', d); }
   if (scope.endMonth) { const d = monthEnd(scope.endMonth); if (d) sp.set('date_to', d); }
   if (scope.costCenter && scope.costCenter !== 'all') sp.set('cost_center', scope.costCenter);
+  if (scope.department && scope.department !== 'all') sp.set('department', scope.department);
+  if (scope.sort) sp.set('sort', scope.sort);
   return sp;
 }
 

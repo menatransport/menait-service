@@ -56,6 +56,8 @@ export async function GET(request: NextRequest) {
             employee_id: param,
             page: sp.get('page') || '',
             page_size: sp.get('page_size') || '',
+            // advance scope is applied by the BE before paging so pages are full; IT callers send none
+            scope: sp.get('page') && sp.get('scope') === 'advance' ? 'advance' : '',
         })}`;
     } else {
         endpoint = `${process.env.URL_API}/forms/pending-approvals${buildQS({

@@ -48,3 +48,10 @@ test('fetchAllAdvances walks pages sequentially', async () => {
   expect(calls).toEqual([1, 2, 3]);
   expect(res.length).toBe(5);
 });
+
+test('department and sort are sent; "all" department is dropped', () => {
+  const qs = new URLSearchParams(buildAdvanceQuery({ department: 'HR', sort: 'asc' }, {}, 1, 20));
+  expect(qs.get('department')).toBe('HR');
+  expect(qs.get('sort')).toBe('asc');
+  expect(new URLSearchParams(buildAdvanceQuery({ department: 'all' }, {}, 1, 20)).get('department')).toBeNull();
+});
