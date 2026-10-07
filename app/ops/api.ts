@@ -1,5 +1,6 @@
 import type {
-    OpsApiError, OpsAttachment, OpsComment, OpsCommentRef, OpsPerson, OpsScope, OpsStatus, Project, ProjectEditInput, ProjectIssue,
+    OpsApiError, OpsAttachment, OpsComment, OpsCommentRef, OpsPerson, OpsScope, OpsStatus, OpsSurveyInput, OpsSurveyResponse, OpsSurveyResults,
+    Project, ProjectEditInput, ProjectIssue,
     ProjectIssueInput, ProjectRequestInput, ProjectTask, ProjectTaskEditInput, ProjectTaskInput, ReviewInput,
 } from './types';
 
@@ -126,6 +127,14 @@ export function uploadTaskImage(taskId: string, file: File) {
 
 export const deleteTaskImage = (taskId: string, attachmentId: string) =>
     http<ProjectTask>(`/api/ops/tasks/${taskId}/attachments/${attachmentId}`, { method: 'DELETE' });
+
+// ─────────────────────────────── satisfaction survey ───────────────────────────────
+
+/** Saved in MongoDB (ops.surveys); one answer per person per system — sending again replaces it. */
+export const submitSurvey = (input: OpsSurveyInput) => http<OpsSurveyResponse>('/api/ops/surveys', json('POST', input));
+
+/** OPS team / admin. */
+export const getProjectSurveys = (projectId: string) => http<OpsSurveyResults>(`/api/ops/projects/${projectId}/surveys`);
 
 // ─────────────────────────────── comments ───────────────────────────────
 

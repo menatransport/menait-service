@@ -172,6 +172,42 @@ export interface OpsComment {
     attachments?: OpsAttachment[];
 }
 
+/** POST /api/ops/surveys — question id → 1..5, all 5 per section. Answering again replaces the earlier answer. */
+export interface OpsSurveyInput {
+    /** An OPS project id (must be Review / Done) or a system from the Apps Script list */
+    system_id: string;
+    system_name?: string | null;
+    section2: Record<number, number>;
+    section3: Record<number, number>;
+    comment?: string | null;
+}
+
+export interface OpsSurveyResponse {
+    survey_id: string;
+    system_id: string;
+    system_name?: string | null;
+    project_id?: string | null;
+    respondent: OpsPerson;
+    section2: Record<string, number>;
+    section3: Record<string, number>;
+    comment?: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+/** GET /api/ops/projects/{id}/surveys — OPS team / admin */
+export interface OpsSurveyResults {
+    project_id: string;
+    count: number;
+    /** Over every score; null when nobody answered */
+    average: number | null;
+    /** Average per question 1..5 */
+    section2_avg: (number | null)[];
+    section3_avg: (number | null)[];
+    /** Newest first */
+    responses: OpsSurveyResponse[];
+}
+
 export interface OpsApiError {
     error: string;
     field_errors?: Record<string, string>;

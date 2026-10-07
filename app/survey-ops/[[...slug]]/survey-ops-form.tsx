@@ -11,27 +11,8 @@ import Loading from '@/components/loading';
 import { Send, User, Building2, Briefcase, Monitor, Lock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSessionContext, type UserInfo } from '@/app/context/SessionContext';
-
-interface RatingQuestion {
-    id: number;
-    question: string;
-}
-
-const SECTION_2_QUESTIONS: RatingQuestion[] = [
-    { id: 1, question: 'ความสะดวกในการเข้าใช้งานระบบ' },
-    { id: 2, question: 'ความชัดเจนและใช้งานง่ายของหน้าจอ/เมนู' },
-    { id: 3, question: 'ความถูกต้องของข้อมูลที่ระบบแสดง' },
-    { id: 4, question: 'ความเร็วและเสถียรภาพของระบบ (ไม่ค้าง/ไม่ล่ม)' },
-    { id: 5, question: 'ระบบช่วยให้ทำงานได้ง่ายและมีประสิทธิภาพ' },
-];
-
-const SECTION_3_QUESTIONS: RatingQuestion[] = [
-    { id: 1, question: 'ความรวดเร็วในการตอบรับเมื่อผู้ใช้แจ้งปัญหา' },
-    { id: 2, question: 'ความชัดเจนในการให้คำแนะนำ/ขั้นตอนแก้ไขปัญหา' },
-    { id: 3, question: 'ความเหมาะสมของเวลาในการแก้ไขปัญหา' },
-    { id: 4, question: 'ความพึงพอใจต่อผลลัพธ์หลังการแก้ไขปัญหา' },
-    { id: 5, question: 'การสื่อสารและการติดตามงานระหว่างการแก้ปัญหา' },
-];
+import { submitSurvey } from '@/app/ops/api';
+import { SECTION_2_QUESTIONS, SECTION_3_QUESTIONS } from '../questions';
 
 const SYSTEMS_OPTIONS = [
     'ระบบ ERP',
@@ -202,20 +183,17 @@ export function SurveyOPSForm({ systems, locked = false, doneHref }: {
         setIsSubmitting(true);
 
         try {
-            const res = await fetch('/api/survey-ops', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData),
+            // saved in MongoDB (ops.surveys) — the project sheet reads its results from there
+            await submitSurvey({
+                system_id: formData.system,
+                system_name: systems.find(s => s.system_id === formData.system)?.system ?? null,
+                section2: formData.section2Ratings,
+                section3: formData.section3Ratings,
+                comment: formData.additionalComments || null,
             });
-            if (!res.ok) {
-                alert('เกิดข้อผิดพลาดในการส่งแบบประเมิน กรุณาลองใหม่อีกครั้ง');
-                return;
-            }
             setIsSubmitted(true);
-        } catch {
-            alert('เกิดข้อผิดพลาดในการส่งแบบประเมิน กรุณาลองใหม่อีกครั้ง');
+        } catch (err) {
+            alert(err instanceof Error && err.message ? err.message : 'เกิดข้อผิดพลาดในการส่งแบบประเมิน กรุณาลองใหม่อีกครั้ง');
         } finally {
             setIsSubmitting(false);
         }

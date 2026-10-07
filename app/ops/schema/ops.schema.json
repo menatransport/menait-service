@@ -157,6 +157,20 @@
       }
     },
 
+    "SurveyInput": {
+      "$comment": "POST /api/ops/surveys → 201 SurveyResponse (MongoDB ops.surveys). Signed in; one answer per person per system_id — answering again replaces it. system_id = OPS project id (must be Review / Done, else 409; system_name then comes from the project) or a system from the Apps Script list. GET /api/ops/projects/{project_id}/surveys → { project_id, count, average, section2_avg[5], section3_avg[5], responses: SurveyResponse[] } — OPS team / admin only.",
+      "type": "object",
+      "required": ["system_id", "section2", "section3"],
+      "properties": {
+        "system_id":   { "type": "string", "minLength": 1, "maxLength": 100 },
+        "system_name": { "type": ["string", "null"], "maxLength": 300 },
+        "section2":    { "type": "object", "description": "Question id 1..5 → score 1..5, all five required", "additionalProperties": { "type": "integer", "minimum": 1, "maximum": 5 } },
+        "section3":    { "type": "object", "description": "Question id 1..5 → score 1..5, all five required", "additionalProperties": { "type": "integer", "minimum": 1, "maximum": 5 } },
+        "comment":     { "type": ["string", "null"], "maxLength": 2000 }
+      },
+      "additionalProperties": false
+    },
+
     "ProjectTitleInput": {
       "$comment": "PATCH /api/ops/projects/{project_id}/title → Project. OPS team / admin, or anyone with can_edit (403 otherwise); any status except Done (409). The title is trimmed (min 3) and copied onto the project's tasks.",
       "type": "object",

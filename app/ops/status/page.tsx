@@ -646,6 +646,7 @@ function ProjectStatusContent() {
                 onMove={canManage ? moveProject : undefined}
                 onEdit={user ? editProject : undefined}
                 onRename={user ? renameProject : undefined}
+                canViewSurveys={canManage}
                 onLinkChange={canManage ? setProjectLink : undefined}
             />
             <IssueDetailSheet
