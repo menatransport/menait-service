@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { th } from 'date-fns/locale';
-import { Heart, MessageCircle, MoreHorizontal, Pencil, SendHorizontal, Trash2 } from 'lucide-react';
+import { Heart, ImagePlus, MessageCircle, MoreHorizontal, Pencil, SendHorizontal, Trash2, X } from 'lucide-react';
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -14,12 +14,20 @@ import {
 import { useSessionContext } from '@/app/context/SessionContext';
 import { cn } from '@/lib/utils';
 import { createComment, deleteComment, listComments, setCommentLike, updateComment } from '../api';
-import type { OpsComment, OpsCommentRef, OpsPerson } from '../types';
+import type { OpsAttachment, OpsComment, OpsCommentRef, OpsPerson } from '../types';
 import { formatThaiDate, toPerson } from '../components';
+import { ImageViewer } from '../image-viewer';
+import { compressImage } from '../image-compress';
 import { OPS_TEAM_USERNAMES, resolvePerson } from '../team';
 import { PersonAvatar } from './kanban';
 
 const MAX_LENGTH = 2000;
+/** Keep in sync with the backend's comment image rules */
+const MAX_IMAGES = 4;
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const MAX_IMAGE_MB = 10;
+/** The Vercel proxy refuses bodies over ~4.5 MB */
+const MAX_TOTAL_BYTES = 4 * 1024 * 1024;
 
 const timeAgo = (iso: string) =>
     Date.now() - new Date(iso).getTime() < 60_000 ? 'เมื่อสักครู่' : formatDistanceToNowStrict(new Date(iso), { addSuffix: true, locale: th });
@@ -58,10 +66,10 @@ export function useComments(ref: OpsCommentRef, refId: string) {
         return () => { alive = false; };
     }, [ref, refId, user]);
 
-    const post = useCallback(async (body: string) => {
+    const post = useCallback(async (body: string, images: File[] = []) => {
         if (!user) return false;
         try {
-            const c = await createComment(ref, refId, body);
+            const c = await createComment(ref, refId, body, images);
             setComments(list => [...list, c]);
             setFreshId(c.comment_id);
             return true;
@@ -168,12 +176,19 @@ const OwnMenu = ({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
 );
 
 /** Inline editor that replaces the comment body. Enter saves, Shift+Enter adds a line, Esc cancels. */
-const EditBox = ({ initial, onSave, onCancel }: { initial: string; onSave: (body: string) => Promise<boolean>; onCancel: () => void }) => {
+const EditBox = ({ initial, allowEmpty, onSave, onCancel }: {
+    initial: string;
+    /** A comment with images may drop its text */
+    allowEmpty: boolean;
+    onSave: (body: string) => Promise<boolean>;
+    onCancel: () => void;
+}) => {
     const [text, setText] = useState(initial);
     const [saving, setSaving] = useState(false);
     const body = text.trim();
+    const canSave = Boolean(body) || allowEmpty;
     const save = async () => {
-        if (!body || saving) return;
+        if (!canSave || saving) return;
         if (body === initial.trim()) { onCancel(); return; }
         setSaving(true);
         if (await onSave(body)) onCancel();
@@ -203,13 +218,44 @@ const EditBox = ({ initial, onSave, onCancel }: { initial: string; onSave: (body
                 <button
                     type="button"
                     onClick={save}
-                    disabled={!body || saving}
+                    disabled={!canSave || saving}
                     className="h-8 px-4 rounded-full text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:bg-brand-200 cursor-pointer disabled:cursor-not-allowed transition-colors"
                 >
                     {saving ? 'กำลังบันทึก…' : 'บันทึก'}
                 </button>
             </div>
         </div>
+    );
+};
+
+/** Pictures under a comment; click → the zoomable viewer. */
+const CommentImages = ({ items }: { items: OpsAttachment[] }) => {
+    const [viewing, setViewing] = useState<number | null>(null);
+    return (
+        <>
+            <ul className={cn('mt-2 grid gap-1.5', items.length === 1 ? 'grid-cols-1 max-w-64' : 'grid-cols-2 max-w-80')}>
+                {items.map((a, i) => (
+                    <li key={a.attachment_id}>
+                        <button
+                            type="button"
+                            onClick={() => setViewing(i)}
+                            title={a.file_name}
+                            aria-label={`ดูรูป ${a.file_name}`}
+                            className="block w-full overflow-hidden rounded-xl border border-border bg-slate-50 cursor-zoom-in hover:border-brand-300 transition-colors"
+                        >
+                            {/* eslint-disable-next-line @next/next/no-img-element -- S3 URL, shown as-is */}
+                            <img
+                                src={a.url}
+                                alt={a.file_name}
+                                loading="lazy"
+                                className={cn('w-full object-cover', items.length === 1 ? 'max-h-56' : 'aspect-[4/3]')}
+                            />
+                        </button>
+                    </li>
+                ))}
+            </ul>
+            <ImageViewer images={items} index={viewing} onIndexChange={setViewing} onClose={() => setViewing(null)} />
+        </>
     );
 };
 
@@ -220,6 +266,7 @@ const CommentItem = ({ c, team, mine, fresh, removing, freshRef, thread }: {
     const [editing, setEditing] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const author = resolvePerson(c.author, team);
+    const images = c.attachments ?? [];
     return (
         <li
             ref={fresh ? freshRef : undefined}
@@ -244,8 +291,9 @@ const CommentItem = ({ c, team, mine, fresh, removing, freshRef, thread }: {
                     {mine && !editing && <OwnMenu onEdit={() => setEditing(true)} onDelete={() => setConfirmDelete(true)} />}
                 </div>
                 {editing
-                    ? <EditBox initial={c.body} onSave={(body) => thread.edit(c, body)} onCancel={() => setEditing(false)} />
-                    : <p className="mt-0.5 text-sm leading-relaxed text-ink-700 whitespace-pre-line wrap-break-word">{c.body}</p>}
+                    ? <EditBox initial={c.body} allowEmpty={images.length > 0} onSave={(body) => thread.edit(c, body)} onCancel={() => setEditing(false)} />
+                    : c.body && <p className="mt-0.5 text-sm leading-relaxed text-ink-700 whitespace-pre-line wrap-break-word">{c.body}</p>}
+                {images.length > 0 && <CommentImages items={images} />}
             </div>
             {!editing && <HeartButton liked={c.liked_by_me} count={c.like_count} onToggle={() => thread.toggleLike(c)} />}
 
@@ -253,7 +301,9 @@ const CommentItem = ({ c, team, mine, fresh, removing, freshRef, thread }: {
                 <AlertDialogContent className="swal-on-sheet rounded-[28px] sm:max-w-sm">
                     <AlertDialogHeader>
                         <AlertDialogTitle className="font-display text-ink-900">ลบความคิดเห็นนี้?</AlertDialogTitle>
-                        <AlertDialogDescription className="line-clamp-3 text-ink-500">“{c.body}”</AlertDialogDescription>
+                        <AlertDialogDescription className="line-clamp-3 text-ink-500">
+                            {c.body ? `“${c.body}”` : `รูปภาพ ${images.length} รูป`}
+                        </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel className="rounded-full">ยกเลิก</AlertDialogCancel>
@@ -315,47 +365,163 @@ export const CommentList = ({ thread, team }: { thread: CommentThread; team: Ops
 
 // ───────────────────────────── composer ─────────────────────────────
 
-/** Pinned to the bottom of the sheet. Enter sends, Shift+Enter adds a line (Thai IME composition is respected). */
-export const CommentComposer = ({ me, onPost }: { me: OpsPerson | null; onPost: (body: string) => Promise<boolean> }) => {
+interface Draft { file: File; preview: string }
+
+/**
+ * Pinned to the bottom of the sheet. Enter sends, Shift+Enter adds a line (Thai IME composition is respected).
+ * Images: the picture button, Ctrl+V of a screenshot, or drag & drop onto the box.
+ */
+export const CommentComposer = ({ me, onPost }: { me: OpsPerson | null; onPost: (body: string, images: File[]) => Promise<boolean> }) => {
     const [text, setText] = useState('');
+    const [drafts, setDrafts] = useState<Draft[]>([]);
+    const [error, setError] = useState('');
     const [sending, setSending] = useState(false);
+    const [dragging, setDragging] = useState(false);
+    const fileRef = useRef<HTMLInputElement>(null);
+    const textRef = useRef<HTMLTextAreaElement>(null);
     const body = text.trim();
+    const canSend = (Boolean(body) || drafts.length > 0) && !sending;
+
+    // previews are object URLs — every one still alive is freed when the sheet closes
+    const previewUrls = useRef(new Set<string>());
+    useEffect(() => {
+        const urls = previewUrls.current;
+        return () => urls.forEach(u => URL.revokeObjectURL(u));
+    }, []);
+    const dropPreview = (url: string) => { URL.revokeObjectURL(url); previewUrls.current.delete(url); };
+
+    const addImages = async (list: File[]) => {
+        const images = list.filter(f => IMAGE_TYPES.includes(f.type));
+        if (images.length === 0) {
+            if (list.length) setError('แนบได้เฉพาะไฟล์รูปภาพ (PNG, JPEG, GIF, WebP)');
+            return;
+        }
+        const room = MAX_IMAGES - drafts.length;
+        const tooBig = images.filter(f => f.size > MAX_IMAGE_MB * 1024 * 1024);
+        const picked = images.filter(f => f.size <= MAX_IMAGE_MB * 1024 * 1024).slice(0, Math.max(0, room));
+        setError(
+            tooBig.length ? `รูปเกิน ${MAX_IMAGE_MB} MB: ${tooBig.map(f => f.name).join(', ')}`
+                : images.length > room ? `แนบรูปได้สูงสุด ${MAX_IMAGES} รูปต่อความคิดเห็น`
+                    : list.length > images.length ? 'ข้ามไฟล์ที่ไม่ใช่รูปภาพ'
+                        : '',
+        );
+        if (picked.length === 0) return;
+        const added = (await Promise.all(picked.map(compressImage))).map(file => {
+            const preview = URL.createObjectURL(file);
+            previewUrls.current.add(preview);
+            return { file, preview };
+        });
+        setDrafts(cur => [...cur, ...added].slice(0, MAX_IMAGES));
+        textRef.current?.focus();
+    };
+
+    const removeDraft = (d: Draft) => {
+        dropPreview(d.preview);
+        setDrafts(cur => cur.filter(x => x !== d));
+    };
 
     const send = async () => {
-        if (!body || sending) return;
+        if (!canSend) return;
+        if (drafts.reduce((n, d) => n + d.file.size, 0) > MAX_TOTAL_BYTES) {
+            setError('รูปรวมกันใหญ่เกินไป ลองลดจำนวนรูปหรือส่งทีละรูป');
+            return;
+        }
         setSending(true);
-        if (await onPost(body)) setText('');
+        if (await onPost(body, drafts.map(d => d.file))) {
+            drafts.forEach(d => dropPreview(d.preview));
+            setText('');
+            setDrafts([]);
+            setError('');
+        }
         setSending(false);
     };
 
     return (
         <form
             onSubmit={(e) => { e.preventDefault(); send(); }}
-            className="flex items-end gap-2.5 rounded-[22px] bg-white shadow-card border border-white pl-3 pr-2.5 py-2.5 transition-shadow focus-within:shadow-[0_0_0_4px_rgba(61,165,255,0.16),0_8px_24px_-10px_rgba(21,86,201,0.25)]"
+            onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDragging(true); } }}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false); }}
+            onDrop={(e) => {
+                if (!e.dataTransfer.files.length) return;
+                e.preventDefault();
+                setDragging(false);
+                void addImages(Array.from(e.dataTransfer.files));
+            }}
+            className={cn(
+                'rounded-[22px] bg-white shadow-card border pl-3 pr-2.5 py-2.5 transition-shadow focus-within:shadow-[0_0_0_4px_rgba(61,165,255,0.16),0_8px_24px_-10px_rgba(21,86,201,0.25)]',
+                dragging ? 'border-brand-400 border-dashed bg-brand-50/60' : 'border-white',
+            )}
         >
-            {me && <PersonAvatar person={me} className="w-8 h-8 mb-1" textClassName="text-[11px] font-semibold" />}
-            <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); }
-                }}
-                rows={1}
-                maxLength={MAX_LENGTH}
-                placeholder="เขียนความคิดเห็น..."
-                aria-label="เขียนความคิดเห็น"
-                className="flex-1 field-sizing-content min-h-10 max-h-32 resize-none bg-transparent py-2.5 text-sm text-ink-900 placeholder:text-ink-300 focus:outline-none"
-            />
-            <button
-                type="submit"
-                disabled={!body || sending}
-                aria-label="ส่งความคิดเห็น"
-                className="w-10 h-10 shrink-0 rounded-full grid place-items-center text-white bg-linear-to-br from-[#2f9bff] to-brand-600 shadow-cta transition-all cursor-pointer hover:brightness-105 active:scale-95 disabled:from-brand-200 disabled:to-brand-200 disabled:shadow-none disabled:cursor-not-allowed"
-            >
-                {sending
-                    ? <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                    : <SendHorizontal className="w-4.5 h-4.5" />}
-            </button>
+            {drafts.length > 0 && (
+                <ul className="flex flex-wrap gap-2 pb-2 pl-10.5" aria-label="รูปที่จะแนบ">
+                    {drafts.map(d => (
+                        <li key={d.preview} className="relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element -- local preview */}
+                            <img src={d.preview} alt={d.file.name} className="w-16 h-16 rounded-xl object-cover border border-border" />
+                            <button
+                                type="button"
+                                onClick={() => removeDraft(d)}
+                                aria-label={`เอา ${d.file.name} ออก`}
+                                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full grid place-items-center bg-ink-900/80 text-white hover:bg-rose-600 cursor-pointer"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <div className="flex items-end gap-1.5">
+                {me && <PersonAvatar person={me} className="w-8 h-8 mb-1 mr-1" textClassName="text-[11px] font-semibold" />}
+                <textarea
+                    ref={textRef}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); }
+                    }}
+                    onPaste={(e) => {
+                        const files = Array.from(e.clipboardData.files).filter(f => f.type.startsWith('image/'));
+                        if (files.length === 0) return;
+                        // a pure screenshot has no text — keep the browser from pasting anything else
+                        if (!e.clipboardData.getData('text/plain')) e.preventDefault();
+                        void addImages(files);
+                    }}
+                    rows={1}
+                    maxLength={MAX_LENGTH}
+                    placeholder={dragging ? 'วางรูปที่นี่...' : 'เขียนความคิดเห็น... (Ctrl+V วางรูปได้)'}
+                    aria-label="เขียนความคิดเห็น"
+                    className="flex-1 min-w-0 field-sizing-content min-h-10 max-h-32 resize-none bg-transparent py-2.5 text-sm text-ink-900 placeholder:text-ink-300 focus:outline-none"
+                />
+                <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={drafts.length >= MAX_IMAGES || sending}
+                    aria-label="แนบรูปภาพ"
+                    title={`แนบรูปภาพ (สูงสุด ${MAX_IMAGES} รูป)`}
+                    className="w-10 h-10 shrink-0 rounded-full grid place-items-center text-ink-500 hover:text-brand-700 hover:bg-brand-50 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                    <ImagePlus className="w-5 h-5" />
+                </button>
+                <input
+                    ref={fileRef}
+                    type="file"
+                    accept={IMAGE_TYPES.join(',')}
+                    multiple
+                    className="hidden"
+                    onChange={(e) => { void addImages(Array.from(e.target.files ?? [])); e.target.value = ''; }}
+                />
+                <button
+                    type="submit"
+                    disabled={!canSend}
+                    aria-label="ส่งความคิดเห็น"
+                    className="w-10 h-10 shrink-0 rounded-full grid place-items-center text-white bg-linear-to-br from-[#2f9bff] to-brand-600 shadow-cta transition-all cursor-pointer hover:brightness-105 active:scale-95 disabled:from-brand-200 disabled:to-brand-200 disabled:shadow-none disabled:cursor-not-allowed"
+                >
+                    {sending
+                        ? <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                        : <SendHorizontal className="w-4.5 h-4.5" />}
+                </button>
+            </div>
+            {error && <p role="alert" className="pt-1.5 pl-10.5 text-[11px] text-rose-600">{error}</p>}
         </form>
     );
 };

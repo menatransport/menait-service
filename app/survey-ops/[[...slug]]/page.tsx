@@ -128,7 +128,8 @@ function SurveyOPSContent() {
             <Navbar isHome={false} title="แบบประเมินการใช้งานระบบของฝ่าย OPS">
                 <SurveyOPSForm
                     systems={systems}
-                    locked={fromReview && systems.length === 1}
+                    // a project's own link (copied from its sheet, or right after review) fixes the system
+                    locked={Boolean(systemId) && systems.length === 1}
                     doneHref={fromReview ? '/ops/status' : undefined}
                 />
             </Navbar>

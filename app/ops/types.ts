@@ -89,6 +89,8 @@ export interface Project extends ProjectRequestInput {
      * imported by the system (requested_by.employee_id = "system") → its assignees; filed by a user → the requester's department.
      */
     can_edit?: boolean;
+    /** Whether the viewer may rename it (PATCH /api/ops/projects/{id}/title): OPS team / admin or can_edit, any status except Done */
+    can_rename?: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -125,7 +127,7 @@ export interface ProjectTaskInput {
     due_date?: string | null;
 }
 
-/** PATCH /api/ops/tasks/{id} — OPS team / admin, while the task is Open; project_id follows the same rule as creating */
+/** PATCH /api/ops/tasks/{id} — OPS team / admin: title until Done; project_id while Open (same target rule as creating) */
 export type ProjectTaskEditInput = Partial<Pick<ProjectTaskInput, 'title' | 'project_id'>>;
 
 /** A piece of work the project's assignee creates and moves themselves. */
@@ -139,6 +141,14 @@ export interface ProjectTask extends ProjectTaskInput {
     /** OPS team members helping on it (owner not included); they may move it too */
     assignees: OpsPerson[];
     status_history: OpsStatusChange[];
+    /** The responsible people's work note (PATCH /api/ops/tasks/{id}/note) — until Done */
+    note?: string | null;
+    note_updated_at?: string | null;
+    note_updated_by?: OpsPerson | null;
+    /** Pictures under the note — images only, up to 10 */
+    attachments?: OpsAttachment[];
+    /** Owner, co-assignee or admin, and the task is not Done: may edit the note and pictures */
+    can_note?: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -158,6 +168,44 @@ export interface OpsComment {
     like_count: number;
     /** Whether the signed-in viewer has liked it */
     liked_by_me: boolean;
+    /** Images posted with the comment (absent on older backends) */
+    attachments?: OpsAttachment[];
+}
+
+/** POST /api/ops/surveys — question id → 1..5, all 5 per section. Answering again replaces the earlier answer. */
+export interface OpsSurveyInput {
+    /** An OPS project id (must be Review / Done) or a system from the Apps Script list */
+    system_id: string;
+    system_name?: string | null;
+    section2: Record<number, number>;
+    section3: Record<number, number>;
+    comment?: string | null;
+}
+
+export interface OpsSurveyResponse {
+    survey_id: string;
+    system_id: string;
+    system_name?: string | null;
+    project_id?: string | null;
+    respondent: OpsPerson;
+    section2: Record<string, number>;
+    section3: Record<string, number>;
+    comment?: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+/** GET /api/ops/projects/{id}/surveys — OPS team / admin */
+export interface OpsSurveyResults {
+    project_id: string;
+    count: number;
+    /** Over every score; null when nobody answered */
+    average: number | null;
+    /** Average per question 1..5 */
+    section2_avg: (number | null)[];
+    section3_avg: (number | null)[];
+    /** Newest first */
+    responses: OpsSurveyResponse[];
 }
 
 export interface OpsApiError {

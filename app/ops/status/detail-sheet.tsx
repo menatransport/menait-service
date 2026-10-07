@@ -9,14 +9,16 @@ import { cn } from '@/lib/utils';
 import type { OpsPerson, OpsPriority, OpsReviewResult, OpsStatus, OpsStatusChange, Project, ProjectIssue, ProjectRequestInput, ProjectTask } from '../types';
 import { AttachmentList, STATUS_META, StatusBadge, formatThaiDate, isClosedStatus } from '../components';
 import { RichTextView, isRichText } from '../rich-text';
-import { resolvePerson } from '../team';
+import { resolvePerson, useEmailOf } from '../team';
 import { AssigneePicker, KindMark, PersonAvatar } from './kanban';
 import { CommentComposer, CommentList, useComments } from './comments';
 import { EstimateDate } from './estimate-date';
 import { ProjectEditForm } from './project-edit-form';
 import { ProjectLink } from './project-link';
 import { ReviewSection } from './review-panel';
+import { SurveySection } from './survey-panel';
 import { ProjectPicker } from './task-composer';
+import { TaskNoteSection } from './task-note';
 
 // ───────────────────────────── hero (blue header, like the Home hero) ─────────────────────────────
 
@@ -296,10 +298,10 @@ const Chip = ({ children }: { children: React.ReactNode }) => (
 );
 
 /** Section that starts closed; the header shows a one-line summary and opens the body with a smooth height animation. */
-const Collapsible = ({ title, count, summary, children }: {
-    title: string; count?: number; summary?: React.ReactNode; children: React.ReactNode;
+const Collapsible = ({ title, count, summary, defaultOpen = false, children }: {
+    title: string; count?: number; summary?: React.ReactNode; defaultOpen?: boolean; children: React.ReactNode;
 }) => {
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(defaultOpen);
     const bodyId = useId();
     return (
         <section className="rounded-[18px] border border-border bg-white">
@@ -362,7 +364,13 @@ const AttachmentsSection = ({ items, title }: { items: Project['attachments']; t
             <span className="ml-auto text-ink-500">ไม่มีไฟล์แนบ</span>
         </div>
     ) : (
-        <Collapsible title={title} count={items.length} summary={<span className="text-xs text-ink-500">{items.length} ไฟล์</span>}>
+        // pictures are previewed straight away; files-only stays folded
+        <Collapsible
+            title={title}
+            count={items.length}
+            summary={<span className="text-xs text-ink-500">{items.length} ไฟล์</span>}
+            defaultOpen={items.some(a => a.mime_type.startsWith('image/'))}
+        >
             <AttachmentList items={items} />
         </Collapsible>
     );
@@ -389,6 +397,10 @@ type ProjectSheetProps = {
     onMove?: (project: Project, to: OpsStatus) => void;
     /** OPS team / admin: set or remove the system link once Done. Resolves true on success */
     onLinkChange?: (project: Project, url: string | null) => Promise<boolean>;
+    /** OPS team / admin: see the satisfaction survey results (Review / Done) */
+    canViewSurveys?: boolean;
+    /** Renames it from the hero title; shown only when project.can_rename */
+    onRename?: (project: Project, title: string) => void;
     /** Saves the edited request; shown only when project.can_edit. Resolves true on success */
     onEdit?: (project: Project, input: ProjectRequestInput) => Promise<boolean>;
 };
@@ -397,7 +409,7 @@ export const ProjectDetailSheet = ({ project, ...rest }: ProjectSheetProps & { p
     // keyed so a different project starts a fresh comment thread
     project ? <ProjectSheet key={project.project_id} p={project} {...rest} /> : null;
 
-const ProjectSheet = ({ p, issues, tasks, team, onClose, onOpenIssue, onOpenTask, onEstimateChange, onAssign, onReview, onMove, onEdit, onLinkChange }: ProjectSheetProps & { p: Project }) => {
+const ProjectSheet = ({ p, issues, tasks, team, onClose, onOpenIssue, onOpenTask, onEstimateChange, onAssign, onReview, onMove, onEdit, onRename, onLinkChange, canViewSurveys = false }: ProjectSheetProps & { p: Project }) => {
     const thread = useComments('project', p.project_id);
     const [editing, setEditing] = useState(false);
     const canEdit = Boolean(onEdit && p.can_edit);
@@ -417,6 +429,7 @@ const ProjectSheet = ({ p, issues, tasks, team, onClose, onOpenIssue, onOpenTask
             onClose={onClose}
             id={p.project_id}
             title={p.title}
+            onRename={onRename && p.can_rename ? (title) => onRename(p, title) : undefined}
             status={p.status}
             priority={p.priority}
             updatedAt={p.updated_at}
@@ -456,6 +469,8 @@ const ProjectSheet = ({ p, issues, tasks, team, onClose, onOpenIssue, onOpenTask
                 onSubmit={(result, note) => onReview ? onReview(p, result, note) : Promise.resolve(false)}
                 onMove={onMove ? (to) => onMove(p, to) : undefined}
             />
+
+            {(p.status === 'Review' || p.status === 'Done') && <SurveySection p={p} canViewResults={canViewSurveys} />}
 
             {rejectRemark && <RejectNote label="เหตุผลที่ไม่อนุมัติ" remark={rejectRemark} />}
 
@@ -552,6 +567,7 @@ export const IssueDetailSheet = ({ issue, ...rest }: IssueSheetProps & { issue: 
 
 const IssueSheet = ({ issue, team, onClose, onReview, onMove }: IssueSheetProps & { issue: ProjectIssue }) => {
     const thread = useComments('issue', issue.issue_id);
+    const reporterEmail = useEmailOf(issue.reported_by.employee_id);
     const rejectRemark = issue.status === 'Reject' ? issue.status_history.findLast(h => h.status === 'Reject')?.remark : null;
     return (
         <SheetShell
@@ -566,7 +582,16 @@ const IssueSheet = ({ issue, team, onClose, onReview, onMove }: IssueSheetProps 
                 left={<>
                     <SideLabel>ผู้แจ้ง</SideLabel>
                     <PersonLine person={resolvePerson(issue.reported_by, team)} sub={issue.reported_by.department} />
-                    <Facts rows={[['วันที่แจ้ง', formatThaiDate(issue.created_at, true)]]} />
+                    <Facts rows={[
+                        ['รหัสพนักงาน', <span key="id" className="font-mono">{issue.reported_by.employee_id}</span>],
+                        // a narrow sheet wraps the email after the @, not mid-name
+                        ['อีเมล', reporterEmail ? (
+                            <a key="mail" href={`mailto:${reporterEmail}`} className="text-brand-700 hover:underline">
+                                {reporterEmail.replace(/@.*/, '@')}<wbr />{reporterEmail.replace(/^[^@]*@/, '')}
+                            </a>
+                        ) : '-'],
+                        ['วันที่แจ้ง', formatThaiDate(issue.created_at, true)],
+                    ]} />
                 </>}
                 right={<>
                     <SideLabel>โปรเจกต์</SideLabel>
@@ -620,28 +645,31 @@ type TaskSheetProps = {
     onAssign?: (task: ProjectTask, people: OpsPerson[]) => void;
     /** Back up to the parent project's sheet */
     onOpenProject: (projectId: string) => void;
-    /** Owner only, while Open: rename it or move it to another project */
+    /** OPS team / admin: rename it until Done; move it to another project while Open */
     onEdit?: (task: ProjectTask, input: { title?: string; project_id?: string }) => void;
     /** Projects it may move to (same list as the composer) */
     projects?: Project[];
+    /** Applies a note / picture change to the page's copy of the task */
+    onTaskChange: (taskId: string, update: (task: ProjectTask) => ProjectTask) => void;
 };
 
 export const TaskDetailSheet = ({ task, ...rest }: TaskSheetProps & { task: ProjectTask | null }) =>
     task ? <TaskSheet key={task.task_id} t={task} {...rest} /> : null;
 
-/** Status moves on the board; due date and co-assignees are edited here until Done/Reject. No comment thread yet. */
-const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onEdit, projects = [] }: TaskSheetProps & { t: ProjectTask }) => {
+/** Status moves on the board; due date and co-assignees are edited here until Done/Reject, the title, note and pictures until Done. */
+const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onEdit, onTaskChange, projects = [] }: TaskSheetProps & { t: ProjectTask }) => {
     const owner = resolvePerson(t.owner, team);
     const closed = isClosedStatus(t.status);
-    // title and project are only open to change before work starts
-    const editable = Boolean(onEdit) && t.status === 'Open';
+    // the title stays editable until Done; moving to another project only before work starts
+    const renamable = Boolean(onEdit) && t.status !== 'Done';
+    const movable = Boolean(onEdit) && t.status === 'Open';
     const rejectRemark = t.status === 'Reject' ? t.status_history.findLast(h => h.status === 'Reject')?.remark : null;
     return (
         <SheetShell
             onClose={onClose}
             id={t.task_id}
             title={t.title}
-            onRename={editable ? (title) => onEdit!(t, { title }) : undefined}
+            onRename={renamable ? (title) => onEdit!(t, { title }) : undefined}
             status={t.status}
             updatedAt={t.updated_at}
         >
@@ -681,7 +709,7 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
                         </span>
                         <ArrowUpRight className="w-4 h-4 text-ink-500 shrink-0 group-hover:text-brand-600" />
                     </button>
-                    {editable && projects.length > 0 && (
+                    {movable && projects.length > 0 && (
                         <ProjectPicker
                             projects={projects}
                             value={{ project_id: t.project_id, title: t.project_title }}
@@ -698,6 +726,8 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
                     <Facts rows={[['อัปเดตล่าสุด', formatThaiDate(t.updated_at, true)]]} />
                 </>}
             />
+
+            <TaskNoteSection t={t} onChange={(update) => onTaskChange(t.task_id, update)} />
 
             {rejectRemark && <RejectNote label="เหตุผล" remark={rejectRemark} />}
 

@@ -1,5 +1,6 @@
 import type {
-    OpsApiError, OpsAttachment, OpsComment, OpsCommentRef, OpsPerson, OpsScope, OpsStatus, Project, ProjectEditInput, ProjectIssue,
+    OpsApiError, OpsAttachment, OpsComment, OpsCommentRef, OpsPerson, OpsScope, OpsStatus, OpsSurveyInput, OpsSurveyResponse, OpsSurveyResults,
+    Project, ProjectEditInput, ProjectIssue,
     ProjectIssueInput, ProjectRequestInput, ProjectTask, ProjectTaskEditInput, ProjectTaskInput, ReviewInput,
 } from './types';
 
@@ -77,6 +78,10 @@ export const updateProjectAssignees = (projectId: string, people: OpsPerson[]) =
 export const submitReview = (ref: 'project' | 'issue', id: string, input: ReviewInput) =>
     http<Project | ProjectIssue>(`/api/ops/${ref === 'project' ? 'projects' : 'issues'}/${id}/review`, json('POST', input));
 
+/** Title only — allowed when project.can_rename (the backend re-checks). */
+export const updateProjectTitle = (projectId: string, title: string) =>
+    http<Project>(`/api/ops/projects/${projectId}/title`, json('PATCH', { title }));
+
 /** OPS team / admin, Done projects only. null removes it. */
 export const updateProjectLink = (projectId: string, url: string | null) =>
     http<Project>(`/api/ops/projects/${projectId}/link`, json('PATCH', { url }));
@@ -97,7 +102,7 @@ export const createTask = (input: ProjectTaskInput) => http<ProjectTask>('/api/o
 export const updateTaskStatus = (taskId: string, status: OpsStatus) =>
     http<ProjectTask>(`/api/ops/tasks/${taskId}/status`, json('PATCH', { status }));
 
-/** While Open: rename it or move it under another project (not Reject). */
+/** Rename until Done; move it under another project (not Reject) while Open. */
 export const updateTask = (taskId: string, input: ProjectTaskEditInput) =>
     http<ProjectTask>(`/api/ops/tasks/${taskId}`, json('PATCH', input));
 
@@ -109,14 +114,46 @@ export const updateTaskAssignees = (taskId: string, people: OpsPerson[]) =>
 export const updateTaskPlan = (taskId: string, plan: { due_date: string | null }) =>
     http<ProjectTask>(`/api/ops/tasks/${taskId}/plan`, json('PATCH', plan));
 
+/** Owner / co-assignee / admin, until Done. Empty or null clears it. */
+export const updateTaskNote = (taskId: string, note: string | null) =>
+    http<ProjectTask>(`/api/ops/tasks/${taskId}/note`, json('PATCH', { note }));
+
+/** Same people as the note. Images only, up to 10 per task. */
+export function uploadTaskImage(taskId: string, file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    return http<OpsAttachment>(`/api/ops/tasks/${taskId}/attachments`, { method: 'POST', body: form });
+}
+
+export const deleteTaskImage = (taskId: string, attachmentId: string) =>
+    http<ProjectTask>(`/api/ops/tasks/${taskId}/attachments/${attachmentId}`, { method: 'DELETE' });
+
+// ─────────────────────────────── satisfaction survey ───────────────────────────────
+
+/** Saved in MongoDB (ops.surveys); one answer per person per system — sending again replaces it. */
+export const submitSurvey = (input: OpsSurveyInput) => http<OpsSurveyResponse>('/api/ops/surveys', json('POST', input));
+
+/** The signed-in user's own earlier answer for this system, or null — the form pre-fills it. */
+export const getMySurvey = (systemId: string) =>
+    http<OpsSurveyResponse | null>(`/api/ops/surveys/mine?system_id=${encodeURIComponent(systemId)}`);
+
+/** OPS team / admin. */
+export const getProjectSurveys = (projectId: string) => http<OpsSurveyResults>(`/api/ops/projects/${projectId}/surveys`);
+
 // ─────────────────────────────── comments ───────────────────────────────
 
 const commentsPath = (ref: OpsCommentRef, refId: string) => `/api/ops/${ref === 'project' ? 'projects' : 'issues'}/${refId}/comments`;
 
 export const listComments = (ref: OpsCommentRef, refId: string) => http<OpsComment[]>(commentsPath(ref, refId));
 
-export const createComment = (ref: OpsCommentRef, refId: string, body: string) =>
-    http<OpsComment>(commentsPath(ref, refId), json('POST', { body }));
+export function createComment(ref: OpsCommentRef, refId: string, body: string, images: File[] = []) {
+    if (images.length === 0) return http<OpsComment>(commentsPath(ref, refId), json('POST', { body }));
+    // text + images go in one multipart request, so the comment never appears without its pictures
+    const form = new FormData();
+    form.append('body', body);
+    for (const file of images) form.append('files', file);
+    return http<OpsComment>(commentsPath(ref, refId), { method: 'POST', body: form });
+}
 
 /** Author only. */
 export const updateComment = (commentId: string, body: string) =>

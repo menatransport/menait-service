@@ -11,13 +11,13 @@ import Loading from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import { cn } from '@/lib/utils';
 import {
-    createTask, listIssues, listProjects, listTasks, submitReview, updateIssueStatus, updateProject, updateProjectAssignees, updateProjectLink,
+    createTask, listIssues, listProjects, listTasks, submitReview, updateIssueStatus, updateProject, updateProjectAssignees, updateProjectLink, updateProjectTitle,
     updateProjectPlan, updateProjectStatus, updateTask, updateTaskAssignees, updateTaskPlan, updateTaskStatus,
 } from '../api';
 import type {
     OpsPerson, OpsReviewResult, OpsScope, OpsStatus, OpsStatusChange, Project, ProjectIssue, ProjectRequestInput, ProjectTask, ProjectTaskEditInput, ProjectTaskInput,
 } from '../types';
-import { isOverdue, toPerson } from '../components';
+import { isClosedStatus, isOverdue, toPerson } from '../components';
 import { canManageOps, useOpsTeam } from '../team';
 import { IssueDetailSheet, ProjectDetailSheet, TaskDetailSheet } from './detail-sheet';
 import { IssueKanbanCard, KanbanBoard, ProjectKanbanCard, TaskKanbanCard, sortIssues, sortProjects, sortTasks, type WorkKind } from './kanban';
@@ -109,7 +109,14 @@ function ProjectStatusContent() {
     const router = useRouter();
     /** Set after a project passes review: the satisfaction survey is required next */
     const [surveyFor, setSurveyFor] = useState<Project | null>(null);
-    const [view, setView] = useState<View>(searchParams.get('view') === 'issues' ? 'issues' : 'projects');
+    const isIssueId = (id: string | null) => Boolean(id?.startsWith('ISS-'));
+    const [view, setView] = useState<View>(searchParams.get('view') === 'issues' || isIssueId(detailId) ? 'issues' : 'projects');
+    // an issue opened by URL (link, back/forward) brings its tab along
+    const [seenDetailId, setSeenDetailId] = useState(detailId);
+    if (detailId !== seenDetailId) {
+        setSeenDetailId(detailId);
+        if (isIssueId(detailId)) setView('issues');
+    }
     const [scope, setScope] = useState<OpsScope>('mine');
     const [query, setQuery] = useState('');
     /** usernames (and/or UNASSIGNED); empty = everyone */
@@ -154,8 +161,9 @@ function ProjectStatusContent() {
         const seq = ++fetchSeq.current;
         setSyncing(true);
         try {
+            // issues always come as "all": the server's "mine" is reporter-only, so it's narrowed below
             const [p, i, t, all] = await Promise.all([
-                listProjects(scope), listIssues(scope), listTasks(scope),
+                listProjects(scope), listIssues('all'), listTasks(scope),
                 scope === 'all' ? null : listProjects('all'),
             ]);
             if (seq !== fetchSeq.current) return;
@@ -163,8 +171,13 @@ function ProjectStatusContent() {
             const mine = scope === 'mine' && canManageOps(user)
                 ? (all ?? p).filter(x => x.assignees.length === 0 || x.assignees.some(a => sameUser(a.username, user.username)))
                 : p;
+            // "ของฉัน" issues = ones I reported + ones on projects I'm responsible for
+            const myIssues = scope === 'mine'
+                ? i.filter(x => x.reported_by.employee_id === user.employee_id
+                    || x.project_assignees.some(a => sameUser(a.username, user.username)))
+                : i;
             setProjects(sortProjects(mine));
-            setIssues(sortIssues(i));
+            setIssues(sortIssues(myIssues));
             setTasks(sortTasks(t));
             setAssigned(canManageOps(user) ? (all ?? p) : []);
         } catch (err) {
@@ -396,6 +409,20 @@ function ProjectStatusContent() {
     };
 
 
+    const renameProject = async (p: Project, title: string) => {
+        try {
+            const next = await updateProjectTitle(p.project_id, title);
+            const swap = (list: Project[]) => sortProjects(list.map(x => (x.project_id === p.project_id ? next : x)));
+            setProjects(swap);
+            setAssigned(swap);
+            // tasks carry the project title for their cards
+            setTasks(list => list.map(t => (t.project_id === p.project_id ? { ...t, project_title: next.title } : t)));
+            toast('success', 'บันทึกชื่อโปรเจกต์แล้ว');
+        } catch (err) {
+            toast('error', err instanceof Error ? err.message : 'แก้ไขชื่อโปรเจกต์ไม่สำเร็จ');
+        }
+    };
+
     // a shared link may point outside "ของฉัน": widen to ทั้งหมด once so the sheet can open
     const detailMissing = !loading && Boolean(detailId) && !openProject && !openIssue && !openTask;
     useEffect(() => {
@@ -460,9 +487,11 @@ function ProjectStatusContent() {
         setView('projects');
     };
 
+    // the tab counts show work still open — Done / Reject are left out
+    const openCount = (list: { status: OpsStatus }[]) => list.filter(x => !isClosedStatus(x.status)).length;
     const tabs: { value: View; label: string; count: number }[] = [
-        { value: 'projects', label: 'โปรเจกต์', count: projects.length + tasks.length },
-        { value: 'issues', label: 'ปัญหาที่แจ้ง', count: issues.length },
+        { value: 'projects', label: 'โปรเจกต์', count: openCount(projects) + openCount(tasks) },
+        { value: 'issues', label: 'ปัญหาที่แจ้ง', count: openCount(issues) },
     ];
 
     return (
@@ -578,7 +607,7 @@ function ProjectStatusContent() {
                                 <TaskKanbanCard
                                     t={x}
                                     team={team}
-                                    onOpen={() => goToDetail(x.project_id)}
+                                    onOpen={() => goToDetail(x.task_id)}
                                     onAssign={canManage ? (people) => assignTask(x, people) : undefined}
                                 />
                             )
@@ -616,6 +645,8 @@ function ProjectStatusContent() {
                 onReview={user ? reviewProject : undefined}
                 onMove={canManage ? moveProject : undefined}
                 onEdit={user ? editProject : undefined}
+                onRename={user ? renameProject : undefined}
+                canViewSurveys={canManage}
                 onLinkChange={canManage ? setProjectLink : undefined}
             />
             <IssueDetailSheet
@@ -633,6 +664,7 @@ function ProjectStatusContent() {
                 onDueChange={canManage ? setTaskDue : undefined}
                 onAssign={canManage ? assignTask : undefined}
                 onEdit={canManage ? editTask : undefined}
+                onTaskChange={(id, update) => setTasks(list => list.map(x => (x.task_id === id ? update(x) : x)))}
                 projects={taskProjects}
             />
 
