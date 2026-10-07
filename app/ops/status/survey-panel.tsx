@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { th } from 'date-fns/locale';
-import { Check, ClipboardCheck, Link2 } from 'lucide-react';
+import { Check, ChevronDown, ClipboardCheck, Copy, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getProjectSurveys } from '../api';
 import type { OpsSurveyResponse, OpsSurveyResults, Project } from '../types';
@@ -25,36 +25,46 @@ const responseAverage = (r: OpsSurveyResponse) => {
     return all.length ? all.reduce((a, b) => a + b, 0) / all.length : null;
 };
 
-const CopyLinkButton = ({ projectId }: { projectId: string }) => {
+/** Two compact actions on the survey link: open it, or copy it to send on. */
+const SurveyLinkActions = ({ projectId }: { projectId: string }) => {
     const [copied, setCopied] = useState(false);
     useEffect(() => {
         if (!copied) return;
         const t = setTimeout(() => setCopied(false), 1800);
         return () => clearTimeout(t);
     }, [copied]);
+    const link = () => surveyLink(projectId, window.location.origin);
     const copy = async () => {
-        const url = surveyLink(projectId, window.location.origin);
         try {
-            await navigator.clipboard.writeText(url);
+            await navigator.clipboard.writeText(link());
             setCopied(true);
         } catch {
             // clipboard blocked (e.g. not a secure context): let the viewer copy it by hand
-            window.prompt('คัดลอกลิงก์แบบประเมิน', url);
+            window.prompt('คัดลอกลิงก์แบบประเมิน', link());
         }
     };
+    const pill = 'h-8 px-3 rounded-full inline-flex items-center gap-1.5 text-xs font-medium cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50';
     return (
-        <button
-            type="button"
-            onClick={() => void copy()}
-            className={cn(
-                'h-8 px-3 rounded-full inline-flex items-center gap-1.5 text-xs font-medium cursor-pointer transition-colors shrink-0',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50',
-                copied ? 'bg-mint-300/30 text-mint-700' : 'text-brand-700 bg-brand-50 hover:bg-brand-100',
-            )}
-        >
-            {copied ? <Check className="w-3.5 h-3.5" /> : <Link2 className="w-3.5 h-3.5" />}
-            {copied ? 'คัดลอกแล้ว' : 'คัดลอกลิงก์ประเมิน'}
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+            <a
+                href={`/survey-ops/${encodeURIComponent(projectId)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="เปิดแบบประเมินในแท็บใหม่"
+                className={cn(pill, 'text-brand-700 bg-brand-50 hover:bg-brand-100')}
+            >
+                <ExternalLink className="w-3.5 h-3.5" /> เปิด
+            </a>
+            <button
+                type="button"
+                onClick={() => void copy()}
+                title="คัดลอกลิงก์แบบประเมิน"
+                className={cn(pill, copied ? 'bg-mint-300/30 text-mint-700' : 'text-brand-700 bg-brand-50 hover:bg-brand-100')}
+            >
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? 'คัดลอกแล้ว' : 'คัดลอก'}
+            </button>
+        </div>
     );
 };
 
@@ -129,11 +139,14 @@ const Results = ({ data }: { data: OpsSurveyResults }) => {
 
 /**
  * Review / Done projects: copy the survey link (anyone) and read the results (OPS team / admin).
+ * Starts folded — the header keeps the average and the open / copy link buttons; clicking it opens the details.
  * Answers live in MongoDB ops.surveys — see POST /api/ops/surveys.
  */
 export const SurveySection = ({ p, canViewResults }: { p: Project; canViewResults: boolean }) => {
     const [data, setData] = useState<OpsSurveyResults | null>(null);
     const [error, setError] = useState('');
+    const [open, setOpen] = useState(false);
+    const bodyId = useId();
 
     useEffect(() => {
         if (!canViewResults) return;
@@ -144,27 +157,50 @@ export const SurveySection = ({ p, canViewResults }: { p: Project; canViewResult
         return () => { alive = false; };
     }, [p.project_id, canViewResults]);
 
+    const summary = !canViewResults ? null
+        : data ? (data.count ? `${data.average?.toFixed(1)} · ${data.count} คน` : 'ยังไม่มีผู้ตอบ')
+            : error ? null : '…';
+
     return (
-        <section aria-label="แบบประเมินความพึงพอใจ" className="rounded-[22px] bg-white shadow-soft p-4.5 sm:p-5 space-y-4">
-            <header className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-[10px] bg-mint-300/30 text-mint-700 grid place-items-center shrink-0">
-                    <ClipboardCheck className="w-4 h-4" />
-                </span>
-                <h3 className="text-[13px] font-semibold text-ink-900">แบบประเมินความพึงพอใจ</h3>
-                <span className="ml-auto" />
-                <CopyLinkButton projectId={p.project_id} />
-            </header>
-            {!canViewResults ? (
-                <p className="text-xs text-ink-500">ผลประเมินดูได้เฉพาะทีม OPS / admin</p>
-            ) : error ? (
-                <p role="alert" className="text-xs text-rose-600">{error}</p>
-            ) : data ? (
-                <Results data={data} />
-            ) : (
-                <p className="text-xs text-ink-500 flex items-center gap-2">
-                    <span className="w-3.5 h-3.5 rounded-full border-2 border-brand-200 border-t-brand-600 animate-spin" /> กำลังโหลดผลประเมิน…
-                </p>
-            )}
+        <section aria-label="แบบประเมินความพึงพอใจ" className="rounded-[22px] bg-white shadow-soft">
+            <div className="flex items-center gap-2 pr-3">
+                <button
+                    type="button"
+                    onClick={() => setOpen(o => !o)}
+                    aria-expanded={open}
+                    aria-controls={bodyId}
+                    className="min-w-0 flex-1 flex items-center gap-2 pl-4.5 sm:pl-5 pr-2 py-3.5 text-left cursor-pointer rounded-l-[22px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50"
+                >
+                    <span className="w-7 h-7 rounded-[10px] bg-mint-300/30 text-mint-700 grid place-items-center shrink-0">
+                        <ClipboardCheck className="w-4 h-4" />
+                    </span>
+                    <span className="text-[13px] font-semibold text-ink-900 truncate">แบบประเมินความพึงพอใจ</span>
+                    {summary && (
+                        <span className={cn('text-xs font-semibold tabular-nums shrink-0', data?.count ? tone(data.average) : 'text-ink-500 font-normal')}>
+                            {summary}
+                        </span>
+                    )}
+                    <ChevronDown className={cn('ml-auto w-4 h-4 text-ink-500 shrink-0 transition-transform duration-300', open && 'rotate-180 text-brand-600')} />
+                </button>
+                <SurveyLinkActions projectId={p.project_id} />
+            </div>
+            <div id={bodyId} className={cn('grid transition-[grid-template-rows] duration-300 ease-out', open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+                <div className="overflow-hidden">
+                    <div className={cn('px-4.5 sm:px-5 pb-5 pt-1 transition-opacity duration-300', open ? 'opacity-100' : 'opacity-0')} inert={!open}>
+                        {!canViewResults ? (
+                            <p className="text-xs text-ink-500">ผลประเมินดูได้เฉพาะทีม OPS / admin</p>
+                        ) : error ? (
+                            <p role="alert" className="text-xs text-rose-600">{error}</p>
+                        ) : data ? (
+                            <Results data={data} />
+                        ) : (
+                            <p className="text-xs text-ink-500 flex items-center gap-2">
+                                <span className="w-3.5 h-3.5 rounded-full border-2 border-brand-200 border-t-brand-600 animate-spin" /> กำลังโหลดผลประเมิน…
+                            </p>
+                        )}
+                    </div>
+                </div>
+            </div>
         </section>
     );
 };
