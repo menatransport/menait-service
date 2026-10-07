@@ -109,7 +109,14 @@ function ProjectStatusContent() {
     const router = useRouter();
     /** Set after a project passes review: the satisfaction survey is required next */
     const [surveyFor, setSurveyFor] = useState<Project | null>(null);
-    const [view, setView] = useState<View>(searchParams.get('view') === 'issues' ? 'issues' : 'projects');
+    const isIssueId = (id: string | null) => Boolean(id?.startsWith('ISS-'));
+    const [view, setView] = useState<View>(searchParams.get('view') === 'issues' || isIssueId(detailId) ? 'issues' : 'projects');
+    // an issue opened by URL (link, back/forward) brings its tab along
+    const [seenDetailId, setSeenDetailId] = useState(detailId);
+    if (detailId !== seenDetailId) {
+        setSeenDetailId(detailId);
+        if (isIssueId(detailId)) setView('issues');
+    }
     const [scope, setScope] = useState<OpsScope>('mine');
     const [query, setQuery] = useState('');
     /** usernames (and/or UNASSIGNED); empty = everyone */
