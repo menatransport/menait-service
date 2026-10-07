@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { WaveBackground } from '@/components/wave-background';
 import type { UserInfo } from '@/app/context/SessionContext';
 import { cn } from '@/lib/utils';
+import { ImageViewer } from './image-viewer';
 import { OPS_PRIORITIES, type OpsAttachment, type OpsPerson, type OpsPriority, type OpsStatus } from './types';
 
 // ───────────────────────────── meta / helpers ─────────────────────────────
@@ -391,21 +392,53 @@ export const AttachmentPicker = ({
     );
 };
 
-export const AttachmentList = ({ items }: { items: OpsAttachment[] }) =>
-    items.length === 0 ? <p className="text-sm text-gray-400">ไม่มีไฟล์แนบ</p> : (
-        <ul className="space-y-1.5">
-            {items.map(a => {
-                const Icon = fileIcon(a.mime_type);
-                return (
-                    <li key={a.attachment_id}>
-                        <a href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 hover:border-brand-600/30">
-                            <Icon className="w-4 h-4 text-brand-600 shrink-0" />
-                            <span className="text-xs text-gray-700 truncate flex-1">{a.file_name}</span>
-                            <span className="text-[10px] text-gray-400">{formatSize(a.size)}</span>
-                            <Paperclip className="w-3.5 h-3.5 text-gray-400" />
-                        </a>
-                    </li>
-                );
-            })}
-        </ul>
+/** Images show as thumbnails (click → zoomable viewer); other files stay as links. */
+export const AttachmentList = ({ items }: { items: OpsAttachment[] }) => {
+    const [viewing, setViewing] = useState<number | null>(null);
+    if (items.length === 0) return <p className="text-sm text-gray-400">ไม่มีไฟล์แนบ</p>;
+    const images = items.filter(a => a.mime_type.startsWith('image/'));
+    const files = items.filter(a => !a.mime_type.startsWith('image/'));
+
+    return (
+        <div className="space-y-2">
+            {images.length > 0 && (
+                <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {images.map((a, i) => (
+                        <li key={a.attachment_id}>
+                            <button
+                                type="button"
+                                onClick={() => setViewing(i)}
+                                title={a.file_name}
+                                className="group relative block w-full aspect-[4/3] overflow-hidden rounded-lg border border-gray-100 bg-gray-50 hover:border-brand-600/40 cursor-zoom-in"
+                            >
+                                {/* eslint-disable-next-line @next/next/no-img-element -- S3 URL, shown as-is */}
+                                <img src={a.url} alt={a.file_name} loading="lazy" className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105" />
+                                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 pb-1 pt-4 text-left text-[10px] text-white truncate">
+                                    {a.file_name}
+                                </span>
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {files.length > 0 && (
+                <ul className="space-y-1.5">
+                    {files.map(a => {
+                        const Icon = fileIcon(a.mime_type);
+                        return (
+                            <li key={a.attachment_id}>
+                                <a href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 hover:border-brand-600/30">
+                                    <Icon className="w-4 h-4 text-brand-600 shrink-0" />
+                                    <span className="text-xs text-gray-700 truncate flex-1">{a.file_name}</span>
+                                    <span className="text-[10px] text-gray-400">{formatSize(a.size)}</span>
+                                    <Paperclip className="w-3.5 h-3.5 text-gray-400" />
+                                </a>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+            <ImageViewer images={images} index={viewing} onIndexChange={setViewing} onClose={() => setViewing(null)} />
+        </div>
     );
+};

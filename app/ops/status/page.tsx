@@ -154,8 +154,9 @@ function ProjectStatusContent() {
         const seq = ++fetchSeq.current;
         setSyncing(true);
         try {
+            // issues always come as "all": the server's "mine" is reporter-only, so it's narrowed below
             const [p, i, t, all] = await Promise.all([
-                listProjects(scope), listIssues(scope), listTasks(scope),
+                listProjects(scope), listIssues('all'), listTasks(scope),
                 scope === 'all' ? null : listProjects('all'),
             ]);
             if (seq !== fetchSeq.current) return;
@@ -163,8 +164,13 @@ function ProjectStatusContent() {
             const mine = scope === 'mine' && canManageOps(user)
                 ? (all ?? p).filter(x => x.assignees.length === 0 || x.assignees.some(a => sameUser(a.username, user.username)))
                 : p;
+            // "ของฉัน" issues = ones I reported + ones on projects I'm responsible for
+            const myIssues = scope === 'mine'
+                ? i.filter(x => x.reported_by.employee_id === user.employee_id
+                    || x.project_assignees.some(a => sameUser(a.username, user.username)))
+                : i;
             setProjects(sortProjects(mine));
-            setIssues(sortIssues(i));
+            setIssues(sortIssues(myIssues));
             setTasks(sortTasks(t));
             setAssigned(canManageOps(user) ? (all ?? p) : []);
         } catch (err) {

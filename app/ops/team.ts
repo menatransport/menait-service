@@ -24,30 +24,49 @@ interface ItUser {
 
 const placeholder = (username: string): OpsPerson => ({ employee_id: username, username, name: username, image_url: null });
 
-// One fetch per page load, shared by every card
-let teamPromise: Promise<OpsPerson[]> | null = null;
+// One fetch per page load, shared by every card and sheet
+let usersPromise: Promise<ItUser[]> | null = null;
 
-function loadTeam(): Promise<OpsPerson[]> {
-    teamPromise ??= fetch('/api/organization/user')
-        .then(res => (res.ok ? res.json() : []))
-        .then((users: ItUser[]) => OPS_TEAM_USERNAMES.map(username => {
-            const u = users.find(x =>
-                x.username?.toLowerCase() === username || x.email?.toLowerCase().split('@')[0] === username);
-            if (!u) return placeholder(username);
-            return {
-                employee_id: u.employee_id,
-                username,
-                name: `${u.firstname ?? ''} ${u.lastname ?? ''}`.trim() || username,
-                image_url: u.image_url ?? null,
-                department: u.department ?? null,
-                position: u.position ?? null,
-            };
-        }))
+function loadUsers(): Promise<ItUser[]> {
+    usersPromise ??= fetch('/api/organization/user')
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json() as Promise<ItUser[]>;
+        })
         .catch(() => {
-            teamPromise = null; // allow a retry on next mount
-            return OPS_TEAM_USERNAMES.map(placeholder);
+            usersPromise = null; // allow a retry on next mount
+            return [];
         });
-    return teamPromise;
+    return usersPromise;
+}
+
+const loadTeam = (): Promise<OpsPerson[]> =>
+    loadUsers().then(users => OPS_TEAM_USERNAMES.map(username => {
+        const u = users.find(x =>
+            x.username?.toLowerCase() === username || x.email?.toLowerCase().split('@')[0] === username);
+        if (!u) return placeholder(username);
+        return {
+            employee_id: u.employee_id,
+            username,
+            name: `${u.firstname ?? ''} ${u.lastname ?? ''}`.trim() || username,
+            image_url: u.image_url ?? null,
+            department: u.department ?? null,
+            position: u.position ?? null,
+        };
+    }));
+
+/** A person's email from the IT system (not stored on OPS records). null until loaded / when unknown. */
+export function useEmailOf(employeeId: string | null | undefined) {
+    const [email, setEmail] = useState<string | null>(null);
+    useEffect(() => {
+        if (!employeeId) return;
+        let alive = true;
+        loadUsers().then(users => {
+            if (alive) setEmail(users.find(u => u.employee_id === employeeId)?.email ?? null);
+        });
+        return () => { alive = false; };
+    }, [employeeId]);
+    return email;
 }
 
 /** The assignable OPS team with names/photos from the IT system (placeholders until loaded). */

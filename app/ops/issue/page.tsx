@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { CircleAlert } from 'lucide-react';
 import { Navbar } from '@/components/navbar';
 import { SubmitSuccess } from '@/components/ui/submit-success';
@@ -17,14 +17,30 @@ import {
 
 const MIN_DESCRIPTION = 10;
 
+/** /ops/issue/{OPS-…} → that project is picked */
+const projectIdFrom = (pathname: string) => {
+    const m = pathname.match(/^\/ops\/issue\/([^/]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+};
+
+/**
+ * Keeps the picked project in the URL without a Next navigation (history API),
+ * so the link can be shared and opens with the project already filled in.
+ */
+const syncProjectUrl = (id: string) => {
+    window.history.replaceState(null, '', `/ops/issue${id ? `/${encodeURIComponent(id)}` : ''}`);
+};
+
 function ProjectIssueForm() {
     const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
     const { user } = useSessionContext();
 
     const [projects, setProjects] = useState<Project[]>([]);
     const [loadingProjects, setLoadingProjects] = useState(true);
-    const [projectId, setProjectId] = useState(searchParams.get('project') ?? '');
+    // ?project= is the older link shape, still honoured
+    const [projectId, setProjectId] = useState(projectIdFrom(pathname) ?? searchParams.get('project') ?? '');
     const [description, setDescription] = useState('');
     const [files, setFiles] = useState<File[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -53,7 +69,13 @@ function ProjectIssueForm() {
 
     const selected = projects.find(p => p.project_id === projectId);
 
-    const reset = () => { setProjectId(''); setDescription(''); setFiles([]); setErrors({}); };
+    const pickProject = (id: string) => {
+        setProjectId(id);
+        clearError('project_id');
+        syncProjectUrl(id);
+    };
+
+    const reset = () => { pickProject(''); setDescription(''); setFiles([]); setErrors({}); };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -96,7 +118,7 @@ function ProjectIssueForm() {
                     <FieldLabel no={1} label="ชื่อโปรเจค / Project ID ที่พบปัญหา" required />
                     <DropdownSearch
                         value={projectId}
-                        onChange={(v) => { setProjectId(v); clearError('project_id'); }}
+                        onChange={pickProject}
                         options={options}
                         placeholder={loadingProjects ? 'กำลังโหลดรายการโปรเจกต์...' : '-- เลือกโปรเจกต์ --'}
                         searchPlaceholder="ค้นหาด้วยชื่อหรือ Project ID..."

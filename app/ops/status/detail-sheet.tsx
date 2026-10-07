@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import type { OpsPerson, OpsPriority, OpsReviewResult, OpsStatus, OpsStatusChange, Project, ProjectIssue, ProjectRequestInput, ProjectTask } from '../types';
 import { AttachmentList, STATUS_META, StatusBadge, formatThaiDate, isClosedStatus } from '../components';
 import { RichTextView, isRichText } from '../rich-text';
-import { resolvePerson } from '../team';
+import { resolvePerson, useEmailOf } from '../team';
 import { AssigneePicker, KindMark, PersonAvatar } from './kanban';
 import { CommentComposer, CommentList, useComments } from './comments';
 import { EstimateDate } from './estimate-date';
@@ -296,10 +296,10 @@ const Chip = ({ children }: { children: React.ReactNode }) => (
 );
 
 /** Section that starts closed; the header shows a one-line summary and opens the body with a smooth height animation. */
-const Collapsible = ({ title, count, summary, children }: {
-    title: string; count?: number; summary?: React.ReactNode; children: React.ReactNode;
+const Collapsible = ({ title, count, summary, defaultOpen = false, children }: {
+    title: string; count?: number; summary?: React.ReactNode; defaultOpen?: boolean; children: React.ReactNode;
 }) => {
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(defaultOpen);
     const bodyId = useId();
     return (
         <section className="rounded-[18px] border border-border bg-white">
@@ -362,7 +362,13 @@ const AttachmentsSection = ({ items, title }: { items: Project['attachments']; t
             <span className="ml-auto text-ink-500">ไม่มีไฟล์แนบ</span>
         </div>
     ) : (
-        <Collapsible title={title} count={items.length} summary={<span className="text-xs text-ink-500">{items.length} ไฟล์</span>}>
+        // pictures are previewed straight away; files-only stays folded
+        <Collapsible
+            title={title}
+            count={items.length}
+            summary={<span className="text-xs text-ink-500">{items.length} ไฟล์</span>}
+            defaultOpen={items.some(a => a.mime_type.startsWith('image/'))}
+        >
             <AttachmentList items={items} />
         </Collapsible>
     );
@@ -552,6 +558,7 @@ export const IssueDetailSheet = ({ issue, ...rest }: IssueSheetProps & { issue: 
 
 const IssueSheet = ({ issue, team, onClose, onReview, onMove }: IssueSheetProps & { issue: ProjectIssue }) => {
     const thread = useComments('issue', issue.issue_id);
+    const reporterEmail = useEmailOf(issue.reported_by.employee_id);
     const rejectRemark = issue.status === 'Reject' ? issue.status_history.findLast(h => h.status === 'Reject')?.remark : null;
     return (
         <SheetShell
@@ -566,7 +573,16 @@ const IssueSheet = ({ issue, team, onClose, onReview, onMove }: IssueSheetProps 
                 left={<>
                     <SideLabel>ผู้แจ้ง</SideLabel>
                     <PersonLine person={resolvePerson(issue.reported_by, team)} sub={issue.reported_by.department} />
-                    <Facts rows={[['วันที่แจ้ง', formatThaiDate(issue.created_at, true)]]} />
+                    <Facts rows={[
+                        ['รหัสพนักงาน', <span key="id" className="font-mono">{issue.reported_by.employee_id}</span>],
+                        // a narrow sheet wraps the email after the @, not mid-name
+                        ['อีเมล', reporterEmail ? (
+                            <a key="mail" href={`mailto:${reporterEmail}`} className="text-brand-700 hover:underline">
+                                {reporterEmail.replace(/@.*/, '@')}<wbr />{reporterEmail.replace(/^[^@]*@/, '')}
+                            </a>
+                        ) : '-'],
+                        ['วันที่แจ้ง', formatThaiDate(issue.created_at, true)],
+                    ]} />
                 </>}
                 right={<>
                     <SideLabel>โปรเจกต์</SideLabel>
