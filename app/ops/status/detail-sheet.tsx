@@ -396,6 +396,8 @@ type ProjectSheetProps = {
     onMove?: (project: Project, to: OpsStatus) => void;
     /** OPS team / admin: set or remove the system link once Done. Resolves true on success */
     onLinkChange?: (project: Project, url: string | null) => Promise<boolean>;
+    /** Renames it from the hero title; shown only when project.can_rename */
+    onRename?: (project: Project, title: string) => void;
     /** Saves the edited request; shown only when project.can_edit. Resolves true on success */
     onEdit?: (project: Project, input: ProjectRequestInput) => Promise<boolean>;
 };
@@ -404,7 +406,7 @@ export const ProjectDetailSheet = ({ project, ...rest }: ProjectSheetProps & { p
     // keyed so a different project starts a fresh comment thread
     project ? <ProjectSheet key={project.project_id} p={project} {...rest} /> : null;
 
-const ProjectSheet = ({ p, issues, tasks, team, onClose, onOpenIssue, onOpenTask, onEstimateChange, onAssign, onReview, onMove, onEdit, onLinkChange }: ProjectSheetProps & { p: Project }) => {
+const ProjectSheet = ({ p, issues, tasks, team, onClose, onOpenIssue, onOpenTask, onEstimateChange, onAssign, onReview, onMove, onEdit, onRename, onLinkChange }: ProjectSheetProps & { p: Project }) => {
     const thread = useComments('project', p.project_id);
     const [editing, setEditing] = useState(false);
     const canEdit = Boolean(onEdit && p.can_edit);
@@ -424,6 +426,7 @@ const ProjectSheet = ({ p, issues, tasks, team, onClose, onOpenIssue, onOpenTask
             onClose={onClose}
             id={p.project_id}
             title={p.title}
+            onRename={onRename && p.can_rename ? (title) => onRename(p, title) : undefined}
             status={p.status}
             priority={p.priority}
             updatedAt={p.updated_at}

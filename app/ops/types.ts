@@ -89,6 +89,8 @@ export interface Project extends ProjectRequestInput {
      * imported by the system (requested_by.employee_id = "system") → its assignees; filed by a user → the requester's department.
      */
     can_edit?: boolean;
+    /** Whether the viewer may rename it (PATCH /api/ops/projects/{id}/title): OPS team / admin or can_edit, any status except Done */
+    can_rename?: boolean;
     created_at: string;
     updated_at: string;
 }

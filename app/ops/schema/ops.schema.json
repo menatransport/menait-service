@@ -151,9 +151,20 @@
         "issue_count":    { "type": "integer", "minimum": 0, "description": "Issues not yet Done/Reject" },
         "link_url":       { "type": ["string", "null"], "maxLength": 2000, "description": "ลิงก์ใช้งานระบบ (http/https) — set via $defs.LinkInput once Done" },
         "can_edit":       { "type": "boolean", "description": "Whether the caller may PATCH /api/ops/projects/{project_id} (see $defs.ProjectEditInput)" },
+        "can_rename":     { "type": "boolean", "description": "Whether the caller may PATCH /api/ops/projects/{project_id}/title (see $defs.ProjectTitleInput)" },
         "created_at":     { "type": "string", "format": "date-time" },
         "updated_at":     { "type": "string", "format": "date-time" }
       }
+    },
+
+    "ProjectTitleInput": {
+      "$comment": "PATCH /api/ops/projects/{project_id}/title → Project. OPS team / admin, or anyone with can_edit (403 otherwise); any status except Done (409). The title is trimmed (min 3) and copied onto the project's tasks.",
+      "type": "object",
+      "required": ["title"],
+      "properties": {
+        "title": { "type": "string", "minLength": 3, "maxLength": 200 }
+      },
+      "additionalProperties": false
     },
 
     "LinkInput": {

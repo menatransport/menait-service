@@ -11,7 +11,7 @@ import Loading from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import { cn } from '@/lib/utils';
 import {
-    createTask, listIssues, listProjects, listTasks, submitReview, updateIssueStatus, updateProject, updateProjectAssignees, updateProjectLink,
+    createTask, listIssues, listProjects, listTasks, submitReview, updateIssueStatus, updateProject, updateProjectAssignees, updateProjectLink, updateProjectTitle,
     updateProjectPlan, updateProjectStatus, updateTask, updateTaskAssignees, updateTaskPlan, updateTaskStatus,
 } from '../api';
 import type {
@@ -409,6 +409,20 @@ function ProjectStatusContent() {
     };
 
 
+    const renameProject = async (p: Project, title: string) => {
+        try {
+            const next = await updateProjectTitle(p.project_id, title);
+            const swap = (list: Project[]) => sortProjects(list.map(x => (x.project_id === p.project_id ? next : x)));
+            setProjects(swap);
+            setAssigned(swap);
+            // tasks carry the project title for their cards
+            setTasks(list => list.map(t => (t.project_id === p.project_id ? { ...t, project_title: next.title } : t)));
+            toast('success', 'บันทึกชื่อโปรเจกต์แล้ว');
+        } catch (err) {
+            toast('error', err instanceof Error ? err.message : 'แก้ไขชื่อโปรเจกต์ไม่สำเร็จ');
+        }
+    };
+
     // a shared link may point outside "ของฉัน": widen to ทั้งหมด once so the sheet can open
     const detailMissing = !loading && Boolean(detailId) && !openProject && !openIssue && !openTask;
     useEffect(() => {
@@ -631,6 +645,7 @@ function ProjectStatusContent() {
                 onReview={user ? reviewProject : undefined}
                 onMove={canManage ? moveProject : undefined}
                 onEdit={user ? editProject : undefined}
+                onRename={user ? renameProject : undefined}
                 onLinkChange={canManage ? setProjectLink : undefined}
             />
             <IssueDetailSheet

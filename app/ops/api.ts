@@ -77,6 +77,10 @@ export const updateProjectAssignees = (projectId: string, people: OpsPerson[]) =
 export const submitReview = (ref: 'project' | 'issue', id: string, input: ReviewInput) =>
     http<Project | ProjectIssue>(`/api/ops/${ref === 'project' ? 'projects' : 'issues'}/${id}/review`, json('POST', input));
 
+/** Title only — allowed when project.can_rename (the backend re-checks). */
+export const updateProjectTitle = (projectId: string, title: string) =>
+    http<Project>(`/api/ops/projects/${projectId}/title`, json('PATCH', { title }));
+
 /** OPS team / admin, Done projects only. null removes it. */
 export const updateProjectLink = (projectId: string, url: string | null) =>
     http<Project>(`/api/ops/projects/${projectId}/link`, json('PATCH', { url }));
