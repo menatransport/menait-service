@@ -133,6 +133,10 @@ export const deleteTaskImage = (taskId: string, attachmentId: string) =>
 /** Saved in MongoDB (ops.surveys); one answer per person per system — sending again replaces it. */
 export const submitSurvey = (input: OpsSurveyInput) => http<OpsSurveyResponse>('/api/ops/surveys', json('POST', input));
 
+/** The signed-in user's own earlier answer for this system, or null — the form pre-fills it. */
+export const getMySurvey = (systemId: string) =>
+    http<OpsSurveyResponse | null>(`/api/ops/surveys/mine?system_id=${encodeURIComponent(systemId)}`);
+
 /** OPS team / admin. */
 export const getProjectSurveys = (projectId: string) => http<OpsSurveyResults>(`/api/ops/projects/${projectId}/surveys`);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { DropdownSearch } from '@/components/ui/dropdown/issue';
 import { Label } from '@/components/ui/label';
@@ -8,10 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { SubmitSuccess } from '@/components/ui/submit-success';
 import Loading from '@/components/loading';
-import { Send, User, Building2, Briefcase, Monitor, Lock } from 'lucide-react';
+import { Send, User, Building2, Briefcase, Monitor, Lock, History } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSessionContext, type UserInfo } from '@/app/context/SessionContext';
-import { submitSurvey } from '@/app/ops/api';
+import { getMySurvey, submitSurvey } from '@/app/ops/api';
+import type { OpsSurveyResponse } from '@/app/ops/types';
 import { SECTION_2_QUESTIONS, SECTION_3_QUESTIONS } from '../questions';
 
 const SYSTEMS_OPTIONS = [
@@ -120,6 +121,34 @@ export function SurveyOPSForm({ systems, locked = false, doneHref }: {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
+    /** The user's earlier answer for the chosen system — its scores are loaded into the form to edit */
+    const [previous, setPrevious] = useState<OpsSurveyResponse | null>(null);
+    const filledFromPrevious = useRef(false);
+
+    // choosing a system brings back an earlier answer; moving off one clears what it filled in
+    useEffect(() => {
+        if (!user || !formData.system) { setPrevious(null); return; }
+        let alive = true;
+        const toRatings = (r: Record<string, number>) => Object.fromEntries(Object.entries(r).map(([k, v]) => [Number(k), v]));
+        getMySurvey(formData.system)
+            .then(found => {
+                if (!alive) return;
+                if (found) {
+                    setFormData(f => ({
+                        ...f,
+                        section2Ratings: toRatings(found.section2),
+                        section3Ratings: toRatings(found.section3),
+                        additionalComments: found.comment ?? '',
+                    }));
+                } else if (filledFromPrevious.current) {
+                    setFormData(f => ({ ...f, section2Ratings: {}, section3Ratings: {}, additionalComments: '' }));
+                }
+                filledFromPrevious.current = Boolean(found);
+                setPrevious(found);
+            })
+            .catch(err => console.error('Error loading the earlier survey answer:', err));
+        return () => { alive = false; };
+    }, [user, formData.system]);
 
     useEffect(() => {
         if (user) {
@@ -202,7 +231,7 @@ export function SurveyOPSForm({ systems, locked = false, doneHref }: {
     if (isSubmitted) {
         return (
             <SubmitSuccess
-                title="ส่งแบบประเมินสำเร็จ!"
+                title={previous ? 'บันทึกการแก้ไขแล้ว!' : 'ส่งแบบประเมินสำเร็จ!'}
                 description="ขอบคุณสำหรับความคิดเห็นของท่าน"
                 buttonText={doneHref ? 'กลับไปหน้า Project Status' : 'ทำแบบประเมินใหม่'}
                 onButtonClick={() => {
@@ -281,6 +310,18 @@ export function SurveyOPSForm({ systems, locked = false, doneHref }: {
                                 </div>
                             </div>
 
+
+                            {previous && (
+                                <div role="status" className="flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
+                                    <History className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
+                                    <div className="text-sm">
+                                        <p className="font-semibold text-brand-800">คุณเคยประเมินโปรเจกต์นี้แล้ว</p>
+                                        <p className="text-gray-600">
+                                            เมื่อ {new Date(previous.updated_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })} — คะแนนเดิมถูกใส่ไว้ให้แล้ว แก้ไขแล้วกดบันทึกเพื่อบันทึกทับ
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Section 2: ความพึงพอใจในการใช้งานระบบ */}
                             <div>
@@ -374,7 +415,7 @@ export function SurveyOPSForm({ systems, locked = false, doneHref }: {
                                     ) : (
                                         <>
                                             <Send className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                                            ส่งแบบประเมิน
+                                            {previous ? 'บันทึกการแก้ไข' : 'ส่งแบบประเมิน'}
                                         </>
                                     )}
                                 </Button>
