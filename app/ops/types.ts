@@ -158,6 +158,8 @@ export interface OpsComment {
     like_count: number;
     /** Whether the signed-in viewer has liked it */
     liked_by_me: boolean;
+    /** Images posted with the comment (absent on older backends) */
+    attachments?: OpsAttachment[];
 }
 
 export interface OpsApiError {

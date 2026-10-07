@@ -115,8 +115,14 @@ const commentsPath = (ref: OpsCommentRef, refId: string) => `/api/ops/${ref === 
 
 export const listComments = (ref: OpsCommentRef, refId: string) => http<OpsComment[]>(commentsPath(ref, refId));
 
-export const createComment = (ref: OpsCommentRef, refId: string, body: string) =>
-    http<OpsComment>(commentsPath(ref, refId), json('POST', { body }));
+export function createComment(ref: OpsCommentRef, refId: string, body: string, images: File[] = []) {
+    if (images.length === 0) return http<OpsComment>(commentsPath(ref, refId), json('POST', { body }));
+    // text + images go in one multipart request, so the comment never appears without its pictures
+    const form = new FormData();
+    form.append('body', body);
+    for (const file of images) form.append('files', file);
+    return http<OpsComment>(commentsPath(ref, refId), { method: 'POST', body: form });
+}
 
 /** Author only. */
 export const updateComment = (commentId: string, body: string) =>
