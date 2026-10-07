@@ -271,7 +271,7 @@
     },
 
     "ProjectTask": {
-      "$comment": "GET /api/ops/tasks?scope=mine|all&project_id= → ProjectTask[] (scope=mine: session user is owner or assignee) · PATCH /api/ops/tasks/{task_id} TaskEditInput (only while the task is Open) → ProjectTask · PATCH /api/ops/tasks/{task_id}/status { status } (remark optional, Reject = cancelled) → ProjectTask · PATCH /api/ops/tasks/{task_id}/assignees AssignInput (not when Done/Reject; owner is never in the list) → ProjectTask · PATCH /api/ops/tasks/{task_id}/plan TaskPlanInput (not when Done/Reject) → ProjectTask. All task changes: OPS team / admin, on every task",
+      "$comment": "GET /api/ops/tasks?scope=mine|all&project_id= → ProjectTask[] (scope=mine: session user is owner or assignee) · PATCH /api/ops/tasks/{task_id} TaskEditInput (title: not when Done; project_id: only while Open) → ProjectTask · PATCH /api/ops/tasks/{task_id}/status { status } (remark optional, Reject = cancelled) → ProjectTask · PATCH /api/ops/tasks/{task_id}/assignees AssignInput (not when Done/Reject; owner is never in the list) → ProjectTask · PATCH /api/ops/tasks/{task_id}/plan TaskPlanInput (not when Done/Reject) → ProjectTask. All task changes above: OPS team / admin, on every task. Note + pictures — owner / co-assignees / admin, not when Done (can_note): PATCH /api/ops/tasks/{task_id}/note TaskNoteInput → ProjectTask · POST /api/ops/tasks/{task_id}/attachments multipart { file } (images only, max 10) → 201 Attachment · DELETE /api/ops/tasks/{task_id}/attachments/{attachment_id} → ProjectTask",
       "allOf": [{ "$ref": "#/$defs/ProjectTaskInput" }],
       "type": "object",
       "required": ["task_id", "project_title", "status", "owner", "assignees", "status_history", "created_at", "updated_at"],
@@ -282,13 +282,27 @@
         "owner":          { "$ref": "#/$defs/Person", "description": "Creator and main responsible person" },
         "assignees":      { "type": "array", "items": { "$ref": "#/$defs/Person" }, "description": "Co-assignees added by the owner until Done/Reject (owner excluded). Allowed usernames: see $defs.AssignInput" },
         "status_history": { "type": "array", "items": { "$ref": "#/$defs/StatusChange" } },
+        "note":            { "type": ["string", "null"], "maxLength": 5000, "description": "The responsible people's work note" },
+        "note_updated_at": { "type": ["string", "null"], "format": "date-time" },
+        "note_updated_by": { "oneOf": [{ "$ref": "#/$defs/Person" }, { "type": "null" }] },
+        "attachments":     { "type": "array", "items": { "$ref": "#/$defs/Attachment" }, "maxItems": 10, "description": "Pictures under the note (images only)" },
+        "can_note":        { "type": "boolean", "description": "Viewer is the owner / a co-assignee / admin and the task is not Done" },
         "created_at":     { "type": "string", "format": "date-time" },
         "updated_at":     { "type": "string", "format": "date-time" }
       }
     },
 
+    "TaskNoteInput": {
+      "$comment": "Body of PATCH /api/ops/tasks/{task_id}/note. Empty or null clears it.",
+      "type": "object",
+      "properties": {
+        "note": { "type": ["string", "null"], "maxLength": 5000 }
+      },
+      "additionalProperties": false
+    },
+
     "TaskEditInput": {
-      "$comment": "Body of PATCH /api/ops/tasks/{task_id}. OPS team / admin, while the task is Open. project_id must be a project that is not Reject; the response carries the new project_title.",
+      "$comment": "Body of PATCH /api/ops/tasks/{task_id}. OPS team / admin: title until Done; project_id only while the task is Open. project_id must be a project that is not Reject; the response carries the new project_title.",
       "type": "object",
       "minProperties": 1,
       "properties": {

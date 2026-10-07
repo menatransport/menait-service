@@ -97,7 +97,7 @@ export const createTask = (input: ProjectTaskInput) => http<ProjectTask>('/api/o
 export const updateTaskStatus = (taskId: string, status: OpsStatus) =>
     http<ProjectTask>(`/api/ops/tasks/${taskId}/status`, json('PATCH', { status }));
 
-/** While Open: rename it or move it under another project (not Reject). */
+/** Rename until Done; move it under another project (not Reject) while Open. */
 export const updateTask = (taskId: string, input: ProjectTaskEditInput) =>
     http<ProjectTask>(`/api/ops/tasks/${taskId}`, json('PATCH', input));
 
@@ -108,6 +108,20 @@ export const updateTaskAssignees = (taskId: string, people: OpsPerson[]) =>
 /** Until Done/Reject. null clears the due date. */
 export const updateTaskPlan = (taskId: string, plan: { due_date: string | null }) =>
     http<ProjectTask>(`/api/ops/tasks/${taskId}/plan`, json('PATCH', plan));
+
+/** Owner / co-assignee / admin, until Done. Empty or null clears it. */
+export const updateTaskNote = (taskId: string, note: string | null) =>
+    http<ProjectTask>(`/api/ops/tasks/${taskId}/note`, json('PATCH', { note }));
+
+/** Same people as the note. Images only, up to 10 per task. */
+export function uploadTaskImage(taskId: string, file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    return http<OpsAttachment>(`/api/ops/tasks/${taskId}/attachments`, { method: 'POST', body: form });
+}
+
+export const deleteTaskImage = (taskId: string, attachmentId: string) =>
+    http<ProjectTask>(`/api/ops/tasks/${taskId}/attachments/${attachmentId}`, { method: 'DELETE' });
 
 // ─────────────────────────────── comments ───────────────────────────────
 

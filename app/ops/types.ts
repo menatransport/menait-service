@@ -125,7 +125,7 @@ export interface ProjectTaskInput {
     due_date?: string | null;
 }
 
-/** PATCH /api/ops/tasks/{id} — OPS team / admin, while the task is Open; project_id follows the same rule as creating */
+/** PATCH /api/ops/tasks/{id} — OPS team / admin: title until Done; project_id while Open (same target rule as creating) */
 export type ProjectTaskEditInput = Partial<Pick<ProjectTaskInput, 'title' | 'project_id'>>;
 
 /** A piece of work the project's assignee creates and moves themselves. */
@@ -139,6 +139,14 @@ export interface ProjectTask extends ProjectTaskInput {
     /** OPS team members helping on it (owner not included); they may move it too */
     assignees: OpsPerson[];
     status_history: OpsStatusChange[];
+    /** The responsible people's work note (PATCH /api/ops/tasks/{id}/note) — until Done */
+    note?: string | null;
+    note_updated_at?: string | null;
+    note_updated_by?: OpsPerson | null;
+    /** Pictures under the note — images only, up to 10 */
+    attachments?: OpsAttachment[];
+    /** Owner, co-assignee or admin, and the task is not Done: may edit the note and pictures */
+    can_note?: boolean;
     created_at: string;
     updated_at: string;
 }

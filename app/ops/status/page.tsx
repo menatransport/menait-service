@@ -591,7 +591,7 @@ function ProjectStatusContent() {
                                 <TaskKanbanCard
                                     t={x}
                                     team={team}
-                                    onOpen={() => goToDetail(x.project_id)}
+                                    onOpen={() => goToDetail(x.task_id)}
                                     onAssign={canManage ? (people) => assignTask(x, people) : undefined}
                                 />
                             )
@@ -646,6 +646,7 @@ function ProjectStatusContent() {
                 onDueChange={canManage ? setTaskDue : undefined}
                 onAssign={canManage ? assignTask : undefined}
                 onEdit={canManage ? editTask : undefined}
+                onTaskChange={(id, update) => setTasks(list => list.map(x => (x.task_id === id ? update(x) : x)))}
                 projects={taskProjects}
             />
 

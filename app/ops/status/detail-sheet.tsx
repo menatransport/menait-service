@@ -17,6 +17,7 @@ import { ProjectEditForm } from './project-edit-form';
 import { ProjectLink } from './project-link';
 import { ReviewSection } from './review-panel';
 import { ProjectPicker } from './task-composer';
+import { TaskNoteSection } from './task-note';
 
 // ───────────────────────────── hero (blue header, like the Home hero) ─────────────────────────────
 
@@ -636,28 +637,31 @@ type TaskSheetProps = {
     onAssign?: (task: ProjectTask, people: OpsPerson[]) => void;
     /** Back up to the parent project's sheet */
     onOpenProject: (projectId: string) => void;
-    /** Owner only, while Open: rename it or move it to another project */
+    /** OPS team / admin: rename it until Done; move it to another project while Open */
     onEdit?: (task: ProjectTask, input: { title?: string; project_id?: string }) => void;
     /** Projects it may move to (same list as the composer) */
     projects?: Project[];
+    /** Applies a note / picture change to the page's copy of the task */
+    onTaskChange: (taskId: string, update: (task: ProjectTask) => ProjectTask) => void;
 };
 
 export const TaskDetailSheet = ({ task, ...rest }: TaskSheetProps & { task: ProjectTask | null }) =>
     task ? <TaskSheet key={task.task_id} t={task} {...rest} /> : null;
 
-/** Status moves on the board; due date and co-assignees are edited here until Done/Reject. No comment thread yet. */
-const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onEdit, projects = [] }: TaskSheetProps & { t: ProjectTask }) => {
+/** Status moves on the board; due date and co-assignees are edited here until Done/Reject, the title, note and pictures until Done. */
+const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onEdit, onTaskChange, projects = [] }: TaskSheetProps & { t: ProjectTask }) => {
     const owner = resolvePerson(t.owner, team);
     const closed = isClosedStatus(t.status);
-    // title and project are only open to change before work starts
-    const editable = Boolean(onEdit) && t.status === 'Open';
+    // the title stays editable until Done; moving to another project only before work starts
+    const renamable = Boolean(onEdit) && t.status !== 'Done';
+    const movable = Boolean(onEdit) && t.status === 'Open';
     const rejectRemark = t.status === 'Reject' ? t.status_history.findLast(h => h.status === 'Reject')?.remark : null;
     return (
         <SheetShell
             onClose={onClose}
             id={t.task_id}
             title={t.title}
-            onRename={editable ? (title) => onEdit!(t, { title }) : undefined}
+            onRename={renamable ? (title) => onEdit!(t, { title }) : undefined}
             status={t.status}
             updatedAt={t.updated_at}
         >
@@ -697,7 +701,7 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
                         </span>
                         <ArrowUpRight className="w-4 h-4 text-ink-500 shrink-0 group-hover:text-brand-600" />
                     </button>
-                    {editable && projects.length > 0 && (
+                    {movable && projects.length > 0 && (
                         <ProjectPicker
                             projects={projects}
                             value={{ project_id: t.project_id, title: t.project_title }}
@@ -714,6 +718,8 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
                     <Facts rows={[['อัปเดตล่าสุด', formatThaiDate(t.updated_at, true)]]} />
                 </>}
             />
+
+            <TaskNoteSection t={t} onChange={(update) => onTaskChange(t.task_id, update)} />
 
             {rejectRemark && <RejectNote label="เหตุผล" remark={rejectRemark} />}
 
