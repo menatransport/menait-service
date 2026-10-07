@@ -17,7 +17,7 @@ import {
 import type {
     OpsPerson, OpsReviewResult, OpsScope, OpsStatus, OpsStatusChange, Project, ProjectIssue, ProjectRequestInput, ProjectTask, ProjectTaskEditInput, ProjectTaskInput,
 } from '../types';
-import { isOverdue, toPerson } from '../components';
+import { isClosedStatus, isOverdue, toPerson } from '../components';
 import { canManageOps, useOpsTeam } from '../team';
 import { IssueDetailSheet, ProjectDetailSheet, TaskDetailSheet } from './detail-sheet';
 import { IssueKanbanCard, KanbanBoard, ProjectKanbanCard, TaskKanbanCard, sortIssues, sortProjects, sortTasks, type WorkKind } from './kanban';
@@ -473,9 +473,11 @@ function ProjectStatusContent() {
         setView('projects');
     };
 
+    // the tab counts show work still open — Done / Reject are left out
+    const openCount = (list: { status: OpsStatus }[]) => list.filter(x => !isClosedStatus(x.status)).length;
     const tabs: { value: View; label: string; count: number }[] = [
-        { value: 'projects', label: 'โปรเจกต์', count: projects.length + tasks.length },
-        { value: 'issues', label: 'ปัญหาที่แจ้ง', count: issues.length },
+        { value: 'projects', label: 'โปรเจกต์', count: openCount(projects) + openCount(tasks) },
+        { value: 'issues', label: 'ปัญหาที่แจ้ง', count: openCount(issues) },
     ];
 
     return (
