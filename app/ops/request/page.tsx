@@ -17,18 +17,18 @@ const TYPES: Record<RequestType, { icon: LucideIcon; title: string; caption: str
     project: {
         icon: FolderKanban,
         title: 'โปรเจกต์ใหม่',
-        caption: 'ระบบหรืองานใหม่ที่ยังไม่เคยมี',
+        caption: 'ระบบหรืองานใหญ่ที่ยังไม่เคยมี',
         example: 'เช่น ระบบจองคิวรถ, แอปเช็กอินหน้างาน',
         shell: 'ยื่นคำขอโปรเจกต์ใหม่',
         subtitle: 'กรอกให้ครบเท่าที่ทราบ ทีมจะติดต่อกลับหากต้องการข้อมูลเพิ่ม',
     },
     task: {
         icon: ListPlus,
-        title: 'พัฒนาเพิ่มบนโปรเจกต์เดิม',
-        caption: 'เพิ่มหรือปรับฟังก์ชันในโปรเจกต์ที่มีอยู่แล้ว',
-        example: 'เช่น เพิ่มปุ่ม Export, เพิ่มช่องข้อมูล, ปรับหน้ารายงาน',
-        shell: 'ขอพัฒนาเพิ่มในโปรเจกต์เดิม',
-        subtitle: 'คำขอจะเข้าเป็น Task ของโปรเจกต์นั้น ทีม OPS จะรับงานและอัปเดตสถานะให้',
+        title: 'Task ใหม่ / งานพัฒนาย่อย',
+        caption: 'งานขนาดเล็ก จะอิงโปรเจกต์เดิมหรือไม่ก็ได้',
+        example: 'เช่น เพิ่มปุ่ม Export ในระบบเดิม, ทำรายงานเฉพาะกิจ, ดึงข้อมูลให้ครั้งเดียว',
+        shell: 'ยื่นคำขอ Task ใหม่',
+        subtitle: 'สำหรับงานที่ไม่ต้องเปิดเป็นโปรเจกต์ — ผูกกับโปรเจกต์ที่มีอยู่หรือเป็นงานเดี่ยวก็ได้ ทีม OPS จะรับงานและอัปเดตสถานะให้',
     },
 };
 
@@ -105,9 +105,9 @@ function RequestContent() {
         const isTask = created.type === 'task';
         return (
             <SubmitSuccess
-                title={isTask ? 'ส่งคำขอพัฒนาเพิ่มสำเร็จ!' : 'ส่งคำขอโปรเจกต์สำเร็จ!'}
+                title={isTask ? 'ส่งคำขอ Task สำเร็จ!' : 'ส่งคำขอโปรเจกต์สำเร็จ!'}
                 description={isTask
-                    ? `เลขที่ ${created.id} · เข้าเป็น Task ของ ${projectId} สถานะ Open (รอทีม OPS รับงาน)`
+                    ? `เลขที่ ${created.id} · ${projectId ? `Task ของ ${projectId}` : 'Task เดี่ยว (ไม่อิงโปรเจกต์)'} สถานะ Open (รอทีม OPS รับงาน)`
                     : `เลขที่คำขอ ${created.id} · สถานะ Open (รอพิจารณา) — ติดตามความคืบหน้าได้ที่หน้า Project Status`}
                 buttonText={isTask ? 'ดู Task นี้' : 'ไปที่ Project Status'}
                 onButtonClick={() => router.push(isTask ? `/ops/status/${encodeURIComponent(created.id)}` : '/ops/status')}

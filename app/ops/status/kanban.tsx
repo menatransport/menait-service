@@ -527,8 +527,8 @@ export const TaskKanbanCard = ({ t, team, onOpen, onAssign }: {
             <div className="flex items-center gap-1.5">
                 <KindId kind="task" id={t.task_id} />
                 {t.requested_by && (
-                    <span title={`ขอพัฒนาเพิ่มโดย ${t.requested_by.name}`} className="rounded bg-sun-300/30 px-1 text-[9px] leading-[15px] font-semibold text-sun-700 whitespace-nowrap">
-                        ขอเพิ่ม
+                    <span title={`คำขอจาก ${t.requested_by.name}`} className="rounded bg-sun-300/30 px-1 text-[9px] leading-[15px] font-semibold text-sun-700 whitespace-nowrap">
+                        คำขอ
                     </span>
                 )}
             </div>
@@ -536,11 +536,18 @@ export const TaskKanbanCard = ({ t, team, onOpen, onAssign }: {
                 {t.title}
             </h4>
             {remark && <p className="mt-0.5 text-[10.5px] text-rose-600 line-clamp-2">{remark}</p>}
-            <p className="mt-1 flex items-center gap-1.5 text-[10.5px] text-ink-500 min-w-0">
-                <CornerDownRight className="w-3 h-3 shrink-0 text-ink-300" aria-hidden />
-                <span className={cn('w-1.75 h-1.75 rounded-full shrink-0', projectDot(t.project_id))} aria-hidden />
-                <span className="truncate" title={`${t.project_id} · ${t.project_title}`}>{t.project_title}</span>
-            </p>
+            {t.project_id ? (
+                <p className="mt-1 flex items-center gap-1.5 text-[10.5px] text-ink-500 min-w-0">
+                    <CornerDownRight className="w-3 h-3 shrink-0 text-ink-300" aria-hidden />
+                    <span className={cn('w-1.75 h-1.75 rounded-full shrink-0', projectDot(t.project_id))} aria-hidden />
+                    <span className="truncate" title={`${t.project_id} · ${t.project_title}`}>{t.project_title}</span>
+                </p>
+            ) : (
+                <p className="mt-1 flex items-center gap-1.5 text-[10.5px] text-ink-500 min-w-0">
+                    <span className="w-1.75 h-1.75 rounded-full shrink-0 border border-dashed border-ink-300" aria-hidden />
+                    งานเดี่ยว · ไม่อิงโปรเจกต์
+                </p>
+            )}
 
             <div className={FOOTER_CLASS}>
                 <span className="flex items-center gap-1 min-w-0">

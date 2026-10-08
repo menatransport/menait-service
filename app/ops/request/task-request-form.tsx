@@ -21,17 +21,50 @@ const EMPTY: Omit<FormState, 'project_id'> = { title: '', detail: '', priority: 
 /** Element ids are prefixed — the project form stays mounted (hidden) next to this one and owns the plain ids. */
 const fieldId = (key: string) => `task-${key}`;
 
-const validate = (f: FormState) => {
+const validate = (f: FormState, linked: boolean) => {
     const errors: Record<string, string> = {};
-    if (!f.project_id) errors.project_id = 'กรุณาเลือกโปรเจกต์ที่ต้องการพัฒนาเพิ่ม';
+    if (linked && !f.project_id) errors.project_id = 'กรุณาเลือกโปรเจกต์ หรือเลือก "ไม่อิงโปรเจกต์"';
     if (f.title.trim().length < 3) errors.title = 'กรุณาระบุชื่อ Task อย่างน้อย 3 ตัวอักษร';
     if (richTextLength(f.detail) < MIN_DETAIL) errors.detail = `กรุณาอธิบายสิ่งที่ต้องการอย่างน้อย ${MIN_DETAIL} ตัวอักษร`;
     if (!f.priority) errors.priority = 'กรุณาเลือกระดับความสำคัญ';
     return errors;
 };
 
+/** Two radio cards: tie the task to an accepted project, or file it standalone. */
+const LinkChoice = ({ linked, onChange }: { linked: boolean; onChange: (linked: boolean) => void }) => (
+    <div role="radiogroup" aria-label="อิงโปรเจกต์หรือไม่" className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {[
+            { value: true, label: 'อิงโปรเจกต์ที่มีอยู่', hint: 'เพิ่ม / ปรับในระบบที่ทีมทำให้แล้ว' },
+            { value: false, label: 'ไม่อิงโปรเจกต์ (งานเดี่ยว)', hint: 'งานใหม่ที่ไม่เกี่ยวกับระบบเดิม' },
+        ].map(o => {
+            const active = linked === o.value;
+            return (
+                <button
+                    key={String(o.value)}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => onChange(o.value)}
+                    className={cn(
+                        'text-left rounded-xl border-2 px-3.5 py-2.5 transition-all cursor-pointer',
+                        active ? 'border-brand-600 bg-brand-50 ring-4 ring-brand-600/10' : 'border-gray-200 bg-white hover:border-brand-600/40',
+                    )}
+                >
+                    <span className="flex items-center gap-2 text-sm font-semibold text-brand-800">
+                        <span className={cn('grid size-4 place-items-center rounded-full border-2', active ? 'border-brand-600' : 'border-gray-300')}>
+                            {active && <span className="size-2 rounded-full bg-brand-600" />}
+                        </span>
+                        {o.label}
+                    </span>
+                    <span className="block mt-0.5 pl-6 text-[11px] text-gray-500">{o.hint}</span>
+                </button>
+            );
+        })}
+    </div>
+);
+
 /**
- * พัฒนาเพิ่ม: a new task under a project that is already accepted (not Open / Reject).
+ * Task ใหม่: either under a project that is already accepted (not Open / Reject) or standalone.
  * It lands on the board as a task in Open without an owner until the OPS team takes it.
  */
 export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }: {
@@ -47,6 +80,8 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
     const [files, setFiles] = useState<File[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
+    /** false = a standalone task (no project) */
+    const [linked, setLinked] = useState(true);
 
     useEffect(() => {
         if (!user) return;
@@ -78,12 +113,18 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
 
     const pickProject = (id: string) => { onProjectChange(id); clearError('project_id'); };
 
-    const reset = () => { setForm(EMPTY); setFiles([]); setErrors({}); onProjectChange(''); };
+    const pickLinked = (next: boolean) => {
+        setLinked(next);
+        clearError('project_id');
+        if (!next) onProjectChange('');
+    };
+
+    const reset = () => { setForm(EMPTY); setFiles([]); setErrors({}); setLinked(true); onProjectChange(''); };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const full: FormState = { ...form, project_id: projectId };
-        const found = validate(full);
+        const found = validate(full, linked);
         setErrors(found);
         if (Object.keys(found).length) {
             (document.getElementById(fieldId(Object.keys(found)[0])) ?? e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -93,7 +134,7 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
         setSubmitting(true);
         try {
             const { task_id } = await requestTask({
-                project_id: projectId,
+                project_id: linked ? projectId : null,
                 title: full.title.trim(),
                 detail: full.detail.trim(),
                 priority: full.priority as OpsPriority,
@@ -113,10 +154,11 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
         <form onSubmit={handleSubmit} noValidate className="space-y-6">
             <RequesterCard user={user} />
 
-            {/* ── 1. which system ── */}
-            <SectionTitle step={1} title="พัฒนาเพิ่มในโปรเจกต์ไหน" caption="เลือกได้เฉพาะโปรเจกต์ที่ทีมรับเรื่องแล้ว" />
-            <div id={fieldId('project_id')}>
-                <FieldLabel no={1} label="ชื่อโปรเจค / Project ID" required />
+            {/* ── 1. related project (optional) ── */}
+            <SectionTitle step={1} title="เกี่ยวข้องกับโปรเจกต์ไหน" caption="งานในระบบที่มีอยู่ให้เลือกโปรเจกต์ · งานที่ไม่เกี่ยวกับระบบเดิมเลือก “ไม่อิงโปรเจกต์”" />
+            <LinkChoice linked={linked} onChange={pickLinked} />
+            <div id={fieldId('project_id')} hidden={!linked}>
+                <FieldLabel no={1} label="ชื่อโปรเจค / Project ID (เฉพาะที่ทีมรับเรื่องแล้ว)" required />
                 <DropdownSearch
                     value={projectId}
                     onChange={pickProject}
@@ -135,17 +177,17 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
             </div>
 
             {/* ── 2. what to add ── */}
-            <SectionTitle step={2} title="ต้องการพัฒนาอะไรเพิ่ม" />
+            <SectionTitle step={2} title="ต้องการให้ทำอะไร" />
             <div className="space-y-5">
                 <div>
-                    <FieldLabel no={2} htmlFor={fieldId('title')} label="ชื่อ Task / สิ่งที่ต้องการเพิ่ม" required />
+                    <FieldLabel no={2} htmlFor={fieldId('title')} label="ชื่อ Task / สิ่งที่ต้องการ" required />
                     <input
                         id={fieldId('title')}
                         value={form.title}
                         onChange={(e) => set('title', e.target.value)}
                         aria-invalid={Boolean(errors.title)}
                         maxLength={200}
-                        placeholder="เช่น เพิ่มปุ่ม Export รายงานเป็น Excel"
+                        placeholder="เช่น เพิ่มปุ่ม Export รายงานเป็น Excel, ทำรายงานยอดขนส่งรายเดือน"
                         className={cn(INPUT_CLASS, fieldBorder(!!errors.title))}
                     />
                     <FieldError message={errors.title} />
@@ -157,7 +199,7 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
                         value={form.detail}
                         onChange={(html) => set('detail', html)}
                         invalid={!!errors.detail}
-                        placeholder={'ตอนนี้ระบบทำงานอย่างไร / อยากให้เพิ่มหรือเปลี่ยนเป็นอย่างไร / ช่วยงานอะไรได้บ้าง'}
+                        placeholder={'ตอนนี้ทำงานอย่างไร / อยากให้ทำหรือเปลี่ยนเป็นอย่างไร / ช่วยงานอะไรได้บ้าง'}
                         className={fieldBorder(!!errors.detail)}
                     />
                     <FieldError message={errors.detail} />
@@ -192,7 +234,7 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
                 />
             </div>
 
-            <FormActions submitting={submitting} submitLabel="ส่งคำขอพัฒนาเพิ่ม" onReset={reset} />
+            <FormActions submitting={submitting} submitLabel="ส่งคำขอ Task" onReset={reset} />
         </form>
     );
 }

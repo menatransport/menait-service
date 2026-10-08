@@ -721,9 +721,9 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
                 </>}
                 right={<>
                     <SideLabel>อยู่ในโปรเจกต์</SideLabel>
-                    <button
+                    {t.project_id ? <button
                         type="button"
-                        onClick={() => onOpenProject(t.project_id)}
+                        onClick={() => onOpenProject(t.project_id!)}
                         className="group w-full text-left flex items-start gap-2.5 rounded-[14px] border border-border bg-brand-50/70 px-3 py-2.5 hover:border-brand-300 cursor-pointer transition-colors"
                     >
                         <KindMark kind="project" className="mt-0.5" />
@@ -732,18 +732,26 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
                             <span className="block text-sm font-semibold text-ink-900 line-clamp-2 group-hover:text-brand-700">{t.project_title}</span>
                         </span>
                         <ArrowUpRight className="w-4 h-4 text-ink-500 shrink-0 group-hover:text-brand-600" />
-                    </button>
+                    </button> : (
+                        <div className="flex items-start gap-2.5 rounded-[14px] border border-dashed border-ink-300 px-3 py-2.5">
+                            <span className="mt-1 w-2 h-2 shrink-0 rounded-full border border-dashed border-ink-500" aria-hidden />
+                            <span className="min-w-0">
+                                <span className="block text-sm font-semibold text-ink-900">งานเดี่ยว · ไม่อิงโปรเจกต์</span>
+                                <span className="block text-xs text-ink-500">ทีม OPS ผูกกับโปรเจกต์ได้ระหว่างสถานะ Open</span>
+                            </span>
+                        </div>
+                    )}
                     {movable && projects.length > 0 && (
                         <ProjectPicker
                             projects={projects}
-                            value={{ project_id: t.project_id, title: t.project_title }}
+                            value={t.project_id ? { project_id: t.project_id, title: t.project_title ?? t.project_id } : undefined}
                             onChange={(id) => { if (id !== t.project_id) void onEdit!(t, { project_id: id }); }}
                         >
                             <button
                                 type="button"
                                 className="-mt-1 self-start h-8 px-3 rounded-full inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50"
                             >
-                                <ArrowLeftRight className="w-3.5 h-3.5" /> ย้ายโปรเจกต์
+                                <ArrowLeftRight className="w-3.5 h-3.5" /> {t.project_id ? 'ย้ายโปรเจกต์' : 'ผูกกับโปรเจกต์'}
                             </button>
                         </ProjectPicker>
                     )}

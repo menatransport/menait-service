@@ -132,7 +132,8 @@ export interface ProjectTaskInput {
  * It starts Open with no owner until someone from the OPS team takes it.
  */
 export interface TaskRequestInput {
-    project_id: string;
+    /** null / omitted = a standalone task, not tied to any project */
+    project_id?: string | null;
     title: string;
     detail: string;
     priority: OpsPriority;
@@ -152,10 +153,12 @@ export type ProjectTaskEditInput = Partial<Pick<ProjectTaskInput, 'title' | 'pro
 };
 
 /** A piece of work the project's assignee creates and moves themselves. */
-export interface ProjectTask extends ProjectTaskInput {
+export interface ProjectTask extends Omit<ProjectTaskInput, 'project_id'> {
     task_id: string;
+    /** null = a standalone task (requested without a project); the OPS team may attach it to one while Open */
+    project_id: string | null;
     /** Denormalised for the card */
-    project_title: string;
+    project_title: string | null;
     status: OpsStatus;
     /**
      * Creator = the one responsible; co-assignees may be added until Done/Reject.

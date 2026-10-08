@@ -81,7 +81,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     items: [
     {
         title: 'Project Request',
-        description: 'ยื่นคำขอโปรเจกต์ใหม่ หรือขอพัฒนาเพิ่ม',
+        description: 'ยื่นคำขอโปรเจกต์ใหม่ หรือ Task ใหม่',
         icon: FolderKanban,
         href: '/ops/request'
     },

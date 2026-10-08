@@ -128,7 +128,7 @@ export const TaskDetailSection = ({ t, onSave }: {
                     </button>
                 )}
             </div>
-            <Row label={t.requested_by ? 'ขอพัฒนาเพิ่มโดย' : 'สร้างโดย'}>
+            <Row label={t.requested_by ? 'ผู้ขอ' : 'สร้างโดย'}>
                 {t.requested_by ? (
                     <>
                         <span className="font-semibold">{t.requested_by.name}</span>
