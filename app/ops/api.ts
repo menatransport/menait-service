@@ -106,6 +106,18 @@ export async function requestTask(input: TaskRequestInput, files: File[]) {
     return { task_id };
 }
 
+/** A task's files (request_attachments) — OPS team / admin or the requester, until Done. */
+export async function uploadTaskFile(taskId: string, file: File) {
+    const form = new FormData();
+    form.append('ref_type', 'task');
+    form.append('ref_id', taskId);
+    form.append('file', file);
+    return http<OpsAttachment>('/api/ops/attachments', { method: 'POST', body: form });
+}
+
+export const deleteTaskFile = (taskId: string, attachmentId: string) =>
+    http<ProjectTask>(`/api/ops/tasks/${taskId}/request-attachments/${attachmentId}`, { method: 'DELETE' });
+
 /** OPS team / admin: take a requested task that has no owner yet. */
 export const claimTask = (taskId: string) => http<ProjectTask>(`/api/ops/tasks/${taskId}/claim`, { method: 'POST' });
 
@@ -113,7 +125,7 @@ export const claimTask = (taskId: string) => http<ProjectTask>(`/api/ops/tasks/$
 export const updateTaskStatus = (taskId: string, status: OpsStatus) =>
     http<ProjectTask>(`/api/ops/tasks/${taskId}/status`, json('PATCH', { status }));
 
-/** Rename until Done; move it under another project (not Reject) while Open. */
+/** Title / detail / priority / target date until Done; move it under another project (not Reject) while Open. */
 export const updateTask = (taskId: string, input: ProjectTaskEditInput) =>
     http<ProjectTask>(`/api/ops/tasks/${taskId}`, json('PATCH', input));
 

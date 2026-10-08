@@ -6,8 +6,8 @@ import { th } from 'date-fns/locale';
 import { ArrowLeftRight, ArrowUpRight, Check, ChevronDown, Hand, Pencil, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import type { OpsPerson, OpsPriority, OpsReviewResult, OpsStatus, OpsStatusChange, Project, ProjectIssue, ProjectRequestInput, ProjectTask } from '../types';
-import { AttachmentList, PriorityBadge, STATUS_META, StatusBadge, formatThaiDate, isClosedStatus } from '../components';
+import type { OpsPerson, OpsPriority, OpsReviewResult, OpsStatus, OpsStatusChange, Project, ProjectIssue, ProjectRequestInput, ProjectTask, ProjectTaskEditInput } from '../types';
+import { AttachmentList, STATUS_META, StatusBadge, formatThaiDate, isClosedStatus } from '../components';
 import { RichTextView, isRichText } from '../rich-text';
 import { resolvePerson, useEmailOf } from '../team';
 import { AssigneePicker, KindMark, PersonAvatar } from './kanban';
@@ -18,6 +18,7 @@ import { ProjectLink } from './project-link';
 import { ReviewSection } from './review-panel';
 import { SurveySection } from './survey-panel';
 import { ProjectPicker } from './task-composer';
+import { TaskDetailSection, TaskFilesSection } from './task-detail';
 import { TaskNoteSection } from './task-note';
 
 // ───────────────────────────── hero (blue header, like the Home hero) ─────────────────────────────
@@ -647,8 +648,10 @@ type TaskSheetProps = {
     onAssign?: (task: ProjectTask, people: OpsPerson[]) => void;
     /** Back up to the parent project's sheet */
     onOpenProject: (projectId: string) => void;
-    /** OPS team / admin: rename it until Done; move it to another project while Open */
-    onEdit?: (task: ProjectTask, input: { title?: string; project_id?: string }) => void;
+    /** OPS team / admin: rename it and edit detail / priority / target date until Done; move it to another project while Open. Resolves true when saved */
+    onEdit?: (task: ProjectTask, input: ProjectTaskEditInput) => Promise<boolean>;
+    /** Signed-in viewer — the requester may add / remove the task's files too */
+    meId?: string;
     /** Projects it may move to (same list as the composer) */
     projects?: Project[];
     /** OPS team / admin: take a requested task that has no owner yet */
@@ -661,7 +664,7 @@ export const TaskDetailSheet = ({ task, ...rest }: TaskSheetProps & { task: Proj
     task ? <TaskSheet key={task.task_id} t={task} {...rest} /> : null;
 
 /** Status moves on the board; due date and co-assignees are edited here until Done/Reject, the title, note and pictures until Done. */
-const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onEdit, onClaim, onTaskChange, projects = [] }: TaskSheetProps & { t: ProjectTask }) => {
+const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onEdit, onClaim, onTaskChange, meId, projects = [] }: TaskSheetProps & { t: ProjectTask }) => {
     // null = a user's request (พัฒนาเพิ่ม) nobody has taken yet
     const owner = t.owner ? resolvePerson(t.owner, team) : null;
     const closed = isClosedStatus(t.status);
@@ -674,8 +677,9 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
             onClose={onClose}
             id={t.task_id}
             title={t.title}
-            onRename={renamable ? (title) => onEdit!(t, { title }) : undefined}
+            onRename={renamable ? (title) => void onEdit!(t, { title }) : undefined}
             status={t.status}
+            priority={t.priority ?? undefined}
             updatedAt={t.updated_at}
         >
             <SidesCard
@@ -733,7 +737,7 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
                         <ProjectPicker
                             projects={projects}
                             value={{ project_id: t.project_id, title: t.project_title }}
-                            onChange={(id) => { if (id !== t.project_id) onEdit!(t, { project_id: id }); }}
+                            onChange={(id) => { if (id !== t.project_id) void onEdit!(t, { project_id: id }); }}
                         >
                             <button
                                 type="button"
@@ -747,21 +751,7 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
                 </>}
             />
 
-            {t.requested_by && (
-                <section className="rounded-[22px] border border-border bg-white px-5 py-1 divide-y divide-border">
-                    <Field label="ขอพัฒนาเพิ่มโดย">
-                        <span className="font-semibold">{t.requested_by.name}</span>
-                        {t.requested_by.department && <span className="text-ink-500"> · {t.requested_by.department}</span>}
-                    </Field>
-                    {(t.priority || t.target_date) && (
-                        <div className="py-3.5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-ink-900">
-                            {t.priority && <span className="flex items-center gap-2"><span className="text-xs font-semibold text-ink-500">ความสำคัญ</span><PriorityBadge priority={t.priority} /></span>}
-                            {t.target_date && <span className="flex items-center gap-2"><span className="text-xs font-semibold text-ink-500">ต้องการใช้งาน</span>{formatThaiDate(t.target_date)}</span>}
-                        </div>
-                    )}
-                    {t.detail && <Field label="รายละเอียดคำขอ">{t.detail}</Field>}
-                </section>
-            )}
+            <TaskDetailSection t={t} onSave={onEdit ? (input) => onEdit(t, input) : undefined} />
 
             <TaskNoteSection t={t} onChange={(update) => onTaskChange(t.task_id, update)} />
 
@@ -769,7 +759,11 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
 
             <div className="space-y-2.5">
                 <HistorySection items={t.status_history} />
-                {t.requested_by && <AttachmentsSection title="ไฟล์แนบคำขอ" items={t.request_attachments ?? []} />}
+                <TaskFilesSection
+                    t={t}
+                    canManage={Boolean(onEdit) || (Boolean(meId) && t.requested_by?.employee_id === meId)}
+                    onChange={(update) => onTaskChange(t.task_id, update)}
+                />
             </div>
         </SheetShell>
     );

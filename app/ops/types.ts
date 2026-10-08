@@ -140,8 +140,16 @@ export interface TaskRequestInput {
     target_date?: string | null;
 }
 
-/** PATCH /api/ops/tasks/{id} — OPS team / admin: title until Done; project_id while Open (same target rule as creating) */
-export type ProjectTaskEditInput = Partial<Pick<ProjectTaskInput, 'title' | 'project_id'>>;
+/**
+ * PATCH /api/ops/tasks/{id} — OPS team / admin: title, detail, priority, target_date until Done;
+ * project_id while Open (same target rule as creating). null clears detail / priority / target_date.
+ */
+export type ProjectTaskEditInput = Partial<Pick<ProjectTaskInput, 'title' | 'project_id'>> & {
+    detail?: string | null;
+    priority?: OpsPriority | null;
+    /** YYYY-MM-DD */
+    target_date?: string | null;
+};
 
 /** A piece of work the project's assignee creates and moves themselves. */
 export interface ProjectTask extends ProjectTaskInput {

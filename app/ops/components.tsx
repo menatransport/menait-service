@@ -302,6 +302,18 @@ export const DateField = ({ id, value, onChange, fromToday = true }: {
 
 // ───────────────────────────── attachments ─────────────────────────────
 
+const RemoveButton = ({ a, onRemove, busy, className }: { a: OpsAttachment; onRemove: (a: OpsAttachment) => void; busy: boolean; className?: string }) => (
+    <button
+        type="button"
+        onClick={() => onRemove(a)}
+        disabled={busy}
+        aria-label={`ลบ ${a.file_name}`}
+        className={cn('w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-rose-400 hover:bg-rose-50 hover:text-rose-500 cursor-pointer disabled:cursor-wait', className)}
+    >
+        {busy ? <span className="w-3.5 h-3.5 border-2 border-rose-200 border-t-rose-500 rounded-full animate-spin" /> : <X className="w-4 h-4" />}
+    </button>
+);
+
 /** Multi-file picker (drag & drop or click). Files are uploaded after the record is created. */
 export const AttachmentPicker = ({
     files, onChange, accept, acceptLabel, maxFiles = 5, maxSizeMB = 10,
@@ -392,8 +404,13 @@ export const AttachmentPicker = ({
     );
 };
 
-/** Images show as thumbnails (click → zoomable viewer); other files stay as links. */
-export const AttachmentList = ({ items }: { items: OpsAttachment[] }) => {
+/** Images show as thumbnails (click → zoomable viewer); other files stay as links. `onRemove` adds an × to each. */
+export const AttachmentList = ({ items, onRemove, removing }: {
+    items: OpsAttachment[];
+    onRemove?: (a: OpsAttachment) => void;
+    /** attachment_id being removed — its × spins */
+    removing?: string | null;
+}) => {
     const [viewing, setViewing] = useState<number | null>(null);
     if (items.length === 0) return <p className="text-sm text-gray-400">ไม่มีไฟล์แนบ</p>;
     const images = items.filter(a => a.mime_type.startsWith('image/'));
@@ -404,7 +421,7 @@ export const AttachmentList = ({ items }: { items: OpsAttachment[] }) => {
             {images.length > 0 && (
                 <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {images.map((a, i) => (
-                        <li key={a.attachment_id}>
+                        <li key={a.attachment_id} className="relative">
                             <button
                                 type="button"
                                 onClick={() => setViewing(i)}
@@ -417,6 +434,7 @@ export const AttachmentList = ({ items }: { items: OpsAttachment[] }) => {
                                     {a.file_name}
                                 </span>
                             </button>
+                            {onRemove && <RemoveButton a={a} onRemove={onRemove} busy={removing === a.attachment_id} className="absolute top-1.5 right-1.5 bg-white/90 shadow-sm" />}
                         </li>
                     ))}
                 </ul>
@@ -426,13 +444,14 @@ export const AttachmentList = ({ items }: { items: OpsAttachment[] }) => {
                     {files.map(a => {
                         const Icon = fileIcon(a.mime_type);
                         return (
-                            <li key={a.attachment_id}>
-                                <a href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 hover:border-brand-600/30">
+                            <li key={a.attachment_id} className="flex items-center gap-1.5">
+                                <a href={a.url} target="_blank" rel="noreferrer" className="flex-1 min-w-0 flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 hover:border-brand-600/30">
                                     <Icon className="w-4 h-4 text-brand-600 shrink-0" />
                                     <span className="text-xs text-gray-700 truncate flex-1">{a.file_name}</span>
                                     <span className="text-[10px] text-gray-400">{formatSize(a.size)}</span>
                                     <Paperclip className="w-3.5 h-3.5 text-gray-400" />
                                 </a>
+                                {onRemove && <RemoveButton a={a} onRemove={onRemove} busy={removing === a.attachment_id} />}
                             </li>
                         );
                     })}

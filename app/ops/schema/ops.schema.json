@@ -325,7 +325,7 @@
         "detail":          { "type": ["string", "null"], "maxLength": 5000 },
         "priority":        { "oneOf": [{ "$ref": "#/$defs/Priority" }, { "type": "null" }] },
         "target_date":     { "type": ["string", "null"], "format": "date" },
-        "request_attachments": { "type": "array", "items": { "$ref": "#/$defs/Attachment" }, "description": "Files sent with the request" },
+        "request_attachments": { "type": "array", "items": { "$ref": "#/$defs/Attachment" }, "description": "Task files on every task — POST /api/ops/attachments ref_type=task · DELETE /api/ops/tasks/{task_id}/request-attachments/{attachment_id} → ProjectTask; requester or OPS team / admin, not when Done" },
         "note":            { "type": ["string", "null"], "maxLength": 5000, "description": "The responsible people's work note" },
         "note_updated_at": { "type": ["string", "null"], "format": "date-time" },
         "note_updated_by": { "oneOf": [{ "$ref": "#/$defs/Person" }, { "type": "null" }] },
@@ -346,12 +346,15 @@
     },
 
     "TaskEditInput": {
-      "$comment": "Body of PATCH /api/ops/tasks/{task_id}. OPS team / admin: title until Done; project_id only while the task is Open. project_id must be a project that is not Reject; the response carries the new project_title.",
+      "$comment": "Body of PATCH /api/ops/tasks/{task_id}. OPS team / admin: title, detail, priority, target_date until Done (null clears the last three); project_id only while the task is Open. project_id must be a project that is not Reject; the response carries the new project_title.",
       "type": "object",
       "minProperties": 1,
       "properties": {
         "title":      { "type": "string", "minLength": 1, "maxLength": 200 },
-        "project_id": { "type": "string" }
+        "project_id": { "type": "string" },
+        "detail":      { "type": ["string", "null"], "maxLength": 5000 },
+        "priority":    { "oneOf": [{ "$ref": "#/$defs/Priority" }, { "type": "null" }] },
+        "target_date": { "type": ["string", "null"], "format": "date" }
       },
       "additionalProperties": false
     },

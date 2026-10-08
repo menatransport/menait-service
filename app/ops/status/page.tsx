@@ -285,19 +285,21 @@ function ProjectStatusContent() {
     };
 
     /** While Open: rename or move to another project */
-    const editTask = async (t: ProjectTask, input: ProjectTaskEditInput) => {
-        if (!me) return;
+    const editTask = async (t: ProjectTask, input: ProjectTaskEditInput): Promise<boolean> => {
+        if (!me) return false;
         const swap = (next: ProjectTask) => setTasks(list => sortTasks(list.map(x => (x.task_id === t.task_id ? next : x))));
         const target = input.project_id ? assigned.find(p => p.project_id === input.project_id) : undefined;
         swap({ ...t, ...input, ...(target && { project_title: target.title }) });
         try {
             swap(await updateTask(t.task_id, input));
             if (target) setLandedKey(t.task_id);
-            toast('success', target ? `ย้ายไป ${target.project_id} แล้ว` : 'บันทึกชื่อ Task แล้ว');
+            toast('success', target ? `ย้ายไป ${target.project_id} แล้ว` : input.title !== undefined ? 'บันทึกชื่อ Task แล้ว' : 'บันทึกรายละเอียด Task แล้ว');
             void reload();
+            return true;
         } catch (err) {
             swap(t);
             toast('error', err instanceof Error ? err.message : 'บันทึก Task ไม่สำเร็จ');
+            return false;
         }
     };
 
@@ -680,6 +682,7 @@ function ProjectStatusContent() {
                 onAssign={canManage ? assignTask : undefined}
                 onEdit={canManage ? editTask : undefined}
                 onClaim={canManage ? takeTask : undefined}
+                meId={me?.employee_id}
                 onTaskChange={(id, update) => setTasks(list => list.map(x => (x.task_id === id ? update(x) : x)))}
                 projects={taskProjects}
             />
