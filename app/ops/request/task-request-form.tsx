@@ -34,7 +34,7 @@ const validate = (f: FormState) => {
 };
 
 /**
- * คำขอ / พัฒนาบนโปรเจกต์เดิม: a task under a project that is already accepted (not Open / Reject),
+ * คำร้อง / พัฒนาบนโปรเจกต์เดิม: a task under a project that is already accepted (not Open / Reject),
  * or a standalone คำร้อง (NO_PROJECT). It lands on the board in Open without an owner until the OPS team takes it.
  */
 export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }: {
