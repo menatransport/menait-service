@@ -2,14 +2,13 @@
 
 import { useRef, useState } from 'react';
 import { Paperclip, Pencil, Upload } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { deleteTaskFile, uploadTaskFile } from '../api';
-import { AttachmentList, DateField, PriorityBadge, PriorityPicker, TEXTAREA_CLASS, fieldBorder, formatThaiDate } from '../components';
+import { AttachmentList, DateField, PriorityBadge, PriorityPicker, fieldBorder, formatThaiDate } from '../components';
+import { RichTextEditor, RichTextView, isRichText, richTextLength } from '../rich-text';
 import type { OpsAttachment, OpsPriority, ProjectTask, ProjectTaskEditInput } from '../types';
 
-/** Keep in sync with ncacdb (check_attachment_file / TaskEditInput.detail) */
+/** Keep in sync with ncacdb check_attachment_file */
 const MAX_FILE_MB = 10;
-const MAX_DETAIL = 5000;
 const FILE_ACCEPT = 'image/png,image/jpeg,application/pdf,.xlsx,.xls,.csv,.docx,.doc,.pptx';
 
 const errorText = (err: unknown, fallback: string) => (err instanceof Error && err.message) || fallback;
@@ -21,6 +20,10 @@ const Row = ({ label, children }: { label: string; children: React.ReactNode }) 
     </div>
 );
 
+/** Plain-text detail (older tasks) → paragraphs, so the editor keeps its line breaks. */
+const plainToHtml = (text: string) =>
+    text.split(/\r?\n/).map(line => `<p>${line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`).join('');
+
 const Empty = ({ children = '-' }: { children?: React.ReactNode }) => <span className="text-ink-500">{children}</span>;
 
 /** In-place editor for detail / priority / target date. Resolves true when saved. */
@@ -29,7 +32,7 @@ const TaskDetailForm = ({ t, onSave, onCancel }: {
     onSave: (input: ProjectTaskEditInput) => Promise<boolean>;
     onCancel: () => void;
 }) => {
-    const [detail, setDetail] = useState(t.detail ?? '');
+    const [detail, setDetail] = useState(() => (t.detail && !isRichText(t.detail) ? plainToHtml(t.detail) : t.detail ?? ''));
     const [priority, setPriority] = useState<OpsPriority | ''>(t.priority ?? '');
     const [targetDate, setTargetDate] = useState(t.target_date ?? '');
     const [saving, setSaving] = useState(false);
@@ -37,7 +40,7 @@ const TaskDetailForm = ({ t, onSave, onCancel }: {
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
-        const ok = await onSave({ detail: detail.trim() || null, priority: priority || null, target_date: targetDate || null });
+        const ok = await onSave({ detail: richTextLength(detail) ? detail : null, priority: priority || null, target_date: targetDate || null });
         setSaving(false);
         if (ok) onCancel();
     };
@@ -53,14 +56,12 @@ const TaskDetailForm = ({ t, onSave, onCancel }: {
             <p className="text-[13px] font-semibold text-brand-700">แก้ไขรายละเอียด Task</p>
             <div>
                 <label htmlFor="task-edit-detail" className="block text-xs font-semibold text-ink-500 mb-1.5">รายละเอียด</label>
-                <textarea
+                <RichTextEditor
                     id="task-edit-detail"
                     value={detail}
-                    onChange={(e) => setDetail(e.target.value)}
-                    rows={5}
-                    maxLength={MAX_DETAIL}
+                    onChange={setDetail}
                     placeholder="สิ่งที่ต้องทำ / ขอบเขตงาน / เงื่อนไขที่ต้องระวัง"
-                    className={cn(TEXTAREA_CLASS, fieldBorder())}
+                    className={fieldBorder()}
                 />
             </div>
             <div>
@@ -151,7 +152,7 @@ export const TaskDetailSection = ({ t, onSave }: {
                 </div>
             </div>
             <Row label="รายละเอียด">
-                {t.detail || <Empty>{canEdit ? 'ยังไม่มีรายละเอียด — กด "แก้ไข" เพื่อเพิ่ม' : 'ยังไม่มีรายละเอียด'}</Empty>}
+                {t.detail ? (isRichText(t.detail) ? <RichTextView html={t.detail} /> : t.detail) : <Empty>{canEdit ? 'ยังไม่มีรายละเอียด — กด "แก้ไข" เพื่อเพิ่ม' : 'ยังไม่มีรายละเอียด'}</Empty>}
             </Row>
         </section>
     );

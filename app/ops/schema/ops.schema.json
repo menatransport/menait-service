@@ -302,7 +302,7 @@
       "properties": {
         "project_id":  { "$ref": "#/$defs/ProjectId" },
         "title":       { "type": "string", "minLength": 3, "maxLength": 200, "description": "ชื่อ Task / สิ่งที่ต้องการเพิ่ม" },
-        "detail":      { "type": "string", "minLength": 10, "maxLength": 5000, "description": "รายละเอียดและเหตุผล" },
+        "detail":      { "type": "string", "maxLength": 20000, "description": "รายละเอียดและเหตุผล — rich-text HTML (same editor + sanitizer as Project.requirement); at least 10 visible characters" },
         "priority":    { "$ref": "#/$defs/Priority" },
         "target_date": { "type": ["string", "null"], "format": "date", "description": "วันที่ต้องการใช้งาน" }
       },
@@ -322,7 +322,7 @@
         "assignees":      { "type": "array", "items": { "$ref": "#/$defs/Person" }, "description": "Co-assignees added by the owner until Done/Reject (owner excluded). Allowed usernames: see $defs.AssignInput" },
         "status_history": { "type": "array", "items": { "$ref": "#/$defs/StatusChange" } },
         "requested_by":    { "oneOf": [{ "$ref": "#/$defs/Person" }, { "type": "null" }], "description": "Set on tasks filed from /ops/request (TaskRequestInput)" },
-        "detail":          { "type": ["string", "null"], "maxLength": 5000 },
+        "detail":          { "type": ["string", "null"], "maxLength": 20000, "description": "Sanitized rich-text HTML; older tasks may hold plain text" },
         "priority":        { "oneOf": [{ "$ref": "#/$defs/Priority" }, { "type": "null" }] },
         "target_date":     { "type": ["string", "null"], "format": "date" },
         "request_attachments": { "type": "array", "items": { "$ref": "#/$defs/Attachment" }, "description": "Task files on every task — POST /api/ops/attachments ref_type=task · DELETE /api/ops/tasks/{task_id}/request-attachments/{attachment_id} → ProjectTask; requester or OPS team / admin, not when Done" },
@@ -352,7 +352,7 @@
       "properties": {
         "title":      { "type": "string", "minLength": 1, "maxLength": 200 },
         "project_id": { "type": "string" },
-        "detail":      { "type": ["string", "null"], "maxLength": 5000 },
+        "detail":      { "type": ["string", "null"], "maxLength": 20000, "description": "Rich-text HTML; no visible text → null" },
         "priority":    { "oneOf": [{ "$ref": "#/$defs/Priority" }, { "type": "null" }] },
         "target_date": { "type": ["string", "null"], "format": "date" }
       },

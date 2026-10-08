@@ -49,6 +49,13 @@ const PLACEHOLDER_CLASS = cn(
 /** Plain-text values from before the editor existed. */
 export const isRichText = (value: string) => /<\/?[a-z][\s\S]*>/i.test(value);
 
+/** Visible text of editor HTML (tags dropped, entities decoded, spaces collapsed) — for length checks. */
+export const richTextLength = (html: string) => {
+    if (!isRichText(html)) return html.trim().length;
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return (doc.body.textContent ?? '').replace(/\s+/g, ' ').trim().length;
+};
+
 export function RichTextEditor({ id, value, onChange, placeholder, invalid, className }: {
     id: string; value: string; onChange: (html: string) => void;
     placeholder?: string; invalid?: boolean; className?: string;

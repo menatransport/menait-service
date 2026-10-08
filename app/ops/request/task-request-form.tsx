@@ -7,8 +7,9 @@ import { cn } from '@/lib/utils';
 import { listProjects, OpsRequestError, requestTask } from '../api';
 import {
     AttachmentPicker, DateField, FieldError, FieldLabel, FormActions, INPUT_CLASS,
-    PriorityPicker, RequesterCard, SectionTitle, StatusBadge, TEXTAREA_CLASS, fieldBorder,
+    PriorityPicker, RequesterCard, SectionTitle, StatusBadge, fieldBorder,
 } from '../components';
+import { RichTextEditor, richTextLength } from '../rich-text';
 import type { OpsPriority, Project, TaskRequestInput } from '../types';
 
 const MIN_DETAIL = 10;
@@ -24,7 +25,7 @@ const validate = (f: FormState) => {
     const errors: Record<string, string> = {};
     if (!f.project_id) errors.project_id = 'กรุณาเลือกโปรเจกต์ที่ต้องการพัฒนาเพิ่ม';
     if (f.title.trim().length < 3) errors.title = 'กรุณาระบุชื่อ Task อย่างน้อย 3 ตัวอักษร';
-    if (f.detail.trim().length < MIN_DETAIL) errors.detail = `กรุณาอธิบายสิ่งที่ต้องการอย่างน้อย ${MIN_DETAIL} ตัวอักษร`;
+    if (richTextLength(f.detail) < MIN_DETAIL) errors.detail = `กรุณาอธิบายสิ่งที่ต้องการอย่างน้อย ${MIN_DETAIL} ตัวอักษร`;
     if (!f.priority) errors.priority = 'กรุณาเลือกระดับความสำคัญ';
     return errors;
 };
@@ -151,15 +152,13 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
                 </div>
                 <div>
                     <FieldLabel no={3} htmlFor={fieldId('detail')} label="รายละเอียดและเหตุผล" required />
-                    <textarea
+                    <RichTextEditor
                         id={fieldId('detail')}
                         value={form.detail}
-                        onChange={(e) => set('detail', e.target.value)}
-                        aria-invalid={Boolean(errors.detail)}
-                        rows={5}
-                        maxLength={5000}
-                        placeholder={'ตอนนี้ระบบทำงานอย่างไร:\nอยากให้เพิ่ม / เปลี่ยนเป็นอย่างไร:\nช่วยงานอะไรได้บ้าง:'}
-                        className={cn(TEXTAREA_CLASS, 'min-h-36', fieldBorder(!!errors.detail))}
+                        onChange={(html) => set('detail', html)}
+                        invalid={!!errors.detail}
+                        placeholder={'ตอนนี้ระบบทำงานอย่างไร / อยากให้เพิ่มหรือเปลี่ยนเป็นอย่างไร / ช่วยงานอะไรได้บ้าง'}
+                        className={fieldBorder(!!errors.detail)}
                     />
                     <FieldError message={errors.detail} />
                 </div>
