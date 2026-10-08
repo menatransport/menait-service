@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Check, FolderKanban, ListPlus, Send, type LucideIcon } from 'lucide-react';
+import { Check, FolderKanban, ListPlus, type LucideIcon } from 'lucide-react';
 import { Navbar } from '@/components/navbar';
 import { SubmitSuccess } from '@/components/ui/submit-success';
 import { useSessionContext } from '@/app/context/SessionContext';
@@ -24,7 +24,7 @@ const TYPES: Record<RequestType, { icon: LucideIcon; title: string; caption: str
     },
     task: {
         icon: ListPlus,
-        title: 'พัฒนาเพิ่ม (Task ใหม่)',
+        title: 'พัฒนาเพิ่มบนโปรเจกต์เดิม',
         caption: 'เพิ่มหรือปรับฟังก์ชันในโปรเจกต์ที่มีอยู่แล้ว',
         example: 'เช่น เพิ่มปุ่ม Export, เพิ่มช่องข้อมูล, ปรับหน้ารายงาน',
         shell: 'ขอพัฒนาเพิ่มในโปรเจกต์เดิม',
@@ -32,22 +32,23 @@ const TYPES: Record<RequestType, { icon: LucideIcon; title: string; caption: str
     },
 };
 
-const typeFrom = (v: string | null): RequestType | null => (v === 'project' || v === 'task' ? v : null);
+/** No / unknown ?type → โปรเจกต์ใหม่ */
+const typeFrom = (v: string | null): RequestType => (v === 'task' ? 'task' : 'project');
 
 /**
  * Keeps the choice (and the picked project) in the URL without a Next navigation,
  * so /ops/request?type=task&project=OPS-… can be shared and opens ready to fill.
  */
-const syncUrl = (type: RequestType | null, projectId: string) => {
+const syncUrl = (type: RequestType, projectId: string) => {
     const params = new URLSearchParams();
-    if (type) params.set('type', type);
+    params.set('type', type);
     if (type === 'task' && projectId) params.set('project', projectId);
     const qs = params.toString();
     window.history.replaceState(null, '', `/ops/request${qs ? `?${qs}` : ''}`);
 };
 
-/** Two radio cards — the first thing on the page; compact once a type is chosen. */
-const RequestTypePicker = ({ value, onChange }: { value: RequestType | null; onChange: (t: RequestType) => void }) => (
+/** Two radio cards — the first thing on the page. */
+const RequestTypePicker = ({ value, onChange }: { value: RequestType; onChange: (t: RequestType) => void }) => (
     <div role="radiogroup" aria-label="ประเภทคำขอ" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {(Object.keys(TYPES) as RequestType[]).map(t => {
             const m = TYPES[t];
@@ -62,7 +63,7 @@ const RequestTypePicker = ({ value, onChange }: { value: RequestType | null; onC
                     className={cn(
                         'relative text-left rounded-2xl border-2 p-4 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-600/20',
                         active ? 'border-brand-600 bg-brand-50 ring-4 ring-brand-600/10' : 'border-gray-200 bg-white hover:border-brand-600/40',
-                        value && !active && 'opacity-70 hover:opacity-100',
+                        !active && 'opacity-70 hover:opacity-100',
                     )}
                 >
                     {active && (
@@ -93,7 +94,7 @@ function RequestContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user } = useSessionContext();
-    const [type, setType] = useState<RequestType | null>(typeFrom(searchParams.get('type')));
+    const [type, setType] = useState<RequestType>(typeFrom(searchParams.get('type')));
     const [projectId, setProjectId] = useState(searchParams.get('project') ?? '');
     const [created, setCreated] = useState<{ type: RequestType; id: string } | null>(null);
 
@@ -114,13 +115,9 @@ function RequestContent() {
         );
     }
 
-    const shell = type ? TYPES[type] : null;
+    const shell = TYPES[type];
     return (
-        <OpsFormShell
-            icon={shell?.icon ?? Send}
-            title={shell?.shell ?? 'ยื่นคำขอ OPS'}
-            subtitle={shell?.subtitle ?? 'เลือกประเภทคำขอก่อน แล้วกรอกรายละเอียดด้านล่าง'}
-        >
+        <OpsFormShell icon={shell.icon} title={shell.shell} subtitle={shell.subtitle}>
             {/* gap, not space-y: the hidden form must not leave a margin behind */}
             <div className="flex flex-col gap-6">
                 <div>
