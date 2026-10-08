@@ -310,13 +310,13 @@
     },
 
     "ProjectTask": {
-      "$comment": "GET /api/ops/tasks?scope=mine|all&project_id= → ProjectTask[] (scope=mine: session user is owner, assignee or requester) · POST /api/ops/tasks/{task_id}/claim (OPS team / admin, owner must be null, not Done/Reject) → ProjectTask · PATCH /api/ops/tasks/{task_id} TaskEditInput (title: not when Done; project_id: only while Open) → ProjectTask · PATCH /api/ops/tasks/{task_id}/status { status } (remark optional, Reject = cancelled; a task without an owner gets the mover as owner) → ProjectTask · PATCH /api/ops/tasks/{task_id}/assignees AssignInput (not when Done/Reject; owner is never in the list) → ProjectTask · PATCH /api/ops/tasks/{task_id}/plan TaskPlanInput (not when Done/Reject) → ProjectTask. All task changes above: OPS team / admin, on every task. Note + pictures — owner / co-assignees / admin, not when Done (can_note): PATCH /api/ops/tasks/{task_id}/note TaskNoteInput → ProjectTask · POST /api/ops/tasks/{task_id}/attachments multipart { file } (images only, max 10) → 201 Attachment · DELETE /api/ops/tasks/{task_id}/attachments/{attachment_id} → ProjectTask",
+      "$comment": "GET /api/ops/tasks?scope=mine|all&project_id= → ProjectTask[] (scope=mine: session user is owner, assignee or requester) · POST /api/ops/tasks/{task_id}/claim (OPS team / admin, owner must be null, not Done/Reject) → ProjectTask · PATCH /api/ops/tasks/{task_id} TaskEditInput (title, detail, priority, target_date: not when Done; project_id — move / attach / detach (null): not when Done / Reject) → ProjectTask · PATCH /api/ops/tasks/{task_id}/status { status } (remark optional, Reject = cancelled; a task without an owner gets the mover as owner) → ProjectTask · PATCH /api/ops/tasks/{task_id}/assignees AssignInput (not when Done/Reject; owner is never in the list) → ProjectTask · PATCH /api/ops/tasks/{task_id}/plan TaskPlanInput (not when Done/Reject) → ProjectTask. All task changes above: OPS team / admin, on every task. Note + pictures — owner / co-assignees / admin, not when Done (can_note): PATCH /api/ops/tasks/{task_id}/note TaskNoteInput → ProjectTask · POST /api/ops/tasks/{task_id}/attachments multipart { file } (images only, max 10) → 201 Attachment · DELETE /api/ops/tasks/{task_id}/attachments/{attachment_id} → ProjectTask",
       "allOf": [{ "$ref": "#/$defs/ProjectTaskInput" }],
       "type": "object",
       "required": ["task_id", "status", "owner", "assignees", "status_history", "created_at", "updated_at"],
       "properties": {
         "task_id":        { "$ref": "#/$defs/TaskId" },
-        "project_title":  { "type": ["string", "null"], "description": "Denormalised for list display; null on a standalone task (project_id null — the OPS team may attach it via TaskEditInput.project_id while Open)" },
+        "project_title":  { "type": ["string", "null"], "description": "Denormalised for list display; null on a standalone task (project_id null — the OPS team may attach it via TaskEditInput.project_id until Done / Reject)" },
         "status":         { "$ref": "#/$defs/Status" },
         "owner":          { "oneOf": [{ "$ref": "#/$defs/Person" }, { "type": "null" }], "description": "Creator and main responsible person; null = a user's request nobody has taken yet" },
         "assignees":      { "type": "array", "items": { "$ref": "#/$defs/Person" }, "description": "Co-assignees added by the owner until Done/Reject (owner excluded). Allowed usernames: see $defs.AssignInput" },
@@ -346,7 +346,7 @@
     },
 
     "TaskEditInput": {
-      "$comment": "Body of PATCH /api/ops/tasks/{task_id}. OPS team / admin: title, detail, priority, target_date until Done (null clears the last three); project_id only while the task is Open. project_id must be a project that is not Reject; the response carries the new project_title.",
+      "$comment": "Body of PATCH /api/ops/tasks/{task_id}. OPS team / admin: title, detail, priority, target_date until Done (null clears the last three); project_id (null = detach into a คำร้อง) until the task is Done / Reject. project_id must be a project that is not Reject; the response carries the new project_title.",
       "type": "object",
       "minProperties": 1,
       "properties": {

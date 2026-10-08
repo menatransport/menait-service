@@ -125,7 +125,7 @@ export const claimTask = (taskId: string) => http<ProjectTask>(`/api/ops/tasks/$
 export const updateTaskStatus = (taskId: string, status: OpsStatus) =>
     http<ProjectTask>(`/api/ops/tasks/${taskId}/status`, json('PATCH', { status }));
 
-/** Title / detail / priority / target date until Done; move it under another project (not Reject) while Open. */
+/** Title / detail / priority / target date until Done; move it under another project (not Reject) or into a คำร้อง until Done / Reject. */
 export const updateTask = (taskId: string, input: ProjectTaskEditInput) =>
     http<ProjectTask>(`/api/ops/tasks/${taskId}`, json('PATCH', input));
 

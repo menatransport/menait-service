@@ -144,7 +144,7 @@ export interface TaskRequestInput {
 
 /**
  * PATCH /api/ops/tasks/{id} — OPS team / admin: title, detail, priority, target_date until Done;
- * project_id while Open (same target rule as creating; null detaches it into a คำร้อง). null clears detail / priority / target_date.
+ * project_id until Done / Reject (same target rule as creating; null detaches it into a คำร้อง). null clears detail / priority / target_date.
  */
 export type ProjectTaskEditInput = Partial<Pick<ProjectTaskInput, 'title' | 'project_id'>> & {
     detail?: string | null;
@@ -156,7 +156,7 @@ export type ProjectTaskEditInput = Partial<Pick<ProjectTaskInput, 'title' | 'pro
 /** A piece of work the project's assignee creates and moves themselves. */
 export interface ProjectTask extends Omit<ProjectTaskInput, 'project_id'> {
     task_id: string;
-    /** null = a standalone task (requested without a project); the OPS team may attach it to one while Open */
+    /** null = a standalone task (requested without a project); the OPS team may attach it to one until Done / Reject */
     project_id: string | null;
     /** Denormalised for the card */
     project_title: string | null;

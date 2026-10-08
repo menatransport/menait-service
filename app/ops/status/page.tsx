@@ -284,7 +284,7 @@ function ProjectStatusContent() {
         }
     };
 
-    /** While Open: rename or move to another project */
+    /** Rename / edit details until Done; move to another project or into a คำร้อง until Done / Reject */
     const editTask = async (t: ProjectTask, input: ProjectTaskEditInput): Promise<boolean> => {
         if (!me) return false;
         const swap = (next: ProjectTask) => setTasks(list => sortTasks(list.map(x => (x.task_id === t.task_id ? next : x))));

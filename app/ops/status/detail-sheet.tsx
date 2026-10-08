@@ -648,7 +648,7 @@ type TaskSheetProps = {
     onAssign?: (task: ProjectTask, people: OpsPerson[]) => void;
     /** Back up to the parent project's sheet */
     onOpenProject: (projectId: string) => void;
-    /** OPS team / admin: rename it and edit detail / priority / target date until Done; move it to another project while Open. Resolves true when saved */
+    /** OPS team / admin: rename it and edit detail / priority / target date until Done; move it to another project (or คำร้อง) until Done / Reject. Resolves true when saved */
     onEdit?: (task: ProjectTask, input: ProjectTaskEditInput) => Promise<boolean>;
     /** Signed-in viewer — the requester may add / remove the task's files too */
     meId?: string;
@@ -665,12 +665,12 @@ export const TaskDetailSheet = ({ task, ...rest }: TaskSheetProps & { task: Proj
 
 /** Status moves on the board; due date and co-assignees are edited here until Done/Reject, the title, note and pictures until Done. */
 const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onEdit, onClaim, onTaskChange, meId, projects = [] }: TaskSheetProps & { t: ProjectTask }) => {
-    // null = a user's request (พัฒนาเพิ่ม) nobody has taken yet
+    // null = a user's request nobody has taken yet
     const owner = t.owner ? resolvePerson(t.owner, team) : null;
     const closed = isClosedStatus(t.status);
-    // the title stays editable until Done; moving to another project only before work starts
+    // the title stays editable until Done; the project can change until Done / Reject
     const renamable = Boolean(onEdit) && t.status !== 'Done';
-    const movable = Boolean(onEdit) && t.status === 'Open';
+    const movable = Boolean(onEdit) && !closed;
     const rejectRemark = t.status === 'Reject' ? t.status_history.findLast(h => h.status === 'Reject')?.remark : null;
     return (
         <SheetShell
@@ -737,7 +737,7 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
                             <span className="mt-1 w-2 h-2 shrink-0 rounded-full border border-dashed border-ink-500" aria-hidden />
                             <span className="min-w-0">
                                 <span className="block text-sm font-semibold text-ink-900">{NO_PROJECT_LABEL}</span>
-                                <span className="block text-xs text-ink-500">ทีม OPS ผูกกับโปรเจกต์ได้ระหว่างสถานะ Open</span>
+                                <span className="block text-xs text-ink-500">ทีม OPS ผูกกับโปรเจกต์ได้จนกว่าจะ Done</span>
                             </span>
                         </div>
                     )}
