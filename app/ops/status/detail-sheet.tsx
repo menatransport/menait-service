@@ -682,14 +682,16 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
                 left={<>
                     <SideLabel>ผู้รับผิดชอบ</SideLabel>
                     {owner ? <PersonLine person={owner} sub="เจ้าของ Task" /> : (
-                        <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="w-9 h-9 shrink-0 rounded-full border-2 border-dashed border-ink-300" aria-hidden />
-                            <div className="min-w-0 flex-1">
-                                <p className="text-sm font-semibold text-ink-900">รอทีม OPS รับงาน</p>
-                                <p className="text-xs text-ink-500">ผู้ที่รับงานจะเป็นเจ้าของ Task</p>
+                        <div className="flex flex-col gap-2.5 min-w-0">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="w-9 h-9 shrink-0 rounded-full border-2 border-dashed border-ink-300" aria-hidden />
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-ink-900">รอทีม OPS รับงาน</p>
+                                    <p className="text-xs text-ink-500">ผู้ที่รับงานจะเป็นเจ้าของ Task</p>
+                                </div>
                             </div>
                             {onClaim && !closed && (
-                                <button type="button" onClick={() => onClaim(t)} className="v2-btn h-9 px-3.5 text-xs inline-flex items-center gap-1.5 shrink-0 cursor-pointer">
+                                <button type="button" onClick={() => onClaim(t)} className="v2-btn self-start h-9 px-4 text-xs inline-flex items-center gap-1.5 cursor-pointer">
                                     <Hand className="w-3.5 h-3.5" /> รับงานนี้
                                 </button>
                             )}
