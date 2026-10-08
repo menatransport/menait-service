@@ -296,7 +296,7 @@
     },
 
     "TaskRequestInput": {
-      "$comment": "POST /api/ops/task-requests → 201 { task_id }. Anyone signed in (/ops/request → Task ใหม่). project_id null / omitted = a standalone task; when given, the project must be accepted (not Open / Reject). The task starts Open with owner = null and requested_by = the session user; files follow via POST /api/ops/attachments ref_type=task (→ request_attachments).",
+      "$comment": "POST /api/ops/task-requests → 201 { task_id }. Anyone signed in (/ops/request → คำขอ / พัฒนาบนโปรเจกต์เดิม). project_id null / omitted = a standalone คำร้อง (the form's คำร้อง (ไม่มีในโปรเจกต์เดิม) option); when given, the project must be accepted (not Open / Reject). The task starts Open with owner = null and requested_by = the session user; files follow via POST /api/ops/attachments ref_type=task (→ request_attachments).",
       "type": "object",
       "required": ["title", "detail", "priority"],
       "properties": {

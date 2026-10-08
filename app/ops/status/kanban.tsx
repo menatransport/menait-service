@@ -545,7 +545,7 @@ export const TaskKanbanCard = ({ t, team, onOpen, onAssign }: {
             ) : (
                 <p className="mt-1 flex items-center gap-1.5 text-[10.5px] text-ink-500 min-w-0">
                     <span className="w-1.75 h-1.75 rounded-full shrink-0 border border-dashed border-ink-300" aria-hidden />
-                    งานเดี่ยว · ไม่อิงโปรเจกต์
+                    คำร้อง · ไม่มีในโปรเจกต์เดิม
                 </p>
             )}
 

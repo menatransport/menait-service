@@ -9,7 +9,7 @@ import { useSessionContext } from '@/app/context/SessionContext';
 import { cn } from '@/lib/utils';
 import { OpsFormShell } from '../components';
 import { ProjectRequestForm } from './project-request-form';
-import { TaskRequestForm } from './task-request-form';
+import { NO_PROJECT, TaskRequestForm } from './task-request-form';
 
 type RequestType = 'project' | 'task';
 
@@ -24,11 +24,11 @@ const TYPES: Record<RequestType, { icon: LucideIcon; title: string; caption: str
     },
     task: {
         icon: ListPlus,
-        title: 'Task ใหม่ / งานพัฒนาย่อย',
-        caption: 'งานขนาดเล็ก จะอิงโปรเจกต์เดิมหรือไม่ก็ได้',
-        example: 'เช่น เพิ่มปุ่ม Export ในระบบเดิม, ทำรายงานเฉพาะกิจ, ดึงข้อมูลให้ครั้งเดียว',
-        shell: 'ยื่นคำขอ Task ใหม่',
-        subtitle: 'สำหรับงานที่ไม่ต้องเปิดเป็นโปรเจกต์ — ผูกกับโปรเจกต์ที่มีอยู่หรือเป็นงานเดี่ยวก็ได้ ทีม OPS จะรับงานและอัปเดตสถานะให้',
+        title: 'คำขอ / พัฒนาบนโปรเจกต์เดิม',
+        caption: 'เพิ่มหรือปรับในระบบที่มีอยู่ หรือคำร้องงานทั่วไป',
+        example: 'เช่น เพิ่มปุ่ม Export ในระบบเดิม, ขอรายงานเฉพาะกิจ, ขอดึงข้อมูล',
+        shell: 'คำขอ / พัฒนาบนโปรเจกต์เดิม',
+        subtitle: 'เลือกโปรเจกต์ที่ต้องการพัฒนาเพิ่ม หรือ “คำร้อง” หากไม่มีในโปรเจกต์เดิม — ทีม OPS จะรับงานและอัปเดตสถานะให้',
     },
 };
 
@@ -105,11 +105,11 @@ function RequestContent() {
         const isTask = created.type === 'task';
         return (
             <SubmitSuccess
-                title={isTask ? 'ส่งคำขอ Task สำเร็จ!' : 'ส่งคำขอโปรเจกต์สำเร็จ!'}
+                title={isTask ? 'ส่งคำขอสำเร็จ!' : 'ส่งคำขอโปรเจกต์สำเร็จ!'}
                 description={isTask
-                    ? `เลขที่ ${created.id} · ${projectId ? `Task ของ ${projectId}` : 'Task เดี่ยว (ไม่อิงโปรเจกต์)'} สถานะ Open (รอทีม OPS รับงาน)`
+                    ? `เลขที่ ${created.id} · ${projectId === NO_PROJECT ? 'คำร้อง (ไม่มีในโปรเจกต์เดิม)' : `Task ของ ${projectId}`} สถานะ Open (รอทีม OPS รับงาน)`
                     : `เลขที่คำขอ ${created.id} · สถานะ Open (รอพิจารณา) — ติดตามความคืบหน้าได้ที่หน้า Project Status`}
-                buttonText={isTask ? 'ดู Task นี้' : 'ไปที่ Project Status'}
+                buttonText={isTask ? 'ดูคำขอนี้' : 'ไปที่ Project Status'}
                 onButtonClick={() => router.push(isTask ? `/ops/status/${encodeURIComponent(created.id)}` : '/ops/status')}
             />
         );

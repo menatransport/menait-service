@@ -736,7 +736,7 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
                         <div className="flex items-start gap-2.5 rounded-[14px] border border-dashed border-ink-300 px-3 py-2.5">
                             <span className="mt-1 w-2 h-2 shrink-0 rounded-full border border-dashed border-ink-500" aria-hidden />
                             <span className="min-w-0">
-                                <span className="block text-sm font-semibold text-ink-900">งานเดี่ยว · ไม่อิงโปรเจกต์</span>
+                                <span className="block text-sm font-semibold text-ink-900">คำร้อง · ไม่มีในโปรเจกต์เดิม</span>
                                 <span className="block text-xs text-ink-500">ทีม OPS ผูกกับโปรเจกต์ได้ระหว่างสถานะ Open</span>
                             </span>
                         </div>

@@ -14,6 +14,9 @@ import type { OpsPriority, Project, TaskRequestInput } from '../types';
 
 const MIN_DETAIL = 10;
 
+/** Dropdown value for "not in any existing project" — sent as project_id null. Also used by the page for ?project= */
+export const NO_PROJECT = 'none';
+
 type FormState = Omit<TaskRequestInput, 'priority'> & { priority: OpsPriority | '' };
 
 const EMPTY: Omit<FormState, 'project_id'> = { title: '', detail: '', priority: '', target_date: '' };
@@ -21,51 +24,18 @@ const EMPTY: Omit<FormState, 'project_id'> = { title: '', detail: '', priority: 
 /** Element ids are prefixed — the project form stays mounted (hidden) next to this one and owns the plain ids. */
 const fieldId = (key: string) => `task-${key}`;
 
-const validate = (f: FormState, linked: boolean) => {
+const validate = (f: FormState) => {
     const errors: Record<string, string> = {};
-    if (linked && !f.project_id) errors.project_id = 'กรุณาเลือกโปรเจกต์ หรือเลือก "ไม่อิงโปรเจกต์"';
+    if (!f.project_id) errors.project_id = 'กรุณาเลือกโปรเจกต์ หรือ “คำร้อง (ไม่มีในโปรเจกต์เดิม)”';
     if (f.title.trim().length < 3) errors.title = 'กรุณาระบุชื่อ Task อย่างน้อย 3 ตัวอักษร';
     if (richTextLength(f.detail) < MIN_DETAIL) errors.detail = `กรุณาอธิบายสิ่งที่ต้องการอย่างน้อย ${MIN_DETAIL} ตัวอักษร`;
     if (!f.priority) errors.priority = 'กรุณาเลือกระดับความสำคัญ';
     return errors;
 };
 
-/** Two radio cards: tie the task to an accepted project, or file it standalone. */
-const LinkChoice = ({ linked, onChange }: { linked: boolean; onChange: (linked: boolean) => void }) => (
-    <div role="radiogroup" aria-label="อิงโปรเจกต์หรือไม่" className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {[
-            { value: true, label: 'อิงโปรเจกต์ที่มีอยู่', hint: 'เพิ่ม / ปรับในระบบที่ทีมทำให้แล้ว' },
-            { value: false, label: 'ไม่อิงโปรเจกต์ (งานเดี่ยว)', hint: 'งานใหม่ที่ไม่เกี่ยวกับระบบเดิม' },
-        ].map(o => {
-            const active = linked === o.value;
-            return (
-                <button
-                    key={String(o.value)}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => onChange(o.value)}
-                    className={cn(
-                        'text-left rounded-xl border-2 px-3.5 py-2.5 transition-all cursor-pointer',
-                        active ? 'border-brand-600 bg-brand-50 ring-4 ring-brand-600/10' : 'border-gray-200 bg-white hover:border-brand-600/40',
-                    )}
-                >
-                    <span className="flex items-center gap-2 text-sm font-semibold text-brand-800">
-                        <span className={cn('grid size-4 place-items-center rounded-full border-2', active ? 'border-brand-600' : 'border-gray-300')}>
-                            {active && <span className="size-2 rounded-full bg-brand-600" />}
-                        </span>
-                        {o.label}
-                    </span>
-                    <span className="block mt-0.5 pl-6 text-[11px] text-gray-500">{o.hint}</span>
-                </button>
-            );
-        })}
-    </div>
-);
-
 /**
- * Task ใหม่: either under a project that is already accepted (not Open / Reject) or standalone.
- * It lands on the board as a task in Open without an owner until the OPS team takes it.
+ * คำขอ / พัฒนาบนโปรเจกต์เดิม: a task under a project that is already accepted (not Open / Reject),
+ * or a standalone คำร้อง (NO_PROJECT). It lands on the board in Open without an owner until the OPS team takes it.
  */
 export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }: {
     user: UserInfo | null;
@@ -80,8 +50,6 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
     const [files, setFiles] = useState<File[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
-    /** false = a standalone task (no project) */
-    const [linked, setLinked] = useState(true);
 
     useEffect(() => {
         if (!user) return;
@@ -92,10 +60,10 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
             .finally(() => setLoadingProjects(false));
     }, [user]);
 
-    const options = useMemo(() => projects.map(p => ({
-        option_value: p.project_id,
-        option_label: `${p.project_id} · ${p.title}`,
-    })), [projects]);
+    const options = useMemo(() => [
+        { option_value: NO_PROJECT, option_label: 'คำร้อง (ไม่มีในโปรเจกต์เดิม)' },
+        ...projects.map(p => ({ option_value: p.project_id, option_label: `${p.project_id} · ${p.title}` })),
+    ], [projects]);
 
     const selected = projects.find(p => p.project_id === projectId);
 
@@ -113,18 +81,12 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
 
     const pickProject = (id: string) => { onProjectChange(id); clearError('project_id'); };
 
-    const pickLinked = (next: boolean) => {
-        setLinked(next);
-        clearError('project_id');
-        if (!next) onProjectChange('');
-    };
-
-    const reset = () => { setForm(EMPTY); setFiles([]); setErrors({}); setLinked(true); onProjectChange(''); };
+    const reset = () => { setForm(EMPTY); setFiles([]); setErrors({}); onProjectChange(''); };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const full: FormState = { ...form, project_id: projectId };
-        const found = validate(full, linked);
+        const found = validate(full);
         setErrors(found);
         if (Object.keys(found).length) {
             (document.getElementById(fieldId(Object.keys(found)[0])) ?? e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -134,7 +96,7 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
         setSubmitting(true);
         try {
             const { task_id } = await requestTask({
-                project_id: linked ? projectId : null,
+                project_id: projectId === NO_PROJECT ? null : projectId,
                 title: full.title.trim(),
                 detail: full.detail.trim(),
                 priority: full.priority as OpsPriority,
@@ -154,11 +116,10 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
         <form onSubmit={handleSubmit} noValidate className="space-y-6">
             <RequesterCard user={user} />
 
-            {/* ── 1. related project (optional) ── */}
-            <SectionTitle step={1} title="เกี่ยวข้องกับโปรเจกต์ไหน" caption="งานในระบบที่มีอยู่ให้เลือกโปรเจกต์ · งานที่ไม่เกี่ยวกับระบบเดิมเลือก “ไม่อิงโปรเจกต์”" />
-            <LinkChoice linked={linked} onChange={pickLinked} />
-            <div id={fieldId('project_id')} hidden={!linked}>
-                <FieldLabel no={1} label="ชื่อโปรเจค / Project ID (เฉพาะที่ทีมรับเรื่องแล้ว)" required />
+            {/* ── 1. project ── */}
+            <SectionTitle step={1} title="ชื่อโปรเจกต์" caption="เลือกโปรเจกต์ที่ต้องการพัฒนาเพิ่ม · ไม่มีในโปรเจกต์เดิมให้เลือก “คำร้อง”" />
+            <div id={fieldId('project_id')}>
+                <FieldLabel no={1} label="ชื่อโปรเจกต์ / Project ID" required />
                 <DropdownSearch
                     value={projectId}
                     onChange={pickProject}
@@ -172,6 +133,9 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
                     <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
                         สถานะโปรเจกต์ <StatusBadge status={selected.status} />
                     </div>
+                )}
+                {projectId === NO_PROJECT && (
+                    <p className="mt-2 text-xs text-gray-500">ส่งเป็นคำร้องเดี่ยว ทีม OPS จะผูกกับโปรเจกต์ให้ภายหลังหากเกี่ยวข้อง</p>
                 )}
                 <FieldError message={errors.project_id} />
             </div>
@@ -234,7 +198,7 @@ export function TaskRequestForm({ user, projectId, onProjectChange, onCreated }:
                 />
             </div>
 
-            <FormActions submitting={submitting} submitLabel="ส่งคำขอ Task" onReset={reset} />
+            <FormActions submitting={submitting} submitLabel="ส่งคำขอ" onReset={reset} />
         </form>
     );
 }

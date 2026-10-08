@@ -457,7 +457,7 @@ function ProjectStatusContent() {
     const filteredTasks = useMemo(
         () => tasks.filter(t =>
             matchesAssignees(t.owner ? [t.owner, ...t.assignees] : t.assignees, assigneeFilter)
-            && (!q || `${t.task_id} ${t.project_id ?? ''} ${t.project_title ?? 'งานเดี่ยว'} ${t.title}`.toLowerCase().includes(q))),
+            && (!q || `${t.task_id} ${t.project_id ?? ''} ${t.project_title ?? 'คำร้อง'} ${t.title}`.toLowerCase().includes(q))),
         [tasks, q, assigneeFilter],
     );
     const visibleProjects = useMemo(
