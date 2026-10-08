@@ -3,11 +3,11 @@
 import { useId, useState } from 'react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { th } from 'date-fns/locale';
-import { ArrowLeftRight, ArrowUpRight, Check, ChevronDown, Pencil, X } from 'lucide-react';
+import { ArrowLeftRight, ArrowUpRight, Check, ChevronDown, Hand, Pencil, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import type { OpsPerson, OpsPriority, OpsReviewResult, OpsStatus, OpsStatusChange, Project, ProjectIssue, ProjectRequestInput, ProjectTask } from '../types';
-import { AttachmentList, STATUS_META, StatusBadge, formatThaiDate, isClosedStatus } from '../components';
+import { AttachmentList, PriorityBadge, STATUS_META, StatusBadge, formatThaiDate, isClosedStatus } from '../components';
 import { RichTextView, isRichText } from '../rich-text';
 import { resolvePerson, useEmailOf } from '../team';
 import { AssigneePicker, KindMark, PersonAvatar } from './kanban';
@@ -514,7 +514,9 @@ const ProjectSheet = ({ p, issues, tasks, team, onClose, onOpenIssue, onOpenTask
                             {projectTasks.map(t => (
                                 <li key={t.task_id}>
                                     <button type="button" onClick={() => onOpenTask(t)} className="w-full text-left flex items-center gap-2 rounded-xl border border-border bg-brand-50/50 px-3 py-2.5 hover:border-brand-300 cursor-pointer transition-colors">
-                                        <PersonAvatar person={resolvePerson(t.owner, team)} className="w-6 h-6" textClassName="text-[10px] font-semibold" />
+                                        {t.owner
+                                            ? <PersonAvatar person={resolvePerson(t.owner, team)} className="w-6 h-6" textClassName="text-[10px] font-semibold" />
+                                            : <span title="รอรับงาน" className="w-6 h-6 shrink-0 rounded-full border border-dashed border-ink-300" />}
                                         <span className={cn('text-[13px] line-clamp-1 flex-1', t.status === 'Reject' ? 'text-ink-500 line-through' : 'text-ink-900')}>{t.title}</span>
                                         <StatusBadge status={t.status} />
                                     </button>
@@ -649,6 +651,8 @@ type TaskSheetProps = {
     onEdit?: (task: ProjectTask, input: { title?: string; project_id?: string }) => void;
     /** Projects it may move to (same list as the composer) */
     projects?: Project[];
+    /** OPS team / admin: take a requested task that has no owner yet */
+    onClaim?: (task: ProjectTask) => void;
     /** Applies a note / picture change to the page's copy of the task */
     onTaskChange: (taskId: string, update: (task: ProjectTask) => ProjectTask) => void;
 };
@@ -657,8 +661,9 @@ export const TaskDetailSheet = ({ task, ...rest }: TaskSheetProps & { task: Proj
     task ? <TaskSheet key={task.task_id} t={task} {...rest} /> : null;
 
 /** Status moves on the board; due date and co-assignees are edited here until Done/Reject, the title, note and pictures until Done. */
-const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onEdit, onTaskChange, projects = [] }: TaskSheetProps & { t: ProjectTask }) => {
-    const owner = resolvePerson(t.owner, team);
+const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onEdit, onClaim, onTaskChange, projects = [] }: TaskSheetProps & { t: ProjectTask }) => {
+    // null = a user's request (พัฒนาเพิ่ม) nobody has taken yet
+    const owner = t.owner ? resolvePerson(t.owner, team) : null;
     const closed = isClosedStatus(t.status);
     // the title stays editable until Done; moving to another project only before work starts
     const renamable = Boolean(onEdit) && t.status !== 'Done';
@@ -676,14 +681,27 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
             <SidesCard
                 left={<>
                     <SideLabel>ผู้รับผิดชอบ</SideLabel>
-                    <PersonLine person={owner} sub="เจ้าของ Task" />
+                    {owner ? <PersonLine person={owner} sub="เจ้าของ Task" /> : (
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="w-9 h-9 shrink-0 rounded-full border-2 border-dashed border-ink-300" aria-hidden />
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-ink-900">รอทีม OPS รับงาน</p>
+                                <p className="text-xs text-ink-500">ผู้ที่รับงานจะเป็นเจ้าของ Task</p>
+                            </div>
+                            {onClaim && !closed && (
+                                <button type="button" onClick={() => onClaim(t)} className="v2-btn h-9 px-3.5 text-xs inline-flex items-center gap-1.5 shrink-0 cursor-pointer">
+                                    <Hand className="w-3.5 h-3.5" /> รับงานนี้
+                                </button>
+                            )}
+                        </div>
+                    )}
                     {(t.assignees.length > 0 || (onAssign && !closed)) && (
                         <div className="min-w-0">
                             <p className="text-[11px] text-ink-500 mb-1">ร่วมรับผิดชอบ</p>
                             <EditableAssignees
                                 people={t.assignees.map(a => resolvePerson(a, team))}
                                 // the owner is already on it
-                                team={team.filter(p => p.username !== owner.username)}
+                                team={team.filter(p => p.username !== owner?.username)}
                                 onChange={onAssign && !closed ? (next) => onAssign(t, next) : undefined}
                             />
                         </div>
@@ -727,11 +745,30 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
                 </>}
             />
 
+            {t.requested_by && (
+                <section className="rounded-[22px] border border-border bg-white px-5 py-1 divide-y divide-border">
+                    <Field label="ขอพัฒนาเพิ่มโดย">
+                        <span className="font-semibold">{t.requested_by.name}</span>
+                        {t.requested_by.department && <span className="text-ink-500"> · {t.requested_by.department}</span>}
+                    </Field>
+                    {(t.priority || t.target_date) && (
+                        <div className="py-3.5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-ink-900">
+                            {t.priority && <span className="flex items-center gap-2"><span className="text-xs font-semibold text-ink-500">ความสำคัญ</span><PriorityBadge priority={t.priority} /></span>}
+                            {t.target_date && <span className="flex items-center gap-2"><span className="text-xs font-semibold text-ink-500">ต้องการใช้งาน</span>{formatThaiDate(t.target_date)}</span>}
+                        </div>
+                    )}
+                    {t.detail && <Field label="รายละเอียดคำขอ">{t.detail}</Field>}
+                </section>
+            )}
+
             <TaskNoteSection t={t} onChange={(update) => onTaskChange(t.task_id, update)} />
 
             {rejectRemark && <RejectNote label="เหตุผล" remark={rejectRemark} />}
 
-            <HistorySection items={t.status_history} />
+            <div className="space-y-2.5">
+                <HistorySection items={t.status_history} />
+                {t.requested_by && <AttachmentsSection title="ไฟล์แนบคำขอ" items={t.request_attachments ?? []} />}
+            </div>
         </SheetShell>
     );
 };

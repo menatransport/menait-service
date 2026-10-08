@@ -11,7 +11,7 @@ import Loading from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import { cn } from '@/lib/utils';
 import {
-    createTask, listIssues, listProjects, listTasks, submitReview, updateIssueStatus, updateProject, updateProjectAssignees, updateProjectLink, updateProjectTitle,
+    claimTask, createTask, listIssues, listProjects, listTasks, submitReview, updateIssueStatus, updateProject, updateProjectAssignees, updateProjectLink, updateProjectTitle,
     updateProjectPlan, updateProjectStatus, updateTask, updateTaskAssignees, updateTaskPlan, updateTaskStatus,
 } from '../api';
 import type {
@@ -229,7 +229,8 @@ function ProjectStatusContent() {
     const moveTask = async (t: ProjectTask, to: OpsStatus) => {
         if (!me) return;
         const swap = (next: ProjectTask) => setTasks(list => sortTasks(list.map(x => (x.task_id === t.task_id ? next : x))));
-        swap(withStatus(t, to, null, me));
+        // a requested task nobody has taken yet becomes the mover's (the backend does the same)
+        swap({ ...withStatus(t, to, null, me), owner: t.owner ?? me, assignees: t.owner ? t.assignees : t.assignees.filter(a => a.username !== me.username) });
         setLandedKey(t.task_id);
         try {
             await updateTaskStatus(t.task_id, to);
@@ -252,6 +253,20 @@ function ProjectStatusContent() {
         } catch (err) {
             swap(t);
             toast('error', err instanceof Error ? err.message : 'เพิ่มผู้รับผิดชอบไม่สำเร็จ');
+        }
+    };
+
+    /** "รับงานนี้" on a requested task without an owner */
+    const takeTask = async (t: ProjectTask) => {
+        if (!me) return;
+        try {
+            const next = await claimTask(t.task_id);
+            setTasks(list => list.map(x => (x.task_id === t.task_id ? next : x)));
+            toast('success', 'รับงานแล้ว');
+            void reload();
+        } catch (err) {
+            toast('error', err instanceof Error ? err.message : 'รับงานไม่สำเร็จ');
+            void reload();
         }
     };
 
@@ -439,7 +454,7 @@ function ProjectStatusContent() {
     );
     const filteredTasks = useMemo(
         () => tasks.filter(t =>
-            matchesAssignees([t.owner, ...t.assignees], assigneeFilter)
+            matchesAssignees(t.owner ? [t.owner, ...t.assignees] : t.assignees, assigneeFilter)
             && (!q || `${t.task_id} ${t.project_id} ${t.project_title} ${t.title}`.toLowerCase().includes(q))),
         [tasks, q, assigneeFilter],
     );
@@ -664,6 +679,7 @@ function ProjectStatusContent() {
                 onDueChange={canManage ? setTaskDue : undefined}
                 onAssign={canManage ? assignTask : undefined}
                 onEdit={canManage ? editTask : undefined}
+                onClaim={canManage ? takeTask : undefined}
                 onTaskChange={(id, update) => setTasks(list => list.map(x => (x.task_id === id ? update(x) : x)))}
                 projects={taskProjects}
             />

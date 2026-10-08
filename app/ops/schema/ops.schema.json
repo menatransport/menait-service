@@ -295,8 +295,22 @@
       "additionalProperties": false
     },
 
+    "TaskRequestInput": {
+      "$comment": "POST /api/ops/task-requests → 201 { task_id }. Anyone signed in (/ops/request → พัฒนาเพิ่ม). The project must be accepted (not Open / Reject). The task starts Open with owner = null and requested_by = the session user; files follow via POST /api/ops/attachments ref_type=task (→ request_attachments).",
+      "type": "object",
+      "required": ["project_id", "title", "detail", "priority"],
+      "properties": {
+        "project_id":  { "$ref": "#/$defs/ProjectId" },
+        "title":       { "type": "string", "minLength": 3, "maxLength": 200, "description": "ชื่อ Task / สิ่งที่ต้องการเพิ่ม" },
+        "detail":      { "type": "string", "minLength": 10, "maxLength": 5000, "description": "รายละเอียดและเหตุผล" },
+        "priority":    { "$ref": "#/$defs/Priority" },
+        "target_date": { "type": ["string", "null"], "format": "date", "description": "วันที่ต้องการใช้งาน" }
+      },
+      "additionalProperties": false
+    },
+
     "ProjectTask": {
-      "$comment": "GET /api/ops/tasks?scope=mine|all&project_id= → ProjectTask[] (scope=mine: session user is owner or assignee) · PATCH /api/ops/tasks/{task_id} TaskEditInput (title: not when Done; project_id: only while Open) → ProjectTask · PATCH /api/ops/tasks/{task_id}/status { status } (remark optional, Reject = cancelled) → ProjectTask · PATCH /api/ops/tasks/{task_id}/assignees AssignInput (not when Done/Reject; owner is never in the list) → ProjectTask · PATCH /api/ops/tasks/{task_id}/plan TaskPlanInput (not when Done/Reject) → ProjectTask. All task changes above: OPS team / admin, on every task. Note + pictures — owner / co-assignees / admin, not when Done (can_note): PATCH /api/ops/tasks/{task_id}/note TaskNoteInput → ProjectTask · POST /api/ops/tasks/{task_id}/attachments multipart { file } (images only, max 10) → 201 Attachment · DELETE /api/ops/tasks/{task_id}/attachments/{attachment_id} → ProjectTask",
+      "$comment": "GET /api/ops/tasks?scope=mine|all&project_id= → ProjectTask[] (scope=mine: session user is owner, assignee or requester) · POST /api/ops/tasks/{task_id}/claim (OPS team / admin, owner must be null, not Done/Reject) → ProjectTask · PATCH /api/ops/tasks/{task_id} TaskEditInput (title: not when Done; project_id: only while Open) → ProjectTask · PATCH /api/ops/tasks/{task_id}/status { status } (remark optional, Reject = cancelled; a task without an owner gets the mover as owner) → ProjectTask · PATCH /api/ops/tasks/{task_id}/assignees AssignInput (not when Done/Reject; owner is never in the list) → ProjectTask · PATCH /api/ops/tasks/{task_id}/plan TaskPlanInput (not when Done/Reject) → ProjectTask. All task changes above: OPS team / admin, on every task. Note + pictures — owner / co-assignees / admin, not when Done (can_note): PATCH /api/ops/tasks/{task_id}/note TaskNoteInput → ProjectTask · POST /api/ops/tasks/{task_id}/attachments multipart { file } (images only, max 10) → 201 Attachment · DELETE /api/ops/tasks/{task_id}/attachments/{attachment_id} → ProjectTask",
       "allOf": [{ "$ref": "#/$defs/ProjectTaskInput" }],
       "type": "object",
       "required": ["task_id", "project_title", "status", "owner", "assignees", "status_history", "created_at", "updated_at"],
@@ -304,9 +318,14 @@
         "task_id":        { "$ref": "#/$defs/TaskId" },
         "project_title":  { "type": "string", "description": "Denormalised for list display" },
         "status":         { "$ref": "#/$defs/Status" },
-        "owner":          { "$ref": "#/$defs/Person", "description": "Creator and main responsible person" },
+        "owner":          { "oneOf": [{ "$ref": "#/$defs/Person" }, { "type": "null" }], "description": "Creator and main responsible person; null = a user's request nobody has taken yet" },
         "assignees":      { "type": "array", "items": { "$ref": "#/$defs/Person" }, "description": "Co-assignees added by the owner until Done/Reject (owner excluded). Allowed usernames: see $defs.AssignInput" },
         "status_history": { "type": "array", "items": { "$ref": "#/$defs/StatusChange" } },
+        "requested_by":    { "oneOf": [{ "$ref": "#/$defs/Person" }, { "type": "null" }], "description": "Set on tasks filed from /ops/request (TaskRequestInput)" },
+        "detail":          { "type": ["string", "null"], "maxLength": 5000 },
+        "priority":        { "oneOf": [{ "$ref": "#/$defs/Priority" }, { "type": "null" }] },
+        "target_date":     { "type": ["string", "null"], "format": "date" },
+        "request_attachments": { "type": "array", "items": { "$ref": "#/$defs/Attachment" }, "description": "Files sent with the request" },
         "note":            { "type": ["string", "null"], "maxLength": 5000, "description": "The responsible people's work note" },
         "note_updated_at": { "type": ["string", "null"], "format": "date-time" },
         "note_updated_by": { "oneOf": [{ "$ref": "#/$defs/Person" }, { "type": "null" }] },

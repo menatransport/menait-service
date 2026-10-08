@@ -515,16 +515,22 @@ export const TaskKanbanCard = ({ t, team, onOpen, onAssign }: {
 }) => {
     const muted = t.status === 'Reject';
     const overdue = isOverdue({ status: t.status, planned_end: t.due_date });
-    const owner = resolvePerson(t.owner, team);
+    // null = a user's request (พัฒนาเพิ่ม) nobody has taken yet
+    const owner = t.owner ? resolvePerson(t.owner, team) : null;
     const helpers = t.assignees.map(a => resolvePerson(a, team));
     const canAssign = Boolean(onAssign) && t.status === 'Open';
     // the owner is always on the task, so the picker offers everyone else
-    const pickable = team.filter(p => p.username !== owner.username);
+    const pickable = team.filter(p => p.username !== owner?.username);
     const remark = muted ? t.status_history[t.status_history.length - 1]?.remark : null;
     return (
         <CardShell onOpen={onOpen} className={cn('rounded-lg py-2 shadow-none', muted ? 'bg-white/60' : 'bg-white/85')}>
             <div className="flex items-center gap-1.5">
                 <KindId kind="task" id={t.task_id} />
+                {t.requested_by && (
+                    <span title={`ขอพัฒนาเพิ่มโดย ${t.requested_by.name}`} className="rounded bg-sun-300/30 px-1 text-[9px] leading-[15px] font-semibold text-sun-700 whitespace-nowrap">
+                        ขอเพิ่ม
+                    </span>
+                )}
             </div>
             <h4 className={cn(TITLE_CLASS, 'mt-1 text-[13px]', muted ? 'text-ink-500 line-through' : 'text-ink-900 group-hover:text-brand-700')}>
                 {t.title}
@@ -538,7 +544,9 @@ export const TaskKanbanCard = ({ t, team, onOpen, onAssign }: {
 
             <div className={FOOTER_CLASS}>
                 <span className="flex items-center gap-1 min-w-0">
-                    <AvatarStack people={[owner, ...helpers]} small />
+                    {owner || helpers.length > 0
+                        ? <AvatarStack people={owner ? [owner, ...helpers] : helpers} small />
+                        : !muted && <span className="rounded-full border border-dashed border-ink-300 px-1.5 text-[10px] leading-4 text-ink-500">รอรับงาน</span>}
                     {canAssign && <AssigneePicker team={pickable} value={helpers} onChange={onAssign!} />}
                 </span>
                 {t.due_date && !muted && (

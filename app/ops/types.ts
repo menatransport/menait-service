@@ -127,6 +127,19 @@ export interface ProjectTaskInput {
     due_date?: string | null;
 }
 
+/**
+ * POST /api/ops/task-requests — anyone signed in: a new task (พัฒนาเพิ่ม) on an accepted project (not Open / Reject).
+ * It starts Open with no owner until someone from the OPS team takes it.
+ */
+export interface TaskRequestInput {
+    project_id: string;
+    title: string;
+    detail: string;
+    priority: OpsPriority;
+    /** YYYY-MM-DD */
+    target_date?: string | null;
+}
+
 /** PATCH /api/ops/tasks/{id} — OPS team / admin: title until Done; project_id while Open (same target rule as creating) */
 export type ProjectTaskEditInput = Partial<Pick<ProjectTaskInput, 'title' | 'project_id'>>;
 
@@ -136,11 +149,22 @@ export interface ProjectTask extends ProjectTaskInput {
     /** Denormalised for the card */
     project_title: string;
     status: OpsStatus;
-    /** Creator = the one responsible; co-assignees may be added until Done/Reject */
-    owner: OpsPerson;
+    /**
+     * Creator = the one responsible; co-assignees may be added until Done/Reject.
+     * null = requested by a user (requested_by) and nobody has taken it yet — the first OPS member to take or move it becomes the owner.
+     */
+    owner: OpsPerson | null;
     /** OPS team members helping on it (owner not included); they may move it too */
     assignees: OpsPerson[];
     status_history: OpsStatusChange[];
+    /** Set when a user asked for it from /ops/request (พัฒนาเพิ่ม) */
+    requested_by?: OpsPerson | null;
+    detail?: string | null;
+    priority?: OpsPriority | null;
+    /** YYYY-MM-DD — when the requester would like to use it */
+    target_date?: string | null;
+    /** Files the requester sent with the request */
+    request_attachments?: OpsAttachment[];
     /** The responsible people's work note (PATCH /api/ops/tasks/{id}/note) — until Done */
     note?: string | null;
     note_updated_at?: string | null;

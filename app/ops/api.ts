@@ -1,7 +1,7 @@
 import type {
     OpsApiError, OpsAttachment, OpsComment, OpsCommentRef, OpsPerson, OpsScope, OpsStatus, OpsSurveyInput, OpsSurveyResponse, OpsSurveyResults,
     Project, ProjectEditInput, ProjectIssue,
-    ProjectIssueInput, ProjectRequestInput, ProjectTask, ProjectTaskEditInput, ProjectTaskInput, ReviewInput,
+    ProjectIssueInput, ProjectRequestInput, ProjectTask, ProjectTaskEditInput, ProjectTaskInput, ReviewInput, TaskRequestInput,
 } from './types';
 
 /**
@@ -29,7 +29,7 @@ const json = (method: string, body: unknown): RequestInit => ({
     body: JSON.stringify(body),
 });
 
-async function uploadAttachments(refType: 'project' | 'issue', refId: string, files: File[]) {
+async function uploadAttachments(refType: 'project' | 'issue' | 'task', refId: string, files: File[]) {
     for (const file of files) {
         const form = new FormData();
         form.append('ref_type', refType);
@@ -99,6 +99,17 @@ export const listTasks = (scope: OpsScope) => http<ProjectTask[]>(`/api/ops/task
 /** Not under a Reject project (Done is allowed, for follow-up fixes); the creator becomes the owner. */
 export const createTask = (input: ProjectTaskInput) => http<ProjectTask>('/api/ops/tasks', json('POST', input));
 
+/** Anyone signed in — a new task (พัฒนาเพิ่ม) on an accepted project; files go to the task's request_attachments. */
+export async function requestTask(input: TaskRequestInput, files: File[]) {
+    const { task_id } = await http<{ task_id: string }>('/api/ops/task-requests', json('POST', input));
+    await uploadAttachments('task', task_id, files);
+    return { task_id };
+}
+
+/** OPS team / admin: take a requested task that has no owner yet. */
+export const claimTask = (taskId: string) => http<ProjectTask>(`/api/ops/tasks/${taskId}/claim`, { method: 'POST' });
+
+/** A requested task without an owner gets the mover as its owner. */
 export const updateTaskStatus = (taskId: string, status: OpsStatus) =>
     http<ProjectTask>(`/api/ops/tasks/${taskId}/status`, json('PATCH', { status }));
 
