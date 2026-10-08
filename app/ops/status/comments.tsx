@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useSessionContext } from '@/app/context/SessionContext';
 import { cn } from '@/lib/utils';
+import { linkifyText } from '@/lib/linkify';
 import { createComment, deleteComment, listComments, setCommentLike, updateComment } from '../api';
 import type { OpsAttachment, OpsComment, OpsCommentRef, OpsPerson } from '../types';
 import { formatThaiDate, toPerson } from '../components';
@@ -150,6 +151,20 @@ const HeartButton = ({ liked, count, onToggle }: { liked: boolean; count: number
             {count > 0 ? count : ''}
         </span>
     </button>
+);
+
+/** Comment text with its http(s) links clickable, each opening in a new tab. */
+const LinkifiedText = ({ text }: { text: string }) => (
+    <>
+        {linkifyText(text).map((part, i) => part.href
+            ? (
+                <a key={i} href={part.href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                    className="font-medium text-brand-700 underline decoration-brand-300 underline-offset-2 break-all hover:decoration-brand-700">
+                    {part.text}
+                </a>
+            )
+            : part.text)}
+    </>
 );
 
 /** "⋯" menu on the viewer's own comment. */
@@ -292,7 +307,7 @@ const CommentItem = ({ c, team, mine, fresh, removing, freshRef, thread }: {
                 </div>
                 {editing
                     ? <EditBox initial={c.body} allowEmpty={images.length > 0} onSave={(body) => thread.edit(c, body)} onCancel={() => setEditing(false)} />
-                    : c.body && <p className="mt-0.5 text-sm leading-relaxed text-ink-700 whitespace-pre-line wrap-break-word">{c.body}</p>}
+                    : c.body && <p className="mt-0.5 text-sm leading-relaxed text-ink-700 whitespace-pre-line wrap-break-word"><LinkifiedText text={c.body} /></p>}
                 {images.length > 0 && <CommentImages items={images} />}
             </div>
             {!editing && <HeartButton liked={c.liked_by_me} count={c.like_count} onToggle={() => thread.toggleLike(c)} />}

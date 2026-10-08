@@ -3,16 +3,7 @@
 import { useState } from 'react';
 import { Check, Copy, ExternalLink, Globe, Link2, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-/** http(s) with a host — the same rule the backend applies */
-const isHttpUrl = (v: string) => {
-    try {
-        const u = new URL(v);
-        return (u.protocol === 'http:' || u.protocol === 'https:') && Boolean(u.host);
-    } catch {
-        return false;
-    }
-};
+import { isHttpUrl } from '@/lib/linkify';
 
 const hostOf = (url: string) => {
     try { return new URL(url).host; } catch { return url; }
