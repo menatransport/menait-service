@@ -10,7 +10,7 @@ import type { OpsPerson, OpsPriority, OpsReviewResult, OpsStatus, OpsStatusChang
 import { AttachmentList, STATUS_META, StatusBadge, formatThaiDate, isClosedStatus } from '../components';
 import { RichTextView, isRichText } from '../rich-text';
 import { resolvePerson, useEmailOf } from '../team';
-import { AssigneePicker, KindMark, PersonAvatar } from './kanban';
+import { AssigneePicker, KindMark, NO_PROJECT_LABEL, PersonAvatar } from './kanban';
 import { CommentComposer, CommentList, useComments } from './comments';
 import { EstimateDate } from './estimate-date';
 import { ProjectEditForm } from './project-edit-form';
@@ -736,15 +736,16 @@ const TaskSheet = ({ t, team, onClose, onOpenProject, onDueChange, onAssign, onE
                         <div className="flex items-start gap-2.5 rounded-[14px] border border-dashed border-ink-300 px-3 py-2.5">
                             <span className="mt-1 w-2 h-2 shrink-0 rounded-full border border-dashed border-ink-500" aria-hidden />
                             <span className="min-w-0">
-                                <span className="block text-sm font-semibold text-ink-900">คำร้อง · ไม่มีในโปรเจกต์เดิม</span>
+                                <span className="block text-sm font-semibold text-ink-900">{NO_PROJECT_LABEL}</span>
                                 <span className="block text-xs text-ink-500">ทีม OPS ผูกกับโปรเจกต์ได้ระหว่างสถานะ Open</span>
                             </span>
                         </div>
                     )}
-                    {movable && projects.length > 0 && (
+                    {movable && (
                         <ProjectPicker
                             projects={projects}
-                            value={t.project_id ? { project_id: t.project_id, title: t.project_title ?? t.project_id } : undefined}
+                            allowNone
+                            value={t.project_id ? { project_id: t.project_id, title: t.project_title ?? t.project_id } : null}
                             onChange={(id) => { if (id !== t.project_id) void onEdit!(t, { project_id: id }); }}
                         >
                             <button

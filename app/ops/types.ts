@@ -121,7 +121,8 @@ export interface ProjectIssue extends ProjectIssueInput {
 
 /** POST /api/ops/tasks — OPS team / admin, while the project is not Reject (Done allowed for follow-up fixes) */
 export interface ProjectTaskInput {
-    project_id: string;
+    /** null = คำร้อง (ไม่มีในโปรเจกต์เดิม) — a standalone task */
+    project_id: string | null;
     title: string;
     /** YYYY-MM-DD */
     due_date?: string | null;
@@ -143,7 +144,7 @@ export interface TaskRequestInput {
 
 /**
  * PATCH /api/ops/tasks/{id} — OPS team / admin: title, detail, priority, target_date until Done;
- * project_id while Open (same target rule as creating). null clears detail / priority / target_date.
+ * project_id while Open (same target rule as creating; null detaches it into a คำร้อง). null clears detail / priority / target_date.
  */
 export type ProjectTaskEditInput = Partial<Pick<ProjectTaskInput, 'title' | 'project_id'>> & {
     detail?: string | null;

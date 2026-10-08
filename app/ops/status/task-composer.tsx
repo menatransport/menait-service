@@ -9,13 +9,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { StatusBadge } from '../components';
 import type { OpsPerson, Project, ProjectTaskInput } from '../types';
-import { PersonAvatar, projectDot } from './kanban';
+import { NO_PROJECT_LABEL, PersonAvatar, projectDot } from './kanban';
 
 const fieldClass = 'w-full rounded-[10px] border border-border bg-white text-[13px] text-ink-900 placeholder:text-ink-300 focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25 transition-colors';
 
 /**
  * Pinned on top of the task board's Open column: a dashed "สร้าง Task" button that opens an inline form.
- * `projects` = the active projects the viewer is assigned to; the viewer becomes the task owner.
+ * `projects` = the active projects the viewer is assigned to (or คำร้อง — no project); the viewer becomes the task owner.
  */
 export const TaskComposer = ({ projects, me, onCreate }: {
     projects: Project[];
@@ -25,20 +25,21 @@ export const TaskComposer = ({ projects, me, onCreate }: {
 }) => {
     const [open, setOpen] = useState(false);
     const [title, setTitle] = useState('');
-    const [projectId, setProjectId] = useState('');
+    /** '' = not picked yet (falls back to the first project), null = คำร้อง */
+    const [projectId, setProjectId] = useState<string | null>('');
     const [due, setDue] = useState<string | null>(null);
     const [dateOpen, setDateOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const today = startOfDay(new Date());
     // keep the last pick between tasks, unless that project dropped off the list
-    const selected = projects.find(p => p.project_id === projectId) ?? projects[0];
+    const selected = projectId === null ? null : projects.find(p => p.project_id === projectId) ?? projects[0] ?? null;
 
     const close = () => { setOpen(false); setTitle(''); setDue(null); };
 
     const submit = async () => {
-        if (!title.trim() || !selected || saving) return;
+        if (!title.trim() || saving) return;
         setSaving(true);
-        const ok = await onCreate({ project_id: selected.project_id, title: title.trim(), due_date: due });
+        const ok = await onCreate({ project_id: selected?.project_id ?? null, title: title.trim(), due_date: due });
         setSaving(false);
         if (ok) { setTitle(''); setDue(null); }
     };
@@ -78,7 +79,7 @@ export const TaskComposer = ({ projects, me, onCreate }: {
 
             <div className="text-[11px] font-medium text-ink-700">
                 อยู่ในโปรเจกต์
-                <ProjectPicker projects={projects} value={selected} onChange={setProjectId} />
+                <ProjectPicker projects={projects} value={selected} onChange={setProjectId} allowNone />
             </div>
 
             <div className="text-[11px] font-medium text-ink-700">
@@ -113,10 +114,10 @@ export const TaskComposer = ({ projects, me, onCreate }: {
                 </Popover>
             </div>
 
-            <p className="flex items-center gap-1.5 text-[11px] text-ink-500">
+            <div className="flex items-center gap-1.5 text-[11px] text-ink-500">
                 <PersonAvatar person={me} className="w-5 h-5" textClassName="text-[9px] font-semibold" />
                 คุณเป็นผู้รับผิดชอบ Task นี้
-            </p>
+            </div>
 
             <div className="flex gap-1.5">
                 <button type="button" onClick={close} className="flex-1 h-9 rounded-full border border-border bg-white text-xs font-medium text-ink-700 hover:bg-slate-50 cursor-pointer transition-colors">
@@ -135,10 +136,14 @@ export const TaskComposer = ({ projects, me, onCreate }: {
 };
 
 /** Lists every project the viewer may add a task to; search shows up once the list gets long. */
-export const ProjectPicker = ({ projects, value, onChange, children }: {
+export const ProjectPicker = ({ projects, value, onChange, allowNone, children }: {
     projects: Project[];
-    value: Pick<Project, 'project_id' | 'title'> | undefined;
-    onChange: (projectId: string) => void;
+    /** null = คำร้อง (only meaningful with allowNone); undefined = nothing picked */
+    value: Pick<Project, 'project_id' | 'title'> | null | undefined;
+    /** null = คำร้อง (ไม่มีในโปรเจกต์เดิม) */
+    onChange: (projectId: string | null) => void;
+    /** Offer "คำร้อง (ไม่มีในโปรเจกต์เดิม)" on top of the list */
+    allowNone?: boolean;
     /** Custom trigger; defaults to a form field showing the current pick */
     children?: React.ReactElement;
 }) => {
@@ -157,12 +162,14 @@ export const ProjectPicker = ({ projects, value, onChange, children }: {
                     type="button"
                     className={cn(fieldClass, 'mt-1 h-9 px-2.5 flex items-center gap-2 text-left text-xs cursor-pointer')}
                 >
-                    <span className={cn('w-1.75 h-1.75 shrink-0 rounded-full', value && projectDot(value.project_id))} aria-hidden />
+                    <span className={cn('w-1.75 h-1.75 shrink-0 rounded-full', value ? projectDot(value.project_id) : value === null && allowNone && 'border border-dashed border-ink-500')} aria-hidden />
                     {value ? (
                         <span className="min-w-0 flex-1 truncate">
                             <span className="font-mono text-ink-500">{value.project_id.slice(-3)}</span> · {value.title}
                         </span>
-                    ) : <span className="flex-1 text-ink-500">เลือกโปรเจกต์</span>}
+                    ) : value === null && allowNone
+                        ? <span className="min-w-0 flex-1 truncate">{NO_PROJECT_LABEL}</span>
+                        : <span className="flex-1 text-ink-500">เลือกโปรเจกต์</span>}
                     <ChevronDown className={cn('w-3.5 h-3.5 shrink-0 text-ink-300 transition-transform', open && 'rotate-180')} />
                 </button>}
             </PopoverTrigger>
@@ -191,6 +198,24 @@ export const ProjectPicker = ({ projects, value, onChange, children }: {
                     </label>
                 )}
                 <ul role="listbox" className="max-h-64 overflow-y-auto space-y-0.5">
+                    {allowNone && !needle && (
+                        <li>
+                            <button
+                                type="button"
+                                role="option"
+                                aria-selected={value === null}
+                                onClick={() => { onChange(null); setOpen(false); setQ(''); }}
+                                className={cn('w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left cursor-pointer transition-colors', value === null ? 'bg-brand-50' : 'hover:bg-slate-50')}
+                            >
+                                <span className="w-2 h-2 shrink-0 rounded-full border border-dashed border-ink-500" aria-hidden />
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-[13px] font-medium text-ink-900 truncate">{NO_PROJECT_LABEL}</span>
+                                    <span className="block text-[11px] text-ink-500">งานเดี่ยว ไม่ผูกกับโปรเจกต์</span>
+                                </span>
+                                <Check className={cn('w-3.5 h-3.5 shrink-0', value === null ? 'text-brand-600' : 'text-transparent')} strokeWidth={3} />
+                            </button>
+                        </li>
+                    )}
                     {shown.map(p => {
                         const on = p.project_id === value?.project_id;
                         return (

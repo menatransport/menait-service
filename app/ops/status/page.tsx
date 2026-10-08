@@ -289,11 +289,15 @@ function ProjectStatusContent() {
         if (!me) return false;
         const swap = (next: ProjectTask) => setTasks(list => sortTasks(list.map(x => (x.task_id === t.task_id ? next : x))));
         const target = input.project_id ? assigned.find(p => p.project_id === input.project_id) : undefined;
-        swap({ ...t, ...input, ...(target && { project_title: target.title }) });
+        // project_id: null = turned into a คำร้อง (no project)
+        const detached = input.project_id === null;
+        swap({ ...t, ...input, ...(target && { project_title: target.title }), ...(detached && { project_title: null }) });
         try {
             swap(await updateTask(t.task_id, input));
-            if (target) setLandedKey(t.task_id);
-            toast('success', target ? `ย้ายไป ${target.project_id} แล้ว` : input.title !== undefined ? 'บันทึกชื่อ Task แล้ว' : 'บันทึกรายละเอียด Task แล้ว');
+            if (target || detached) setLandedKey(t.task_id);
+            toast('success', target ? `ย้ายไป ${target.project_id} แล้ว`
+                : detached ? 'เปลี่ยนเป็นคำร้อง (ไม่มีในโปรเจกต์เดิม) แล้ว'
+                    : input.title !== undefined ? 'บันทึกชื่อ Task แล้ว' : 'บันทึกรายละเอียด Task แล้ว');
             void reload();
             return true;
         } catch (err) {
@@ -616,7 +620,7 @@ function ProjectStatusContent() {
                         onMove={me ? moveBoardItem : undefined}
                         canMove={() => canManage}
                         landedKey={landedKey}
-                        columnTop={status => (status === 'Open' && me && taskProjects.length > 0 && kind !== 'project' && !overdueOnly
+                        columnTop={status => (status === 'Open' && me && canManage && kind !== 'project' && !overdueOnly
                             ? <TaskComposer projects={taskProjects} me={me} onCreate={addTask} />
                             : null)}
                         renderCard={x => (isTask(x)

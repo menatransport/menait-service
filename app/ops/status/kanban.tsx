@@ -371,6 +371,9 @@ export const sortProjects = (list: Project[]) =>
 export const sortIssues = (list: ProjectIssue[]) => [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
 export const sortTasks = (list: ProjectTask[]) => [...list].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 
+/** Shown for a task without a project */
+export const NO_PROJECT_LABEL = 'คำร้อง (ไม่มีในโปรเจกต์เดิม)';
+
 /** Same project → same dot colour on every task card and in the composer. */
 const PROJECT_DOTS = ['bg-brand-600', 'bg-sun-500', 'bg-mint-600', 'bg-violet-500', 'bg-aqua-500', 'bg-rose-500'];
 export const projectDot = (projectId: string) =>
@@ -545,7 +548,7 @@ export const TaskKanbanCard = ({ t, team, onOpen, onAssign }: {
             ) : (
                 <p className="mt-1 flex items-center gap-1.5 text-[10.5px] text-ink-500 min-w-0">
                     <span className="w-1.75 h-1.75 rounded-full shrink-0 border border-dashed border-ink-300" aria-hidden />
-                    คำร้อง · ไม่มีในโปรเจกต์เดิม
+                    {NO_PROJECT_LABEL}
                 </p>
             )}
 
