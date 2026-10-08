@@ -1,5 +1,5 @@
 'use client';
-import { Search, ArrowRight, FileText, Loader2, Sparkles, LayoutDashboard, ChevronDown, ExternalLink } from 'lucide-react';
+import { Search, ArrowRight, FileText, Loader2, Sparkles, LayoutDashboard, ChevronDown, ExternalLink, BookOpen } from 'lucide-react';
 import { NavbarHeader } from "@/components/navbar";
 import { useEffect, useState, useCallback, useMemo, useRef, useId } from 'react';
 import { useRouter } from 'next/navigation';
@@ -177,10 +177,11 @@ function GroupColumn({ group, index, onNavigate }: { group: MenuGroup; index: nu
                 <span className={cn('w-11 h-11 rounded-[15px] grid place-items-center shrink-0', tone.tile)}>
                     <GroupIcon className="w-5 h-5" />
                 </span>
-                <div>
+                <div className="flex-1 min-w-0">
                     <h2 className="text-xl font-semibold text-ink-900 leading-tight">{group.label}</h2>
                     <p className="text-[13px] text-ink-500">{group.tagline}</p>
                 </div>
+                {group.guide && <GuideButton guide={group.guide} tone={group.tone} onNavigate={onNavigate} />}
             </div>
 
             {group.items.length === 0 ? (
@@ -197,6 +198,22 @@ function GroupColumn({ group, index, onNavigate }: { group: MenuGroup; index: nu
                 </div>
             )}
         </section>
+    );
+}
+
+function GuideButton({ guide, tone, onNavigate }: { guide: NonNullable<MenuGroup['guide']>; tone: MenuTone; onNavigate: (href?: string) => void }) {
+    const t = TONE[tone];
+    return (
+        <button
+            type="button"
+            onClick={() => onNavigate(guide.href)}
+            title={guide.label}
+            aria-label={guide.label}
+            className={cn('h-8 pl-2.5 pr-3 rounded-full flex items-center gap-1.5 shrink-0 text-xs font-semibold cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[0_4px_14px_-8px_rgba(21,86,201,0.35)]', t.soft, t.text)}
+        >
+            <BookOpen className="w-4 h-4" />
+            คู่มือ
+        </button>
     );
 }
 
@@ -379,7 +396,8 @@ function AppGroup({ group, onNavigate }: { group: MenuGroup; onNavigate: (href?:
             <div className="flex items-center gap-2">
                 <span className={cn('w-2 h-[22px] rounded-full', tone.tile)} />
                 <h2 className="text-base font-semibold text-ink-900">{group.label}</h2>
-                <span className="text-xs text-ink-500 truncate">· {group.tagline}</span>
+                <span className="flex-1 min-w-0 text-xs text-ink-500 truncate">· {group.tagline}</span>
+                {group.guide && <GuideButton guide={group.guide} tone={group.tone} onNavigate={onNavigate} />}
             </div>
             <div className="grid grid-cols-4 gap-x-2 gap-y-3.5">
                 {group.items.length === 0 ? (

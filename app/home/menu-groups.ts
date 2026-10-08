@@ -33,6 +33,8 @@ export interface MenuGroup {
     icon: LucideIcon;
     tone: MenuTone;
     items: MenuItem[];
+    /** User manual for the group — shown as a book icon at the top right of the group card (http… opens in a new tab) */
+    guide?: { label: string; href: string };
     /** Only shown to admins (user.role === 'a') */
     adminOnly?: boolean;
     /** Usable only by admins and finance staff (canUseFinance); everyone else sees every item as "เร็ว ๆ นี้" */
@@ -75,6 +77,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     tagline: 'Operation Support',
     icon: Truck,
     tone: 'sun',
+    guide: { label: 'คู่มือ OPS Service', href: 'https://youtu.be/gQj8sJK5nlg' },
     items: [
     {
         title: 'Project Request',
