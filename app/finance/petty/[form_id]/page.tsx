@@ -7,12 +7,13 @@ import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import { isPettyFormId } from '@/lib/finance/petty-access';
 import { isItemBased } from '@/lib/finance/petty-spec';
-import type { PettyClaim, PettyExpenseType } from '@/app/finance/types-petty';
+import type { PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { showAlert } from '../../api';
-import { getClaim, getExpenseTypes } from '../../petty-api';
+import { getClaim, getExpenseTypes, getFunds } from '../../petty-api';
 import { Field, FinanceCanvas, FinanceHeading, NoAccess, Panel } from '../../components/FinanceShell';
 import { ItemGrid } from '../../components/petty/ItemGrid';
 import { PettyStatusBadge } from '../../components/petty/ClaimTable';
+import { PettyPrintButton } from '../../components/petty/PettyPrintButton';
 
 type FileRow = { key: string; fileName?: string; url: string; folder?: string };
 
@@ -24,14 +25,16 @@ export default function PettyClaimDetailPage() {
   const [claim, setClaim] = useState<PettyClaim | null>(null);
   const [type, setType] = useState<PettyExpenseType | null>(null);
   const [files, setFiles] = useState<FileRow[]>([]);
+  const [fund, setFund] = useState<PettyFund | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!isPettyFormId(formId)) { setError('หมายเลขเอกสารไม่ถูกต้อง'); return; }
     try {
-      const [c, types] = await Promise.all([getClaim(formId), getExpenseTypes()]);
+      const [c, types, funds] = await Promise.all([getClaim(formId), getExpenseTypes(), getFunds()]);
       setClaim(c);
       setType(types.find(t => t.code === c.expense_type) ?? null);
+      setFund(funds.find(f => f.id === c.fund_id) ?? null);
       const res = await fetch(`/api/uploads3?form_id=${encodeURIComponent(formId)}`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json() as { files?: FileRow[] };
@@ -60,7 +63,13 @@ export default function PettyClaimDetailPage() {
     <FinanceCanvas title={`ใบเบิก ${claim.form_id}`}>
       <FinanceHeading icon={FileText} title={`ใบเบิก ${claim.form_id}`}
         caption={type?.name_th ?? claim.expense_type}
-        actions={<PettyStatusBadge status={claim.status} />} />
+        actions={
+          <span className="flex items-center gap-2">
+            <PettyStatusBadge status={claim.status} />
+            <PettyPrintButton claim={claim} fund={fund} spec={spec}
+              typeName={type?.name_th ?? claim.expense_type} />
+          </span>
+        } />
 
       {claim.return_reason && claim.status === 'RETURNED' && (
         <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
