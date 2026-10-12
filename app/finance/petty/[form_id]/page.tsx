@@ -11,6 +11,7 @@ import type { PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/type
 import { showAlert } from '../../api';
 import { getClaim, getExpenseTypes, getFunds } from '../../petty-api';
 import { Field, FinanceCanvas, FinanceHeading, NoAccess, Panel } from '../../components/FinanceShell';
+import { DdSheet } from '../../components/petty/DdSheet';
 import { ItemGrid } from '../../components/petty/ItemGrid';
 import { PettyStatusBadge } from '../../components/petty/ClaimTable';
 import { PettyPrintButton } from '../../components/petty/PettyPrintButton';
@@ -107,6 +108,12 @@ export default function PettyClaimDetailPage() {
       {isItemBased(spec) && (
         <Panel title={`${spec.item_label ?? 'รายการ'} (${claim.items.length})`}>
           <ItemGrid spec={spec} rows={claim.items as never[]} onChange={() => {}} readOnly />
+        </Panel>
+      )}
+
+      {(spec.prints ?? []).includes('DD') && (
+        <Panel title="ใบรับสินค้า (DD) จาก ATMS">
+          <DdSheet ddNo={claim.dd_no} expenseType={claim.expense_type} claimAmount={claim.amount} />
         </Panel>
       )}
 

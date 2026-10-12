@@ -92,3 +92,25 @@ export type TruckOption = { truck_code: string; truck_plate: string; truck_type:
 export function searchTrucks(q: string) {
   return fetchJson<TruckOption[]>(`/api/finance/petty/trucks?q=${encodeURIComponent(q)}`);
 }
+
+export type DdLine = {
+  sku: string | null; name: string | null; product_group: string | null;
+  qty: number; unit: string | null; rate: number; amount: number;
+  truck_code: string | null; truck_plate: string | null; driver: string | null;
+  remark: string | null; sub_remark: string | null; pr: string | null; po: string | null;
+};
+export type DdDoc = {
+  found: boolean; dd_no: string; received_date: string | null;
+  warehouse: string | null; supplier: string | null;
+  lines: DdLine[]; total: number; unit: string | null; vat: number | null;
+  error: string | null; total_match?: boolean; total_difference?: number;
+};
+
+/** รายละเอียด DD จาก ATMS — ส่ง claim_amount ไปด้วยเพื่อให้ BE เทียบยอดให้ */
+export function getDd(ddNo: string, params: { expense_type?: string; claim_amount?: number } = {}) {
+  const qs = new URLSearchParams();
+  if (params.expense_type) qs.set('expense_type', params.expense_type);
+  if (params.claim_amount !== undefined) qs.set('claim_amount', String(params.claim_amount));
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  return fetchJson<DdDoc>(`/api/finance/petty/dd/${encodeURIComponent(ddNo)}${suffix}`);
+}
