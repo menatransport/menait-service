@@ -8,7 +8,7 @@ const fund: PettyFund = {
 };
 
 const claim = {
-  id: 1, form_id: '03-B02-2610-001', fund_id: 1, expense_type: 'WEIGH',
+  id: 1, form_id: '03-B02-2610-001', project_code: 'PJ-LB-B02-2610-001', fund_id: 1, expense_type: 'WEIGH',
   expense_date: '2026-09-25', period_from: '2026-09-17', period_to: '2026-09-24',
   driver_employee_id: null, driver_name: null, payee_name: 'อัญชัญ น่วมมี',
   amount: 1640, dd_no: 'LBDD26090931', receipt_no: null, status: 'AWAITING_REVIEW',
@@ -92,11 +92,16 @@ describe('หน่วยนับบนใบ มาจากประเภท
       .toContain('1,200.00'));
 });
 
-describe('Project Code เป็นช่องว่างบนกระดาษ ระบบไม่เก็บค่า', () => {
+describe('Project Code มาจากเลขที่ระบบรันให้', () => {
   const html = pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก' });
 
-  test('ช่องยังพิมพ์หัวข้อไว้ให้เขียนด้วยมือ', () => expect(html).toContain('Project Code'));
+  test('ช่องยังพิมพ์หัวข้อไว้', () => expect(html).toContain('Project Code'));
 
-  test('ไม่มีค่าใดหลุดมาต่อท้ายหัวข้อ', () =>
-    expect(html).toContain('<div class="box">Project Code</div>'));
+  test('เลขที่ระบบออกให้ขึ้นบนใบ', () => expect(html).toContain('PJ-LB-B02-2610-001'));
+
+  test('ใบเก่าที่ยังไม่มีเลข พิมพ์เป็นช่องว่าง', () => {
+    const old = { ...claim, project_code: null } as PettyClaim;
+    expect(pettyVoucherHtml({ claim: old, fund, typeName: 'ค่าชั่งน้ำหนัก' }))
+      .toContain('<div class="box">Project Code </div>');
+  });
 });
