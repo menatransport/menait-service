@@ -41,7 +41,7 @@ export default function PettyFundsPage() {
     return (
       <FinanceCanvas title={TITLE}>
         <FinanceHeading icon={Wallet} title={TITLE} caption={CAPTION} />
-        <Panel><p className="text-sm text-ink-600">หน้านี้สำหรับฝ่ายบัญชีและการเงิน</p></Panel>
+        <Panel title="สิทธิ์การเข้าถึง"><p className="text-sm text-ink-600">หน้านี้สำหรับฝ่ายบัญชีและการเงิน</p></Panel>
       </FinanceCanvas>
     );
   }
@@ -51,7 +51,7 @@ export default function PettyFundsPage() {
   return (
     <FinanceCanvas title={TITLE}>
       <FinanceHeading icon={Wallet} title={TITLE} caption={CAPTION} />
-      <Panel>
+      <Panel title="กองทุนทั้งหมด">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-ink-500">
