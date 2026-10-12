@@ -6,10 +6,11 @@ import { Receipt } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSessionContext } from '@/app/context/SessionContext';
-import type { PettyClaim, PettyExpenseType } from '@/app/finance/types-petty';
+import type { PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
+import { exportPettyXlsx } from '@/lib/finance/petty-export';
 import type { PettyStatus } from '@/lib/finance/petty-status';
 import { showAlert } from '../api';
-import { getExpenseTypes, listClaims } from '../petty-api';
+import { getExpenseTypes, getFunds, listClaims } from '../petty-api';
 import { FinanceCanvas, FinanceHeading, Panel } from '../components/FinanceShell';
 import { ClaimTable } from '../components/petty/ClaimTable';
 
@@ -28,11 +29,14 @@ export default function MyPettyClaimsPage() {
   const [tab, setTab] = useState('open');
   const [claims, setClaims] = useState<PettyClaim[] | null>(null);
   const [types, setTypes] = useState<PettyExpenseType[]>([]);
+  const [funds, setFunds] = useState<PettyFund[]>([]);
 
   const load = useCallback(async () => {
     try {
-      const [page, t] = await Promise.all([listClaims({ view: 'mine', limit: '200' }), getExpenseTypes()]);
-      setClaims(page.items); setTypes(t);
+      const [page, t, f] = await Promise.all([
+        listClaims({ view: 'mine', limit: '200' }), getExpenseTypes(), getFunds(),
+      ]);
+      setClaims(page.items); setTypes(t); setFunds(f);
     } catch (err) {
       setClaims([]);
       showAlert({ icon: 'error', title: 'โหลดรายการไม่สำเร็จ', text: (err as Error).message });
@@ -51,8 +55,16 @@ export default function MyPettyClaimsPage() {
     <FinanceCanvas title={TITLE}>
       <FinanceHeading icon={Receipt} title={TITLE} caption={CAPTION}
         actions={
-          <Link href="/finance/petty/new"
-            className="rounded-lg bg-brand-600 px-3 py-2 text-sm text-white">เปิดใบใหม่</Link>
+          <span className="flex gap-2">
+            <button type="button" disabled={shown.length === 0}
+              onClick={() => void exportPettyXlsx(shown, types, funds,
+                `เงินสดย่อยของฉัน-${new Date().toISOString().slice(0, 10)}.xlsx`)}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:opacity-40">
+              ดาวน์โหลด Excel
+            </button>
+            <Link href="/finance/petty/new"
+              className="rounded-lg bg-brand-600 px-3 py-2 text-sm text-white">เปิดใบใหม่</Link>
+          </span>
         } />
 
       {needFix > 0 && (

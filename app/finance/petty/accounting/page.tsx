@@ -4,11 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Landmark } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
-import type { PettyClaim, PettyExpenseType } from '@/app/finance/types-petty';
+import type { PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
+import { exportPettyXlsx } from '@/lib/finance/petty-export';
 import { showAlert, showConfirm } from '../../api';
-import { getExpenseTypes, listClaims, postAction } from '../../petty-api';
+import { getExpenseTypes, getFunds, listClaims, postAction } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, NoAccess, Panel } from '../../components/FinanceShell';
 import { ClaimTable } from '../../components/petty/ClaimTable';
+import { CoverSheetButton } from '../../components/petty/CoverSheetButton';
 
 const TITLE = 'ตรวจเอกสารเงินสดย่อย';
 const CAPTION = 'ใบที่ผู้อนุมัติส่งมา — ตรวจแล้วกดผ่าน หรือส่งกลับให้แก้';
@@ -17,17 +19,19 @@ export default function PettyAccountingPage() {
   const { user, loading } = useSessionContext();
   const [claims, setClaims] = useState<PettyClaim[] | null>(null);
   const [types, setTypes] = useState<PettyExpenseType[]>([]);
+  const [funds, setFunds] = useState<PettyFund[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
   const isAllowed = user?.is_finance === true || user?.role === 'a';
 
   const load = useCallback(async () => {
     try {
-      const [page, t] = await Promise.all([
+      const [page, t, f] = await Promise.all([
         listClaims({ view: 'all', status: 'AWAITING_REVIEW', limit: '200' }),
         getExpenseTypes(),
+        getFunds(),
       ]);
-      setClaims(page.items); setTypes(t);
+      setClaims(page.items); setTypes(t); setFunds(f);
     } catch (err) {
       setClaims([]);
       showAlert({ icon: 'error', title: 'โหลดคิวไม่สำเร็จ', text: (err as Error).message });
@@ -65,7 +69,18 @@ export default function PettyAccountingPage() {
 
   return (
     <FinanceCanvas title={TITLE}>
-      <FinanceHeading icon={Landmark} title={TITLE} caption={CAPTION} />
+      <FinanceHeading icon={Landmark} title={TITLE} caption={CAPTION}
+        actions={
+          <span className="flex gap-2">
+            <CoverSheetButton claims={claims} types={types} funds={funds} />
+            <button type="button"
+              onClick={() => void exportPettyXlsx(claims, types, funds,
+                `เงินสดย่อย-รอตรวจ-${new Date().toISOString().slice(0, 10)}.xlsx`)}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm">
+              ดาวน์โหลด Excel
+            </button>
+          </span>
+        } />
 
       <Panel title={`รอตรวจ ${pending.length} ใบ`}>
         <ClaimTable claims={pending} types={types} />
