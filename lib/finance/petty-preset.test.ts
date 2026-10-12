@@ -69,3 +69,24 @@ describe('ruleSentences', () => {
     expect(ruleSentences(travel)[0]).toContain('คนเดิม');
   });
 });
+
+describe('เอกสารที่บังคับตามเงื่อนไข (บัตรประชาชนเมื่อโอนเข้าบุคคล/ร้านเงินสด)', () => {
+  const spec = {
+    header_fields: [
+      { key: 'payment_method', label: 'วิธีจ่าย', type: 'select', options: ['โอนเงิน', 'เงินสด'] },
+      { key: 'payee_type', label: 'ผู้รับเงิน', type: 'select', options: ['ร้านจดทะเบียน', 'บุคคล/ร้านเงินสด'] },
+    ],
+    attachments: [
+      { key: 'receipt', label: 'บิล', required: true },
+      { key: 'id_card', label: 'สำเนาบัตรประชาชน', required: false },
+      { key: 'other', label: 'อื่นๆ', required: false },
+    ],
+    rules: [{ when: 'payment_method == โอนเงิน && payee_type == บุคคล/ร้านเงินสด', require_attachment: 'id_card', at: 'BEFORE_APPROVE' }],
+  };
+  const docs = requiredDocs(spec);
+  test('บอกเงื่อนไขเป็นภาษาคน ไม่ใช่ (ไม่บังคับ)', () =>
+    expect(docs.find(d => d.key === 'id_card')?.condition).toBe('บังคับเมื่อ วิธีจ่าย = โอนเงิน และ ผู้รับเงิน = บุคคล/ร้านเงินสด'));
+  test('หมวดที่ไม่มีกฎ ไม่มีเงื่อนไข', () => expect(docs.find(d => d.key === 'other')?.condition).toBeUndefined());
+  test('เรียง: บังคับ → บังคับตามเงื่อนไข → ไม่บังคับ', () =>
+    expect(docs.map(d => d.key)).toEqual(['receipt', 'id_card', 'other']));
+});

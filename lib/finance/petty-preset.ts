@@ -1,12 +1,32 @@
 import type { PettySpec } from '@/app/finance/types-petty';
 
-export type PresetDoc = { key: string; label: string; required: boolean; done: boolean; max?: number };
+export type PresetDoc = { key: string; label: string; required: boolean; done: boolean; max?: number;
+  /** บังคับเฉพาะเมื่อเข้าเงื่อนไขของกฎ เช่น โอนเข้าชื่อบุคคล/ร้านเงินสด (REQUIREMENT §3.3) */
+  condition?: string };
+
+/** "payment_method == โอนเงิน && payee_type == บุคคล/ร้านเงินสด" → "บังคับเมื่อ วิธีจ่าย = โอนเงิน และ ผู้รับเงิน = บุคคล/ร้านเงินสด" */
+function conditionSentence(when: string, spec: PettySpec | null | undefined): string | null {
+  if (!when || when === 'always' || !when.includes('==')) return null;
+  const labels = Object.fromEntries((spec?.header_fields ?? []).map(f => [f.key, f.label]));
+  const parts = when.split('&&').map(c => {
+    const [key, value] = c.split('==').map(x => x.trim());
+    return `${labels[key] ?? key} = ${value}`;
+  });
+  return `บังคับเมื่อ ${parts.join(' และ ')}`;
+}
 
 /** หมวดไฟล์ของประเภทนี้ เรียงบังคับขึ้นก่อน พร้อมสถานะว่าแนบแล้วหรือยัง */
 export function requiredDocs(
   spec: PettySpec | null | undefined,
   counts: Record<string, number> = {},
 ): PresetDoc[] {
+  const conditional: Record<string, string> = {};
+  for (const rule of spec?.rules ?? []) {
+    if (!rule.require_attachment) continue;
+    const sentence = conditionSentence(rule.when ?? 'always', spec);
+    if (sentence) conditional[rule.require_attachment] = sentence;
+  }
+  const rank = (d: { required: boolean; condition?: string }) => d.required ? 0 : d.condition ? 1 : 2;
   return (spec?.attachments ?? [])
     .map(a => ({
       key: a.key,
@@ -14,8 +34,9 @@ export function requiredDocs(
       required: a.required === true,
       done: (counts[a.key] ?? 0) > 0,
       max: a.max,
+      ...(a.required !== true && conditional[a.key] ? { condition: conditional[a.key] } : {}),
     }))
-    .sort((a, b) => Number(b.required) - Number(a.required));
+    .sort((a, b) => rank(a) - rank(b));
 }
 
 const PRINT_NAMES: Record<string, string> = {

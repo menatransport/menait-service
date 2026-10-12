@@ -31,7 +31,7 @@ export function DocumentPreset({ spec, counts = {}, typeName }: {
                 </span>
                 <span className={d.done ? 'text-ink-400 line-through' : ''}>
                   {d.label}
-                  {!d.required && <span className="ml-1 text-xs text-ink-400">(ไม่บังคับ)</span>}
+                  {!d.required && <span className="ml-1 text-xs text-ink-400">({d.condition ?? 'ไม่บังคับ'})</span>}
                 </span>
               </li>
             ))}
