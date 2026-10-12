@@ -295,3 +295,23 @@ describe('บล็อกลงนามอยู่ด้านล่างข�
     expect(html.indexOf('<div class="sign-block">')).toBeGreaterThan(html.indexOf('<div class="tot">'));
   });
 });
+
+describe('ชื่อพนักงานบนใบ แทนรหัส (ผู้ใช้สั่ง 2026-10-13)', () => {
+  const named = { ...claim, created_by_name: 'กฤตบุญ ลายเงิน', approved_by_name: 'ณรงค์กรณ์ อัจฉริยญาติ' } as PettyClaim;
+  const namedFund = { ...fund, holder_name: 'ณรงค์กรณ์ อัจฉริยญาติ' };
+  test('ใบสำคัญจ่าย: ผู้จ่ายเงิน/ผู้อนุมัติ/ผู้เปิดใบ เป็นชื่อ', () => {
+    const html = pettyVoucherHtml({ claim: named, fund: namedFund, typeName: 'x' });
+    expect(html).toContain('<i>ณรงค์กรณ์ อัจฉริยญาติ</i>');
+    expect(html).toContain('กฤตบุญ ลายเงิน');
+    expect(html).not.toContain('<i>670108</i>');
+  });
+  test('ตรา e-Signature ยังขึ้นชื่อผู้อนุมัติ', () =>
+    expect(pettyVoucherHtml({ claim: named, fund: namedFund, typeName: 'x' })).toContain('ณรงค์กรณ์ อัจฉริยญาติ'));
+  test('ไม่มีชื่อก็ถอยไปใช้รหัส ไม่ว่าง', () => {
+    const html = pettyVoucherHtml({ claim, fund, typeName: 'x' });
+    expect(html).toContain('<i>12345</i>');
+  });
+  test('ใบสรุปรายการ: ผู้เปิดใบเป็นชื่อ', () =>
+    expect(itemSummaryHtml({ claim: named, fund: namedFund, typeName: 'x', spec: { item_based: true, item_fields: [{ key: 'ref_no', label: 'เลข', type: 'text' }] } }))
+      .toContain('<i>กฤตบุญ ลายเงิน</i>'));
+});

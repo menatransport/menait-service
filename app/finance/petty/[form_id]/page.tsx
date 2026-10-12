@@ -103,8 +103,8 @@ export default function PettyClaimDetailPage() {
           <Field label="ยอดรวม"
             value={`${claim.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`} />
           <Field label="เลขที่ใบรับสินค้า (DD)" value={claim.dd_no ?? 'ยังไม่กรอก'} />
-          <Field label="เจ้าหน้าที่ผู้เปิดใบ" value={claim.created_by} />
-          <Field label="ผู้อนุมัติ" value={claim.approved_by ?? '-'} />
+          <Field label="เจ้าหน้าที่ผู้เปิดใบ" value={claim.created_by_name ?? claim.created_by} />
+          <Field label="ผู้อนุมัติ" value={claim.approved_by_name ?? claim.approved_by ?? '-'} />
           <Field label="วันที่โอน" value={claim.transfer_date ?? '-'} />
           <Field label="บัญชีตรวจเมื่อ"
             value={claim.reviewed_at ? new Date(claim.reviewed_at).toLocaleString('th-TH') : '-'} />

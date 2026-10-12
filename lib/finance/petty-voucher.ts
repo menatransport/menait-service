@@ -24,9 +24,12 @@ const BRANCHES: Record<string, string> = {
   '01': 'สกท', '02': 'สสบ', '03': 'สลบ', '04': 'ศรย', '05': 'สขก',
 };
 
+const approverName = (claim: PettyClaim) => claim.approved_by_name ?? claim.approved_by ?? '';
+const clerkName = (claim: PettyClaim) => claim.created_by_name ?? claim.created_by;
+
 function approverEsign(claim: PettyClaim): ESign | null {
   return claim.approved_by && claim.approved_at
-    ? { name: claim.approved_by, timestamp: claim.approved_at, ref: claim.form_id } : null;
+    ? { name: approverName(claim), timestamp: claim.approved_at, ref: claim.form_id } : null;
 }
 
 function footer(claim: PettyClaim, docName: string): string {
@@ -34,7 +37,7 @@ function footer(claim: PettyClaim, docName: string): string {
     ref: claim.form_id,
     name: docName,
     owner: claim.payee_name ?? 'ฝ่ายบัญชีและการเงิน',
-    approvedBy: claim.approved_by ?? '',
+    approvedBy: approverName(claim),
     approvedDate: claim.approved_at ? bangkokDate(claim.approved_at) : '',
     printed: printedNow(),
   });
@@ -75,14 +78,14 @@ ${sec(2, 'รายการ', 'Items')}
 <table class="items"><thead><tr><th style="width:40%">รายการ</th><th class="c" style="width:12%">จำนวน</th>
 <th class="a" style="width:16%">ราคา/หน่วย</th><th class="a" style="width:18%">จำนวนเงิน</th><th>หมายเหตุ</th></tr></thead>
 <tbody>${rows.join('')}</tbody></table>
-<div class="sum"><div class="dates">${field('ผู้เปิดใบ', claim.created_by)}${field('วันที่โอน', thaiDate(claim.transfer_date))}</div>
+<div class="sum"><div class="dates">${field('ผู้เปิดใบ', clerkName(claim))}${field('วันที่โอน', thaiDate(claim.transfer_date))}</div>
 ${totalBox('รวมทั้งสิ้น', money(total), bahtText(total))}</div>
 
 ${signBlock(3, 'ลงนามและอนุมัติ', 'Signatures', [
-    { title: 'ผู้จ่ายเงิน', name: fund.holder_employee_id },
+    { title: 'ผู้จ่ายเงิน', name: fund.holder_name ?? fund.holder_employee_id },
     { title: 'ผู้รับเงิน', name: claim.payee_name },
-    { title: 'หัวหน้าแผนก', name: claim.approved_by, esign: approverEsign(claim) },
-    { title: 'ผู้อนุมัติ', name: claim.approved_by, esign: approverEsign(claim) },
+    { title: 'หัวหน้าแผนก', name: approverName(claim), esign: approverEsign(claim) },
+    { title: 'ผู้อนุมัติ', name: approverName(claim), esign: approverEsign(claim) },
   ])}
 </section>${opts.attachmentsHtml ?? ''}`;
 
@@ -125,7 +128,7 @@ ${sec(3, 'คำรับรอง', 'Declaration')}
 
 ${signBlock(4, 'ลงนามและอนุมัติ', 'Signatures', [
     { title: 'ผู้เบิกจ่าย', name: claim.payee_name },
-    { title: 'ผู้อนุมัติ', name: claim.approved_by, esign: approverEsign(claim) },
+    { title: 'ผู้อนุมัติ', name: approverName(claim), esign: approverEsign(claim) },
   ])}
 </section>${opts.attachmentsHtml ?? ''}`;
 
@@ -227,8 +230,8 @@ ${sec(2, 'รายการ', 'Items')}
 ${content}
 
 ${signBlock(3, 'ลงนาม', 'Signatures', [
-    { title: 'ผู้เปิดใบ', name: claim.created_by },
-    { title: 'ผู้อนุมัติ', name: claim.approved_by, esign: approverEsign(claim) },
+    { title: 'ผู้เปิดใบ', name: clerkName(claim) },
+    { title: 'ผู้อนุมัติ', name: approverName(claim), esign: approverEsign(claim) },
   ])}
 </section>${opts.attachmentsHtml ?? ''}`;
 

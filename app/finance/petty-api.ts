@@ -5,7 +5,8 @@ import { fetchJson } from './api';
 export const getExpenseTypes = () =>
   fetchJson<PettyExpenseType[]>('/api/finance/petty/expense-types');
 
-export const getFunds = () => fetchJson<PettyFund[]>('/api/finance/petty/funds');
+export const getFunds = (includeInactive = false) =>
+  fetchJson<PettyFund[]>(`/api/finance/petty/funds${includeInactive ? '?active=false' : ''}`);
 
 export const getBalance = (fundId: number) =>
   fetchJson<PettyBalance>(`/api/finance/petty/funds/${fundId}/balance`);

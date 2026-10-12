@@ -113,6 +113,7 @@ export const MENU_GROUPS: MenuGroup[] = [
             { title: 'อนุมัติเบิกเงินสดย่อย', description: 'ใบที่รอคุณอนุมัติ โอนเงิน และส่งบัญชี', icon: BadgeCheck, href: '/finance/petty/approvals' },
             { title: 'งานเงินสดย่อย (บัญชี)', description: 'ตรวจเอกสารที่ผู้อนุมัติส่งมา พิมพ์ใบปะหน้า', icon: Landmark, href: '/finance/petty/accounting', financeOnly: true },
             { title: 'ปิดรอบเงินสดย่อย (การเงิน)', description: 'ปิดรอบใบที่บัญชีตรวจผ่านแล้ว และคืนยอดกองทุน', icon: PackageCheck, href: '/finance/petty/batches', financeOnly: true },
+            { title: 'ยอดกองทุนเงินสดย่อย', description: 'ทุกกองทุน: Advance คงเหลือ ใบที่ยังไม่คืนยอด พร้อมอนุมัติ', icon: Wallet, href: '/finance/petty/funds', financeOnly: true },
             { title: 'ตั้งค่าเงินสดย่อย', description: 'กองทุน ผู้ถือเงิน วงเงิน และประเภทการเบิก', icon: Settings2, href: '/finance/petty/master', financeOnly: true },
         ],
     },

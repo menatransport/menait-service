@@ -25,7 +25,7 @@ export type PettyExpenseType = {
 };
 export type PettyFund = {
   id: number; branch_code: string; division_code: string;
-  holder_employee_id: string; fund_limit: number | null; is_active: boolean;
+  holder_employee_id: string; holder_name?: string | null; fund_limit: number | null; is_active: boolean;
 };
 export type PettyClaimItem = {
   id?: number; line_no?: number; event_date: string;
@@ -43,6 +43,8 @@ export type PettyClaim = {
   amount: number; dd_no: string | null; receipt_no: string | null;
   status: import('@/lib/finance/petty-status').PettyStatus;
   created_by: string; approved_by: string | null; approved_at: string | null;
+  /** ชื่อ-สกุลจาก users — ใบพิมพ์/หน้าจอใช้แทนรหัส (ไม่มี = ใช้รหัส) */
+  created_by_name?: string | null; approved_by_name?: string | null;
   transfer_date: string | null; review_remark: string | null; return_reason: string | null;
   reviewed_by: string | null; reviewed_at: string | null; submitted_to_acc_at: string | null;
   dup_override_reason: string | null; batch_id: number | null;

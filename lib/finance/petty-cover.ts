@@ -21,6 +21,11 @@ export function groupByClerk(claims: readonly PettyClaim[]): ClerkGroup[] {
   return [...buckets.values()].sort((a, b) => b.total - a.total);
 }
 
+/** ชื่อเจ้าหน้าที่ของกลุ่ม — จากใบใบแรกที่มีชื่อ ไม่มีก็รหัส */
+export function clerkNameOf(group: ClerkGroup): string {
+  return group.claims.find(c => c.created_by_name)?.created_by_name ?? group.clerk;
+}
+
 export type CoverRow = {
   no: number; formId: string; typeName: string; payee: string; ddNo: string;
   period: string; amount: number;

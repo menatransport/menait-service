@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { coverRows, coverSheetHtml, groupByClerk } from './petty-cover';
+import { clerkNameOf, coverRows, coverSheetHtml, groupByClerk } from './petty-cover';
 import type { PettyClaim } from '@/app/finance/types-petty';
 
 const CLAIMS = [
@@ -108,4 +108,11 @@ describe('ใบปะหน้า — ลงนามอยู่ด้าน�
   test('มีบล็อกลงนามที่ดันลงล่าง', () =>
     expect(coverSheetHtml({ group: groupByClerk(CLAIMS)[0], types: TYPES, clerkName: 'x', branchCode: '03', divisionCode: 'B02' }))
       .toContain('<div class="sign-block">'));
+});
+
+describe('ใบปะหน้า — ชื่อเจ้าหน้าที่จากใบ', () => {
+  test('clerkNameOf ใช้ชื่อเมื่อมี ไม่มีก็รหัส', () => {
+    expect(clerkNameOf({ clerk: '680043', claims: [{ created_by: '680043', created_by_name: 'กฤตบุญ ลายเงิน' } as PettyClaim], total: 0 })).toBe('กฤตบุญ ลายเงิน');
+    expect(clerkNameOf({ clerk: '680043', claims: [{ created_by: '680043' } as PettyClaim], total: 0 })).toBe('680043');
+  });
 });

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { FileStack } from 'lucide-react';
 import type { PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
-import { coverSheetHtml, groupByClerk } from '@/lib/finance/petty-cover';
+import { clerkNameOf, coverSheetHtml, groupByClerk } from '@/lib/finance/petty-cover';
 import { openPrintWindow } from '@/lib/finance/printShared';
 import { showAlert } from '@/app/finance/api';
 
@@ -21,7 +21,7 @@ export function CoverSheetButton({ claims, types, funds }: {
     if (!group) return;
     const fund = funds.find(f => f.id === group.claims[0]?.fund_id) ?? null;
     const html = coverSheetHtml({
-      group, types, clerkName: clerk,
+      group, types, clerkName: clerkNameOf(group),
       branchCode: fund?.branch_code ?? '-', divisionCode: fund?.division_code ?? '-',
       logoUrl: `${window.location.origin}/mena.png`,
     });
@@ -46,7 +46,7 @@ export function CoverSheetButton({ claims, types, funds }: {
           {groups.map(g => (
             <button key={g.clerk} type="button" onClick={() => print(g.clerk)}
               className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-slate-50">
-              <span>{g.clerk}</span>
+              <span>{clerkNameOf(g)}</span>
               <span className="tabular-nums text-ink-500">
                 {g.claims.length} ใบ · {g.total.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
               </span>
