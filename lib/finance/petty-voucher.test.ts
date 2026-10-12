@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { pettyVoucherHtml, receiptSubstituteHtml } from './petty-voucher';
+import { itemSummaryHtml, pettyVoucherHtml, receiptSubstituteHtml } from './petty-voucher';
 import type { PettyClaim, PettyFund } from '@/app/finance/types-petty';
 
 const fund: PettyFund = {
@@ -94,7 +94,7 @@ describe('หน่วยนับบนใบ มาจากประเภท
 
 describe('Project Code ไม่มีในระบบ — ช่องบนกระดาษเว้นว่าง (ผู้ใช้สั่ง 2026-10-13)', () => {
   const html = pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก' });
-  test('ช่องยังพิมพ์หัวข้อไว้ให้เขียนด้วยมือ', () => expect(html).toContain('<div class="box">Project Code</div>'));
+  test('ช่องยังพิมพ์หัวข้อไว้ให้เขียนด้วยมือ', () => expect(html).toMatch(/<span class="l">Project Code<\/span><span class="v"><\/span>/));
   test('เลขที่ใบเป็นแบบตัวอักษรสาขา', () => expect(html).toContain('LB-B02-2610-001'));
 });
 
@@ -102,12 +102,176 @@ describe('ของที่เจอตอนพิมพ์จริง 2026-1
   test('วันที่บนหัวใบเป็นวันที่ไทย ไม่ใช่วัน UTC (อนุมัติ 13/10 05:25 น. ต้องขึ้น 13/10)', () => {
     const lateNight = { ...claim, approved_at: '2026-10-12T22:25:51+00:00' } as PettyClaim;
     expect(pettyVoucherHtml({ claim: lateNight, fund, typeName: 'ค่าชั่งน้ำหนัก' }))
-      .toContain('วันที่ 13/10/2026');
+      .toContain('<span>วันที่</span><b>13/10/2026</b>');
   });
 
   test('ใบชั่งนับเป็น "คัน" แม้ spec.atms.unit ของ SKU จะเป็น "งาน"', () => {
     const html = pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก', unit: undefined });
     expect(html).toMatch(/\d+ คัน/);
     expect(html).not.toMatch(/\d+ งาน/);
+  });
+});
+
+describe('มาตรฐานเดียวกับใบ Advance (ผู้ใช้สั่ง 2026-10-13)', () => {
+  const html = pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก', logoUrl: 'http://x/mena.png' });
+
+  test('แถบสีหัวกระดาษ + โลโก้ + ชื่อไทย/อังกฤษ', () => {
+    expect(html).toContain('class="doc-band"');
+    expect(html).toContain('<img class="logo" src="http://x/mena.png"');
+    expect(html).toContain('<div class="t1">ใบสำคัญจ่ายเงินสดย่อย</div>');
+    expect(html).toContain('(Petty Cash Voucher)');
+  });
+  test('กล่อง meta เลขที่/วันที่ แบบเดียวกับ Advance', () =>
+    expect(html).toMatch(/<div class="meta"><div><span>เลขที่<\/span><b>LB-B02-2610-001<\/b><\/div>/));
+  test('หัวข้อมีเลขลำดับ', () => {
+    expect(html).toContain('<div class="sec"><span class="n">1</span><h2>ข้อมูลการจ่าย</h2>');
+    expect(html).toContain('<span class="n">2</span><h2>รายการ</h2>');
+    expect(html).toContain('<span class="n">3</span><h2>ลงนามและอนุมัติ</h2>');
+  });
+  test('Division เป็น checkbox แบบ Advance ติ๊ก B02', () => {
+    expect(html).toContain('<span class="cb checked"></span>B02');
+    expect(html).toContain('<span class="cb"></span>B01');
+    expect(html).not.toContain('[x]');
+  });
+  test('กล่องยอดรวมสีเขียวพร้อมตัวอักษร', () => {
+    expect(html).toContain('<div class="tot">');
+    expect(html).toContain('จำนวนเงิน (ตัวอักษร) : สองร้อยแปดสิบบาทถ้วน');
+  });
+  test('ตารางลงนาม 4 ช่องตามฟอร์มกระดาษ', () => {
+    expect(html).toContain('<table class="sig">');
+    for (const t of ['ผู้จ่ายเงิน', 'ผู้รับเงิน', 'หัวหน้าแผนก', 'ผู้อนุมัติ']) expect(html).toContain(`<th>${t}</th>`);
+    expect(html).toContain('ลงนามอิเล็กทรอนิกส์ผ่านระบบ menait-service');
+  });
+  test('ชื่อเอกสารใน Document Control เป็นแบบ Advance', () =>
+    expect(html).toContain('Petty Cash Voucher (PC)'));
+  test('ไม่มีโครงกล่องเส้นดำแบบเก่าแล้ว', () => expect(html).not.toContain('class="box"'));
+  test('หน้าแนบไฟล์ต่อท้ายได้', () =>
+    expect(pettyVoucherHtml({ claim, fund, typeName: 'x', attachmentsHtml: '<section class="att">ATT</section>' }))
+      .toContain('<section class="att">ATT</section>'));
+  test('ไม่มีโลโก้ก็ยังพิมพ์ได้', () => expect(pettyVoucherHtml({ claim, fund, typeName: 'x' })).not.toContain('<img class="logo"'));
+});
+
+describe('ใบรับรองแทนใบเสร็จ มาตรฐานเดียวกัน', () => {
+  const html = receiptSubstituteHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก', payeePosition: 'เจ้าหน้าที่รับแจ้งซ่อม' });
+  test('หัวเอกสาร', () => {
+    expect(html).toContain('<div class="t1">ใบรับรองแทนใบเสร็จรับเงิน</div>');
+    expect(html).toContain('(Receipt Substitute)');
+  });
+  test('คำรับรองอยู่ในกล่องข้อตกลงแบบ Advance', () => {
+    expect(html).toContain('<ol class="clauses">');
+    expect(html).toContain('ไม่สามารถเรียกใบเสร็จรับเงินจากผู้รับเงินได้');
+  });
+  test('ลงนาม 2 ช่อง', () => {
+    expect(html).toContain('<th>ผู้เบิกจ่าย</th>');
+    expect(html).toContain('<th>ผู้อนุมัติ</th>');
+  });
+  test('ชื่อเอกสาร', () => expect(html).toContain('Receipt Substitute (PC)'));
+});
+
+describe('ใบสรุปรายการประกอบ — คอลัมน์ตาม spec ของประเภท (ผู้ใช้สั่ง 2026-10-13)', () => {
+  const weighSpec = {
+    item_based: true,
+    item_fields: [
+      { key: 'event_date', label: 'วันที่ชั่ง', type: 'date', required: true },
+      { key: 'truck', label: 'รถ', type: 'truck', required: true },
+      { key: 'truck_type', label: 'ประเภทรถ', type: 'select', required: true },
+      { key: 'driver_name', label: 'พจส.', type: 'text' },
+      { key: 'ref_no', label: 'เลขที่บัตรชั่ง', type: 'text', required: true },
+      { key: 'rate', label: 'ราคา/ครั้ง', type: 'money', required: true },
+    ],
+  };
+  const twoDays = {
+    ...claim, amount: 300,
+    items: [
+      { line_no: 1, event_date: '2026-09-17', truck_code: '161', truck_plate: '71-4285', truck_type: 'โม่ใหญ่', ref_no: '000055', qty: 1, rate: 100, amount: 100, remark: null, driver_name: 'สมชาย ใจดี' },
+      { line_no: 2, event_date: '2026-09-17', truck_code: '144', truck_plate: '71-4286', truck_type: 'โม่ใหญ่', ref_no: '000056', qty: 1, rate: 100, amount: 100, remark: null, driver_name: null },
+      { line_no: 3, event_date: '2026-09-18', truck_code: '165', truck_plate: '71-9001', truck_type: 'โม่เล็ก', ref_no: '000172', qty: 1, rate: 100, amount: 100, remark: null, driver_name: 'วิชัย' },
+    ],
+  } as unknown as PettyClaim;
+  const html = itemSummaryHtml({ claim: twoDays, fund, typeName: 'ค่าชั่งน้ำหนัก', spec: weighSpec });
+
+  test('หัวเอกสารมาตรฐานเดียวกัน', () => {
+    expect(html).toContain('<div class="t1">ใบสรุปรายการ ค่าชั่งน้ำหนัก</div>');
+    expect(html).toContain('(Item Summary)');
+    expect(html).toContain('Item Summary (PC)');
+  });
+  test('คอลัมน์มาจาก spec: รถแตกเป็นเบอร์รถ+ทะเบียน', () => {
+    for (const h of ['วันที่ชั่ง', 'เบอร์รถ', 'ทะเบียน', 'ประเภทรถ', 'พจส.', 'เลขที่บัตรชั่ง', 'จำนวนเงิน']) {
+      expect(html).toContain(`>${h}</th>`);
+    }
+  });
+  test('ทุกแถวพิมพ์ครบ พจส. ที่ว่างเป็นขีด', () => {
+    expect(html).toContain('000055');
+    expect(html).toContain('สมชาย ใจดี');
+    expect(html).toContain('71-9001');
+  });
+  test('สรุปแยกรายวัน + รวมทั้งสิ้น', () => {
+    expect(html).toContain('รวม 17/09/2026');
+    expect(html).toContain('2 รายการ');
+    expect(html).toContain('รวม 18/09/2026');
+    expect(html).toContain('3 รายการ');
+    expect(html).toContain('รวมทั้งสิ้น');
+    expect(html).toContain('300.00');
+  });
+  test('ประเภทที่ไม่ใช่รายการรถ พิมพ์เป็นตารางหัวใบ', () => {
+    const travelSpec = { item_based: false, header_fields: [
+      { key: 'event_date', label: 'วันที่เดินทาง', type: 'date' }, { key: 'route_from', label: 'จาก', type: 'text' },
+      { key: 'route_to', label: 'ไป', type: 'text' }, { key: 'rate', label: 'จำนวนเงิน', type: 'money' } ] };
+    const travel = { ...claim, expense_type: 'TRAVEL', amount: 243, detail: { route_from: 'คลองตัน', route_to: 'เมกาบางนา' },
+      items: [{ line_no: 1, event_date: '2026-09-29', ref_no: 'TRIP-8891', qty: 1, rate: 243, amount: 243, remark: 'ขากลับ' }] } as unknown as PettyClaim;
+    const out = itemSummaryHtml({ claim: travel, fund, typeName: 'ค่าเดินทาง', spec: travelSpec });
+    expect(out).toContain('คลองตัน');
+    expect(out).toContain('เมกาบางนา');
+    expect(out).toContain('243.00');
+  });
+});
+
+describe('ใบสรุปรายการ ครบทุกประเภท (ผู้ใช้สั่ง 2026-10-13)', () => {
+  const truckCols = [
+    { key: 'event_date', label: 'วันที่', type: 'date', required: true },
+    { key: 'truck', label: 'รถ', type: 'truck', required: true },
+    { key: 'driver_name', label: 'พจส.', type: 'text' },
+  ];
+  test('ยาง: มีจำนวนเส้น ราคาต่อเส้น และรายการที่ทำ', () => {
+    const spec = { item_based: true, print: { unit: 'เส้น' }, item_fields: [...truckCols,
+      { key: 'ref_no', label: 'เลขที่บิล', type: 'text', required: true },
+      { key: 'remark', label: 'รายการที่ทำ', type: 'text', required: true },
+      { key: 'qty', label: 'จำนวน (เส้น)', type: 'number', required: true },
+      { key: 'rate', label: 'ราคา/เส้น', type: 'money', required: true }] };
+    const tyre = { ...claim, amount: 1200, items: [{ line_no: 1, event_date: '2026-09-26', truck_code: '6604', truck_plate: '72-8179',
+      truck_type: 'โม่ใหญ่', ref_no: 'B-01', qty: 6, rate: 200, amount: 1200, remark: 'เปลี่ยนยาง 6 เส้น', driver_name: 'สมหมาย' }] } as unknown as PettyClaim;
+    const html = itemSummaryHtml({ claim: tyre, fund, typeName: 'ค่าปะ-เปลี่ยนยาง', spec, unit: 'เส้น' });
+    expect(html).toContain('>จำนวน (เส้น)</th>');
+    expect(html).toContain('>ราคา/เส้น</th>');
+    expect(html).toContain('>รายการที่ทำ</th>');
+    expect(html).toContain('6 เส้น');
+    expect(html).toContain('200.00');
+    expect(html).toContain('เปลี่ยนยาง 6 เส้น');
+    expect(html).toContain('สมหมาย');
+  });
+  test('ซ่อมฉุกเฉิน: ไม่มีประเภทรถก็พิมพ์ได้ มีอาการ/งานที่ทำ', () => {
+    const spec = { item_based: true, item_fields: [...truckCols,
+      { key: 'ref_no', label: 'เลขที่ใบเสร็จ/ใบแจ้งซ่อม', type: 'text', required: true },
+      { key: 'remark', label: 'อาการ/งานที่ทำ', type: 'text', required: true },
+      { key: 'rate', label: 'จำนวนเงิน', type: 'money', required: true }] };
+    const repair = { ...claim, amount: 850, items: [{ line_no: 1, event_date: '2026-09-20', truck_code: '1093', truck_plate: '71-1325',
+      truck_type: null, ref_no: 'MR-7', qty: 1, rate: 850, amount: 850, remark: 'เปลี่ยนสายพาน', driver_name: null }] } as unknown as PettyClaim;
+    const html = itemSummaryHtml({ claim: repair, fund, typeName: 'ค่าซ่อมฉุกเฉิน', spec });
+    expect(html).toContain('>อาการ/งานที่ทำ</th>');
+    expect(html).toContain('เปลี่ยนสายพาน');
+    expect(html).not.toContain('>ประเภทรถ</th>');
+    expect(html).toContain('รวม 20/09/2026');
+  });
+  test('ทางด่วน: ตารางหัวใบ ขึ้นด่าน/ลงด่าน และรถ', () => {
+    const spec = { item_based: false, header_fields: [
+      { key: 'event_date', label: 'วันที่ใช้ทาง', type: 'date' }, { key: 'payee_name', label: 'ผู้สำรองจ่าย', type: 'employee' },
+      { key: 'truck', label: 'รถ', type: 'truck' }, { key: 'driver', label: 'พจส.', type: 'employee' },
+      { key: 'route_from', label: 'ขึ้นด่าน', type: 'text' }, { key: 'route_to', label: 'ลงด่าน', type: 'text' },
+      { key: 'receipt_no', label: 'เลขที่ใบเสร็จ', type: 'text' }, { key: 'rate', label: 'จำนวนเงิน', type: 'money' } ] };
+    const toll = { ...claim, expense_type: 'TOLL', amount: 65, driver_name: 'ประยุทธ', receipt_no: 'R-99',
+      detail: { route_from: 'ดินแดง', route_to: 'บางนา' },
+      items: [{ line_no: 1, event_date: '2026-09-21', truck_code: '161', truck_plate: '71-4285', ref_no: null, qty: 1, rate: 65, amount: 65, remark: null }] } as unknown as PettyClaim;
+    const html = itemSummaryHtml({ claim: toll, fund, typeName: 'ค่าทางด่วน', spec });
+    for (const s of ['ดินแดง', 'บางนา', '161 / 71-4285', 'ประยุทธ', 'R-99', '65.00', '21/09/2026']) expect(html).toContain(s);
   });
 });

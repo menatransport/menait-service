@@ -73,3 +73,22 @@ describe('coverSheetHtml', () => {
     expect(nasty).not.toContain('<script>bad()');
   });
 });
+
+describe('ใบปะหน้า มาตรฐานเดียวกับ Advance', () => {
+  const html = coverSheetHtml({ group: groupByClerk(claims)[0], types, clerkName: 'สายใจ ทองดี', branchCode: '03', divisionCode: 'B02', logoUrl: 'http://x/mena.png' });
+  test('หัวเอกสาร', () => {
+    expect(html).toContain('class="doc-band"');
+    expect(html).toContain('<img class="logo" src="http://x/mena.png"');
+    expect(html).toContain('<div class="t1">ใบปะหน้าเอกสารเบิกเงินสดย่อย</div>');
+    expect(html).toContain('(Petty Cash Cover Sheet)');
+  });
+  test('ตารางรายการแบบ Advance และกล่องยอดรวม', () => {
+    expect(html).toContain('<table class="items">');
+    expect(html).toContain('<div class="tot">');
+  });
+  test('ลงนาม ผู้ส่ง/ผู้รับ (บัญชี)', () => {
+    expect(html).toContain('<th>ผู้ส่งเอกสาร</th>');
+    expect(html).toContain('<th>ผู้รับเอกสาร (บัญชี)</th>');
+  });
+  test('ชื่อเอกสาร', () => expect(html).toContain('Petty Cash Cover Sheet (PC)'));
+});

@@ -1,147 +1,96 @@
-import type { PettyClaim, PettyFund } from '@/app/finance/types-petty';
+import type { PettyClaim, PettyFund, PettySpec, PettySpecField } from '@/app/finance/types-petty';
 import { bahtText } from '@/lib/finance/bahtText';
-import { groupForPrint, paginateGroups } from '@/lib/finance/petty-print';
+import { groupForPrint } from '@/lib/finance/petty-print';
 import {
-  documentControlFooter, esc, money, printedNow, stampHtml, VERSION_NO, wrapSegments,
-} from '@/lib/finance/printShared';
+  bangkokDate, checkboxes, docHead, field, PETTY_DOC_CSS, sec, signatureTable, thaiDate, totalBox,
+} from '@/lib/finance/petty-doc';
+import { documentControlFooter, esc, money, printedNow, wrapDocument, type ESign } from '@/lib/finance/printShared';
 
 export type VoucherOpts = {
   claim: PettyClaim;
   fund: PettyFund;
   typeName: string;
   payeePosition?: string | null;
-  companyName?: string;
-  /** หน่วยนับบนใบ มาจาก spec.atms.unit ของประเภทนั้น — ชั่งน้ำหนัก=คัน ยาง=เส้น เดินทาง=เที่ยว */
+  /** หน่วยนับบนใบ (คัน/เส้น/เที่ยว) จาก spec.print.unit — ไม่ใช่หน่วย SKU */
   unit?: string;
+  /** โลโก้บริษัท (origin + /mena.png) แบบเดียวกับใบ Advance */
+  logoUrl?: string | null;
+  /** หน้าแนบไฟล์ต่อท้าย (printShared.attachmentPagesHtml) */
+  attachmentsHtml?: string;
 };
 
-const COMPANY = 'บริษัท มีนาทรานสปอร์ต จำกัด';
 const DIVISIONS = ['B01', 'B02', 'B03', 'B04', 'A01', 'A02', 'A03', 'A04', 'A05', 'PJS'];
 const BRANCHES: Record<string, string> = {
   '01': 'สกท', '02': 'สสบ', '03': 'สลบ', '04': 'ศรย', '05': 'สขก',
 };
 
-const CSS = `
-@page { size: A4 portrait; margin: 10mm 12mm; }
-.title { text-align:center; font-weight:700; font-size:15pt; margin:0 0 2mm; }
-.sub { text-align:center; font-size:10pt; margin:0 0 4mm; }
-.row { display:flex; gap:6mm; font-size:10pt; margin-bottom:2mm; }
-.row > div { flex:1; }
-.box { border:1px solid #000; padding:2mm 3mm; }
-table.items { width:100%; border-collapse:collapse; font-size:10pt; margin-top:3mm; }
-table.items th, table.items td { border:1px solid #000; padding:1.5mm 2mm; vertical-align:top; }
-table.items th { background:#f2f2f2; text-align:center; }
-.num { text-align:right; white-space:nowrap; }
-.tick { font-family:monospace; }
-.signs { display:flex; gap:4mm; margin-top:8mm; font-size:10pt; }
-.sign { flex:1; border-top:1px dotted #000; padding-top:2mm; text-align:center; min-height:22mm; }
-.note { font-size:9pt; margin-top:2mm; }
-.pagemark { text-align:right; font-size:9pt; margin-top:2mm; }
-`;
+function approverEsign(claim: PettyClaim): ESign | null {
+  return claim.approved_by && claim.approved_at
+    ? { name: claim.approved_by, timestamp: claim.approved_at, ref: claim.form_id } : null;
+}
 
 function footer(claim: PettyClaim, docName: string): string {
   return documentControlFooter({
     ref: claim.form_id,
     name: docName,
-    owner: 'ฝ่ายบัญชีและการเงิน',
-    approvedBy: claim.approved_by ?? '-',
-    approvedDate: claim.approved_at ? bangkokDate(claim.approved_at) : '-',
+    owner: claim.payee_name ?? 'ฝ่ายบัญชีและการเงิน',
+    approvedBy: claim.approved_by ?? '',
+    approvedDate: claim.approved_at ? bangkokDate(claim.approved_at) : '',
     printed: printedNow(),
   });
 }
 
-function thaiDate(iso: string | null | undefined): string {
-  if (!iso) return '';
-  const [y, m, d] = iso.split('-');
-  return y && m && d ? `${d}/${m}/${y}` : '';
+function periodText(claim: PettyClaim): string {
+  const from = thaiDate(claim.period_from ?? claim.expense_date);
+  const to = thaiDate(claim.period_to ?? claim.expense_date);
+  return from === to ? from : `${from} – ${to}`;
 }
 
-/** วันที่ (ไม่ใช่เวลา) ของ timestamp ตามเวลาไทย — approved_at เป็น UTC ถ้าตัด 10 ตัวแรกจะได้วันก่อนหน้าหลังสี่ทุ่ม */
-function bangkokDate(timestamp: string | null | undefined): string {
-  if (!timestamp) return '';
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return timestamp.slice(0, 10);
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' })
-    .formatToParts(date);
-  const get = (type: string) => parts.find(p => p.type === type)?.value ?? '';
-  return `${get('year')}-${get('month')}-${get('day')}`;
+function voucherDate(claim: PettyClaim): string {
+  return thaiDate(claim.approved_at ? bangkokDate(claim.approved_at) : claim.expense_date);
 }
 
-function divisionTicks(code: string): string {
-  return DIVISIONS.map(d => `<span class="tick">${d === code ? '[x]' : '[ ]'} ${esc(d)}</span>`).join(' &nbsp; ');
-}
-
-function itemRows(groups: ReturnType<typeof groupForPrint>): string {
-  const rows = groups.map(g => `<tr>
-    <td>${esc(g.label)}</td>
-    <td class="num">${g.count} ${esc(g.unit)}</td>
-    <td class="num">${money(g.rate)}</td>
-    <td class="num">${money(g.total)}</td>
-    <td>${esc(g.truckCodes.join(', '))}</td>
-  </tr>`);
-  // ตารางบนกระดาษมี 6 บรรทัดเสมอ เติมแถวว่างให้ครบเพื่อให้ช่องเซ็นอยู่ที่เดิม
-  for (let i = groups.length; i < 6; i += 1) {
-    rows.push('<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>');
-  }
-  return rows.join('');
-}
-
-/** ใบสำคัญจ่ายเงินสดย่อย — ช่องตามฟอร์มกระดาษเดิม ยกเว้นเล่มที่/เลขที่โรงพิมพ์ที่เลิกใช้ */
+/** ใบสำคัญจ่ายเงินสดย่อย — ช่องตามฟอร์มกระดาษ โครงและสไตล์เดียวกับใบ Advance */
 export function pettyVoucherHtml(opts: VoucherOpts): string {
   const { claim, fund, typeName } = opts;
   const groups = groupForPrint(claim.items, typeName, { unit: opts.unit });
-  const pages = paginateGroups(groups);
   const total = groups.reduce((s, g) => s + g.total, 0);
-  const company = opts.companyName ?? COMPANY;
 
-  const segments = (pages.length ? pages : [[]]).map((pageGroups, index) => {
-    const isLast = index === (pages.length || 1) - 1;
-    const pageTotal = pageGroups.reduce((s, g) => s + g.total, 0);
-    return {
-      body: `
-<p class="title">${esc(company)}</p>
-<p class="sub">ใบสำคัญจ่ายเงินสดย่อย</p>
-<div class="row">
-  <div class="box">เลขที่ <strong>${esc(claim.form_id)}</strong></div>
-  <div class="box">วันที่ ${esc(thaiDate(claim.approved_at ? bangkokDate(claim.approved_at) : claim.expense_date))}</div>
-  <div class="box">Project Code</div>
-</div>
-<div class="row"><div class="box">จ่ายให้ <strong>${esc(claim.payee_name ?? '')}</strong></div></div>
-<div class="row"><div class="box">Division ${divisionTicks(fund.division_code)}</div></div>
-<div class="row">
-  <div class="box">สาขา ${esc(fund.branch_code)} ${esc(BRANCHES[fund.branch_code] ?? '')}</div>
-  <div class="box">เลขที่ใบรับสินค้า (DD) ${esc(claim.dd_no ?? '')}</div>
-</div>
-<table class="items">
-  <thead><tr>
-    <th style="width:42%">รายการ</th><th style="width:10%">จำนวน</th>
-    <th style="width:12%">ราคา/หน่วย</th><th style="width:14%">จำนวนเงิน</th><th>หมายเหตุ</th>
-  </tr></thead>
-  <tbody>${itemRows(pageGroups)}</tbody>
-  <tfoot><tr>
-    <td colspan="3" class="num"><strong>${isLast ? 'รวมทั้งสิ้น' : 'รวมแผ่นนี้'}</strong></td>
-    <td class="num"><strong>${money(isLast ? total : pageTotal)}</strong></td>
-    <td>${isLast ? esc(bahtText(total)) : ''}</td>
-  </tr></tfoot>
-</table>
-${isLast ? `<div class="signs">
-  <div class="sign">ผู้จ่ายเงิน<br/><span class="note">(ลงชื่อ)</span></div>
-  <div class="sign">ผู้รับเงิน<br/><span class="note">(ลงชื่อ)</span></div>
-  <div class="sign">หัวหน้าแผนก${stampHtml(claim.approved_by && claim.approved_at
-      ? { name: claim.approved_by, timestamp: claim.approved_at, ref: claim.form_id } : null)}</div>
-  <div class="sign">ผู้อนุมัติ${stampHtml(claim.approved_by && claim.approved_at
-      ? { name: claim.approved_by, timestamp: claim.approved_at, ref: claim.form_id } : null)}</div>
-</div>` : ''}
-${pages.length > 1 ? `<p class="pagemark">แผ่นที่ ${index + 1}/${pages.length}</p>` : ''}`,
-    };
-  });
+  const rows = groups.map(g => `<tr><td>${esc(g.label)}</td><td class="c">${g.count} ${esc(g.unit)}</td>` +
+    `<td class="a">${money(g.rate)}</td><td class="a">${money(g.total)}</td><td>${esc(g.truckCodes.join(', '))}</td></tr>`);
+  // ฟอร์มกระดาษมี 6 บรรทัดเสมอ — เติมแถวว่างให้ช่องเซ็นอยู่ที่เดิม
+  for (let i = groups.length; i < 6; i += 1) rows.push('<tr><td>&nbsp;</td><td></td><td class="a"></td><td class="a"></td><td></td></tr>');
 
-  return wrapSegments({
-    title: `ใบสำคัญจ่ายเงินสดย่อย ${claim.form_id}`,
-    segments,
-    footerHtml: footer(claim, `ใบสำคัญจ่ายเงินสดย่อย (v${VERSION_NO})`),
-    extraCss: CSS,
-    fontCss: true,
+  const body = `<section class="doc-part">
+${docHead({ title: 'ใบสำคัญจ่ายเงินสดย่อย', english: '(Petty Cash Voucher)', logoUrl: opts.logoUrl,
+    meta: [['เลขที่', claim.form_id], ['วันที่', voucherDate(claim)]] })}
+
+${sec(1, 'ข้อมูลการจ่าย', 'Payment')}
+<div class="grid">${field('จ่ายให้', claim.payee_name)}${field('ประเภทการเบิก', typeName)}
+${field('สาขา', `${fund.branch_code} ${BRANCHES[fund.branch_code] ?? ''}`.trim())}${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}
+${field('ช่วงวันที่ค่าใช้จ่าย', periodText(claim))}${field('Project Code', '')}</div>
+${checkboxes('Division', DIVISIONS, fund.division_code)}
+
+${sec(2, 'รายการ', 'Items')}
+<table class="items"><thead><tr><th style="width:40%">รายการ</th><th class="c" style="width:12%">จำนวน</th>
+<th class="a" style="width:16%">ราคา/หน่วย</th><th class="a" style="width:18%">จำนวนเงิน</th><th>หมายเหตุ</th></tr></thead>
+<tbody>${rows.join('')}</tbody></table>
+<div class="sum"><div class="dates">${field('ผู้เปิดใบ', claim.created_by)}${field('วันที่โอน', thaiDate(claim.transfer_date))}</div>
+${totalBox('รวมทั้งสิ้น', money(total), bahtText(total))}</div>
+
+${sec(3, 'ลงนามและอนุมัติ', 'Signatures')}
+${signatureTable([
+    { title: 'ผู้จ่ายเงิน', name: fund.holder_employee_id },
+    { title: 'ผู้รับเงิน', name: claim.payee_name },
+    { title: 'หัวหน้าแผนก', name: claim.approved_by, esign: approverEsign(claim) },
+    { title: 'ผู้อนุมัติ', name: claim.approved_by, esign: approverEsign(claim) },
+  ])}
+</section>${opts.attachmentsHtml ?? ''}`;
+
+  return wrapDocument({
+    title: `${claim.form_id} — ใบสำคัญจ่ายเงินสดย่อย`,
+    body, extraCss: PETTY_DOC_CSS, fontCss: true,
+    footerHtml: footer(claim, 'Petty Cash Voucher (PC)'),
   });
 }
 
@@ -150,48 +99,145 @@ export function receiptSubstituteHtml(opts: VoucherOpts): string {
   const { claim, fund, typeName } = opts;
   const groups = groupForPrint(claim.items, typeName, { unit: opts.unit });
   const total = groups.reduce((s, g) => s + g.total, 0);
-  const company = opts.companyName ?? COMPANY;
   const from = thaiDate(claim.period_from ?? claim.expense_date);
   const to = thaiDate(claim.period_to ?? claim.expense_date);
 
-  const body = `
-<p class="title">${esc(company)} (สาขา ${esc(fund.branch_code.padStart(5, '0'))})</p>
-<p class="sub">ใบรับรองแทนใบเสร็จรับเงิน</p>
-<table class="items">
-  <thead><tr>
-    <th style="width:14%">วันที่</th><th style="width:46%">รายละเอียดรายจ่าย</th>
-    <th style="width:10%">จำนวน</th><th style="width:16%">จำนวนเงิน</th><th>หมายเหตุ</th>
-  </tr></thead>
-  <tbody>${groups.map(g => `<tr>
-    <td>${esc(to)}</td>
-    <td>${esc(g.label)}</td>
-    <td class="num">${g.count} ${esc(g.unit)}</td>
-    <td class="num">${money(g.total)}</td>
-    <td>${esc(g.truckCodes.join(', '))}</td>
-  </tr>`).join('')}</tbody>
-  <tfoot><tr>
-    <td colspan="3" class="num"><strong>รวมทั้งสิ้น</strong></td>
-    <td class="num"><strong>${money(total)}</strong></td>
-    <td>${esc(bahtText(total))}</td>
-  </tr></tfoot>
-</table>
-<p class="note" style="margin-top:4mm">
-  ข้าพเจ้า <strong>${esc(claim.payee_name ?? '')}</strong>
-  ตำแหน่ง ${esc(opts.payeePosition ?? '')}
-  ขอรับรองว่าได้จ่ายเงินตามรายการข้างต้นไปจริง ตั้งแต่วันที่ ${esc(from)} ถึงวันที่ ${esc(to)}
-  และไม่สามารถเรียกใบเสร็จรับเงินจากผู้รับเงินได้
-</p>
-<div class="signs">
-  <div class="sign">ผู้เบิกจ่าย<br/><span class="note">(ลงชื่อ)</span></div>
-  <div class="sign">ผู้อนุมัติ${stampHtml(claim.approved_by && claim.approved_at
-    ? { name: claim.approved_by, timestamp: claim.approved_at, ref: claim.form_id } : null)}</div>
-</div>`;
+  const rows = groups.map(g => `<tr><td class="c">${esc(to)}</td><td>${esc(g.label)}</td><td class="c">${g.count} ${esc(g.unit)}</td>` +
+    `<td class="a">${money(g.total)}</td><td>${esc(g.truckCodes.join(', '))}</td></tr>`).join('');
 
-  return wrapSegments({
-    title: `ใบรับรองแทนใบเสร็จรับเงิน ${claim.form_id}`,
-    segments: [{ body }],
-    footerHtml: footer(claim, `ใบรับรองแทนใบเสร็จรับเงิน (v${VERSION_NO})`),
-    extraCss: CSS,
-    fontCss: true,
+  const body = `<section class="doc-part">
+${docHead({ title: 'ใบรับรองแทนใบเสร็จรับเงิน', english: '(Receipt Substitute)', logoUrl: opts.logoUrl,
+    meta: [['เลขที่', claim.form_id], ['วันที่', voucherDate(claim)]] })}
+
+${sec(1, 'ผู้รับรอง', 'Certifier')}
+<div class="grid">${field('ชื่อ', claim.payee_name)}${field('ตำแหน่ง', opts.payeePosition)}
+${field('บริษัท', 'บริษัท มีนาทรานสปอร์ต จำกัด')}${field('สาขา', fund.branch_code.padStart(5, '0'))}</div>
+
+${sec(2, 'รายละเอียดรายจ่าย', 'Expenses')}
+<table class="items"><thead><tr><th class="c" style="width:16%">วันที่</th><th>รายละเอียดรายจ่าย</th>
+<th class="c" style="width:12%">จำนวน</th><th class="a" style="width:18%">จำนวนเงิน</th><th style="width:22%">หมายเหตุ</th></tr></thead>
+<tbody>${rows}</tbody></table>
+<div class="sum"><div class="dates">${field('ตั้งแต่วันที่', from)}${field('ถึงวันที่', to)}</div>
+${totalBox('รวมทั้งสิ้น', money(total), bahtText(total))}</div>
+
+${sec(3, 'คำรับรอง', 'Declaration')}
+<ol class="clauses"><li>ข้าพเจ้า ${esc(claim.payee_name ?? '')} ขอรับรองว่าได้จ่ายเงินตามรายการข้างต้นไปจริง ตั้งแต่วันที่ ${esc(from)} ถึงวันที่ ${esc(to)}</li>
+<li>รายการข้างต้นไม่สามารถเรียกใบเสร็จรับเงินจากผู้รับเงินได้ จึงออกใบรับรองนี้แทน</li></ol>
+
+${sec(4, 'ลงนามและอนุมัติ', 'Signatures')}
+${signatureTable([
+    { title: 'ผู้เบิกจ่าย', name: claim.payee_name },
+    { title: 'ผู้อนุมัติ', name: claim.approved_by, esign: approverEsign(claim) },
+  ])}
+</section>${opts.attachmentsHtml ?? ''}`;
+
+  return wrapDocument({
+    title: `${claim.form_id} — ใบรับรองแทนใบเสร็จรับเงิน`,
+    body, extraCss: PETTY_DOC_CSS, fontCss: true,
+    footerHtml: footer(claim, 'Receipt Substitute (PC)'),
+  });
+}
+
+// ---------------------------------------------------------------- ใบสรุปรายการประกอบ
+
+type Column = { head: string; cell: (item: PettyClaim['items'][number]) => string; cls?: string };
+
+/** คอลัมน์จาก item_fields ของ spec — `truck` แตกเป็นเบอร์รถ+ทะเบียน · `rate` กลายเป็นจำนวนเงินท้ายตาราง */
+function columnsFromSpec(fields: PettySpecField[], unit: string): Column[] {
+  const cols: Column[] = [];
+  for (const f of fields) {
+    // ยางนับเป็นเส้น: จำนวนและราคาต่อหน่วยอยู่บนใบด้วย · ค่าชั่งมีแค่ราคา/ครั้ง
+    if (f.key === 'qty') { cols.push({ head: f.label, cell: i => `${Number(i.qty ?? 1)} ${esc(unit)}`, cls: 'c' }); continue; }
+    if (f.key === 'rate') { cols.push({ head: f.label, cell: i => money(Number(i.rate)), cls: 'a' }); continue; }
+    if (f.key === 'truck') {
+      cols.push({ head: 'เบอร์รถ', cell: i => esc(i.truck_code ?? '-') });
+      cols.push({ head: 'ทะเบียน', cell: i => esc(i.truck_plate ?? '-') });
+      continue;
+    }
+    if (f.key === 'event_date') { cols.push({ head: f.label, cell: i => esc(thaiDate(i.event_date)), cls: 'c' }); continue; }
+    if (f.key === 'driver' || f.key === 'driver_name') { cols.push({ head: f.label, cell: i => esc(i.driver_name || '-') }); continue; }
+    const key = f.key as keyof PettyClaim['items'][number];
+    cols.push({ head: f.label, cell: i => esc((i[key] as string | null | undefined) || '-') });
+  }
+  return cols;
+}
+
+/**
+ * ใบสรุปรายการประกอบ — หนึ่งแถวต่อรายการ คอลัมน์ตามประเภท (ค่าชั่ง: วันที่ เบอร์รถ ทะเบียน ประเภทรถ พจส. เลขที่บัตรชั่ง)
+ * สรุปย่อยรายวันแล้วรวมทั้งสิ้น · ประเภทที่ไม่ใช่รายการรถพิมพ์เป็นตารางหัวใบ
+ */
+export function itemSummaryHtml(opts: VoucherOpts & { spec: PettySpec | null | undefined }): string {
+  const { claim, fund, typeName, spec } = opts;
+  const itemBased = spec?.item_based !== false && (spec?.item_fields?.length ?? 0) > 0;
+  let content: string;
+
+  if (itemBased) {
+    const cols = columnsFromSpec(spec?.item_fields ?? [], opts.unit ?? 'คัน');
+    const heads = ['<th class="c" style="width:8mm">#</th>', ...cols.map(c => `<th>${esc(c.head)}</th>`),
+      '<th class="a" style="width:26mm">จำนวนเงิน</th>'].join('');
+    const byDate = new Map<string, PettyClaim['items']>();
+    for (const item of claim.items) {
+      const key = item.event_date;
+      if (!byDate.has(key)) byDate.set(key, []);
+      byDate.get(key)!.push(item);
+    }
+    const bodyRows: string[] = [];
+    let no = 0;
+    for (const [date, items] of [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+      for (const item of items) {
+        no += 1;
+        bodyRows.push(`<tr><td class="c">${no}</td>${cols.map(c => `<td class="${c.cls ?? ''}">${c.cell(item)}</td>`).join('')}` +
+          `<td class="a">${money(Number(item.amount))}</td></tr>`);
+      }
+      const sub = items.reduce((s, i) => s + Number(i.amount), 0);
+      bodyRows.push(`<tr><td class="sub" colspan="${cols.length + 1}">รวม ${esc(thaiDate(date))} · ${items.length} รายการ</td>` +
+        `<td class="sub a">${money(sub)}</td></tr>`);
+    }
+    content = `<table class="items"><thead><tr>${heads}</tr></thead><tbody>${bodyRows.join('')}</tbody></table>` +
+      `<div class="sum"><div class="dates">${field('รวมทั้งสิ้น', `${claim.items.length} รายการ`)}${field('ช่วงวันที่', periodText(claim))}</div>` +
+      `${totalBox('รวมทั้งสิ้น', money(Number(claim.amount)), bahtText(Number(claim.amount)))}</div>`;
+  } else {
+    const detail = (claim.detail ?? {}) as Record<string, unknown>;
+    const item = claim.items[0];
+    const value = (f: PettySpecField): string => {
+      if (f.key === 'event_date') return thaiDate(item?.event_date ?? claim.expense_date);
+      if (f.key === 'rate') return money(Number(claim.amount));
+      if (f.key === 'payee_name') return claim.payee_name ?? '';
+      if (f.key === 'ref_no') return item?.ref_no ?? claim.receipt_no ?? '';
+      if (f.key === 'truck') return [item?.truck_code, item?.truck_plate].filter(Boolean).join(' / ');
+      if (f.key === 'driver' || f.key === 'driver_name') return claim.driver_name ?? '';
+      // ช่องที่เป็นคอลัมน์ของใบเอง (เลขที่ใบเสร็จ เลข DD ฯลฯ) มาก่อนค่าใน detail
+      const own = (claim as unknown as Record<string, unknown>)[f.key];
+      if (own !== undefined && own !== null && own !== '') return String(own);
+      const v = detail[f.key];
+      return v === undefined || v === null ? '' : String(v);
+    };
+    const fields = (spec?.header_fields ?? []).map(f => field(f.label, value(f))).join('');
+    content = `<div class="kv">${fields}${field('หมายเหตุ', item?.remark ?? '')}</div>` +
+      `<div class="sum"><div class="dates"></div>${totalBox('รวมทั้งสิ้น', money(Number(claim.amount)), bahtText(Number(claim.amount)))}</div>`;
+  }
+
+  const body = `<section class="doc-part">
+${docHead({ title: `ใบสรุปรายการ ${typeName}`, english: '(Item Summary)', logoUrl: opts.logoUrl,
+    meta: [['เลขที่', claim.form_id], ['วันที่', voucherDate(claim)]] })}
+
+${sec(1, 'ข้อมูลใบเบิก', 'Claim')}
+<div class="grid">${field('จ่ายให้', claim.payee_name)}${field('ประเภทการเบิก', typeName)}
+${field('สาขา · Division', `${fund.branch_code} ${BRANCHES[fund.branch_code] ?? ''} · ${fund.division_code}`)}${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}</div>
+
+${sec(2, 'รายการ', 'Items')}
+${content}
+
+${sec(3, 'ลงนาม', 'Signatures')}
+${signatureTable([
+    { title: 'ผู้เปิดใบ', name: claim.created_by },
+    { title: 'ผู้อนุมัติ', name: claim.approved_by, esign: approverEsign(claim) },
+  ])}
+</section>${opts.attachmentsHtml ?? ''}`;
+
+  return wrapDocument({
+    title: `${claim.form_id} — ใบสรุปรายการ`,
+    body, extraCss: PETTY_DOC_CSS, fontCss: true,
+    footerHtml: footer(claim, 'Item Summary (PC)'),
   });
 }

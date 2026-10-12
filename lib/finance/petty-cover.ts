@@ -1,7 +1,8 @@
 import type { PettyClaim, PettyExpenseType } from '@/app/finance/types-petty';
 import { bahtText } from '@/lib/finance/bahtText';
 import { round2 } from '@/lib/finance/status';
-import { documentControlFooter, esc, money, printedNow, VERSION_NO, wrapSegments } from '@/lib/finance/printShared';
+import { docHead, field, PETTY_DOC_CSS, sec, signatureTable, thaiDate, totalBox } from '@/lib/finance/petty-doc';
+import { documentControlFooter, esc, money, printedNow, wrapDocument } from '@/lib/finance/printShared';
 
 export type ClerkGroup = { clerk: string; claims: PettyClaim[]; total: number };
 
@@ -25,12 +26,6 @@ export type CoverRow = {
   period: string; amount: number;
 };
 
-function thaiDate(iso: string | null | undefined): string {
-  if (!iso) return '';
-  const [y, m, d] = iso.split('-');
-  return y && m && d ? `${d}/${m}/${y}` : '';
-}
-
 export function coverRows(group: ClerkGroup, types: readonly PettyExpenseType[]): CoverRow[] {
   return group.claims.map((claim, index) => ({
     no: index + 1,
@@ -45,20 +40,7 @@ export function coverRows(group: ClerkGroup, types: readonly PettyExpenseType[])
   }));
 }
 
-const CSS = `
-@page { size: A4 portrait; margin: 12mm; }
-.title { text-align:center; font-weight:700; font-size:15pt; margin:0 0 1mm; }
-.sub { text-align:center; font-size:10pt; margin:0 0 5mm; }
-.meta { display:flex; gap:6mm; font-size:10pt; margin-bottom:3mm; }
-.meta > div { flex:1; border:1px solid #000; padding:2mm 3mm; }
-table.cover { width:100%; border-collapse:collapse; font-size:10pt; }
-table.cover th, table.cover td { border:1px solid #000; padding:1.5mm 2mm; }
-table.cover th { background:#f2f2f2; }
-.num { text-align:right; white-space:nowrap; }
-.signs { display:flex; gap:6mm; margin-top:10mm; font-size:10pt; }
-.sign { flex:1; border-top:1px dotted #000; padding-top:2mm; text-align:center; min-height:20mm; }
-`;
-
+/** ใบปะหน้าส่งบัญชี — โครงและสไตล์เดียวกับใบ Advance */
 export function coverSheetHtml(opts: {
   group: ClerkGroup;
   types: readonly PettyExpenseType[];
@@ -66,53 +48,41 @@ export function coverSheetHtml(opts: {
   branchCode: string;
   divisionCode: string;
   batchNo?: string | null;
+  logoUrl?: string | null;
 }): string {
   const rows = coverRows(opts.group, opts.types);
-  const body = `
-<p class="title">ใบปะหน้าเอกสารเบิกเงินสดย่อย</p>
-<p class="sub">ส่งฝ่ายบัญชีและการเงิน</p>
-<div class="meta">
-  <div>เจ้าหน้าที่ผู้เปิดใบ <strong>${esc(opts.clerkName)}</strong></div>
-  <div>สาขา ${esc(opts.branchCode)} · แผนก ${esc(opts.divisionCode)}</div>
-  <div>รอบ ${esc(opts.batchNo ?? '-')}</div>
-</div>
-<table class="cover">
-  <thead><tr>
-    <th style="width:8%">ลำดับ</th><th style="width:22%">เลขที่ใบเบิก</th>
-    <th style="width:18%">ประเภท</th><th style="width:16%">จ่ายให้</th>
-    <th style="width:16%">ช่วงวันที่</th><th style="width:12%">เลขที่ DD</th>
-    <th class="num">จำนวนเงิน</th>
-  </tr></thead>
-  <tbody>${rows.map(r => `<tr>
-    <td class="num">${r.no}</td>
-    <td>${esc(r.formId)}</td>
-    <td>${esc(r.typeName)}</td>
-    <td>${esc(r.payee)}</td>
-    <td>${esc(r.period)}</td>
-    <td>${esc(r.ddNo)}</td>
-    <td class="num">${money(r.amount)}</td>
-  </tr>`).join('')}</tbody>
-  <tfoot><tr>
-    <td colspan="6" class="num"><strong>รวม ${rows.length} ใบ</strong></td>
-    <td class="num"><strong>${money(opts.group.total)}</strong></td>
-  </tr>
-  <tr><td colspan="7">ตัวอักษร ${esc(bahtText(opts.group.total))}</td></tr></tfoot>
-</table>
-<div class="signs">
-  <div class="sign">ผู้ส่งเอกสาร<br/><span style="font-size:9pt">(${esc(opts.clerkName)})</span></div>
-  <div class="sign">ผู้รับเอกสาร (บัญชี)<br/><span style="font-size:9pt">วันที่ ............</span></div>
-</div>`;
+  const ref = opts.batchNo ?? opts.group.claims[0]?.form_id ?? '-';
+  const today = thaiDate(new Date().toISOString().slice(0, 10));
 
-  return wrapSegments({
+  const body = `<section class="doc-part">
+${docHead({ title: 'ใบปะหน้าเอกสารเบิกเงินสดย่อย', english: '(Petty Cash Cover Sheet)', logoUrl: opts.logoUrl,
+    meta: [['อ้างอิง', ref], ['วันที่', today]] })}
+
+${sec(1, 'ผู้ส่งเอกสาร', 'Sender')}
+<div class="grid">${field('เจ้าหน้าที่ผู้เปิดใบ', opts.clerkName)}${field('ส่งถึง', 'ฝ่ายบัญชีและการเงิน')}
+${field('สาขา · แผนก', `${opts.branchCode} · ${opts.divisionCode}`)}${field('รอบคืนยอด', opts.batchNo ?? '-')}</div>
+
+${sec(2, 'ใบเบิกที่ส่งมาด้วย', 'Documents')}
+<table class="items"><thead><tr><th class="c" style="width:8mm">#</th><th style="width:30mm">เลขที่ใบเบิก</th><th>ประเภท</th>
+<th>จ่ายให้</th><th style="width:36mm">ช่วงวันที่</th><th style="width:28mm">เลขที่ DD</th><th class="a" style="width:26mm">จำนวนเงิน</th></tr></thead>
+<tbody>${rows.map(r => `<tr><td class="c">${r.no}</td><td>${esc(r.formId)}</td><td>${esc(r.typeName)}</td><td>${esc(r.payee)}</td>` +
+    `<td>${esc(r.period)}</td><td>${esc(r.ddNo)}</td><td class="a">${money(r.amount)}</td></tr>`).join('')}</tbody></table>
+<div class="sum"><div class="dates">${field('จำนวนใบ', `${rows.length} ใบ`)}</div>
+${totalBox('รวมทั้งสิ้น', money(opts.group.total), bahtText(opts.group.total))}</div>
+
+${sec(3, 'ลงนาม', 'Signatures')}
+${signatureTable([
+    { title: 'ผู้ส่งเอกสาร', name: opts.clerkName },
+    { title: 'ผู้รับเอกสาร (บัญชี)', name: '' },
+  ])}
+</section>`;
+
+  return wrapDocument({
     title: `ใบปะหน้าเงินสดย่อย ${opts.clerkName}`,
-    segments: [{ body }],
+    body, extraCss: PETTY_DOC_CSS, fontCss: true,
     footerHtml: documentControlFooter({
-      ref: opts.batchNo ?? opts.group.claims[0]?.form_id ?? '-',
-      name: `ใบปะหน้าเอกสารเบิกเงินสดย่อย (v${VERSION_NO})`,
-      owner: 'ฝ่ายบัญชีและการเงิน',
-      approvedBy: '-', approvedDate: '-', printed: printedNow(),
+      ref, name: 'Petty Cash Cover Sheet (PC)', owner: opts.clerkName,
+      approvedBy: '', approvedDate: '', printed: printedNow(),
     }),
-    extraCss: CSS,
-    fontCss: true,
   });
 }

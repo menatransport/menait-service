@@ -23,6 +23,7 @@ export function CoverSheetButton({ claims, types, funds }: {
     const html = coverSheetHtml({
       group, types, clerkName: clerk,
       branchCode: fund?.branch_code ?? '-', divisionCode: fund?.division_code ?? '-',
+      logoUrl: `${window.location.origin}/mena.png`,
     });
     if (!openPrintWindow(html)) {
       showAlert({ icon: 'warning', title: 'เบราว์เซอร์บล็อกหน้าต่างพิมพ์',

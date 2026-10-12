@@ -31,11 +31,15 @@ export type PettyClaimItem = {
   id?: number; line_no?: number; event_date: string;
   truck_code?: string | null; truck_plate?: string | null; truck_type?: string | null;
   ref_no?: string | null; qty: number; rate: number; amount: number; remark?: string | null;
+  /** พจส. ต่อแถว (ค่าชั่ง/ยาง/ซ่อม) — ใช้ในใบสรุปรายการ */
+  driver_name?: string | null;
 };
 export type PettyClaim = {
   id: number; form_id: string; fund_id: number; expense_type: string;
   expense_date: string; period_from: string | null; period_to: string | null;
   driver_employee_id: string | null; driver_name: string | null; payee_name: string | null;
+  /** ช่องหัวใบตาม spec.header_fields ของประเภทที่ไม่ใช่รายการรถ (เส้นทาง เหตุผล ฯลฯ) */
+  detail?: Record<string, unknown>;
   amount: number; dd_no: string | null; receipt_no: string | null;
   status: import('@/lib/finance/petty-status').PettyStatus;
   created_by: string; approved_by: string | null; approved_at: string | null;
