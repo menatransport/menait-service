@@ -1,7 +1,7 @@
 import type { PettyClaim, PettyExpenseType } from '@/app/finance/types-petty';
 import { bahtText } from '@/lib/finance/bahtText';
 import { round2 } from '@/lib/finance/status';
-import { bangkokDate, docHead, field, PETTY_DOC_CSS, sec, signatureTable, thaiDate, totalBox } from '@/lib/finance/petty-doc';
+import { bangkokDate, docHead, field, PETTY_DOC_CSS, sec, signBlock, thaiDate, totalBox } from '@/lib/finance/petty-doc';
 import { documentControlFooter, esc, money, printedNow, wrapDocument } from '@/lib/finance/printShared';
 
 export type ClerkGroup = { clerk: string; claims: PettyClaim[]; total: number };
@@ -72,8 +72,7 @@ ${sec(2, 'ใบเบิกที่ส่งมาด้วย', 'Documents')}
 <div class="sum"><div class="dates">${field('จำนวนใบ', `${rows.length} ใบ`)}</div>
 ${totalBox('รวมทั้งสิ้น', money(opts.group.total), bahtText(opts.group.total))}</div>
 
-${sec(3, 'ลงนาม', 'Signatures')}
-${signatureTable([
+${signBlock(3, 'ลงนาม', 'Signatures', [
     { title: 'ผู้ส่งเอกสาร', name: opts.clerkName },
     { title: 'ผู้รับเอกสาร (บัญชี)', name: '' },
   ])}

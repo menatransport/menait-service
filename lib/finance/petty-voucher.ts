@@ -2,7 +2,7 @@ import type { PettyClaim, PettyFund, PettySpec, PettySpecField } from '@/app/fin
 import { bahtText } from '@/lib/finance/bahtText';
 import { groupForPrint } from '@/lib/finance/petty-print';
 import {
-  bangkokDate, checkboxes, docHead, field, PETTY_DOC_CSS, sec, signatureTable, thaiDate, totalBox,
+  bangkokDate, checkboxes, docHead, field, PETTY_DOC_CSS, sec, signBlock, thaiDate, totalBox,
 } from '@/lib/finance/petty-doc';
 import { documentControlFooter, esc, money, printedNow, wrapDocument, type ESign } from '@/lib/finance/printShared';
 
@@ -78,8 +78,7 @@ ${sec(2, 'รายการ', 'Items')}
 <div class="sum"><div class="dates">${field('ผู้เปิดใบ', claim.created_by)}${field('วันที่โอน', thaiDate(claim.transfer_date))}</div>
 ${totalBox('รวมทั้งสิ้น', money(total), bahtText(total))}</div>
 
-${sec(3, 'ลงนามและอนุมัติ', 'Signatures')}
-${signatureTable([
+${signBlock(3, 'ลงนามและอนุมัติ', 'Signatures', [
     { title: 'ผู้จ่ายเงิน', name: fund.holder_employee_id },
     { title: 'ผู้รับเงิน', name: claim.payee_name },
     { title: 'หัวหน้าแผนก', name: claim.approved_by, esign: approverEsign(claim) },
@@ -124,8 +123,7 @@ ${sec(3, 'คำรับรอง', 'Declaration')}
 <ol class="clauses"><li>ข้าพเจ้า ${esc(claim.payee_name ?? '')} ขอรับรองว่าได้จ่ายเงินตามรายการข้างต้นไปจริง ตั้งแต่วันที่ ${esc(from)} ถึงวันที่ ${esc(to)}</li>
 <li>รายการข้างต้นไม่สามารถเรียกใบเสร็จรับเงินจากผู้รับเงินได้ จึงออกใบรับรองนี้แทน</li></ol>
 
-${sec(4, 'ลงนามและอนุมัติ', 'Signatures')}
-${signatureTable([
+${signBlock(4, 'ลงนามและอนุมัติ', 'Signatures', [
     { title: 'ผู้เบิกจ่าย', name: claim.payee_name },
     { title: 'ผู้อนุมัติ', name: claim.approved_by, esign: approverEsign(claim) },
   ])}
@@ -228,8 +226,7 @@ ${field('สาขา · Division', `${fund.branch_code} ${BRANCHES[fund.branch_
 ${sec(2, 'รายการ', 'Items')}
 ${content}
 
-${sec(3, 'ลงนาม', 'Signatures')}
-${signatureTable([
+${signBlock(3, 'ลงนาม', 'Signatures', [
     { title: 'ผู้เปิดใบ', name: claim.created_by },
     { title: 'ผู้อนุมัติ', name: claim.approved_by, esign: approverEsign(claim) },
   ])}

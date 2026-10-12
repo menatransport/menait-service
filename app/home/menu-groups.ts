@@ -1,8 +1,4 @@
-import {
-    TriangleAlert, ClipboardList, CircleCheck, FolderKanban, Wallet,
-    LayoutDashboard, Building, Database, Monitor, Truck, ShieldCheck, Route,
-    Calculator, Mail, Laptop,ChartNoAxesCombined,CircleAlert, HandCoins, ClipboardCheck, BadgeCheck, Landmark, Receipt, type LucideIcon,
-} from 'lucide-react';
+import { BadgeCheck, Building, Calculator, ChartNoAxesCombined, CircleAlert, CircleCheck, ClipboardCheck, ClipboardList, Database, FolderKanban, HandCoins, Landmark, Laptop, LayoutDashboard, Mail, Monitor, PackageCheck, Receipt, Route, Settings2, ShieldCheck, TriangleAlert, Truck, Wallet, type LucideIcon } from 'lucide-react';
 
 export type MenuTone = 'blue' | 'sun' | 'mint' | 'ink';
 
@@ -115,7 +111,9 @@ export const MENU_GROUPS: MenuGroup[] = [
             { title: 'เบิกเงินสดย่อย', description: 'เปิดใบเบิกแทน พจส. ตามประเภทค่าใช้จ่าย', icon: Receipt, href: '/finance/petty/new' },
             { title: 'ติดตามใบเบิกเงินสดย่อย', description: 'ดูสถานะใบที่คุณเปิด และแก้ใบที่ถูกตีกลับ', icon: ClipboardCheck, href: '/finance/petty' },
             { title: 'อนุมัติเบิกเงินสดย่อย', description: 'ใบที่รอคุณอนุมัติ โอนเงิน และส่งบัญชี', icon: BadgeCheck, href: '/finance/petty/approvals' },
-            { title: 'งานเงินสดย่อย (บัญชี/การเงิน)', description: 'ตรวจเอกสาร ปิดรอบ และคืนยอด', icon: Landmark, href: '/finance/petty/accounting', financeOnly: true },
+            { title: 'งานเงินสดย่อย (บัญชี)', description: 'ตรวจเอกสารที่ผู้อนุมัติส่งมา พิมพ์ใบปะหน้า', icon: Landmark, href: '/finance/petty/accounting', financeOnly: true },
+            { title: 'ปิดรอบเงินสดย่อย (การเงิน)', description: 'ปิดรอบใบที่บัญชีตรวจผ่านแล้ว และคืนยอดกองทุน', icon: PackageCheck, href: '/finance/petty/batches', financeOnly: true },
+            { title: 'ตั้งค่าเงินสดย่อย', description: 'กองทุน ผู้ถือเงิน วงเงิน และประเภทการเบิก', icon: Settings2, href: '/finance/petty/master', financeOnly: true },
         ],
     },
     {

@@ -7,6 +7,11 @@ import { CASH_ADVANCE_CSS, dmy } from '@/lib/finance/cashAdvanceForm';
 import { esc, formatBkkDateTime, stampHtml, type ESign } from '@/lib/finance/printShared';
 
 export const PETTY_DOC_CSS = CASH_ADVANCE_CSS + `
+/* ลงนามอยู่ด้านล่างของหน้าเสมอ (ผู้ใช้สั่ง 2026-10-13): หน้าเป็น flex คอลัมน์ บล็อกลงนามดันตัวเองลงไปชิดขอบล่าง
+   247mm = A4 297mm − หัวกระดาษ 12mm − Document Control + ขอบล่าง ~38mm · ใบที่ยาวเกินหนึ่งหน้า บล็อกตามท้ายเนื้อหา */
+.doc-part { display: flex; flex-direction: column; min-height: 247mm; }
+.sign-block { margin-top: auto; padding-top: 6mm; break-inside: avoid; }
+table.items td.nw { white-space: nowrap; }
 table.items th.c, table.items td.c { text-align: center; }
 table.items td.sub { background: var(--mint); font-weight: 600; }
 table.items td.sub.a { text-align: right; }
@@ -62,6 +67,12 @@ export function signatureTable(cols: PettySignature[]): string {
   const any = cols.some(c => validEsign(c.esign));
   return `<table class="sig"><thead><tr>${heads}</tr></thead><tbody><tr>${stamps}</tr><tr>${lines}</tr></tbody></table>` +
     (any ? '<div class="esign-note">ลงนามอิเล็กทรอนิกส์ผ่านระบบ menait-service · เวลาประเทศไทย (UTC+7)</div>' : '');
+}
+
+/** ส่วนลงนามทั้งก้อน (หัวข้อ + ตาราง + หมายเหตุ e-Signature) ห่อไว้ให้ดันลงขอบล่างของหน้า */
+export function signBlock(n: number, th: string, en: string, cols: PettySignature[]): string {
+  return `<div class="sign-block">${sec(n, th, en)}
+${signatureTable(cols)}</div>`;
 }
 
 /** วันที่ (ไม่ใช่เวลา) ของ timestamp ตามเวลาไทย — ตัด 10 ตัวแรกของ UTC จะได้วันก่อนหน้าหลังสี่ทุ่ม */

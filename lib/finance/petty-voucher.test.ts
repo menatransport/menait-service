@@ -275,3 +275,23 @@ describe('ใบสรุปรายการ ครบทุกประเภ
     for (const s of ['ดินแดง', 'บางนา', '161 / 71-4285', 'ประยุทธ', 'R-99', '65.00', '21/09/2026']) expect(html).toContain(s);
   });
 });
+
+describe('บล็อกลงนามอยู่ด้านล่างของหน้าเสมอ (ผู้ใช้สั่ง 2026-10-13)', () => {
+  const docs = {
+    voucher: pettyVoucherHtml({ claim, fund, typeName: 'x' }),
+    receipt: receiptSubstituteHtml({ claim, fund, typeName: 'x' }),
+    summary: itemSummaryHtml({ claim, fund, typeName: 'x', spec: { item_based: true, item_fields: [{ key: 'ref_no', label: 'เลข', type: 'text' }] } }),
+  };
+  for (const [name, html] of Object.entries(docs)) {
+    test(`${name}: ส่วนลงนามอยู่ในบล็อกที่ดันลงล่าง`, () => {
+      expect(html).toContain('<div class="sign-block">');
+      expect(html).toContain('.sign-block { margin-top: auto;');
+      expect(html).toContain('.doc-part { display: flex; flex-direction: column; min-height:');
+    });
+  }
+  test('ลงนามเป็นส่วนสุดท้ายของหน้า ก่อนหน้าแนบไฟล์', () => {
+    const html = pettyVoucherHtml({ claim, fund, typeName: 'x', attachmentsHtml: '<section class="att">A</section>' });
+    expect(html.indexOf('<div class="sign-block">')).toBeLessThan(html.indexOf('<section class="att">'));
+    expect(html.indexOf('<div class="sign-block">')).toBeGreaterThan(html.indexOf('<div class="tot">'));
+  });
+});

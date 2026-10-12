@@ -103,3 +103,9 @@ describe('วันที่บนใบปะหน้าเป็นวัน�
     expect(coverSheetHtml({ group: groupByClerk(CLAIMS)[0], types: TYPES, clerkName: 'x', branchCode: '03', divisionCode: 'B02' }))
       .toContain('<td class="nw">'));
 });
+
+describe('ใบปะหน้า — ลงนามอยู่ด้านล่างเสมอ', () => {
+  test('มีบล็อกลงนามที่ดันลงล่าง', () =>
+    expect(coverSheetHtml({ group: groupByClerk(CLAIMS)[0], types: TYPES, clerkName: 'x', branchCode: '03', divisionCode: 'B02' }))
+      .toContain('<div class="sign-block">'));
+});
