@@ -60,3 +60,48 @@ describe('paginateGroups', () => {
   test('the real voucher is a single page', () =>
     expect(paginateGroups(groupForPrint(REAL, 'ค่าชั่งน้ำหนัก'))).toHaveLength(1));
 });
+
+describe('ประเภทที่กรอกยอดเดียว — ไม่ต้องจัดกลุ่มตามราคา', () => {
+  test('a taxi claim prints one line with its route', () => {
+    const groups = groupForPrint(
+      [{ truck_code: null, truck_type: null, rate: 243, qty: 1, amount: 243,
+         remark: 'คลองตัน → เมกาบางนา (ขากลับ)' }],
+      'ค่าเดินทาง');
+    expect(groups).toHaveLength(1);
+    expect(groups[0].label).toBe('ค่าเดินทาง คลองตัน → เมกาบางนา (ขากลับ)');
+    expect(groups[0].total).toBe(243);
+  });
+
+  test('without a remark it falls back to the plain type name and rate', () => {
+    const groups = groupForPrint([{ rate: 215, qty: 1, amount: 215 }], 'ค่าเดินทาง');
+    expect(groups[0].label).toBe('ค่าเดินทาง 215 บาท');
+  });
+
+  test('the tyre bill prints its own wording and counts tyres', () => {
+    const groups = groupForPrint(
+      [{ truck_code: '6604', truck_type: 'โม่ใหญ่', rate: 200, qty: 6, amount: 1200,
+         remark: 'เปลี่ยนยาง 6 เส้น' }],
+      'ค่าปะ-เปลี่ยนยาง', { unit: 'เส้น' });
+    expect(groups[0].label).toBe('ค่าปะ-เปลี่ยนยาง เปลี่ยนยาง 6 เส้น');
+    expect(groups[0].count).toBe(6);
+    expect(groups[0].unit).toBe('เส้น');
+    expect(groups[0].total).toBe(1200);
+  });
+
+  test('weighing still groups by rate and truck type, counted in คัน', () => {
+    const groups = groupForPrint(
+      [{ truck_code: '161', truck_type: 'โม่ใหญ่', rate: 100, qty: 1, amount: 100 },
+       { truck_code: '144', truck_type: 'โม่ใหญ่', rate: 100, qty: 1, amount: 100 }],
+      'ค่าชั่งน้ำหนัก');
+    expect(groups).toHaveLength(1);
+    expect(groups[0].count).toBe(2);
+    expect(groups[0].unit).toBe('คัน');
+  });
+
+  test('two taxi trips stay on separate lines — คนละเส้นทาง', () => {
+    const groups = groupForPrint(
+      [{ rate: 215, qty: 1, amount: 215, remark: 'ไป' }, { rate: 243, qty: 1, amount: 243, remark: 'กลับ' }],
+      'ค่าเดินทาง');
+    expect(groups).toHaveLength(2);
+  });
+});

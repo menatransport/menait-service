@@ -23,7 +23,7 @@ export function PettyPrintButton({ claim, fund, spec, typeName, payeePosition }:
       showAlert({ icon: 'error', title: 'ยังโหลดข้อมูลกองทุนไม่ได้', text: 'ลองโหลดหน้าใหม่อีกครั้ง' });
       return;
     }
-    const opts = { claim, fund, typeName, payeePosition };
+    const opts = { claim, fund, typeName, payeePosition, unit: spec.atms?.unit ?? undefined };
     const html = kind === 'PETTY_VOUCHER' ? pettyVoucherHtml(opts) : receiptSubstituteHtml(opts);
     if (!openPrintWindow(html)) {
       showAlert({ icon: 'warning', title: 'เบราว์เซอร์บล็อกหน้าต่างพิมพ์',

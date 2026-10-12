@@ -68,3 +68,26 @@ describe('receiptSubstituteHtml', () => {
     expect(receiptSubstituteHtml({ claim: noPeriod, fund, typeName: 'x' })).toContain('25/09/2026');
   });
 });
+
+describe('หน่วยนับบนใบ มาจากประเภท ไม่ใช่ฮาร์ดโค้ด', () => {
+  const tyreClaim = {
+    ...claim,
+    amount: 1200,
+    items: [{ line_no: 1, event_date: '2026-09-15', truck_code: '6604', truck_plate: '72-8179',
+      truck_type: 'โม่ใหญ่', ref_no: 'B-01', qty: 6, rate: 200, amount: 1200,
+      remark: 'เปลี่ยนยาง 6 เส้น' }],
+  } as unknown as PettyClaim;
+
+  test('a tyre voucher counts in เส้น', () => {
+    const html = pettyVoucherHtml({ claim: tyreClaim, fund, typeName: 'ค่าปะ-เปลี่ยนยาง', unit: 'เส้น' });
+    expect(html).toContain('6 เส้น');
+    expect(html).toContain('เปลี่ยนยาง 6 เส้น');
+  });
+
+  test('weighing still counts in คัน when no unit is given', () =>
+    expect(pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก' })).toContain('คัน'));
+
+  test('the tyre total reads 1,200.00', () =>
+    expect(pettyVoucherHtml({ claim: tyreClaim, fund, typeName: 'ค่าปะ-เปลี่ยนยาง', unit: 'เส้น' }))
+      .toContain('1,200.00'));
+});

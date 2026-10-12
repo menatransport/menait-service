@@ -11,6 +11,8 @@ export type VoucherOpts = {
   typeName: string;
   payeePosition?: string | null;
   companyName?: string;
+  /** หน่วยนับบนใบ มาจาก spec.atms.unit ของประเภทนั้น — ชั่งน้ำหนัก=คัน ยาง=เส้น เดินทาง=เที่ยว */
+  unit?: string;
 };
 
 const COMPANY = 'บริษัท มีนาทรานสปอร์ต จำกัด';
@@ -61,7 +63,7 @@ function divisionTicks(code: string): string {
 function itemRows(groups: ReturnType<typeof groupForPrint>): string {
   const rows = groups.map(g => `<tr>
     <td>${esc(g.label)}</td>
-    <td class="num">${g.count} คัน</td>
+    <td class="num">${g.count} ${esc(g.unit)}</td>
     <td class="num">${money(g.rate)}</td>
     <td class="num">${money(g.total)}</td>
     <td>${esc(g.truckCodes.join(', '))}</td>
@@ -76,7 +78,7 @@ function itemRows(groups: ReturnType<typeof groupForPrint>): string {
 /** ใบสำคัญจ่ายเงินสดย่อย — ช่องตามฟอร์มกระดาษเดิม ยกเว้นเล่มที่/เลขที่โรงพิมพ์ที่เลิกใช้ */
 export function pettyVoucherHtml(opts: VoucherOpts): string {
   const { claim, fund, typeName } = opts;
-  const groups = groupForPrint(claim.items, typeName);
+  const groups = groupForPrint(claim.items, typeName, { unit: opts.unit });
   const pages = paginateGroups(groups);
   const total = groups.reduce((s, g) => s + g.total, 0);
   const company = opts.companyName ?? COMPANY;
@@ -135,7 +137,7 @@ ${pages.length > 1 ? `<p class="pagemark">แผ่นที่ ${index + 1}/${p
 /** ใบรับรองแทนใบเสร็จรับเงิน — ใช้กับประเภทที่ไม่มีใบเสร็จ เช่น ค่าชั่งน้ำหนัก */
 export function receiptSubstituteHtml(opts: VoucherOpts): string {
   const { claim, fund, typeName } = opts;
-  const groups = groupForPrint(claim.items, typeName);
+  const groups = groupForPrint(claim.items, typeName, { unit: opts.unit });
   const total = groups.reduce((s, g) => s + g.total, 0);
   const company = opts.companyName ?? COMPANY;
   const from = thaiDate(claim.period_from ?? claim.expense_date);
@@ -152,7 +154,7 @@ export function receiptSubstituteHtml(opts: VoucherOpts): string {
   <tbody>${groups.map(g => `<tr>
     <td>${esc(to)}</td>
     <td>${esc(g.label)}</td>
-    <td class="num">${g.count} คัน</td>
+    <td class="num">${g.count} ${esc(g.unit)}</td>
     <td class="num">${money(g.total)}</td>
     <td>${esc(g.truckCodes.join(', '))}</td>
   </tr>`).join('')}</tbody>
