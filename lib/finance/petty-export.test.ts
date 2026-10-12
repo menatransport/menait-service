@@ -7,7 +7,7 @@ const funds = [{ id: 1, branch_code: '03', division_code: 'B02', holder_employee
 const types = [{ code: 'WEIGH', name_th: 'ค่าชั่งน้ำหนัก' }] as PettyExpenseType[];
 
 const claim = {
-  id: 1, form_id: '03-B02-2610-001', project_code: 'PJ-LB-B02-2610-001', fund_id: 1, expense_type: 'WEIGH',
+  id: 1, form_id: 'LB-B02-2610-001', fund_id: 1, expense_type: 'WEIGH',
   expense_date: '2026-09-25', period_from: '2026-09-17', period_to: '2026-09-24',
   payee_name: 'อัญชัญ น่วมมี', driver_name: null, amount: 1640, dd_no: 'LBDD26090931',
   status: 'CLOSED', created_by: '55555', approved_by: '12345',
@@ -44,12 +44,8 @@ describe('toPettySheetRows', () => {
   test('empty input gives no rows', () => expect(toPettySheetRows([], types, funds)).toEqual([]));
 });
 
-describe('Project Code ไปกับไฟล์ที่ส่งบัญชี', () => {
-  test('มีคอลัมน์ Project Code', () => expect(PETTY_EXPORT_COLUMNS).toContain('Project Code'));
-
-  test('ค่าในแถวคือเลขที่ระบบออกให้', () =>
-    expect(toPettySheetRows([claim], types, funds)[0]['Project Code']).toBe('PJ-LB-B02-2610-001'));
-
-  test('ใบเก่าที่ยังไม่มีเลข เป็นช่องว่าง', () =>
-    expect(toPettySheetRows([{ ...claim, project_code: null }], types, funds)[0]['Project Code']).toBe(''));
+describe('ไฟล์ส่งบัญชีไม่มีคอลัมน์ Project Code', () => {
+  test('คอลัมน์หายไป', () => expect(PETTY_EXPORT_COLUMNS).not.toContain('Project Code'));
+  test('เลขที่ใบเป็นแบบตัวอักษรสาขา', () =>
+    expect(toPettySheetRows([claim], types, funds)[0]['เลขที่ใบเบิก']).toBe('LB-B02-2610-001'));
 });

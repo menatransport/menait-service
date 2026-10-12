@@ -104,7 +104,7 @@ export function pettyVoucherHtml(opts: VoucherOpts): string {
 <div class="row">
   <div class="box">เลขที่ <strong>${esc(claim.form_id)}</strong></div>
   <div class="box">วันที่ ${esc(thaiDate(claim.approved_at ? bangkokDate(claim.approved_at) : claim.expense_date))}</div>
-  <div class="box">Project Code ${esc(claim.project_code ?? '')}</div>
+  <div class="box">Project Code</div>
 </div>
 <div class="row"><div class="box">จ่ายให้ <strong>${esc(claim.payee_name ?? '')}</strong></div></div>
 <div class="row"><div class="box">Division ${divisionTicks(fund.division_code)}</div></div>

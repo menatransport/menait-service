@@ -1,6 +1,7 @@
 import type { PettyStatus } from '@/lib/finance/petty-status';
 
-export const PETTY_FORM_ID = /^\d{2,4}-[A-Z0-9]{2,8}-\d{4}-\d{3,}$/;
+/** สาขาเป็นตัวอักษร (LB/SB) หรือตัวเลขสำหรับสาขาที่ยังไม่ตั้ง · ไม่ใช่ ADV-… */
+export const PETTY_FORM_ID = /^[A-Z0-9]{2,4}-[A-Z0-9]{2,8}-\d{4}-\d{3,}$/;
 
 export function isPettyFormId(id: unknown): boolean {
   return typeof id === 'string' && PETTY_FORM_ID.test(id);

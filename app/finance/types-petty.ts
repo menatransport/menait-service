@@ -33,7 +33,7 @@ export type PettyClaimItem = {
   ref_no?: string | null; qty: number; rate: number; amount: number; remark?: string | null;
 };
 export type PettyClaim = {
-  id: number; form_id: string; project_code: string | null; fund_id: number; expense_type: string;
+  id: number; form_id: string; fund_id: number; expense_type: string;
   expense_date: string; period_from: string | null; period_to: string | null;
   driver_employee_id: string | null; driver_name: string | null; payee_name: string | null;
   amount: number; dd_no: string | null; receipt_no: string | null;

@@ -84,3 +84,9 @@ describe('canSeeAllClaims — ใครดึงคิวทุกกองท�
     expect(canSeeAllClaims({ employee_id: '12345' })).toBe(false));
   test('no session means no', () => expect(canSeeAllClaims(null)).toBe(false));
 });
+
+describe('เลขที่ใบแบบตัวอักษรสาขา (2026-10-13)', () => {
+  test('LB-B02-2610-001 เป็นเลขที่ใบเบิก', () => expect(isPettyFormId('LB-B02-2610-001')).toBe(true));
+  test('สาขาที่ยังเป็นตัวเลขก็ยังใช้ได้', () => expect(isPettyFormId('04-A01-2610-001')).toBe(true));
+  test('ADV ยังไม่ใช่', () => expect(isPettyFormId('ADV-2610-001')).toBe(false));
+});

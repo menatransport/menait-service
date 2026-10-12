@@ -64,9 +64,7 @@ export default function PettyClaimDetailPage() {
   return (
     <FinanceCanvas title={`ใบเบิก ${claim.form_id}`}>
       <FinanceHeading icon={FileText} title={`ใบเบิก ${claim.form_id}`}
-        caption={[type?.name_th ?? claim.expense_type,
-          claim.project_code ? `Project Code ${claim.project_code}` : null]
-          .filter(Boolean).join(' · ')}
+        caption={type?.name_th ?? claim.expense_type}
         actions={
           <span className="flex items-center gap-2">
             <PettyStatusBadge status={claim.status} />

@@ -2,7 +2,7 @@ import type { PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/type
 import { PETTY_STATUS_LABELS } from '@/lib/finance/petty-status';
 
 export const PETTY_EXPORT_COLUMNS = [
-  'ลำดับ', 'เลขที่ใบเบิก', 'Project Code', 'สาขา', 'แผนก', 'ประเภท', 'จ่ายให้', 'พจส.', 'ช่วงวันที่', 'วันที่บนใบ',
+  'ลำดับ', 'เลขที่ใบเบิก', 'สาขา', 'แผนก', 'ประเภท', 'จ่ายให้', 'พจส.', 'ช่วงวันที่', 'วันที่บนใบ',
   'จำนวนเงิน', 'สถานะ', 'เลขที่ DD', 'เจ้าหน้าที่ผู้เปิดใบ', 'ผู้อนุมัติ', 'วันที่อนุมัติ',
   'วันที่โอน', 'รอบคืนยอด',
 ] as const;
@@ -28,7 +28,6 @@ export function toPettySheetRows(
     return {
       'ลำดับ': index + 1,
       'เลขที่ใบเบิก': claim.form_id,
-      'Project Code': claim.project_code ?? '',
       'สาขา': fund?.branch_code ?? '',
       'แผนก': fund?.division_code ?? '',
       'ประเภท': types.find(t => t.code === claim.expense_type)?.name_th ?? claim.expense_type,
