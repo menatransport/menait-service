@@ -1,5 +1,6 @@
 'use client';
 
+import { apiErrorFrom } from '@/lib/finance/api-error';
 import { uniqueFileName } from '@/lib/finance/status';
 import type { AdvanceDetail } from './types';
 
@@ -10,7 +11,8 @@ export async function fetchJson<T>(url: string, init: RequestInit = {}): Promise
     headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) },
   });
   const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(data?.error ?? `เกิดข้อผิดพลาด (${res.status})`);
+  // โยน ApiError เพื่อให้หน้าจอเห็น missing/duplicates ที่ด่านส่งมา ไม่ใช่แค่ข้อความเดียว
+  if (!res.ok) throw apiErrorFrom(res.status, data);
   return data as T;
 }
 

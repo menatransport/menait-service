@@ -4,6 +4,7 @@ import type { UserInfo } from '@/app/context/SessionContext';
 import { FORM_ID_PATTERN } from '@/lib/s3';
 import { isAdvTarget } from '@/lib/finance/formsubmit-guard';
 import { advDetailGrantsView, isAdvRequester, listHasForm } from '@/lib/finance/adv-access';
+import { errorBodyFrom } from '@/lib/finance/api-error';
 
 export type Guard = { user: UserInfo } | { error: NextResponse };
 
@@ -45,8 +46,8 @@ export async function proxy(url: string, init: RequestInit = {}): Promise<NextRe
     let data: any = null;
     try { data = text ? JSON.parse(text) : null; } catch { data = { detail: text }; }
     if (!res.ok) {
-      const detail = typeof data?.detail === 'string' ? data.detail : 'ข้อมูลไม่ถูกต้อง';
-      return NextResponse.json({ error: detail }, { status: res.status });
+      // detail ที่เป็น object (รายการเอกสารที่ขาด / ใบที่ซ้ำ) ต้องถึงหน้าจอครบ ไม่ยุบเป็นสตริง
+      return NextResponse.json(errorBodyFrom(data, 'ข้อมูลไม่ถูกต้อง'), { status: res.status });
     }
     return NextResponse.json(data);
   } catch (err) {

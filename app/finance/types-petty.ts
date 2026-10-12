@@ -38,6 +38,7 @@ export type PettyClaim = {
   status: import('@/lib/finance/petty-status').PettyStatus;
   created_by: string; approved_by: string | null; approved_at: string | null;
   transfer_date: string | null; review_remark: string | null; return_reason: string | null;
+  reviewed_by: string | null; reviewed_at: string | null; submitted_to_acc_at: string | null;
   dup_override_reason: string | null; batch_id: number | null;
   items: PettyClaimItem[];
 };
