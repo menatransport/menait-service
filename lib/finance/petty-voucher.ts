@@ -146,10 +146,11 @@ type Column = { head: string; cell: (item: PettyClaim['items'][number]) => strin
 /** คอลัมน์จาก item_fields ของ spec — `truck` แตกเป็นเบอร์รถ+ทะเบียน · `rate` กลายเป็นจำนวนเงินท้ายตาราง */
 function columnsFromSpec(fields: PettySpecField[], unit: string): Column[] {
   const cols: Column[] = [];
+  // ยางนับเป็นเส้น: จำนวนและราคาต่อหน่วยอยู่บนใบด้วย · ประเภทที่จำนวนเป็น 1 เสมอ ราคาเท่ายอด ไม่พิมพ์ซ้ำ
+  const hasQty = fields.some(f => f.key === 'qty');
   for (const f of fields) {
-    // ยางนับเป็นเส้น: จำนวนและราคาต่อหน่วยอยู่บนใบด้วย · ค่าชั่งมีแค่ราคา/ครั้ง
     if (f.key === 'qty') { cols.push({ head: f.label, cell: i => `${Number(i.qty ?? 1)} ${esc(unit)}`, cls: 'c' }); continue; }
-    if (f.key === 'rate') { cols.push({ head: f.label, cell: i => money(Number(i.rate)), cls: 'a' }); continue; }
+    if (f.key === 'rate') { if (hasQty) cols.push({ head: f.label, cell: i => money(Number(i.rate)), cls: 'a' }); continue; }
     if (f.key === 'truck') {
       cols.push({ head: 'เบอร์รถ', cell: i => esc(i.truck_code ?? '-') });
       cols.push({ head: 'ทะเบียน', cell: i => esc(i.truck_plate ?? '-') });

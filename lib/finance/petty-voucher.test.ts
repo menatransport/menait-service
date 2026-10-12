@@ -259,6 +259,7 @@ describe('ใบสรุปรายการ ครบทุกประเภ
     const html = itemSummaryHtml({ claim: repair, fund, typeName: 'ค่าซ่อมฉุกเฉิน', spec });
     expect(html).toContain('>อาการ/งานที่ทำ</th>');
     expect(html).toContain('เปลี่ยนสายพาน');
+    expect((html.match(/>จำนวนเงิน<\/th>/g) ?? []).length).toBe(1); // ไม่มีจำนวน → ราคาเท่ายอด ไม่พิมพ์สองคอลัมน์
     expect(html).not.toContain('>ประเภทรถ</th>');
     expect(html).toContain('รวม 20/09/2026');
   });
