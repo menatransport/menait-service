@@ -18,6 +18,7 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
   dups?: DupHint[];
   readOnly?: boolean;
 }) {
+  // 'truck' มีคอลัมน์ของตัวเอง ส่วนช่องอื่น (รวม qty ถ้าประเภทนั้นประกาศไว้) เรนเดอร์ตามลำดับใน spec
   const fields = itemFields(spec).filter(f => f.key !== 'truck');
   const hasTruck = itemFields(spec).some(f => f.key === 'truck');
   const total = claimTotal(rows);
@@ -81,11 +82,13 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
                         ) : (
                           <input value={value} disabled={readOnly}
                             type={f.type === 'date' ? 'date' : 'text'}
-                            inputMode={f.type === 'money' ? 'decimal' : undefined}
+                            inputMode={f.type === 'money' || f.type === 'number' ? 'decimal' : undefined}
                             onChange={e => setCell(index, f.key, e.target.value)}
                             aria-label={`${f.label} แถวที่ ${index + 1}`}
-                            className={`rounded-lg border px-2 py-1 ${f.type === 'money' ? 'w-24 text-right' : 'w-36'} ${
-                              missing ? 'border-rose-300' : 'border-slate-200'}`} />
+                            className={`rounded-lg border px-2 py-1 ${
+                              f.type === 'money' ? 'w-24 text-right'
+                              : f.type === 'number' ? 'w-20 text-right'
+                              : 'w-36'} ${missing ? 'border-rose-300' : 'border-slate-200'}`} />
                         )}
                       </td>
                     );

@@ -22,7 +22,8 @@ export function blankItem(spec: PettySpec | null | undefined): PettyItemDraft & 
   const row: Record<string, unknown> = { qty: 1 };
   for (const field of itemFields(spec)) {
     if (field.key === 'truck') { row.truck_code = ''; row.truck_plate = ''; continue; }
-    row[field.key] = '';
+    // ประเภทที่ให้กรอกจำนวนเอง (ยางนับเป็นเส้น) เริ่มที่ 1 ไม่ใช่ช่องว่าง
+    row[field.key] = field.key === 'qty' ? 1 : '';
   }
   return row as PettyItemDraft & Record<string, unknown>;
 }
@@ -42,7 +43,8 @@ export function singleItemFrom(form: Record<string, unknown>): PettyItemDraft {
     event_date: String(form.event_date ?? ''),
     truck_code: (form.truck_code as string) ?? null,
     truck_plate: (form.truck_plate as string) ?? null,
-    ref_no: (form.receipt_no as string) ?? null,
+    // ค่าทางด่วนใช้เลขที่ใบเสร็จ ค่าเดินทางใช้ Trip Code — ทั้งคู่ลงช่องเดียวกันของรายการ
+    ref_no: ((form.ref_no ?? form.receipt_no) as string) ?? null,
     qty: 1,
     rate: form.rate as number,
     remark: (form.remark as string) ?? null,

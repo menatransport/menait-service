@@ -14,6 +14,7 @@ import { FinanceCanvas, FinanceHeading, Panel } from '../../components/FinanceSh
 import { FilePicker } from '../../components/FilePicker';
 import { AddManyTrucksDialog } from '../../components/petty/AddManyTrucksDialog';
 import { DocumentPreset } from '../../components/petty/DocumentPreset';
+import { HeaderField } from '../../components/petty/HeaderField';
 import { ItemGrid, type DupHint } from '../../components/petty/ItemGrid';
 
 type Row = PettyItemDraft & Record<string, unknown>;
@@ -93,7 +94,10 @@ export default function NewPettyClaimPage() {
     if (!type || !fundId) return 'เลือกประเภทการเบิกและกองทุนก่อน';
     for (const f of headerFields(spec)) {
       if (f.auto) continue;
-      if (f.required && String(header[f.key] ?? '').trim() === '') return `ยังไม่กรอก ${f.label}`;
+      const filled = f.type === 'truck'
+        ? String(header.truck_code ?? '').trim() !== ''
+        : String(header[f.key] ?? '').trim() !== '';
+      if (f.required && !filled) return `ยังไม่กรอก ${f.label}`;
     }
     if (itemBased) {
       if (rows.length === 0) return 'ยังไม่มีรายการ';
@@ -203,14 +207,8 @@ export default function NewPettyClaimPage() {
         {type && headerFields(spec).filter(f => !f.auto).length > 0 && (
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
             {headerFields(spec).filter(f => !f.auto).map(f => (
-              <label key={f.key} className="text-sm">
-                {f.label}{f.required && <span className="text-rose-500"> *</span>}
-                <input value={String(header[f.key] ?? '')}
-                  type={f.type === 'date' ? 'date' : 'text'}
-                  inputMode={f.type === 'money' ? 'decimal' : undefined}
-                  onChange={e => setHeader({ ...header, [f.key]: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5" />
-              </label>
+              <HeaderField key={f.key} field={f} value={header[f.key]} form={header}
+                onChange={patch => setHeader({ ...header, ...patch })} />
             ))}
           </div>
         )}

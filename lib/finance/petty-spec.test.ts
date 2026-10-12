@@ -70,3 +70,59 @@ describe('singleItemFrom', () => {
     expect(singleItemFrom({ event_date: '2026-09-25', rate: 100 }).truck_code).toBeNull();
   });
 });
+
+describe('หัวใบของประเภทที่กรอกยอดเดียว', () => {
+  const TOLL = {
+    item_based: false,
+    header_fields: [
+      { key: 'event_date', label: 'วันที่ใช้ทาง', type: 'date', required: true },
+      { key: 'truck', label: 'รถ', type: 'truck', required: true },
+      { key: 'driver', label: 'พจส.', type: 'employee', required: true },
+      { key: 'leg', label: 'เที่ยว', type: 'select', options: ['ขาไป', 'ขากลับ'], required: true },
+      { key: 'rate', label: 'จำนวนเงิน', type: 'money', required: true },
+    ],
+  } as PettySpec;
+
+  test('every header field type is carried through', () =>
+    expect(headerFields(TOLL).map(f => f.type))
+      .toEqual(['date', 'truck', 'employee', 'select', 'money']));
+
+  test('a select keeps its options', () =>
+    expect(headerFields(TOLL).find(f => f.key === 'leg')?.options).toEqual(['ขาไป', 'ขากลับ']));
+
+  test('the single row carries the truck picked in the header', () => {
+    const row = singleItemFrom({ event_date: '2026-09-30', truck_code: '1093',
+      truck_plate: '71-1758', rate: 243 });
+    expect(row.truck_code).toBe('1093');
+    expect(row.truck_plate).toBe('71-1758');
+  });
+
+  test('a trip code becomes the row reference — คีย์ด่านซ้ำของค่าเดินทาง', () => {
+    expect(singleItemFrom({ event_date: '2026-09-01', rate: 215, ref_no: 'jzjw3v' }).ref_no)
+      .toBe('jzjw3v');
+  });
+
+  test('the reason travels into the row remark so it prints on the voucher', () => {
+    expect(singleItemFrom({ event_date: '2026-09-01', rate: 215, remark: 'ไปรับรถ 6638' }).remark)
+      .toBe('ไปรับรถ 6638');
+  });
+
+  test('quantity defaults to one for a single-amount claim', () =>
+    expect(singleItemFrom({ event_date: '2026-09-01', rate: 215 }).qty).toBe(1));
+});
+
+describe('ประเภทที่กรอกจำนวนเอง (ยางนับเป็นเส้น)', () => {
+  const TIRE = {
+    item_based: true,
+    item_fields: [
+      { key: 'ref_no', label: 'เลขที่บิล', type: 'text', required: true },
+      { key: 'qty', label: 'จำนวน (เส้น)', type: 'number', required: true },
+      { key: 'rate', label: 'ราคา/เส้น', type: 'money', required: true },
+    ],
+  } as PettySpec;
+
+  test('a blank row starts at one tyre, not an empty box', () =>
+    expect(blankItem(TIRE).qty).toBe(1));
+  test('the quantity column is still part of the row', () =>
+    expect(Object.keys(blankItem(TIRE)).sort()).toEqual(['qty', 'rate', 'ref_no']));
+});
