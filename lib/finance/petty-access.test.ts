@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { FORM_ID_PATTERN } from '@/lib/s3';
-import { canApprove, canCloseBatch, canSeeClaim, isPettyFormId } from './petty-access';
+import { canApprove, canCloseBatch, canReview, canSeeClaim, isPettyFormId } from './petty-access';
 
 const fund = { id: 1, branch_code: '03', division_code: 'B02', holder_employee_id: '12345' };
 
@@ -28,11 +28,17 @@ describe('canSeeClaim', () => {
     expect(canSeeClaim({ employee_id: '12345' }, claim, [fund])).toBe(true));
   test('another clerk cannot', () =>
     expect(canSeeClaim({ employee_id: '77777' }, claim, [])).toBe(false));
-  test('finance sees it only from AWAITING_REVIEW onwards', () => {
-    expect(canSeeClaim({ employee_id: '9', is_finance: true }, claim, [])).toBe(false);
-    expect(canSeeClaim({ employee_id: '9', is_finance: true }, { ...claim, status: 'AWAITING_REVIEW' }, []))
+  test('accounting sees it only from AWAITING_REVIEW onwards', () => {
+    expect(canSeeClaim({ employee_id: '9', is_accounting: true }, claim, [])).toBe(false);
+    expect(canSeeClaim({ employee_id: '9', is_accounting: true }, { ...claim, status: 'AWAITING_REVIEW' }, []))
       .toBe(true);
   });
+  test('treasury sees the same window', () =>
+    expect(canSeeClaim({ employee_id: '9', is_treasury: true }, { ...claim, status: 'CLOSED' }, []))
+      .toBe(true));
+  test('the old is_finance flag keeps working during the rollout', () =>
+    expect(canSeeClaim({ employee_id: '9', is_finance: true }, { ...claim, status: 'AWAITING_REVIEW' }, []))
+      .toBe(true));
   test('admin sees everything', () =>
     expect(canSeeClaim({ employee_id: '9', role: 'a' }, claim, [])).toBe(true));
 });
@@ -40,4 +46,28 @@ describe('canSeeClaim', () => {
 describe('canCloseBatch', () => {
   test('finance may', () => expect(canCloseBatch({ employee_id: '9', is_finance: true })).toBe(true));
   test('a clerk may not', () => expect(canCloseBatch({ employee_id: '55555' })).toBe(false));
+});
+
+describe('ปิดรอบเป็นงานการเงิน ตรวจเอกสารเป็นงานบัญชี', () => {
+  test('treasury may close', () =>
+    expect(canCloseBatch({ employee_id: '90001', is_treasury: true })).toBe(true));
+  test('accounting may not close', () =>
+    expect(canCloseBatch({ employee_id: '80001', is_accounting: true })).toBe(false));
+  test('accounting may review', () =>
+    expect(canReview({ employee_id: '80001', is_accounting: true })).toBe(true));
+  test('treasury may not review', () =>
+    expect(canReview({ employee_id: '90001', is_treasury: true })).toBe(false));
+  test('admin may do both', () => {
+    expect(canCloseBatch({ employee_id: '1', role: 'a' })).toBe(true);
+    expect(canReview({ employee_id: '1', role: 'a' })).toBe(true);
+  });
+  test('a plain clerk may do neither', () => {
+    expect(canReview({ employee_id: '55555' })).toBe(false);
+    expect(canCloseBatch({ employee_id: '55555' })).toBe(false);
+  });
+  test('is_finance still works while the new flags roll out', () => {
+    // ระหว่างที่ยังไม่ได้ตั้ง env ใหม่ คนที่เคยเป็น is_finance ต้องทำงานได้เหมือนเดิม
+    expect(canReview({ employee_id: '9', is_finance: true })).toBe(true);
+    expect(canCloseBatch({ employee_id: '9', is_finance: true })).toBe(true);
+  });
 });

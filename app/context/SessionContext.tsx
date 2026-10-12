@@ -18,6 +18,9 @@ export interface UserInfo {
   image_url?: string | null;
   department_id?: number | null;
   is_finance?: boolean;
+  /** บัญชี (ตรวจเอกสาร) และการเงิน (ปิดรอบคืนยอด) แยกกันในโมดูลเงินสดย่อย */
+  is_accounting?: boolean;
+  is_treasury?: boolean;
 }
 
 interface SessionContextType {

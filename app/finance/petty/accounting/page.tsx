@@ -6,6 +6,7 @@ import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { exportPettyXlsx } from '@/lib/finance/petty-export';
+import { canReview } from '@/lib/finance/petty-access';
 import { showAlert, showConfirm } from '../../api';
 import { getExpenseTypes, getFunds, listClaims, postAction } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, NoAccess, Panel } from '../../components/FinanceShell';
@@ -22,7 +23,7 @@ export default function PettyAccountingPage() {
   const [funds, setFunds] = useState<PettyFund[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const isAllowed = user?.is_finance === true || user?.role === 'a';
+  const isAllowed = canReview(user);
 
   const load = useCallback(async () => {
     try {
@@ -61,7 +62,7 @@ export default function PettyAccountingPage() {
   }
 
   if (loading) return <MascotLoader />;
-  if (!isAllowed) return <NoAccess text="หน้านี้สำหรับฝ่ายบัญชีและการเงินเท่านั้น" />;
+  if (!isAllowed) return <NoAccess text="หน้านี้สำหรับฝ่ายบัญชีเท่านั้น" />;
   if (claims === null) return <MascotLoader />;
 
   const pending = claims.filter(c => c.reviewed_at === null);

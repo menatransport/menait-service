@@ -33,7 +33,8 @@ export default function HomePage() {
     const groups = useMemo(
         () => MENU_GROUPS
             .filter(g => !g.adminOnly || (isClient && user?.role === 'a'))
-            .map(g => ({ ...g, items: g.items.filter(i => !i.financeOnly || (isClient && user?.is_finance)) }))
+            .map(g => ({ ...g, items: g.items.filter(i => !i.financeOnly
+                || (isClient && (user?.is_finance || user?.is_accounting || user?.is_treasury))) }))
             // not open to this user yet: same items, but without a link → rendered as "เร็ว ๆ นี้"
             .map(g => (g.financeAccess && !(isClient && canUseFinance(user))
                 ? { ...g, items: g.items.map(i => ({ ...i, href: undefined, children: undefined })) }

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { isPettyFormId } from '@/lib/finance/petty-access';
+import { canReview, isPettyFormId } from '@/lib/finance/petty-access';
 import { beUrl, proxy, requireUser } from '@/lib/finance/server';
 
 const ACTIONS = new Set(['approve', 'return', 'transfer', 'submit-accounting', 'review']);
@@ -15,7 +15,7 @@ export async function POST(
     return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
   }
   if (!ACTIONS.has(action)) return NextResponse.json({ error: 'คำสั่งไม่ถูกต้อง' }, { status: 400 });
-  if (action === 'review' && guard.user.is_finance !== true && guard.user.role !== 'a') {
+  if (action === 'review' && !canReview(guard.user)) {
     return NextResponse.json({ error: 'เฉพาะฝ่ายบัญชีเท่านั้น' }, { status: 403 });
   }
   const body = await req.json().catch(() => ({}));

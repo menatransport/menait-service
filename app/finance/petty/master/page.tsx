@@ -6,6 +6,7 @@ import { MascotLoader } from '@/components/loading';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
+import { canReview } from '@/lib/finance/petty-access';
 import { fetchJson, showAlert } from '../../api';
 import { FinanceCanvas, FinanceHeading, NoAccess, Panel } from '../../components/FinanceShell';
 
@@ -23,7 +24,7 @@ export default function PettyMasterPage() {
   const [saving, setSaving] = useState(false);
 
   const isAdmin = user?.role === 'a';
-  const isFinance = !!user?.is_finance;
+  const isFinance = canReview(user);
 
   const loadFunds = useCallback(async () => {
     try { setFunds(await fetchJson<PettyFund[]>('/api/finance/petty/funds?active=false')); }

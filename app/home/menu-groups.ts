@@ -1,7 +1,7 @@
 import {
     TriangleAlert, ClipboardList, CircleCheck, FolderKanban, Wallet,
     LayoutDashboard, Building, Database, Monitor, Truck, ShieldCheck, Route,
-    Calculator, Mail, Laptop,ChartNoAxesCombined,CircleAlert, HandCoins, ClipboardCheck, BadgeCheck, Landmark, type LucideIcon,
+    Calculator, Mail, Laptop,ChartNoAxesCombined,CircleAlert, HandCoins, ClipboardCheck, BadgeCheck, Landmark, Receipt, type LucideIcon,
 } from 'lucide-react';
 
 export type MenuTone = 'blue' | 'sun' | 'mint' | 'ink';
@@ -112,6 +112,10 @@ export const MENU_GROUPS: MenuGroup[] = [
             { title: 'ติดตามคำขอ Advance', description: 'ดูสถานะ จ่ายเงิน และเคลียร์เงินทดรอง', icon: ClipboardCheck, href: '/finance/advance' },
             { title: 'อนุมัติเบิกเงิน Advance', description: 'คำขอเบิกเงินที่รอคุณอนุมัติ', icon: BadgeCheck, href: '/finance/approvals' },
             { title: 'งานเบิกเงิน Advance', description: 'ตั้งเบิก จ่ายเงิน และตรวจเคลียร์ (ฝ่ายการเงิน)', icon: Landmark, href: '/finance', financeOnly: true },
+            { title: 'เบิกเงินสดย่อย', description: 'เปิดใบเบิกแทน พจส. ตามประเภทค่าใช้จ่าย', icon: Receipt, href: '/finance/petty/new' },
+            { title: 'ติดตามใบเบิกเงินสดย่อย', description: 'ดูสถานะใบที่คุณเปิด และแก้ใบที่ถูกตีกลับ', icon: ClipboardCheck, href: '/finance/petty' },
+            { title: 'อนุมัติเบิกเงินสดย่อย', description: 'ใบที่รอคุณอนุมัติ โอนเงิน และส่งบัญชี', icon: BadgeCheck, href: '/finance/petty/approvals' },
+            { title: 'งานเงินสดย่อย (บัญชี/การเงิน)', description: 'ตรวจเอกสาร ปิดรอบ และคืนยอด', icon: Landmark, href: '/finance/petty/accounting', financeOnly: true },
         ],
     },
     {
