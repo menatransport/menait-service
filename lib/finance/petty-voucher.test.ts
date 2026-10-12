@@ -91,3 +91,12 @@ describe('หน่วยนับบนใบ มาจากประเภท
     expect(pettyVoucherHtml({ claim: tyreClaim, fund, typeName: 'ค่าปะ-เปลี่ยนยาง', unit: 'เส้น' }))
       .toContain('1,200.00'));
 });
+
+describe('Project Code เป็นช่องว่างบนกระดาษ ระบบไม่เก็บค่า', () => {
+  const html = pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก' });
+
+  test('ช่องยังพิมพ์หัวข้อไว้ให้เขียนด้วยมือ', () => expect(html).toContain('Project Code'));
+
+  test('ไม่มีค่าใดหลุดมาต่อท้ายหัวข้อ', () =>
+    expect(html).toContain('<div class="box">Project Code</div>'));
+});
