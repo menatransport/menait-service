@@ -13,6 +13,7 @@ import { checkDuplicate, createClaim, getExpenseTypes, getFunds, uploadPettyFile
 import { FinanceCanvas, FinanceHeading, Panel } from '../../components/FinanceShell';
 import { FilePicker } from '../../components/FilePicker';
 import { AddManyTrucksDialog } from '../../components/petty/AddManyTrucksDialog';
+import { DocumentPreset } from '../../components/petty/DocumentPreset';
 import { ItemGrid, type DupHint } from '../../components/petty/ItemGrid';
 
 type Row = PettyItemDraft & Record<string, unknown>;
@@ -40,6 +41,9 @@ export default function NewPettyClaimPage() {
   const spec = type?.spec ?? {};
   const itemBased = isItemBased(spec);
   const period = periodOf(rows);
+  const attachedCounts = Object.fromEntries(
+    Object.entries(files).map(([key, list]) => [key, list.length]),
+  );
   const total = itemBased ? claimTotal(rows) : claimTotal([singleItemFrom(header)]);
 
   useEffect(() => {
@@ -220,6 +224,12 @@ export default function NewPettyClaimPage() {
           </div>
         )}
       </Panel>
+
+      {type && (
+        <div className="mb-4">
+          <DocumentPreset spec={spec} counts={attachedCounts} typeName={type.name_th} />
+        </div>
+      )}
 
       {type && itemBased && (
         <Panel title={spec.item_label ?? 'รายการ'}>

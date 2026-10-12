@@ -12,6 +12,7 @@ import { showAlert } from '../../api';
 import { getClaim, getExpenseTypes, getFunds } from '../../petty-api';
 import { Field, FinanceCanvas, FinanceHeading, NoAccess, Panel } from '../../components/FinanceShell';
 import { DdSheet } from '../../components/petty/DdSheet';
+import { DocumentPreset } from '../../components/petty/DocumentPreset';
 import { ItemGrid } from '../../components/petty/ItemGrid';
 import { PettyStatusBadge } from '../../components/petty/ClaimTable';
 import { PettyPrintButton } from '../../components/petty/PettyPrintButton';
@@ -87,6 +88,11 @@ export default function PettyClaimDetailPage() {
           ผู้อนุมัติยืนยันทับเรื่องรายการซ้ำ: {claim.dup_override_reason}
         </div>
       )}
+
+      <div className="mb-4">
+        <DocumentPreset spec={spec} typeName={type?.name_th ?? claim.expense_type}
+          counts={Object.fromEntries(Object.entries(byFolder).map(([k, v]) => [k, v.length]))} />
+      </div>
 
       <Panel title="หัวใบ">
         <div className="grid gap-3 sm:grid-cols-3">

@@ -13,6 +13,9 @@ describe('isPettyFolder', () => {
     expect(isPettyFolder('check')).toBe(false);
   });
   test('a path traversal attempt is not a folder', () => expect(isPettyFolder('../pay')).toBe(false));
+  test('the approved request form of a taxi claim has a home', () =>
+    expect(isPettyFolder('request_form')).toBe(true));
+  test('an unknown folder is still rejected', () => expect(isPettyFolder('whatever')).toBe(false));
   test('empty is not a folder', () => expect(isPettyFolder('')).toBe(false));
 });
 
