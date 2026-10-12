@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { FORM_ID_PATTERN } from '@/lib/s3';
-import { canApprove, canCloseBatch, canReview, canSeeClaim, isPettyFormId } from './petty-access';
+import { canApprove, canCloseBatch, canReview, canSeeAllClaims, canSeeClaim, isPettyFormId } from './petty-access';
 
 const fund = { id: 1, branch_code: '03', division_code: 'B02', holder_employee_id: '12345' };
 
@@ -70,4 +70,17 @@ describe('ปิดรอบเป็นงานการเงิน ตรว
     expect(canReview({ employee_id: '9', is_finance: true })).toBe(true);
     expect(canCloseBatch({ employee_id: '9', is_finance: true })).toBe(true);
   });
+});
+
+describe('canSeeAllClaims — ใครดึงคิวทุกกองทุนได้', () => {
+  test('accounting may', () => expect(canSeeAllClaims({ employee_id: '8', is_accounting: true })).toBe(true));
+  test('treasury may', () => expect(canSeeAllClaims({ employee_id: '9', is_treasury: true })).toBe(true));
+  test('admin may', () => expect(canSeeAllClaims({ employee_id: '1', role: 'a' })).toBe(true));
+  test('the old flag still may during the rollout', () =>
+    expect(canSeeAllClaims({ employee_id: '9', is_finance: true })).toBe(true));
+  test('a clerk may not — ค่าเริ่มต้นต้องแคบสุด', () =>
+    expect(canSeeAllClaims({ employee_id: '55555' })).toBe(false));
+  test('an approver may not either; they get their own funds only', () =>
+    expect(canSeeAllClaims({ employee_id: '12345' })).toBe(false));
+  test('no session means no', () => expect(canSeeAllClaims(null)).toBe(false));
 });

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { canSeeAllClaims } from '@/lib/finance/petty-access';
 import { beUrl, proxy, requireUser } from '@/lib/finance/server';
 
 export async function GET(req: NextRequest) {
@@ -6,7 +7,7 @@ export async function GET(req: NextRequest) {
   if ('error' in guard) return guard.error;
   const sp = req.nextUrl.searchParams;
   const view = sp.get('view') ?? 'mine';
-  const seesAll = guard.user.is_finance === true || guard.user.role === 'a';
+  const seesAll = canSeeAllClaims(guard.user);
   // ค่าเริ่มต้นแคบสุดเสมอ: ไม่ระบุ view = เห็นแต่ใบที่ตัวเองเปิด
   const scope =
     view === 'approvals' ? { holder: guard.user.employee_id }

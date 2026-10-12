@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { canSeeAllClaims } from '@/lib/finance/petty-access';
 import { beUrl, proxy, requireUser } from '@/lib/finance/server';
 
 export async function GET(req: NextRequest) {
   const guard = await requireUser(req);
   if ('error' in guard) return guard.error;
-  const seesAll = guard.user.is_finance === true || guard.user.role === 'a';
+  const seesAll = canSeeAllClaims(guard.user);
   // holder มาจาก session เท่านั้น — ส่ง employee_id จาก browser เข้ามาแล้วดูของคนอื่นไม่ได้
   return proxy(beUrl('/finance/petty/funds', {
     holder: seesAll ? null : guard.user.employee_id,

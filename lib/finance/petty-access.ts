@@ -40,6 +40,11 @@ export function canSeeClaim(
   return false;
 }
 
+/** ดึงคิวของทุกกองทุนได้ — บัญชี การเงิน หรือแอดมิน · เจ้าหน้าที่/ผู้อนุมัติไม่ได้ */
+export function canSeeAllClaims(user: U | null | undefined): boolean {
+  return !!user && (user.role === 'a' || isBackOffice(user));
+}
+
 /** ตรวจเอกสาร (ขั้น 6) = บัญชี */
 export function canReview(user: U | null | undefined): boolean {
   if (!user) return false;
