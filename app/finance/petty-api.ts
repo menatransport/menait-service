@@ -85,3 +85,10 @@ export function checkDuplicate(params: {
   for (const [k, v] of Object.entries(params)) if (v !== null && v !== undefined && v !== '') qs.set(k, String(v));
   return fetchJson<DupResult>(`/api/finance/petty/claims/duplicate-check?${qs.toString()}`);
 }
+
+export type TruckOption = { truck_code: string; truck_plate: string; truck_type: string };
+
+/** ค้นรถจาก master — เลือกแล้วเติมทะเบียนให้เอง ด่านซ้ำเข้มจึงเชื่อถือทะเบียนได้ */
+export function searchTrucks(q: string) {
+  return fetchJson<TruckOption[]>(`/api/finance/petty/trucks?q=${encodeURIComponent(q)}`);
+}

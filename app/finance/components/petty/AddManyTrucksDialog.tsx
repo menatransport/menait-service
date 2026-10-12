@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { PettySpec } from '@/app/finance/types-petty';
+import { searchTrucks } from '@/app/finance/petty-api';
 import { parseTruckPaste, type PettyItemDraft } from '@/lib/finance/petty-items';
 import { blankItem, itemFields } from '@/lib/finance/petty-spec';
 
@@ -19,14 +20,32 @@ export function AddManyTrucksDialog({ spec, onClose, onAdd }: {
   const typeField = itemFields(spec).find(f => f.key === 'truck_type');
   const codes = parseTruckPaste(raw);
 
-  function submit() {
+  const [resolving, setResolving] = useState(false);
+  const [unknown, setUnknown] = useState<string[]>([]);
+
+  async function submit() {
+    setResolving(true);
+    // เติมทะเบียนจาก master ให้ทุกคัน — ด่านซ้ำเข้มใช้เบอร์รถ+ทะเบียนเป็นคีย์ จะปล่อยว่างไม่ได้
+    const found = new Map<string, { truck_plate: string; truck_type: string }>();
+    const missing: string[] = [];
+    for (const code of new Set(codes)) {
+      try {
+        const options = await searchTrucks(code);
+        const hit = options.find(o => o.truck_code === code);
+        if (hit) found.set(code, { truck_plate: hit.truck_plate, truck_type: hit.truck_type });
+        else missing.push(code);
+      } catch { missing.push(code); }
+    }
+    setResolving(false);
+    if (missing.length) { setUnknown(missing); return; }
+
     const rows = codes.map(code => ({
       ...(blankItem(spec) as Record<string, unknown>),
       truck_code: code,
-      truck_plate: '',
+      truck_plate: found.get(code)?.truck_plate ?? '',
       event_date: eventDate,
       rate,
-      ...(typeField ? { truck_type: truckType } : {}),
+      ...(typeField ? { truck_type: truckType || found.get(code)?.truck_type || '' } : {}),
     })) as (PettyItemDraft & Record<string, unknown>)[];
     onAdd(rows);
     onClose();
@@ -62,6 +81,11 @@ export function AddManyTrucksDialog({ spec, onClose, onAdd }: {
             </label>
           )}
         </div>
+        {unknown.length > 0 && (
+          <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            ไม่พบรถใน master: {unknown.join(', ')} — ให้เพิ่มใน master ก่อน แล้วลองอีกครั้ง
+          </div>
+        )}
         <div className="mt-4 flex items-center justify-between">
           <span className="text-sm text-ink-500">
             {codes.length > 0 ? `จะสร้าง ${codes.length} แถว` : 'ยังไม่ได้วางรหัสรถ'}
@@ -69,9 +93,10 @@ export function AddManyTrucksDialog({ spec, onClose, onAdd }: {
           <div className="flex gap-2">
             <button type="button" onClick={onClose}
               className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm">ยกเลิก</button>
-            <button type="button" onClick={submit} disabled={codes.length === 0 || !eventDate || !rate}
+            <button type="button" onClick={() => void submit()}
+              disabled={resolving || codes.length === 0 || !eventDate || !rate}
               className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm text-white disabled:opacity-40">
-              สร้างแถว
+              {resolving ? 'กำลังหาทะเบียน…' : 'สร้างแถว'}
             </button>
           </div>
         </div>

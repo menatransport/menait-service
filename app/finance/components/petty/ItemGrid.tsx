@@ -4,6 +4,7 @@ import { Plus, Trash2, Truck } from 'lucide-react';
 import type { PettySpec } from '@/app/finance/types-petty';
 import { claimTotal, lineAmount, type PettyItemDraft } from '@/lib/finance/petty-items';
 import { blankItem, itemFields } from '@/lib/finance/petty-spec';
+import { TruckPicker } from './TruckPicker';
 
 type Row = PettyItemDraft & Record<string, unknown>;
 
@@ -56,16 +57,12 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
                   <td className="py-1.5 text-ink-400">{index + 1}</td>
                   {hasTruck && (
                     <td className="py-1.5">
-                      <div className="flex gap-1">
-                        <input value={String(row.truck_code ?? '')} disabled={readOnly}
-                          onChange={e => setCell(index, 'truck_code', e.target.value)}
-                          placeholder="เบอร์รถ" aria-label={`เบอร์รถ แถวที่ ${index + 1}`}
-                          className="w-24 rounded-lg border border-slate-200 px-2 py-1" />
-                        <input value={String(row.truck_plate ?? '')} disabled={readOnly}
-                          onChange={e => setCell(index, 'truck_plate', e.target.value)}
-                          placeholder="ทะเบียน" aria-label={`ทะเบียน แถวที่ ${index + 1}`}
-                          className="w-28 rounded-lg border border-slate-200 px-2 py-1" />
-                      </div>
+                      <TruckPicker lineNo={index + 1} readOnly={readOnly}
+                        code={String(row.truck_code ?? '')} plate={String(row.truck_plate ?? '')}
+                        onPick={truck => onChange(rows.map((r, i) => i === index
+                          ? { ...r, truck_code: truck.truck_code, truck_plate: truck.truck_plate,
+                              truck_type: truck.truck_type || r.truck_type }
+                          : r))} />
                     </td>
                   )}
                   {fields.map(f => {
