@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 import { BASE_PATH, BUCKET_NAME, FORM_ID_PATTERN, isSafeUploadName, s3 } from '@/lib/s3';
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { denyUnlessAdvViewer, isAdvOwner, requireUser } from '@/lib/finance/server';
+import { denyUnlessAdvViewer, isAdvOwner, loadPettyClaimFor, requireUser } from '@/lib/finance/server';
 import { isAdvTarget } from '@/lib/finance/formsubmit-guard';
 import { advUploadRole } from '@/lib/finance/adv-access';
+import { canSeeClaim, isPettyFormId } from '@/lib/finance/petty-access';
+import { canUploadPettyFile, isPettyFolder } from '@/lib/finance/petty-upload';
 
 const ALLOWED_FOLDERS = ['pay', 'clear', 'check'];
 
@@ -15,7 +17,11 @@ export async function POST(req: NextRequest) {
   const file = formData.get('file') as File | null;
   const form_id = formData.get('form_id') as string;
   const folder = ((formData.get('folder') as string | null) ?? '').trim();
-  if (folder && !ALLOWED_FOLDERS.includes(folder)) {
+  // ใบเงินสดย่อยมีหมวดไฟล์ของตัวเองตาม spec ของประเภทการเบิก (lib/finance/petty-upload.ts)
+  const pettyTarget = isPettyFormId(form_id);
+  const folderOk = folder === ''
+    || (pettyTarget ? isPettyFolder(folder) : ALLOWED_FOLDERS.includes(folder));
+  if (!folderOk) {
     return NextResponse.json({ error: 'โฟลเดอร์ไม่ถูกต้อง' }, { status: 400 });
   }
 
@@ -33,6 +39,14 @@ export async function POST(req: NextRequest) {
 
   if (!FORM_ID_PATTERN.test(form_id)) {
     return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
+  }
+
+  // petty: แนบได้เฉพาะเจ้าหน้าที่ผู้เปิดใบ ผู้ถือกองทุนของใบนั้น และแอดมิน — ไม่ใช่ทุกคนที่ล็อกอิน
+  if (pettyTarget) {
+    const loaded = await loadPettyClaimFor(form_id);
+    if (!canUploadPettyFile({ user: guard.user, claim: loaded.claim, fund: loaded.fund })) {
+      return NextResponse.json({ error: 'ไม่มีสิทธิ์แนบไฟล์ในรายการนี้' }, { status: 403 });
+    }
   }
 
   // ADV: pay/check are Finance's evidence; request (no folder) and clear belong to the requester
@@ -87,8 +101,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
   }
 
-  const denied = await denyUnlessAdvViewer(guard.user, form_id);
-  if (denied) return denied;
+  if (isPettyFormId(form_id)) {
+    // ไฟล์แนบของใบเงินสดย่อยเห็นได้เท่าที่เห็นตัวใบ — ไม่ใช่ทุกคนที่ล็อกอิน
+    const loaded = await loadPettyClaimFor(form_id);
+    const allowed = !!loaded.claim && canSeeClaim(
+      guard.user,
+      loaded.claim as { created_by: string; fund_id: number; status: never },
+      loaded.fund ? [loaded.fund] : [],
+    );
+    if (!allowed) return NextResponse.json({ error: 'ไม่มีสิทธิ์ดูรายการนี้' }, { status: 403 });
+  } else {
+    const denied = await denyUnlessAdvViewer(guard.user, form_id);
+    if (denied) return denied;
+  }
 
   const folderPath = `${BASE_PATH}/${form_id}/`;
 

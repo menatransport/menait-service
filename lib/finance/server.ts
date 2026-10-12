@@ -145,3 +145,19 @@ export async function denyUnlessAdvViewer(user: AdvUser, formId: string): Promis
   if (await canViewAdv(user, formId)) return null;
   return NextResponse.json({ error: 'ไม่มีสิทธิ์ดูรายการนี้' }, { status: 403 });
 }
+
+/** ใบเงินสดย่อย + กองทุนของมัน สำหรับการ์ดไฟล์แนบ · โหลดไม่ได้คืน null ทั้งคู่ (ผู้เรียก fail closed) */
+export async function loadPettyClaimFor(formId: string): Promise<{
+  claim: { created_by: string; fund_id: number; status: any } | null;
+  fund: { id: number; holder_employee_id: string } | null;
+}> {
+  const claim = await beJsonOrNull(beUrl(`/finance/petty/claims/${encodeURIComponent(formId)}`)) as any;
+  if (!claim || typeof claim.created_by !== 'string' || typeof claim.fund_id !== 'number') {
+    return { claim: null, fund: null };
+  }
+  const funds = await beJsonOrNull(beUrl('/finance/petty/funds', { active: 'false' })) as any;
+  const fund = Array.isArray(funds)
+    ? funds.find((f: any) => f?.id === claim.fund_id) ?? null
+    : null;
+  return { claim, fund };
+}
