@@ -6,10 +6,12 @@ import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyBalance, PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { ApiError } from '@/lib/finance/api-error';
+import type { GateDup, GateItem } from '../../components/petty/GatePanel';
 import { showAlert, showConfirm } from '../../api';
-import { countAttachments, getBalance, getExpenseTypes, getFunds, listClaims, postAction } from '../../petty-api';
+import { checkDuplicate, countAttachments, getBalance, getExpenseTypes, getFunds, listClaims, postAction } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, Panel } from '../../components/FinanceShell';
 import { BalanceCard } from '../../components/petty/BalanceCard';
+import { GatePanel } from '../../components/petty/GatePanel';
 import { ClaimTable } from '../../components/petty/ClaimTable';
 
 const TITLE = 'อนุมัติเบิกเงินสดย่อย';
@@ -23,6 +25,7 @@ export default function PettyApprovalsPage() {
   const [claims, setClaims] = useState<PettyClaim[] | null>(null);
   const [types, setTypes] = useState<PettyExpenseType[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [gates, setGates] = useState<Record<string, { missing: GateItem[]; hard: GateDup[]; soft: GateDup[] }>>({});
 
   const load = useCallback(async () => {
     try {
@@ -38,6 +41,48 @@ export default function PettyApprovalsPage() {
 
   useEffect(() => { if (user?.employee_id) void load(); }, [user?.employee_id, load]);
   useEffect(() => { if (fundId) getBalance(fundId).then(setBalance).catch(() => setBalance(null)); }, [fundId, claims]);
+
+  // ผลด่านของใบที่รออนุมัติ: ตรวจไฟล์แนบที่ขาดจาก spec และตรวจซ้ำรายแถวจาก BE
+  useEffect(() => {
+    const pending = (claims ?? []).filter(c => c.fund_id === fundId && c.status === 'PENDING_APPROVAL');
+    if (pending.length === 0) { setGates({}); return; }
+    let alive = true;
+    (async () => {
+      const next: Record<string, { missing: GateItem[]; hard: GateDup[]; soft: GateDup[] }> = {};
+      for (const claim of pending) {
+        const spec = types.find(t => t.code === claim.expense_type)?.spec ?? {};
+        const counts = await countAttachments(claim.form_id);
+        const missing: GateItem[] = (spec.attachments ?? [])
+          .filter(a => a.required && !counts[a.key])
+          .map(a => ({ key: a.key, label: a.label }));
+        (spec.item_fields ?? []).forEach(f => {
+          if (f.key === 'truck' || !f.required) return;
+          claim.items.forEach((row, i) => {
+            const value = (row as Record<string, unknown>)[f.key];
+            if (value === null || value === undefined || String(value).trim() === '') {
+              missing.push({ key: f.key, line_no: i + 1, label: `${f.label} (แถวที่ ${i + 1})` });
+            }
+          });
+        });
+        const hard: GateDup[] = []; const soft: GateDup[] = [];
+        for (const [i, row] of claim.items.entries()) {
+          if (!row.event_date) continue;
+          try {
+            const res = await checkDuplicate({
+              expense_type: claim.expense_type, event_date: row.event_date,
+              truck_code: row.truck_code, truck_plate: row.truck_plate, ref_no: row.ref_no,
+              exclude_claim_id: claim.id,
+            });
+            res.hard.forEach(d => hard.push({ ...d, line_no: i + 1 }));
+            res.soft.forEach(d => soft.push({ ...d, line_no: i + 1 }));
+          } catch { /* ด่านจริงอยู่ที่ BE ตอนกดอนุมัติ ตรงนี้แค่บอกล่วงหน้า */ }
+        }
+        next[claim.form_id] = { missing, hard, soft };
+      }
+      if (alive) setGates(next);
+    })();
+    return () => { alive = false; };
+  }, [claims, fundId, types]);
 
   async function act(claim: PettyClaim, action: 'approve' | 'return' | 'transfer' | 'submit-accounting') {
     setBusy(claim.form_id);
@@ -136,10 +181,17 @@ export default function PettyApprovalsPage() {
             {q.action && (
               <div className="mt-3 space-y-2">
                 {rows.map(c => (
-                  <div key={c.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                  <div key={c.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                    {q.action === 'approve' && gates[c.form_id] && (
+                      <div className="mb-2"><GatePanel {...gates[c.form_id]} /></div>
+                    )}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                     <span>{c.form_id} · {c.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท</span>
                     <span className="flex gap-2">
-                      <button type="button" disabled={busy === c.form_id}
+                      <button type="button"
+                        disabled={busy === c.form_id || (q.action === 'approve'
+                          && ((gates[c.form_id]?.missing.length ?? 0) > 0
+                            || (gates[c.form_id]?.hard.length ?? 0) > 0))}
                         onClick={() => void act(c, q.action!)}
                         className="rounded-lg bg-brand-600 px-3 py-1.5 text-white disabled:opacity-40">
                         {busy === c.form_id ? 'กำลังทำ…' : q.cta}
@@ -152,6 +204,7 @@ export default function PettyApprovalsPage() {
                         </button>
                       )}
                     </span>
+                    </div>
                   </div>
                 ))}
               </div>

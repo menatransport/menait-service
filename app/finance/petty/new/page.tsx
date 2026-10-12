@@ -9,11 +9,11 @@ import type { PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { claimTotal, periodOf, type PettyItemDraft } from '@/lib/finance/petty-items';
 import { blankItem, claimPayload, headerFields, isItemBased, singleItemFrom } from '@/lib/finance/petty-spec';
 import { showAlert } from '../../api';
-import { createClaim, getExpenseTypes, getFunds, uploadPettyFiles } from '../../petty-api';
+import { checkDuplicate, createClaim, getExpenseTypes, getFunds, uploadPettyFiles } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, Panel } from '../../components/FinanceShell';
 import { FilePicker } from '../../components/FilePicker';
 import { AddManyTrucksDialog } from '../../components/petty/AddManyTrucksDialog';
-import { ItemGrid } from '../../components/petty/ItemGrid';
+import { ItemGrid, type DupHint } from '../../components/petty/ItemGrid';
 
 type Row = PettyItemDraft & Record<string, unknown>;
 
@@ -33,6 +33,7 @@ export default function NewPettyClaimPage() {
   const [files, setFiles] = useState<Record<string, File[]>>({});
   const [ddNo, setDdNo] = useState('');
   const [addMany, setAddMany] = useState(false);
+  const [dups, setDups] = useState<DupHint[]>([]);
   const [saving, setSaving] = useState(false);
 
   const type = useMemo(() => types?.find(t => t.code === typeCode) ?? null, [types, typeCode]);
@@ -56,7 +57,33 @@ export default function NewPettyClaimPage() {
   }, []);
 
   // เปลี่ยนประเภท = เริ่มกรอกใหม่ เพราะช่องและหมวดไฟล์มาจาก spec ของประเภทนั้น
-  useEffect(() => { setHeader({}); setRows([]); setFiles({}); }, [typeCode]);
+  useEffect(() => { setHeader({}); setRows([]); setFiles({}); setDups([]); }, [typeCode]);
+
+  // เตือนซ้ำขณะกรอก — ด่านจริงอยู่ที่ BE ตอนอนุมัติ ตรงนี้ให้เห็นก่อนจะส่ง
+  useEffect(() => {
+    if (!typeCode || rows.length === 0) { setDups([]); return; }
+    const timer = setTimeout(async () => {
+      const hints: DupHint[] = [];
+      for (const [index, row] of rows.entries()) {
+        const date = String(row.event_date ?? '');
+        const code = String(row.truck_code ?? '');
+        if (!date || !code) continue;
+        try {
+          const res = await checkDuplicate({
+            expense_type: typeCode, event_date: date,
+            truck_code: code, truck_plate: String(row.truck_plate ?? ''),
+            ref_no: String(row.ref_no ?? ''),
+          });
+          res.hard.forEach(d => hints.push({ line_no: index + 1, level: 'hard',
+            message: d.message ?? 'เบิกไปแล้ว', form_id: d.form_id }));
+          res.soft.forEach(d => hints.push({ line_no: index + 1, level: 'soft',
+            message: d.message ?? 'อาจซ้ำ', form_id: d.form_id }));
+        } catch { /* ปล่อยผ่าน — BE เป็นผู้ตัดสินจริงตอนอนุมัติ */ }
+      }
+      setDups(hints);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [rows, typeCode]);
 
   const requiredMissing = (() => {
     if (!type || !fundId) return 'เลือกประเภทการเบิกและกองทุนก่อน';
@@ -83,6 +110,8 @@ export default function NewPettyClaimPage() {
     for (const a of (spec.attachments ?? [])) {
       if (a.required && (files[a.key]?.length ?? 0) === 0) return `ยังไม่แนบ ${a.label}`;
     }
+    const hard = dups.filter(d => d.level === 'hard');
+    if (hard.length) return `แถวที่ ${hard[0].line_no} เบิกไปแล้ว — แก้หรือลบแถวนั้นก่อน`;
     return null;
   })();
 
@@ -194,7 +223,8 @@ export default function NewPettyClaimPage() {
 
       {type && itemBased && (
         <Panel title={spec.item_label ?? 'รายการ'}>
-          <ItemGrid spec={spec} rows={rows} onChange={setRows} onAddMany={() => setAddMany(true)} />
+          <ItemGrid spec={spec} rows={rows} onChange={setRows} onAddMany={() => setAddMany(true)}
+            dups={dups} />
         </Panel>
       )}
 
