@@ -75,7 +75,7 @@ describe('coverSheetHtml', () => {
 });
 
 describe('ใบปะหน้า มาตรฐานเดียวกับ Advance', () => {
-  const html = coverSheetHtml({ group: groupByClerk(claims)[0], types, clerkName: 'สายใจ ทองดี', branchCode: '03', divisionCode: 'B02', logoUrl: 'http://x/mena.png' });
+  const html = coverSheetHtml({ group: groupByClerk(CLAIMS)[0], types: TYPES, clerkName: 'สายใจ ทองดี', branchCode: '03', divisionCode: 'B02', logoUrl: 'http://x/mena.png' });
   test('หัวเอกสาร', () => {
     expect(html).toContain('class="doc-band"');
     expect(html).toContain('<img class="logo" src="http://x/mena.png"');
@@ -95,11 +95,11 @@ describe('ใบปะหน้า มาตรฐานเดียวกับ
 
 describe('วันที่บนใบปะหน้าเป็นวันไทย', () => {
   test('ตอนตีสองของไทย (19:00 UTC เมื่อวาน) ต้องขึ้นวันไทย', () => {
-    const html = coverSheetHtml({ group: groupByClerk(claims)[0], types, clerkName: 'x', branchCode: '03', divisionCode: 'B02',
+    const html = coverSheetHtml({ group: groupByClerk(CLAIMS)[0], types: TYPES, clerkName: 'x', branchCode: '03', divisionCode: 'B02',
       now: new Date('2026-10-12T19:00:00Z') });
     expect(html).toContain('<span>วันที่</span><b>13/10/2026</b>');
   });
   test('เลขที่ใบเบิกไม่ถูกตัดบรรทัด', () =>
-    expect(coverSheetHtml({ group: groupByClerk(claims)[0], types, clerkName: 'x', branchCode: '03', divisionCode: 'B02' }))
+    expect(coverSheetHtml({ group: groupByClerk(CLAIMS)[0], types: TYPES, clerkName: 'x', branchCode: '03', divisionCode: 'B02' }))
       .toContain('<td class="nw">'));
 });
