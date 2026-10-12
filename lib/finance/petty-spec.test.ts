@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettySpec } from '@/app/finance/types-petty';
-import { blankItem, claimPayload, headerFields, isItemBased, itemFields, printUnit, requiredAttachments, singleItemFrom } from './petty-spec';
+import { blankItem, claimPayload, headerFields, isItemBased, itemFields, itemsFrom, printUnit, requiredAttachments, singleItemFrom } from './petty-spec';
 
 const WEIGH: PettySpec = {
   item_based: true,
@@ -134,4 +134,20 @@ describe('printUnit — หน่วยนับบนใบพิมพ์ม�
     expect(printUnit({ item_based: true, print: { unit: 'เส้น' }, atms: { unit: 'งาน' } })).toBe('เส้น'));
   test('ค่าเดินทางที่ไม่ใช่รายการรถ ใช้ "เที่ยว"', () =>
     expect(printUnit({ item_based: false })).toBe('เที่ยว'));
+});
+
+describe('itemsFrom — ค่าเดินทางรวมค่าทางด่วนในใบเดียว (REQUIREMENT §3.5)', () => {
+  const base = { event_date: '2026-09-29', rate: 243, ref_no: 'TRIP-1', remark: 'คลองตัน → บางนา' };
+  test('ไม่กรอกค่าทางด่วน = รายการเดียว', () => expect(itemsFrom(base)).toHaveLength(1));
+  test('กรอกค่าทางด่วน = แถวที่สองชื่อ ค่าทางด่วน ยอดตามที่กรอก', () => {
+    const rows = itemsFrom({ ...base, toll_amount: 65 });
+    expect(rows).toHaveLength(2);
+    expect(rows[1].rate).toBe(65);
+    expect(rows[1].remark).toBe('ค่าทางด่วน');
+    expect(rows[1].event_date).toBe('2026-09-29');
+  });
+  test('ค่าทางด่วน 0 หรือว่าง ไม่เพิ่มแถว', () => {
+    expect(itemsFrom({ ...base, toll_amount: 0 })).toHaveLength(1);
+    expect(itemsFrom({ ...base, toll_amount: '' })).toHaveLength(1);
+  });
 });

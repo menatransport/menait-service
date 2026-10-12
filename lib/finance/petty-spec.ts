@@ -57,3 +57,11 @@ export function printUnit(spec: PettySpec | null | undefined): string {
   if (set) return set;
   return isItemBased(spec) ? 'คัน' : 'เที่ยว';
 }
+
+/** รายการของใบที่กรอกยอดเดียว: แถวหลัก + แถว "ค่าทางด่วน" เมื่อกรอกมาด้วย (REQUIREMENT §3.5 รวมในใบเดียว) */
+export function itemsFrom(form: Record<string, unknown>): PettyItemDraft[] {
+  const main = singleItemFrom(form);
+  const toll = Number(form.toll_amount ?? 0);
+  if (!(toll > 0)) return [main];
+  return [main, { ...main, ref_no: (form.toll_receipt_no as string) ?? null, rate: toll, remark: 'ค่าทางด่วน' }];
+}

@@ -38,3 +38,7 @@ describe('canUploadPettyFile', () => {
   test('no session means no', () =>
     expect(canUploadPettyFile({ user: { employee_id: null }, claim, fund })).toBe(false));
 });
+
+describe('หมวด map (REQUIREMENT §3.2/§3.5 รูป Map)', () => {
+  test('อัปโหลดหมวด map ได้', () => expect(isPettyFolder('map')).toBe(true));
+});

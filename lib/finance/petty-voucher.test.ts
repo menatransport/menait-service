@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { itemSummaryHtml, pettyVoucherHtml, receiptSubstituteHtml } from './petty-voucher';
+import { itemSummaryHtml, pettyVoucherHtml, receiptSubstituteHtml, travelRequestFormHtml } from './petty-voucher';
 import type { PettyClaim, PettyFund } from '@/app/finance/types-petty';
 
 const fund: PettyFund = {
@@ -159,7 +159,7 @@ describe('ใบรับรองแทนใบเสร็จ มาตรฐ
   });
   test('คำรับรองอยู่ในกล่องข้อตกลงแบบ Advance', () => {
     expect(html).toContain('<ol class="clauses">');
-    expect(html).toContain('ไม่สามารถเรียกใบเสร็จรับเงินจากผู้รับเงินได้');
+    expect(html).toContain('ไม่อาจเรียกเก็บใบเสร็จรับเงินจากผู้รับได้');
   });
   test('ลงนาม 2 ช่อง', () => {
     expect(html).toContain('<th>ผู้เบิกจ่าย</th>');
@@ -315,4 +315,89 @@ describe('ชื่อพนักงานบนใบ แทนรหัส (�
   test('ใบสรุปรายการ: ผู้เปิดใบเป็นชื่อ', () =>
     expect(itemSummaryHtml({ claim: named, fund: namedFund, typeName: 'x', spec: { item_based: true, item_fields: [{ key: 'ref_no', label: 'เลข', type: 'text' }] } }))
       .toContain('<i>กฤตบุญ ลายเงิน</i>'));
+});
+
+describe('ตรงกับฟอร์มกระดาษจริง (ดูตัวอย่างที่ผู้ใช้ส่ง 2026-10-13)', () => {
+  const html = pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก' });
+  test('ชื่อบริษัทมี (มหาชน)', () => expect(html).toContain('บริษัท มีนาทรานสปอร์ต จำกัด (มหาชน)'));
+  test('Division มีชื่อฝ่ายและช่อง พจส. ไม่มี PJS', () => {
+    expect(html).toContain('B01 (ฝ่ายจัดส่ง)');
+    expect(html).toContain('B02 (ฝ่ายยานยนต์)');
+    expect(html).toContain('A04 (ฝ่ายบัญชี การเงิน)');
+    expect(html).toContain('>พจส.</span>');
+    expect(html).not.toContain('PJS');
+  });
+  test('สาขาเป็นช่องติ๊ก 01–05 และ อื่นๆ ติ๊ก 03 สลบ', () => {
+    expect(html).toContain('<span class="cb checked"></span>03 สลบ');
+    expect(html).toContain('<span class="cb"></span>02 สสบ');
+    expect(html).toContain('อื่นๆ');
+  });
+  test('ตารางมีคอลัมน์ ลำดับ / Account Code / รายการ / จำนวน (หน่วย) / จำนวนเงิน / หมายเหตุ', () => {
+    for (const h of ['ลำดับ', 'Account Code', 'รายการ', 'จำนวน (หน่วย)', 'จำนวนเงิน', 'หมายเหตุ']) expect(html).toContain(`>${h}</th>`);
+    expect(html).not.toContain('>ราคา/หน่วย</th>');
+  });
+  test('ลงนามเรียง หัวหน้าแผนก → ผู้อนุมัติ → ผู้จ่ายเงิน → ผู้รับเงิน', () => {
+    const order = ['ผู้จ่ายเงิน', 'ผู้รับเงิน', 'หัวหน้าแผนก', 'ผู้อนุมัติ'].map(t => html.indexOf(`<th>${t}</th>`));
+    expect(order[2]).toBeLessThan(order[3]);
+    expect(order[3]).toBeLessThan(order[0]);
+    expect(order[0]).toBeLessThan(order[1]);
+  });
+  test('ใบชั่งรวมตามราคา บอกจำนวนแยกประเภทรถในรายการ', () =>
+    expect(html).toContain('100 บาท = 2 คัน'));
+  test('แถวที่มีรถคันเดียว หมายเหตุเขียน ทะเบียน (เบอร์รถ) แบบใบยางจริง', () => {
+    const tyre = { ...claim, items: [{ line_no: 1, event_date: '2026-09-15', truck_code: '6604', truck_plate: '72-8179',
+      truck_type: 'โม่ใหญ่', ref_no: 'B-01', qty: 6, rate: 200, amount: 1200, remark: 'เปลี่ยนยาง 6 เส้น' }] } as unknown as PettyClaim;
+    expect(pettyVoucherHtml({ claim: tyre, fund, typeName: 'ค่าปะ-เปลี่ยนยาง', unit: 'เส้น' })).toContain('ทะเบียน 72-8179 (6604)');
+  });
+});
+
+describe('ใบรับรองแทนใบเสร็จ ตรงต้นฉบับ', () => {
+  const html = receiptSubstituteHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก', payeePosition: 'เจ้าหน้าที่รับแจ้งซ่อม' });
+  test('หัวมี (มหาชน) (สาขา00003) ที่อยู่สาขา และเลขผู้เสียภาษี', () => {
+    expect(html).toContain('บริษัท มีนาทรานสปอร์ต จำกัด (มหาชน) (สาขา00003)');
+    expect(html).toContain('เลขที่ 1 ซอยแฮปปี้เพลส 16 แขวงคลองสามประเวศ เขตลาดกระบัง จังหวัดกรุงเทพมหานคร 10520');
+    expect(html).toContain('เลขประจำตัวผู้เสียภาษี 0107563000207');
+  });
+  test('ตาราง วัน เดือน ปี / รายละเอียดรายจ่าย / จำนวนเงิน / หมายเหตุ — จำนวนอยู่ในรายละเอียด', () => {
+    for (const h of ['วัน เดือน ปี', 'รายละเอียดรายจ่าย', 'จำนวนเงิน', 'หมายเหตุ']) expect(html).toContain(`>${h}</th>`);
+    expect(html).not.toContain('>จำนวน</th>');
+    expect(html).toContain('100 บาท 2 คัน');
+  });
+  test('ถ้อยคำรับรองตรงต้นฉบับ', () => {
+    expect(html).toContain('ขอรับรองว่า รายจ่ายข้างต้นนี้ไม่อาจเรียกเก็บใบเสร็จรับเงินจากผู้รับได้ และข้าพเจ้าได้จ่ายไปในงานของทางบริษัทฯโดยแท้');
+    expect(html).toContain('ตั้งแต่วันที่ 17/09/2026 ถึงวันที่ 24/09/2026');
+  });
+  test('ลงชื่อ (ผู้เบิกจ่าย) และ (ผู้อนุมัติ)', () => {
+    expect(html).toContain('<th>ผู้เบิกจ่าย</th>');
+    expect(html).toContain('<th>ผู้อนุมัติ</th>');
+  });
+});
+
+describe('แบบฟอร์มขอใช้บริการแกร็บแท็กซี่ — ระบบพิมพ์ให้จากข้อมูลที่กรอก', () => {
+  const travel = { ...claim, expense_type: 'TRAVEL', amount: 243, payee_name: 'แวน หอมทอง',
+    detail: { dept: 'จัดส่ง', leg: 'ขากลับ', route_from: 'อู่ สลบ.', route_to: 'เมกาบางนา คลองตัน', reason: 'เรียกให้ ฮาเล็ง เจเอดี กลับแพลนท์' },
+    items: [{ line_no: 1, event_date: '2026-09-01', ref_no: 'jzjw3v', qty: 1, rate: 243, amount: 243, remark: null }] } as unknown as PettyClaim;
+  const html = travelRequestFormHtml({ claim: travel, fund, typeName: 'ค่าเดินทางคนขับ' });
+  test('หัวเรื่องและเอกสารประกอบ 1', () => {
+    expect(html).toContain('แบบฟอร์มขอใช้บริการแกร็บแท็กซี่');
+    expect(html).toContain('เอกสารประกอบ 1');
+  });
+  test('ผู้ใช้ วันที่ แผนก (ติ๊กจัดส่ง) เหตุที่ใช้', () => {
+    expect(html).toContain('แวน หอมทอง');
+    expect(html).toContain('01/09/2026');
+    expect(html).toContain('<span class="cb checked"></span>จัดส่ง');
+    expect(html).toContain('<span class="cb"></span>ยานยนต์');
+    expect(html).toContain('เรียกให้ ฮาเล็ง เจเอดี กลับแพลนท์');
+  });
+  test('ขาไป/ขากลับ ติ๊กขากลับ พร้อมรหัส จาก ไป', () => {
+    expect(html).toContain('<span class="cb checked"></span>ขากลับ');
+    expect(html).toContain('<span class="cb"></span>ขาไป');
+    expect(html).toContain('jzjw3v');
+    expect(html).toContain('อู่ สลบ.');
+    expect(html).toContain('เมกาบางนา คลองตัน');
+  });
+  test('ลงนาม ผู้อนุมัติ และ ผู้ขอเบิก', () => {
+    expect(html).toContain('<th>ผู้ขอเบิก</th>');
+    expect(html).toContain('<th>ผู้อนุมัติ</th>');
+  });
 });

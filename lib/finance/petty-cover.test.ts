@@ -116,3 +116,21 @@ describe('ใบปะหน้า — ชื่อเจ้าหน้าท�
     expect(clerkNameOf({ clerk: '680043', claims: [{ created_by: '680043' } as PettyClaim], total: 0 })).toBe('680043');
   });
 });
+
+describe('ใบปะหน้ามี checklist รวบรวมเอกสารต่อใบ (ผู้ใช้สั่ง 2026-10-13)', () => {
+  const typesWithSpec = TYPES.map(t => t.code === 'WEIGH' ? { ...t, spec: {
+    prints: ['PETTY_VOUCHER', 'RECEIPT_SUBSTITUTE', 'DD'],
+    attachments: [{ key: 'weigh_slip', label: 'ใบชั่งน้ำหนัก (สำเนา)', required: true }, { key: 'transfer', label: 'หลักฐานโอนเงิน', required: true }, { key: 'other', label: 'อื่นๆ', required: false }],
+  } } : t);
+  const html = coverSheetHtml({ group: groupByClerk(CLAIMS)[0], types: typesWithSpec, clerkName: 'x', branchCode: '03', divisionCode: 'B02' });
+  test('มีหัวข้อ checklist', () => expect(html).toContain('รายการเอกสารที่ต้องรวบรวม'));
+  test('แต่ละใบมีช่องติ๊กเอกสารที่ระบบพิมพ์และเอกสารที่ต้องแนบ', () => {
+    expect(html).toContain('<span class="cb"></span>ใบสำคัญจ่ายเงินสดย่อย');
+    expect(html).toContain('<span class="cb"></span>ใบรับรองแทนใบเสร็จรับเงิน');
+    expect(html).toContain('<span class="cb"></span>ใบรับสินค้า (DD)');
+    expect(html).toContain('<span class="cb"></span>ใบชั่งน้ำหนัก (สำเนา)');
+    expect(html).toContain('<span class="cb"></span>หลักฐานโอนเงิน');
+  });
+  test('หมวดที่ไม่บังคับไม่ขึ้นใน checklist', () => expect(html).not.toContain('<span class="cb"></span>อื่นๆ'));
+  test('checklist ระบุเลขที่ใบที่เป็นเจ้าของ', () => expect(html).toContain('03-B02-2610-001'));
+});

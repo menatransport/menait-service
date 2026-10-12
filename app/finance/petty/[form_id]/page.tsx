@@ -16,11 +16,13 @@ import { DocumentPreset } from '../../components/petty/DocumentPreset';
 import { ItemGrid } from '../../components/petty/ItemGrid';
 import { PettyStatusBadge } from '../../components/petty/ClaimTable';
 import { PettyPrintButton } from '../../components/petty/PettyPrintButton';
+import { PettyAttachments } from '../../components/petty/PettyAttachments';
+import { canUploadPettyFile } from '@/lib/finance/petty-upload';
 
 type FileRow = { key: string; fileName?: string; url: string; folder?: string };
 
 export default function PettyClaimDetailPage() {
-  const { loading } = useSessionContext();
+  const { user, loading } = useSessionContext();
   const params = useParams<{ form_id: string }>();
   const formId = params?.form_id ?? '';
 
@@ -30,6 +32,16 @@ export default function PettyClaimDetailPage() {
   const [fund, setFund] = useState<PettyFund | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const loadFiles = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/uploads3?form_id=${encodeURIComponent(formId)}`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json() as { files?: FileRow[] };
+        setFiles(data.files ?? []);
+      }
+    } catch { /* รายการไฟล์โหลดไม่ได้ ไม่ทำให้หน้าล้ม */ }
+  }, [formId]);
+
   const load = useCallback(async () => {
     if (!isPettyFormId(formId)) { setError('หมายเลขเอกสารไม่ถูกต้อง'); return; }
     try {
@@ -37,11 +49,7 @@ export default function PettyClaimDetailPage() {
       setClaim(c);
       setType(types.find(t => t.code === c.expense_type) ?? null);
       setFund(funds.find(f => f.id === c.fund_id) ?? null);
-      const res = await fetch(`/api/uploads3?form_id=${encodeURIComponent(formId)}`, { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json() as { files?: FileRow[] };
-        setFiles(data.files ?? []);
-      }
+      await loadFiles();
     } catch (err) {
       setError((err as Error).message);
       showAlert({ icon: 'error', title: 'โหลดใบไม่สำเร็จ', text: (err as Error).message });
@@ -124,27 +132,12 @@ export default function PettyClaimDetailPage() {
       )}
 
       <Panel title="ไฟล์แนบ">
-        {files.length === 0 ? (
-          <p className="text-sm text-ink-400">ยังไม่มีไฟล์แนบ</p>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {Object.entries(byFolder).map(([folder, list]) => {
-              const label = (spec.attachments ?? []).find(a => a.key === folder)?.label ?? folder;
-              return (
-                <div key={folder}>
-                  <p className="mb-1 text-sm font-medium">{label} ({list.length})</p>
-                  <ul className="space-y-1 text-sm">
-                    {list.map(f => (
-                      <li key={f.key}>
-                        <a href={f.url} target="_blank" rel="noreferrer"
-                          className="text-brand-700 hover:underline">{f.fileName ?? f.key}</a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
+        <PettyAttachments formId={claim.form_id} spec={spec}
+          files={files.map(f => ({ key: f.key, fileName: f.fileName, url: f.url, folder: f.folder ?? 'other' }))}
+          canUpload={canUploadPettyFile({ user: user ?? { employee_id: null }, claim, fund })}
+          onChanged={() => void loadFiles()} />
+        {!canUploadPettyFile({ user: user ?? { employee_id: null }, claim, fund }) && (
+          <p className="mt-2 text-xs text-ink-400">แนบไฟล์เพิ่มได้เฉพาะเจ้าหน้าที่ผู้เปิดใบและผู้ถือเงินของกองทุน ขณะที่ใบยังไม่ปิดรอบ</p>
         )}
       </Panel>
     </FinanceCanvas>

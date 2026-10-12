@@ -18,16 +18,14 @@ const REAL = [
 describe('groupForPrint — ตามที่คนเขียนมือจัดอยู่แล้ว', () => {
   const groups = groupForPrint(REAL, 'ค่าชั่งน้ำหนัก');
 
-  test('groups by rate and truck type', () => expect(groups).toHaveLength(4));
-  test('big mixers at 100 baht are eight trucks', () => {
-    const g = groups.find(x => x.rate === 100 && x.label.includes('โม่ใหญ่'))!;
-    expect(g.count).toBe(8);
-    expect(g.total).toBe(800);
+  test('groups by rate only — three rates on the real voucher', () => expect(groups).toHaveLength(3));
+  test('the 100-baht line counts all twelve trucks and breaks them down by type in the label', () => {
+    const line = groups.find(g => g.rate === 100)!;
+    expect(line.count).toBe(12);
+    expect(line.label).toBe('ค่าชั่งน้ำหนัก 100 บาท = 12 คัน (โม่ใหญ่ 8 คัน, โม่เล็ก 4 คัน)');
   });
-  test('small mixers at 100 baht are their own line', () => {
-    const g = groups.find(x => x.rate === 100 && x.label.includes('โม่เล็ก'))!;
-    expect(g.count).toBe(4);
-  });
+  test('the 120-baht line names the single truck type', () =>
+    expect(groups.find(g => g.rate === 120)!.label).toBe('ค่าชั่งน้ำหนักรถโม่ใหญ่ 120 บาท = 3 คัน'));
   test('grand total matches the real voucher', () =>
     expect(groups.reduce((s, g) => s + g.total, 0)).toBe(1640));
   test('truck codes travel into the remark column', () => {

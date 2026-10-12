@@ -28,26 +28,36 @@ export function groupForPrint(
   opts: PrintOpts = {},
 ): PrintGroup[] {
   const unit = opts.unit ?? 'คัน';
-  const buckets = new Map<string, PrintGroup>();
+  const buckets = new Map<string, PrintGroup & { byType: Map<string, number> }>();
   for (const [index, item] of items.entries()) {
     const rate = Number(item.rate ?? 0);
-    const truckType = item.truck_type ?? null;
+    const truckType = (item.truck_type ?? '').trim();
     const remark = (item.remark ?? '').trim();
-    const token = remark ? `remark:${index}` : `${rate}|${truckType ?? ''}`;
+    const token = remark ? `remark:${index}` : `${rate}`;
     let group = buckets.get(token);
     if (!group) {
-      group = {
-        label: remark ? `${typeName} ${remark}` : voucherLabel(rate, truckType, typeName),
-        count: 0, rate, total: 0, truckCodes: [], unit,
-      };
+      group = { label: remark ? `${typeName} ${remark}` : '', count: 0, rate, total: 0, truckCodes: [], unit,
+        byType: new Map() };
       buckets.set(token, group);
     }
     group.count += remark ? Number(item.qty ?? 1) : 1;
     group.total = round2(group.total + Number(item.amount ?? rate * Number(item.qty ?? 1)));
     if (item.truck_code) group.truckCodes.push(item.truck_code);
+    if (!remark && truckType) group.byType.set(truckType, (group.byType.get(truckType) ?? 0) + 1);
   }
+  const out: PrintGroup[] = [...buckets.values()].map(g => {
+    if (g.label) return { label: g.label, count: g.count, rate: g.rate, total: g.total, truckCodes: g.truckCodes, unit: g.unit };
+    // "ค่าชั่งน้ำหนัก 100 บาท = 12 คัน (โม่ใหญ่ 8 คัน, โม่เล็ก 4 คัน)" — แยกประเภทรถในวงเล็บเมื่อมีมากกว่าหนึ่งแบบ
+    const types = [...g.byType.entries()];
+    const breakdown = types.length > 1 ? ` (${types.map(([t, n]) => `${t} ${n} ${g.unit}`).join(', ')})` : '';
+    const typeWord = types.length === 1 ? `รถ${types[0][0]}` : '';
+    // แถวเดี่ยวที่ไม่ใช่รายการรถ (ค่าเดินทาง 215 บาท) ไม่ต้องเขียน "= 1 เที่ยว" ต่อท้าย
+    const countWord = g.count > 1 || types.length > 0 ? ` = ${g.count} ${g.unit}${breakdown}` : '';
+    return { label: `${typeName}${typeWord} ${g.rate} บาท${countWord}`,
+      count: g.count, rate: g.rate, total: g.total, truckCodes: g.truckCodes, unit: g.unit };
+  });
   // เรียงกลุ่มใหญ่มาก่อน แล้วราคาสูงมาก่อน ตามลำดับที่ใบจริงเขียน
-  return [...buckets.values()].sort((a, b) => b.count - a.count || b.rate - a.rate);
+  return out.sort((a, b) => b.count - a.count || b.rate - a.rate);
 }
 
 /** ตารางบนกระดาษมี 6 บรรทัด เกินนั้นขึ้นแผ่นใหม่ */

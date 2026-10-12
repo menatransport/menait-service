@@ -4,7 +4,16 @@ import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export type GateItem = { key?: string; label?: string; line_no?: number };
-export type GateDup = { line_no?: number; message?: string; form_id?: string | null };
+export type GateDup = { line_no?: number; message?: string; form_id?: string | null;
+  event_date?: string | null; payee_name?: string | null; amount?: number | null };
+
+const baht = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+/** "ใบ LB-B02-2610-001 · 17/09/2026 · อัญชัญ น่วมมี · 100.00" — REQUIREMENT §4.1 */
+export function dupRef(d: GateDup): string {
+  const date = d.event_date ? d.event_date.slice(0, 10).split('-').reverse().join('/') : '';
+  return [d.form_id ? `ใบ ${d.form_id}` : '', date, d.payee_name ?? '', d.amount != null ? `${baht(Number(d.amount))} บาท` : '']
+    .filter(Boolean).join(' · ');
+}
 
 /** แผงบอกว่าทำไมอนุมัติไม่ได้ — เอกสารขาด/ซ้ำเข้ม = บล็อก · ซ้ำอ่อน = เตือน ทับได้พร้อมเหตุผล */
 export function GatePanel({ missing = [], hard = [], soft = [] }: {
@@ -39,7 +48,7 @@ export function GatePanel({ missing = [], hard = [], soft = [] }: {
               <li key={i}>
                 {d.line_no ? `แถวที่ ${d.line_no}: ` : ''}{d.message}
                 {d.form_id && (
-                  <> — <Link href={`/finance/petty/${d.form_id}`} className="underline">ใบ {d.form_id}</Link></>
+                  <> — <Link href={`/finance/petty/${d.form_id}`} className="underline">{dupRef(d)}</Link></>
                 )}
               </li>
             ))}
@@ -55,7 +64,7 @@ export function GatePanel({ missing = [], hard = [], soft = [] }: {
               <li key={i}>
                 {d.line_no ? `แถวที่ ${d.line_no}: ` : ''}{d.message}
                 {d.form_id && (
-                  <> — <Link href={`/finance/petty/${d.form_id}`} className="underline">ใบ {d.form_id}</Link></>
+                  <> — <Link href={`/finance/petty/${d.form_id}`} className="underline">{dupRef(d)}</Link></>
                 )}
               </li>
             ))}

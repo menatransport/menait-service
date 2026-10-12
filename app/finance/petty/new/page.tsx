@@ -7,7 +7,7 @@ import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { claimTotal, periodOf, type PettyItemDraft } from '@/lib/finance/petty-items';
-import { blankItem, claimPayload, headerFields, isItemBased, singleItemFrom } from '@/lib/finance/petty-spec';
+import { blankItem, claimPayload, headerFields, isItemBased, itemsFrom } from '@/lib/finance/petty-spec';
 import { showAlert } from '../../api';
 import { checkDuplicate, createClaim, getExpenseTypes, getFunds, uploadPettyFiles } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, Panel } from '../../components/FinanceShell';
@@ -45,7 +45,7 @@ export default function NewPettyClaimPage() {
   const attachedCounts = Object.fromEntries(
     Object.entries(files).map(([key, list]) => [key, list.length]),
   );
-  const total = itemBased ? claimTotal(rows) : claimTotal([singleItemFrom(header)]);
+  const total = itemBased ? claimTotal(rows) : claimTotal(itemsFrom(header));
 
   useEffect(() => {
     (async () => {
@@ -127,7 +127,7 @@ export default function NewPettyClaimPage() {
     if (!type) return;
     setSaving(true);
     try {
-      const items = itemBased ? rows : [singleItemFrom(header)];
+      const items = itemBased ? rows : itemsFrom(header);
       const body = claimPayload({
         fund_id: Number(fundId),
         expense_type: type.code,

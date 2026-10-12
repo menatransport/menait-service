@@ -6,6 +6,8 @@ import {
 } from '@/lib/finance/petty-doc';
 import { documentControlFooter, esc, money, printedNow, wrapDocument, type ESign } from '@/lib/finance/printShared';
 
+export const COMPANY = 'บริษัท มีนาทรานสปอร์ต จำกัด (มหาชน)';
+
 export type VoucherOpts = {
   claim: PettyClaim;
   fund: PettyFund;
@@ -19,10 +21,29 @@ export type VoucherOpts = {
   attachmentsHtml?: string;
 };
 
-const DIVISIONS = ['B01', 'B02', 'B03', 'B04', 'A01', 'A02', 'A03', 'A04', 'A05', 'PJS'];
-const BRANCHES: Record<string, string> = {
+/** ลำดับและชื่อตามฟอร์มกระดาษ ใบสำคัญจ่ายเงินสดย่อย — มีช่อง "พจส." ไม่มี PJS */
+export const DIVISIONS: [string, string][] = [
+  ['B01', 'ฝ่ายจัดส่ง'], ['พจส.', ''], ['B02', 'ฝ่ายยานยนต์'], ['B03', 'ฝ่ายจัดซื้อ'], ['B04', 'ฝ่ายจป.'],
+  ['A01', 'ฝ่ายบริหาร'], ['A02', 'ฝ่ายขายและพัฒนาธุรกิจ'], ['A03', 'ฝ่ายบุคคล'], ['A04', 'ฝ่ายบัญชี การเงิน'], ['A05', 'ฝ่ายไอที'],
+];
+export const BRANCHES: Record<string, string> = {
   '01': 'สกท', '02': 'สสบ', '03': 'สลบ', '04': 'ศรย', '05': 'สขก',
 };
+/** ที่อยู่สาขาที่พิมพ์บนใบรับรองแทนใบเสร็จ (จากต้นฉบับ) — สาขาอื่นเติมเมื่อได้เอกสาร */
+const BRANCH_ADDRESS: Record<string, { address: string; taxId: string }> = {
+  '03': { address: 'เลขที่ 1 ซอยแฮปปี้เพลส 16 แขวงคลองสามประเวศ เขตลาดกระบัง จังหวัดกรุงเทพมหานคร 10520', taxId: '0107563000207' },
+};
+const DEPARTMENTS = ['จัดส่ง', 'ยานยนต์', 'จป.', 'HR', 'บัญชี', 'จัดซื้อ', 'เชื้อเพลิง'];
+
+/** "ทะเบียน 72-8179 (6604)" อย่างที่ใบยางจริงเขียน · หลายคันแสดงเบอร์รถเรียงกัน */
+function truckRemark(items: PettyClaim['items']): string {
+  const trucks = items.filter(i => i.truck_code || i.truck_plate);
+  if (trucks.length === 1) {
+    const t = trucks[0];
+    return t.truck_plate && t.truck_code ? `ทะเบียน ${t.truck_plate} (${t.truck_code})` : (t.truck_plate ?? t.truck_code ?? '');
+  }
+  return trucks.map(t => t.truck_code ?? t.truck_plate ?? '').join(', ');
+}
 
 const approverName = (claim: PettyClaim) => claim.approved_by_name ?? claim.approved_by ?? '';
 const clerkName = (claim: PettyClaim) => claim.created_by_name ?? claim.created_by;
@@ -53,39 +74,50 @@ function voucherDate(claim: PettyClaim): string {
   return thaiDate(claim.approved_at ? bangkokDate(claim.approved_at) : claim.expense_date);
 }
 
-/** ใบสำคัญจ่ายเงินสดย่อย — ช่องตามฟอร์มกระดาษ โครงและสไตล์เดียวกับใบ Advance */
+/** ใบสำคัญจ่ายเงินสดย่อย — ช่องและลำดับตามฟอร์มกระดาษของบริษัท โครงและสไตล์เดียวกับใบ Advance */
 export function pettyVoucherHtml(opts: VoucherOpts): string {
   const { claim, fund, typeName } = opts;
   const groups = groupForPrint(claim.items, typeName, { unit: opts.unit });
   const total = groups.reduce((s, g) => s + g.total, 0);
+  const singleTruck = claim.items.filter(i => i.truck_code || i.truck_plate).length === 1;
 
-  const rows = groups.map(g => `<tr><td>${esc(g.label)}</td><td class="c">${g.count} ${esc(g.unit)}</td>` +
-    `<td class="a">${money(g.rate)}</td><td class="a">${money(g.total)}</td><td>${esc(g.truckCodes.join(', '))}</td></tr>`);
+  const rows = groups.map((g, i) => {
+    const remark = singleTruck ? truckRemark(claim.items) : g.truckCodes.join(', ');
+    return `<tr><td class="c">${i + 1}</td><td></td><td>${esc(g.label)}</td><td class="c">${g.count} ${esc(g.unit)}</td>` +
+      `<td class="a">${money(g.total)}</td><td>${esc(remark)}</td></tr>`;
+  });
   // ฟอร์มกระดาษมี 6 บรรทัดเสมอ — เติมแถวว่างให้ช่องเซ็นอยู่ที่เดิม
-  for (let i = groups.length; i < 6; i += 1) rows.push('<tr><td>&nbsp;</td><td></td><td class="a"></td><td class="a"></td><td></td></tr>');
+  for (let i = rows.length; i < 6; i += 1) rows.push(`<tr><td class="c">${i + 1}</td><td></td><td>&nbsp;</td><td></td><td class="a"></td><td></td></tr>`);
+
+  const divisionBoxes = DIVISIONS.map(([code, name]) =>
+    `<span class="cbi"><span class="cb${code === fund.division_code ? ' checked' : ''}"></span>${esc(name ? `${code} (${name})` : code)}</span>`).join('');
+  const branchBoxes = [...Object.entries(BRANCHES), ['อื่นๆ', '']].map(([code, name]) =>
+    `<span class="cbi"><span class="cb${code === fund.branch_code ? ' checked' : ''}"></span>${esc(name ? `${code} ${name}` : code)}</span>`).join('');
 
   const body = `<section class="doc-part">
 ${docHead({ title: 'ใบสำคัญจ่ายเงินสดย่อย', english: '(Petty Cash Voucher)', logoUrl: opts.logoUrl,
     meta: [['เลขที่', claim.form_id], ['วันที่', voucherDate(claim)]] })}
+<p class="t2" style="margin-top:4px">${esc(COMPANY)}</p>
 
 ${sec(1, 'ข้อมูลการจ่าย', 'Payment')}
-<div class="grid">${field('จ่ายให้', claim.payee_name)}${field('ประเภทการเบิก', typeName)}
-${field('สาขา', `${fund.branch_code} ${BRANCHES[fund.branch_code] ?? ''}`.trim())}${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}
-${field('ช่วงวันที่ค่าใช้จ่าย', periodText(claim))}${field('Project Code', '')}</div>
-${checkboxes('Division', DIVISIONS, fund.division_code)}
+<div class="grid">${field('จ่ายให้', claim.payee_name)}${field('Project Code', '')}
+${field('ประเภทการเบิก', typeName)}${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}</div>
+<div class="cbs"><span class="lbl">Division</span>${divisionBoxes}</div>
+<div class="cbs"><span class="lbl">สาขา</span>${branchBoxes}</div>
 
 ${sec(2, 'รายการ', 'Items')}
-<table class="items"><thead><tr><th style="width:40%">รายการ</th><th class="c" style="width:12%">จำนวน</th>
-<th class="a" style="width:16%">ราคา/หน่วย</th><th class="a" style="width:18%">จำนวนเงิน</th><th>หมายเหตุ</th></tr></thead>
+<table class="items"><thead><tr><th class="c" style="width:9mm">ลำดับ</th><th style="width:22mm">Account Code</th><th>รายการ</th>
+<th class="c" style="width:22mm">จำนวน (หน่วย)</th><th class="a" style="width:24mm">จำนวนเงิน</th><th style="width:34mm">หมายเหตุ</th></tr></thead>
 <tbody>${rows.join('')}</tbody></table>
-<div class="sum"><div class="dates">${field('ผู้เปิดใบ', clerkName(claim))}${field('วันที่โอน', thaiDate(claim.transfer_date))}</div>
+<div class="sum"><div class="dates">${field('ผู้เปิดใบ', clerkName(claim))}${field('วันที่โอน', thaiDate(claim.transfer_date))}
+${field('ช่วงวันที่ค่าใช้จ่าย', periodText(claim))}${field('หมายเหตุ', claim.dup_override_reason ?? '')}</div>
 ${totalBox('รวมทั้งสิ้น', money(total), bahtText(total))}</div>
 
 ${signBlock(3, 'ลงนามและอนุมัติ', 'Signatures', [
-    { title: 'ผู้จ่ายเงิน', name: fund.holder_name ?? fund.holder_employee_id },
-    { title: 'ผู้รับเงิน', name: claim.payee_name },
     { title: 'หัวหน้าแผนก', name: approverName(claim), esign: approverEsign(claim) },
     { title: 'ผู้อนุมัติ', name: approverName(claim), esign: approverEsign(claim) },
+    { title: 'ผู้จ่ายเงิน', name: fund.holder_name ?? fund.holder_employee_id },
+    { title: 'ผู้รับเงิน', name: claim.payee_name },
   ])}
 </section>${opts.attachmentsHtml ?? ''}`;
 
@@ -96,37 +128,41 @@ ${signBlock(3, 'ลงนามและอนุมัติ', 'Signatures', [
   });
 }
 
-/** ใบรับรองแทนใบเสร็จรับเงิน — ใช้กับประเภทที่ไม่มีใบเสร็จ เช่น ค่าชั่งน้ำหนัก */
+/** ใบรับรองแทนใบเสร็จรับเงิน — ตามต้นฉบับ: หัวบริษัท+สาขา+ที่อยู่+เลขผู้เสียภาษี · ตาราง 4 คอลัมน์ · คำรับรองครอบช่วงวัน */
 export function receiptSubstituteHtml(opts: VoucherOpts): string {
   const { claim, fund, typeName } = opts;
   const groups = groupForPrint(claim.items, typeName, { unit: opts.unit });
   const total = groups.reduce((s, g) => s + g.total, 0);
   const from = thaiDate(claim.period_from ?? claim.expense_date);
   const to = thaiDate(claim.period_to ?? claim.expense_date);
+  const branchNo = fund.branch_code.padStart(5, '0');
+  const addr = BRANCH_ADDRESS[fund.branch_code];
+  const singleTruck = claim.items.filter(i => i.truck_code || i.truck_plate).length === 1;
 
-  const rows = groups.map(g => `<tr><td class="c">${esc(to)}</td><td>${esc(g.label)}</td><td class="c">${g.count} ${esc(g.unit)}</td>` +
-    `<td class="a">${money(g.total)}</td><td>${esc(g.truckCodes.join(', '))}</td></tr>`).join('');
+  // รายละเอียดรายจ่ายเขียนจำนวนไว้ในบรรทัด: "ค่าชั่งน้ำหนัก 100 บาท 12 คัน"
+  const rows = groups.map(g => {
+    const detail = g.label.includes(' = ') ? g.label.replace(/ = (\d+) (\S+).*$/, ' $1 $2') : g.label;
+    const remark = singleTruck ? truckRemark(claim.items) : g.truckCodes.join(', ');
+    return `<tr><td class="c">${esc(voucherDate(claim))}</td><td>${esc(detail)}</td><td class="a">${money(g.total)}</td><td>${esc(remark)}</td></tr>`;
+  });
+  for (let i = rows.length; i < 8; i += 1) rows.push('<tr><td>&nbsp;</td><td></td><td class="a"></td><td></td></tr>');
 
   const body = `<section class="doc-part">
 ${docHead({ title: 'ใบรับรองแทนใบเสร็จรับเงิน', english: '(Receipt Substitute)', logoUrl: opts.logoUrl,
     meta: [['เลขที่', claim.form_id], ['วันที่', voucherDate(claim)]] })}
+<p class="t2" style="margin-top:4px">${esc(COMPANY)} (สาขา${esc(branchNo)})<br>${esc(addr?.address ?? '')}${addr ? ` · เลขประจำตัวผู้เสียภาษี ${esc(addr.taxId)}` : ''}</p>
 
-${sec(1, 'ผู้รับรอง', 'Certifier')}
-<div class="grid">${field('ชื่อ', claim.payee_name)}${field('ตำแหน่ง', opts.payeePosition)}
-${field('บริษัท', 'บริษัท มีนาทรานสปอร์ต จำกัด')}${field('สาขา', fund.branch_code.padStart(5, '0'))}</div>
-
-${sec(2, 'รายละเอียดรายจ่าย', 'Expenses')}
-<table class="items"><thead><tr><th class="c" style="width:16%">วันที่</th><th>รายละเอียดรายจ่าย</th>
-<th class="c" style="width:12%">จำนวน</th><th class="a" style="width:18%">จำนวนเงิน</th><th style="width:22%">หมายเหตุ</th></tr></thead>
-<tbody>${rows}</tbody></table>
-<div class="sum"><div class="dates">${field('ตั้งแต่วันที่', from)}${field('ถึงวันที่', to)}</div>
+${sec(1, 'รายละเอียดรายจ่าย', 'Expenses')}
+<table class="items"><thead><tr><th class="c" style="width:24mm">วัน เดือน ปี</th><th>รายละเอียดรายจ่าย</th>
+<th class="a" style="width:26mm">จำนวนเงิน</th><th style="width:40mm">หมายเหตุ</th></tr></thead>
+<tbody>${rows.join('')}</tbody></table>
+<div class="sum"><div class="dates">${field('ข้าพเจ้า', claim.payee_name)}${field('ตำแหน่ง', opts.payeePosition)}</div>
 ${totalBox('รวมทั้งสิ้น', money(total), bahtText(total))}</div>
 
-${sec(3, 'คำรับรอง', 'Declaration')}
-<ol class="clauses"><li>ข้าพเจ้า ${esc(claim.payee_name ?? '')} ขอรับรองว่าได้จ่ายเงินตามรายการข้างต้นไปจริง ตั้งแต่วันที่ ${esc(from)} ถึงวันที่ ${esc(to)}</li>
-<li>รายการข้างต้นไม่สามารถเรียกใบเสร็จรับเงินจากผู้รับเงินได้ จึงออกใบรับรองนี้แทน</li></ol>
+${sec(2, 'คำรับรอง', 'Declaration')}
+<ol class="clauses"><li>ขอรับรองว่า รายจ่ายข้างต้นนี้ไม่อาจเรียกเก็บใบเสร็จรับเงินจากผู้รับได้ และข้าพเจ้าได้จ่ายไปในงานของทางบริษัทฯโดยแท้ ตั้งแต่วันที่ ${esc(from)} ถึงวันที่ ${esc(to)}</li></ol>
 
-${signBlock(4, 'ลงนามและอนุมัติ', 'Signatures', [
+${signBlock(3, 'ลงชื่อ', 'Signatures', [
     { title: 'ผู้เบิกจ่าย', name: claim.payee_name },
     { title: 'ผู้อนุมัติ', name: approverName(claim), esign: approverEsign(claim) },
   ])}
@@ -136,6 +172,46 @@ ${signBlock(4, 'ลงนามและอนุมัติ', 'Signatures', [
     title: `${claim.form_id} — ใบรับรองแทนใบเสร็จรับเงิน`,
     body, extraCss: PETTY_DOC_CSS, fontCss: true,
     footerHtml: footer(claim, 'Receipt Substitute (PC)'),
+  });
+}
+
+/** แบบฟอร์มขอใช้บริการแกร็บแท็กซี่ (เอกสารประกอบ 1) — พิมพ์จากข้อมูลที่กรอกในใบค่าเดินทาง ให้เซ็นแล้วแนบ */
+export function travelRequestFormHtml(opts: VoucherOpts): string {
+  const { claim, typeName } = opts;
+  const d = (claim.detail ?? {}) as Record<string, unknown>;
+  const str = (k: string) => (d[k] === undefined || d[k] === null ? '' : String(d[k]));
+  const item = claim.items[0];
+  const leg = str('leg');
+  const code = item?.ref_no ?? claim.receipt_no ?? '';
+  const legRow = (title: string, picked: boolean) =>
+    `<tr><td colspan="2"><span class="cbi"><span class="cb${picked ? ' checked' : ''}"></span>${esc(title)}</span></td>` +
+    `<td>${picked ? esc(code) : ''}</td><td>${picked ? esc(str('route_from')) : ''}</td><td>${picked ? esc(str('route_to')) : ''}</td></tr>`;
+  const depts = DEPARTMENTS.map(x => `<span class="cbi"><span class="cb${x === str('dept') ? ' checked' : ''}"></span>${esc(x)}</span>`).join('');
+
+  const body = `<section class="doc-part">
+${docHead({ title: 'แบบฟอร์มขอใช้บริการแกร็บแท็กซี่', english: 'เอกสารประกอบ 1', logoUrl: opts.logoUrl,
+    meta: [['เลขที่ใบเบิก', claim.form_id], ['วันที่', thaiDate(item?.event_date ?? claim.expense_date)]] })}
+
+${sec(1, 'ผู้ขอใช้', 'Requester')}
+<div class="grid">${field('ผู้ใช้', claim.payee_name)}${field('วันที่', thaiDate(item?.event_date ?? claim.expense_date))}
+${field('ประเภทการเบิก', typeName)}${field('ค่าโดยสาร (บาท)', money(Number(claim.amount)))}</div>
+<div class="cbs"><span class="lbl">แผนก</span>${depts}</div>
+<div class="grid" style="margin-top:6px">${field('เหตุที่ใช้', str('reason'))}${field('บริการ', str('service'))}</div>
+
+${sec(2, 'เที่ยวเดินทาง', 'Trips')}
+<table class="items"><thead><tr><th style="width:9mm"></th><th style="width:22mm">เที่ยว</th><th style="width:34mm">รหัส</th><th>จาก</th><th>ไป</th></tr></thead>
+<tbody>${legRow('ขาไป', leg === 'ขาไป')}${legRow('ขากลับ', leg === 'ขากลับ')}</tbody></table>
+
+${signBlock(3, 'ลงนาม', 'Signatures', [
+    { title: 'ผู้ขอเบิก', name: claim.payee_name },
+    { title: 'ผู้อนุมัติ', name: approverName(claim), esign: approverEsign(claim) },
+  ])}
+</section>`;
+
+  return wrapDocument({
+    title: `${claim.form_id} — แบบฟอร์มขอใช้บริการแกร็บแท็กซี่`,
+    body, extraCss: PETTY_DOC_CSS, fontCss: true,
+    footerHtml: footer(claim, 'Grab/Taxi Request Form (PC)'),
   });
 }
 

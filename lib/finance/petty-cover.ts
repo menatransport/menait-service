@@ -2,6 +2,7 @@ import type { PettyClaim, PettyExpenseType } from '@/app/finance/types-petty';
 import { bahtText } from '@/lib/finance/bahtText';
 import { round2 } from '@/lib/finance/status';
 import { bangkokDate, docHead, field, PETTY_DOC_CSS, sec, signBlock, thaiDate, totalBox } from '@/lib/finance/petty-doc';
+import { printableDocs, requiredDocs } from '@/lib/finance/petty-preset';
 import { documentControlFooter, esc, money, printedNow, wrapDocument } from '@/lib/finance/printShared';
 
 export type ClerkGroup = { clerk: string; claims: PettyClaim[]; total: number };
@@ -45,6 +46,18 @@ export function coverRows(group: ClerkGroup, types: readonly PettyExpenseType[])
   }));
 }
 
+/** checklist ต่อใบ: เอกสารที่ระบบพิมพ์ให้ + หลักฐานที่ spec บังคับ — เจ้าหน้าที่ติ๊กตอนรวบรวมก่อนส่งบัญชี */
+export function checklistHtml(group: ClerkGroup, types: readonly PettyExpenseType[]): string {
+  const box = (label: string) => `<span class="cbi"><span class="cb"></span>${esc(label)}</span>`;
+  const rows = group.claims.map(claim => {
+    const spec = types.find(t => t.code === claim.expense_type)?.spec ?? null;
+    const printed = printableDocs(spec).map(box).join('');
+    const attached = requiredDocs(spec).filter(d => d.required).map(d => box(d.label)).join('');
+    return `<tr><td class="nw">${esc(claim.form_id)}</td><td><div class="cbs" style="margin:0">${printed}</div></td><td><div class="cbs" style="margin:0">${attached}</div></td></tr>`;
+  }).join('');
+  return `<table class="items"><thead><tr><th style="width:34mm">เลขที่ใบเบิก</th><th>เอกสารที่พิมพ์จากระบบ</th><th>หลักฐานที่ต้องแนบ</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
 /** ใบปะหน้าส่งบัญชี — โครงและสไตล์เดียวกับใบ Advance */
 export function coverSheetHtml(opts: {
   group: ClerkGroup;
@@ -77,7 +90,10 @@ ${sec(2, 'ใบเบิกที่ส่งมาด้วย', 'Documents')}
 <div class="sum"><div class="dates">${field('จำนวนใบ', `${rows.length} ใบ`)}</div>
 ${totalBox('รวมทั้งสิ้น', money(opts.group.total), bahtText(opts.group.total))}</div>
 
-${signBlock(3, 'ลงนาม', 'Signatures', [
+${sec(3, 'รายการเอกสารที่ต้องรวบรวม', 'Checklist')}
+${checklistHtml(opts.group, opts.types)}
+
+${signBlock(4, 'ลงนาม', 'Signatures', [
     { title: 'ผู้ส่งเอกสาร', name: opts.clerkName },
     { title: 'ผู้รับเอกสาร (บัญชี)', name: '' },
   ])}

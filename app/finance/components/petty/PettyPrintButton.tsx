@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { Printer } from 'lucide-react';
 import type { PettyClaim, PettyFund, PettySpec } from '@/app/finance/types-petty';
-import { itemSummaryHtml, pettyVoucherHtml, receiptSubstituteHtml } from '@/lib/finance/petty-voucher';
+import { itemSummaryHtml, pettyVoucherHtml, receiptSubstituteHtml, travelRequestFormHtml } from '@/lib/finance/petty-voucher';
 import { attachmentPagesHtml, openPrintWindow, type PrintFile } from '@/lib/finance/printShared';
 import { isItemBased, printUnit } from '@/lib/finance/petty-spec';
 import { showAlert } from '@/app/finance/api';
 
-type Kind = 'PETTY_VOUCHER' | 'RECEIPT_SUBSTITUTE' | 'ITEM_SUMMARY';
+type Kind = 'PETTY_VOUCHER' | 'RECEIPT_SUBSTITUTE' | 'ITEM_SUMMARY' | 'REQUEST_FORM';
 
 /** เอกสารที่พิมพ์ได้มาจาก spec.prints ของประเภทนั้น — ประเภทที่ไม่มีใบรับรองก็ไม่ขึ้นปุ่ม · ใบสรุปรายการมีทุกประเภท */
 export function PettyPrintButton({ claim, fund, spec, typeName, payeePosition }: {
@@ -50,6 +50,7 @@ export function PettyPrintButton({ claim, fund, spec, typeName, payeePosition }:
       };
       const html = kind === 'PETTY_VOUCHER' ? pettyVoucherHtml(opts)
         : kind === 'RECEIPT_SUBSTITUTE' ? receiptSubstituteHtml(opts)
+        : kind === 'REQUEST_FORM' ? travelRequestFormHtml(opts)
         : itemSummaryHtml({ ...opts, spec });
       if (!openPrintWindow(html)) {
         showAlert({ icon: 'warning', title: 'เบราว์เซอร์บล็อกหน้าต่างพิมพ์',
@@ -79,6 +80,7 @@ export function PettyPrintButton({ claim, fund, spec, typeName, payeePosition }:
           {prints.includes('PETTY_VOUCHER') && item('PETTY_VOUCHER', 'ใบสำคัญจ่ายเงินสดย่อย')}
           {prints.includes('RECEIPT_SUBSTITUTE') && item('RECEIPT_SUBSTITUTE', 'ใบรับรองแทนใบเสร็จรับเงิน')}
           {item('ITEM_SUMMARY', isItemBased(spec) ? 'ใบสรุปรายการ (รายคัน/รายวัน)' : 'ใบสรุปรายการ')}
+          {prints.includes('REQUEST_FORM') && item('REQUEST_FORM', 'แบบฟอร์มขอใช้บริการแกร็บแท็กซี่')}
           {prints.includes('DD') && (
             <span className="block px-3 py-1.5 text-left text-xs text-ink-400">
               ใบรับสินค้า (DD) — อยู่ในงานถัดไป
