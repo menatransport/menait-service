@@ -6,6 +6,7 @@ import type { PettyClaim, PettyFund, PettySpec } from '@/app/finance/types-petty
 import { pettyVoucherHtml, receiptSubstituteHtml } from '@/lib/finance/petty-voucher';
 import { openPrintWindow } from '@/lib/finance/printShared';
 import { showAlert } from '@/app/finance/api';
+import { printUnit } from '@/lib/finance/petty-spec';
 
 /** เอกสารที่พิมพ์ได้มาจาก spec.prints ของประเภทนั้น — ประเภทที่ไม่มีใบรับรองก็ไม่ขึ้นปุ่ม */
 export function PettyPrintButton({ claim, fund, spec, typeName, payeePosition }: {
@@ -23,7 +24,7 @@ export function PettyPrintButton({ claim, fund, spec, typeName, payeePosition }:
       showAlert({ icon: 'error', title: 'ยังโหลดข้อมูลกองทุนไม่ได้', text: 'ลองโหลดหน้าใหม่อีกครั้ง' });
       return;
     }
-    const opts = { claim, fund, typeName, payeePosition, unit: spec.atms?.unit ?? undefined };
+    const opts = { claim, fund, typeName, payeePosition, unit: printUnit(spec) };
     const html = kind === 'PETTY_VOUCHER' ? pettyVoucherHtml(opts) : receiptSubstituteHtml(opts);
     if (!openPrintWindow(html)) {
       showAlert({ icon: 'warning', title: 'เบราว์เซอร์บล็อกหน้าต่างพิมพ์',

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettySpec } from '@/app/finance/types-petty';
-import { blankItem, claimPayload, headerFields, isItemBased, itemFields, requiredAttachments, singleItemFrom } from './petty-spec';
+import { blankItem, claimPayload, headerFields, isItemBased, itemFields, printUnit, requiredAttachments, singleItemFrom } from './petty-spec';
 
 const WEIGH: PettySpec = {
   item_based: true,
@@ -125,4 +125,13 @@ describe('ประเภทที่กรอกจำนวนเอง (ย�
     expect(blankItem(TIRE).qty).toBe(1));
   test('the quantity column is still part of the row', () =>
     expect(Object.keys(blankItem(TIRE)).sort()).toEqual(['qty', 'rate', 'ref_no']));
+});
+
+describe('printUnit — หน่วยนับบนใบพิมพ์มาจาก spec.print.unit ไม่ใช่หน่วย SKU ของ ATMS', () => {
+  test('WEIGH ที่ไม่ได้ตั้ง ใช้ "คัน"', () =>
+    expect(printUnit({ item_based: true, atms: { unit: 'งาน' } })).toBe('คัน'));
+  test('TIRE ตั้งไว้เป็น "เส้น"', () =>
+    expect(printUnit({ item_based: true, print: { unit: 'เส้น' }, atms: { unit: 'งาน' } })).toBe('เส้น'));
+  test('ค่าเดินทางที่ไม่ใช่รายการรถ ใช้ "เที่ยว"', () =>
+    expect(printUnit({ item_based: false })).toBe('เที่ยว'));
 });

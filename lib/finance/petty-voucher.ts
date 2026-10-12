@@ -45,7 +45,7 @@ function footer(claim: PettyClaim, docName: string): string {
     name: docName,
     owner: 'ฝ่ายบัญชีและการเงิน',
     approvedBy: claim.approved_by ?? '-',
-    approvedDate: claim.approved_at ? claim.approved_at.slice(0, 10) : '-',
+    approvedDate: claim.approved_at ? bangkokDate(claim.approved_at) : '-',
     printed: printedNow(),
   });
 }
@@ -54,6 +54,17 @@ function thaiDate(iso: string | null | undefined): string {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
   return y && m && d ? `${d}/${m}/${y}` : '';
+}
+
+/** วันที่ (ไม่ใช่เวลา) ของ timestamp ตามเวลาไทย — approved_at เป็น UTC ถ้าตัด 10 ตัวแรกจะได้วันก่อนหน้าหลังสี่ทุ่ม */
+function bangkokDate(timestamp: string | null | undefined): string {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return timestamp.slice(0, 10);
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(date);
+  const get = (type: string) => parts.find(p => p.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
 function divisionTicks(code: string): string {
@@ -92,7 +103,7 @@ export function pettyVoucherHtml(opts: VoucherOpts): string {
 <p class="sub">ใบสำคัญจ่ายเงินสดย่อย</p>
 <div class="row">
   <div class="box">เลขที่ <strong>${esc(claim.form_id)}</strong></div>
-  <div class="box">วันที่ ${esc(thaiDate(claim.approved_at?.slice(0, 10) ?? claim.expense_date))}</div>
+  <div class="box">วันที่ ${esc(thaiDate(claim.approved_at ? bangkokDate(claim.approved_at) : claim.expense_date))}</div>
   <div class="box">Project Code ${esc(claim.project_code ?? '')}</div>
 </div>
 <div class="row"><div class="box">จ่ายให้ <strong>${esc(claim.payee_name ?? '')}</strong></div></div>

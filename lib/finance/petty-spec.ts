@@ -50,3 +50,10 @@ export function singleItemFrom(form: Record<string, unknown>): PettyItemDraft {
     remark: (form.remark as string) ?? null,
   };
 }
+
+/** หน่วยนับบนใบสำคัญจ่าย: ตั้งใน spec.print.unit · ไม่ตั้ง = รายการรถนับ "คัน" · ใบเดี่ยวนับ "เที่ยว" */
+export function printUnit(spec: PettySpec | null | undefined): string {
+  const set = spec?.print?.unit?.trim();
+  if (set) return set;
+  return isItemBased(spec) ? 'คัน' : 'เที่ยว';
+}

@@ -16,6 +16,8 @@ export type PettySpec = {
     soft?: { keys: string[]; days: number; action: string; override?: string };
   };
   prints?: string[];
+  /** หน่วยนับบนใบพิมพ์ (คัน/เส้น/เที่ยว) — คนละเรื่องกับหน่วย SKU ใน atms.unit */
+  print?: { unit?: string };
   atms?: { sku?: string; product_group?: string; unit?: string; vat?: number };
 };
 export type PettyExpenseType = {

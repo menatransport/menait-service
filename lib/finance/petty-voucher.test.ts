@@ -105,3 +105,17 @@ describe('Project Code มาจากเลขที่ระบบรันใ
       .toContain('<div class="box">Project Code </div>');
   });
 });
+
+describe('ของที่เจอตอนพิมพ์จริง 2026-10-13', () => {
+  test('วันที่บนหัวใบเป็นวันที่ไทย ไม่ใช่วัน UTC (อนุมัติ 13/10 05:25 น. ต้องขึ้น 13/10)', () => {
+    const lateNight = { ...claim, approved_at: '2026-10-12T22:25:51+00:00' } as PettyClaim;
+    expect(pettyVoucherHtml({ claim: lateNight, fund, typeName: 'ค่าชั่งน้ำหนัก' }))
+      .toContain('วันที่ 13/10/2026');
+  });
+
+  test('ใบชั่งนับเป็น "คัน" แม้ spec.atms.unit ของ SKU จะเป็น "งาน"', () => {
+    const html = pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก', unit: undefined });
+    expect(html).toMatch(/\d+ คัน/);
+    expect(html).not.toMatch(/\d+ งาน/);
+  });
+});
