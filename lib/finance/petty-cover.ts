@@ -1,7 +1,7 @@
 import type { PettyClaim, PettyExpenseType } from '@/app/finance/types-petty';
 import { bahtText } from '@/lib/finance/bahtText';
 import { round2 } from '@/lib/finance/status';
-import { docHead, field, PETTY_DOC_CSS, sec, signatureTable, thaiDate, totalBox } from '@/lib/finance/petty-doc';
+import { bangkokDate, docHead, field, PETTY_DOC_CSS, sec, signatureTable, thaiDate, totalBox } from '@/lib/finance/petty-doc';
 import { documentControlFooter, esc, money, printedNow, wrapDocument } from '@/lib/finance/printShared';
 
 export type ClerkGroup = { clerk: string; claims: PettyClaim[]; total: number };
@@ -49,10 +49,12 @@ export function coverSheetHtml(opts: {
   divisionCode: string;
   batchNo?: string | null;
   logoUrl?: string | null;
+  /** เวลาที่พิมพ์ (ใส่ในเทสต์) — วันที่บนใบคิดตามเวลาไทย */
+  now?: Date;
 }): string {
   const rows = coverRows(opts.group, opts.types);
   const ref = opts.batchNo ?? opts.group.claims[0]?.form_id ?? '-';
-  const today = thaiDate(new Date().toISOString().slice(0, 10));
+  const today = thaiDate(bangkokDate((opts.now ?? new Date()).toISOString()));
 
   const body = `<section class="doc-part">
 ${docHead({ title: 'ใบปะหน้าเอกสารเบิกเงินสดย่อย', english: '(Petty Cash Cover Sheet)', logoUrl: opts.logoUrl,
@@ -63,9 +65,9 @@ ${sec(1, 'ผู้ส่งเอกสาร', 'Sender')}
 ${field('สาขา · แผนก', `${opts.branchCode} · ${opts.divisionCode}`)}${field('รอบคืนยอด', opts.batchNo ?? '-')}</div>
 
 ${sec(2, 'ใบเบิกที่ส่งมาด้วย', 'Documents')}
-<table class="items"><thead><tr><th class="c" style="width:8mm">#</th><th style="width:30mm">เลขที่ใบเบิก</th><th>ประเภท</th>
+<table class="items"><thead><tr><th class="c" style="width:8mm">#</th><th style="width:34mm">เลขที่ใบเบิก</th><th>ประเภท</th>
 <th>จ่ายให้</th><th style="width:36mm">ช่วงวันที่</th><th style="width:28mm">เลขที่ DD</th><th class="a" style="width:26mm">จำนวนเงิน</th></tr></thead>
-<tbody>${rows.map(r => `<tr><td class="c">${r.no}</td><td>${esc(r.formId)}</td><td>${esc(r.typeName)}</td><td>${esc(r.payee)}</td>` +
+<tbody>${rows.map(r => `<tr><td class="c">${r.no}</td><td class="nw">${esc(r.formId)}</td><td>${esc(r.typeName)}</td><td>${esc(r.payee)}</td>` +
     `<td>${esc(r.period)}</td><td>${esc(r.ddNo)}</td><td class="a">${money(r.amount)}</td></tr>`).join('')}</tbody></table>
 <div class="sum"><div class="dates">${field('จำนวนใบ', `${rows.length} ใบ`)}</div>
 ${totalBox('รวมทั้งสิ้น', money(opts.group.total), bahtText(opts.group.total))}</div>

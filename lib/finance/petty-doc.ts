@@ -10,6 +10,7 @@ export const PETTY_DOC_CSS = CASH_ADVANCE_CSS + `
 table.items th.c, table.items td.c { text-align: center; }
 table.items td.sub { background: var(--mint); font-weight: 600; }
 table.items td.sub.a { text-align: right; }
+table.items td.nw { white-space: nowrap; }
 .kv { display: grid; grid-template-columns: 1fr 1fr; column-gap: 22px; row-gap: 5px; }
 `;
 

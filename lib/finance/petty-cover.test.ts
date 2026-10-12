@@ -92,3 +92,14 @@ describe('ใบปะหน้า มาตรฐานเดียวกับ
   });
   test('ชื่อเอกสาร', () => expect(html).toContain('Petty Cash Cover Sheet (PC)'));
 });
+
+describe('วันที่บนใบปะหน้าเป็นวันไทย', () => {
+  test('ตอนตีสองของไทย (19:00 UTC เมื่อวาน) ต้องขึ้นวันไทย', () => {
+    const html = coverSheetHtml({ group: groupByClerk(claims)[0], types, clerkName: 'x', branchCode: '03', divisionCode: 'B02',
+      now: new Date('2026-10-12T19:00:00Z') });
+    expect(html).toContain('<span>วันที่</span><b>13/10/2026</b>');
+  });
+  test('เลขที่ใบเบิกไม่ถูกตัดบรรทัด', () =>
+    expect(coverSheetHtml({ group: groupByClerk(claims)[0], types, clerkName: 'x', branchCode: '03', divisionCode: 'B02' }))
+      .toContain('<td class="nw">'));
+});
