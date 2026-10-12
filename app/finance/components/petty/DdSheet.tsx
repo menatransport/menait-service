@@ -23,7 +23,8 @@ export function DdSheet({ ddNo, expenseType, claimAmount }: {
     } catch (err) {
       setDoc({
         found: false, dd_no: ddNo, received_date: null, warehouse: null, supplier: null,
-        lines: [], total: 0, unit: null, vat: null, error: (err as Error).message,
+        pr: null, po: null, lines: [], total: 0, unit: null, vat: null,
+        error: (err as Error).message,
       });
     } finally { setLoading(false); }
   }, [ddNo, expenseType, claimAmount]);
@@ -64,10 +65,12 @@ export function DdSheet({ ddNo, expenseType, claimAmount }: {
               <strong>{baht(doc.total_difference ?? 0)}</strong> บาท — ตรวจก่อนส่งบัญชี
             </div>
           )}
-          <div className="mb-2 grid gap-2 text-sm sm:grid-cols-4">
+          <div className="mb-2 grid gap-2 text-sm sm:grid-cols-3 lg:grid-cols-6">
             <Cell label="วันที่รับ" value={doc.received_date ?? '-'} />
             <Cell label="คลัง" value={doc.warehouse ?? '-'} />
             <Cell label="ผู้ขาย/ผู้รับจ้าง" value={doc.supplier ?? '-'} />
+            <Cell label="เลขที่ใบสั่งซื้อ (PO)" value={doc.po ?? '-'} />
+            <Cell label="เลขที่ใบขอซื้อ (PR)" value={doc.pr ?? '-'} />
             <Cell label="VAT" value={doc.vat === null ? '-' : `${doc.vat}%`} />
           </div>
           <div className="overflow-x-auto">

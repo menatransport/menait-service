@@ -101,7 +101,7 @@ export type DdLine = {
 };
 export type DdDoc = {
   found: boolean; dd_no: string; received_date: string | null;
-  warehouse: string | null; supplier: string | null;
+  warehouse: string | null; supplier: string | null; pr: string | null; po: string | null;
   lines: DdLine[]; total: number; unit: string | null; vat: number | null;
   error: string | null; total_match?: boolean; total_difference?: number;
 };
