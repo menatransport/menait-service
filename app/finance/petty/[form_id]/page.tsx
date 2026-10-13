@@ -1,145 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { FileText } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import { isPettyFormId } from '@/lib/finance/petty-access';
-import { isItemBased } from '@/lib/finance/petty-spec';
-import type { PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
-import { showAlert } from '../../api';
-import { getClaim, getExpenseTypes, getFunds } from '../../petty-api';
-import { Field, FinanceCanvas, FinanceHeading, NoAccess, Panel } from '../../components/FinanceShell';
-import { DdSheet } from '../../components/petty/DdSheet';
-import { DocumentPreset } from '../../components/petty/DocumentPreset';
-import { ItemGrid } from '../../components/petty/ItemGrid';
-import { PettyStatusBadge } from '../../components/petty/ClaimTable';
-import { PettyPrintButton } from '../../components/petty/PettyPrintButton';
-import { PettyAttachments } from '../../components/petty/PettyAttachments';
-import { canUploadPettyFile } from '@/lib/finance/petty-upload';
+import { FinanceCanvas, NoAccess } from '../../components/FinanceShell';
+import { PettyClaimDetail } from '../../components/petty/PettyClaimDetail';
 
-type FileRow = { key: string; fileName?: string; url: string; folder?: string };
-
+/** หน้าเต็มของใบหนึ่งใบ — เนื้อหาเดียวกับแผงข้างในตาราง */
 export default function PettyClaimDetailPage() {
-  const { user, loading } = useSessionContext();
+  const { loading } = useSessionContext();
   const params = useParams<{ form_id: string }>();
   const formId = params?.form_id ?? '';
 
-  const [claim, setClaim] = useState<PettyClaim | null>(null);
-  const [type, setType] = useState<PettyExpenseType | null>(null);
-  const [files, setFiles] = useState<FileRow[]>([]);
-  const [fund, setFund] = useState<PettyFund | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadFiles = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/uploads3?form_id=${encodeURIComponent(formId)}`, { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json() as { files?: FileRow[] };
-        setFiles(data.files ?? []);
-      }
-    } catch { /* รายการไฟล์โหลดไม่ได้ ไม่ทำให้หน้าล้ม */ }
-  }, [formId]);
-
-  const load = useCallback(async () => {
-    if (!isPettyFormId(formId)) { setError('หมายเลขเอกสารไม่ถูกต้อง'); return; }
-    try {
-      const [c, types, funds] = await Promise.all([getClaim(formId), getExpenseTypes(), getFunds()]);
-      setClaim(c);
-      setType(types.find(t => t.code === c.expense_type) ?? null);
-      setFund(funds.find(f => f.id === c.fund_id) ?? null);
-      await loadFiles();
-    } catch (err) {
-      setError((err as Error).message);
-      showAlert({ icon: 'error', title: 'โหลดใบไม่สำเร็จ', text: (err as Error).message });
-    }
-  }, [formId]);
-
-  useEffect(() => { void load(); }, [load]);
-
   if (loading) return <MascotLoader />;
-  if (error) return <NoAccess text={error} />;
-  if (!claim) return <MascotLoader />;
-
-  const spec = type?.spec ?? {};
-  const byFolder = files.reduce<Record<string, FileRow[]>>((acc, f) => {
-    const key = f.folder ?? 'request';
-    (acc[key] ??= []).push(f);
-    return acc;
-  }, {});
+  if (!isPettyFormId(formId)) return <NoAccess text="หมายเลขเอกสารไม่ถูกต้อง" />;
 
   return (
-    <FinanceCanvas title={`ใบเบิก ${claim.form_id}`}>
-      <FinanceHeading icon={FileText} title={`ใบเบิก ${claim.form_id}`}
-        caption={type?.name_th ?? claim.expense_type}
-        actions={
-          <span className="flex items-center gap-2">
-            <PettyStatusBadge status={claim.status} />
-            <PettyPrintButton claim={claim} fund={fund} spec={spec}
-              typeName={type?.name_th ?? claim.expense_type} />
-          </span>
-        } />
-
-      {claim.return_reason && claim.status === 'RETURNED' && (
-        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          ผู้อนุมัติตีกลับ: {claim.return_reason}
-        </div>
-      )}
-      {claim.review_remark && claim.status === 'SENT_BACK' && (
-        <div className="mb-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">
-          บัญชีส่งกลับแก้ไข: {claim.review_remark}
-        </div>
-      )}
-      {claim.dup_override_reason && (
-        <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-ink-700">
-          ผู้อนุมัติยืนยันทับเรื่องรายการซ้ำ: {claim.dup_override_reason}
-        </div>
-      )}
-
-      <div className="mb-4">
-        <DocumentPreset spec={spec} typeName={type?.name_th ?? claim.expense_type}
-          counts={Object.fromEntries(Object.entries(byFolder).map(([k, v]) => [k, v.length]))} />
-      </div>
-
-      <Panel title="หัวใบ">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="จ่ายให้" value={claim.payee_name ?? '-'} />
-          <Field label="วันที่บนใบ" value={claim.expense_date} />
-          <Field label="ช่วงวันที่ค่าใช้จ่าย"
-            value={claim.period_from && claim.period_to ? `${claim.period_from} – ${claim.period_to}` : '-'} />
-          <Field label="ยอดรวม"
-            value={`${claim.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`} />
-          <Field label="เลขที่ใบรับสินค้า (DD)" value={claim.dd_no ?? 'ยังไม่กรอก'} />
-          <Field label="เจ้าหน้าที่ผู้เปิดใบ" value={claim.created_by_name ?? claim.created_by} />
-          <Field label="ผู้อนุมัติ" value={claim.approved_by_name ?? claim.approved_by ?? '-'} />
-          <Field label="วันที่โอน" value={claim.transfer_date ?? '-'} />
-          <Field label="บัญชีตรวจเมื่อ"
-            value={claim.reviewed_at ? new Date(claim.reviewed_at).toLocaleString('th-TH') : '-'} />
-        </div>
-      </Panel>
-
-      {isItemBased(spec) && (
-        <Panel title={`${spec.item_label ?? 'รายการ'} (${claim.items.length})`}>
-          <ItemGrid spec={spec} rows={claim.items as never[]} onChange={() => {}} readOnly />
-        </Panel>
-      )}
-
-      {(spec.prints ?? []).includes('DD') && (
-        <Panel title="ใบรับสินค้า (DD) จาก ATMS">
-          <DdSheet ddNo={claim.dd_no} expenseType={claim.expense_type} claimAmount={claim.amount} />
-        </Panel>
-      )}
-
-      <Panel title="ไฟล์แนบ">
-        <PettyAttachments formId={claim.form_id} spec={spec}
-          files={files.map(f => ({ key: f.key, fileName: f.fileName, url: f.url, folder: f.folder ?? 'other' }))}
-          canUpload={canUploadPettyFile({ user: user ?? { employee_id: null }, claim, fund })}
-          onChanged={() => void loadFiles()} />
-        {!canUploadPettyFile({ user: user ?? { employee_id: null }, claim, fund }) && (
-          <p className="mt-2 text-xs text-ink-400">แนบไฟล์เพิ่มได้เฉพาะเจ้าหน้าที่ผู้เปิดใบและผู้ถือเงินของกองทุน ขณะที่ใบยังไม่ปิดรอบ</p>
-        )}
-      </Panel>
+    <FinanceCanvas title={`ใบเบิก ${formId}`}>
+      <PettyClaimDetail formId={formId} />
     </FinanceCanvas>
   );
 }

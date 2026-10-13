@@ -1,0 +1,94 @@
+import { describe, expect, test } from 'bun:test';
+import type { PettyClaim } from '@/app/finance/types-petty';
+import {
+  FLOW_STEPS, flowPosition, matchesSearch, matchesTab, pageCount, paginate, quickAction, sortClaims, tabCounts,
+  type PettyTab,
+} from './petty-list';
+
+const base = {
+  id: 1, fund_id: 1, expense_type: 'WEIGH', expense_date: '2026-10-10', period_from: '2026-10-06', period_to: '2026-10-09',
+  driver_employee_id: null, driver_name: null, payee_name: 'สถานีชั่ง ลาดกระบัง', amount: 420, dd_no: null, receipt_no: null,
+  created_by: '680043', created_by_name: 'กฤตบุญ ลายเงิน', approved_by: null, approved_at: null, transfer_date: null,
+  review_remark: null, return_reason: null, reviewed_by: null, reviewed_at: null, submitted_to_acc_at: null,
+  dup_override_reason: null, batch_id: null, items: [],
+} as const;
+const claim = (over: Partial<PettyClaim>): PettyClaim =>
+  ({ ...base, form_id: 'LB-B02-2610-068', status: 'PENDING_APPROVAL', ...over }) as PettyClaim;
+
+const TABS: PettyTab[] = [
+  { key: 'pending', label: 'รออนุมัติ', statuses: ['PENDING_APPROVAL'] },
+  { key: 'review', label: 'รอตรวจ', statuses: ['AWAITING_REVIEW'], reviewed: false },
+  { key: 'passed', label: 'ผ่านแล้ว', statuses: ['AWAITING_REVIEW'], reviewed: true },
+  { key: 'all', label: 'ทั้งหมด' },
+];
+
+describe('matchesTab', () => {
+  test('status tab', () => expect(matchesTab(claim({}), TABS[0])).toBe(true));
+  test('all tab takes everything', () => expect(matchesTab(claim({ status: 'CLOSED' }), TABS[3])).toBe(true));
+  test('reviewed flag splits the accounting queue', () => {
+    const waiting = claim({ status: 'AWAITING_REVIEW' });
+    const passed = claim({ status: 'AWAITING_REVIEW', reviewed_at: '2026-10-13T01:00:00Z' });
+    expect(matchesTab(waiting, TABS[1])).toBe(true);
+    expect(matchesTab(waiting, TABS[2])).toBe(false);
+    expect(matchesTab(passed, TABS[2])).toBe(true);
+  });
+});
+
+describe('tabCounts', () => {
+  test('counts per tab over the whole list', () => {
+    const rows = [claim({}), claim({ id: 2, status: 'AWAITING_REVIEW' }), claim({ id: 3, status: 'CLOSED' })];
+    expect(tabCounts(rows, TABS)).toEqual({ pending: 1, review: 1, passed: 0, all: 3 });
+  });
+});
+
+describe('matchesSearch', () => {
+  const c = claim({ dd_no: 'LBDD26090931' });
+  test('empty query matches', () => expect(matchesSearch(c, '', 'ค่าชั่งน้ำหนัก')).toBe(true));
+  test('by form id, case-insensitive', () => expect(matchesSearch(c, 'lb-b02-2610-068', '')).toBe(true));
+  test('by clerk name', () => expect(matchesSearch(c, 'ลายเงิน', '')).toBe(true));
+  test('by payee', () => expect(matchesSearch(c, 'ลาดกระบัง', '')).toBe(true));
+  test('by DD', () => expect(matchesSearch(c, '26090931', '')).toBe(true));
+  test('by type name', () => expect(matchesSearch(c, 'ชั่ง', 'ค่าชั่งน้ำหนัก')).toBe(true));
+  test('no match', () => expect(matchesSearch(c, 'ยาง', 'ค่าชั่งน้ำหนัก')).toBe(false));
+});
+
+describe('sortClaims / paginate', () => {
+  const rows = [claim({ id: 1 }), claim({ id: 3 }), claim({ id: 2 })];
+  test('desc = newest first by id', () => expect(sortClaims(rows, 'desc').map(c => c.id)).toEqual([3, 2, 1]));
+  test('asc', () => expect(sortClaims(rows, 'asc').map(c => c.id)).toEqual([1, 2, 3]));
+  test('does not mutate', () => { sortClaims(rows, 'desc'); expect(rows.map(c => c.id)).toEqual([1, 3, 2]); });
+  test('pageCount never below 1', () => { expect(pageCount(0, 20)).toBe(1); expect(pageCount(41, 20)).toBe(3); });
+  test('paginate slices', () => expect(paginate([1, 2, 3, 4, 5], 2, 2)).toEqual([3, 4]));
+});
+
+describe('quickAction — ปุ่มลัดตามสถานะและบทบาท', () => {
+  test('holder: pending → approve', () =>
+    expect(quickAction(claim({}), 'holder')).toEqual({ action: 'approve', label: 'อนุมัติ' }));
+  test('holder: approved → transfer', () =>
+    expect(quickAction(claim({ status: 'APPROVED' }), 'holder')?.action).toBe('transfer'));
+  test('holder: transferred or sent back → submit-accounting', () => {
+    expect(quickAction(claim({ status: 'TRANSFERRED' }), 'holder')?.action).toBe('submit-accounting');
+    expect(quickAction(claim({ status: 'SENT_BACK' }), 'holder')?.action).toBe('submit-accounting');
+  });
+  test('holder: nothing to do once at accounting', () =>
+    expect(quickAction(claim({ status: 'AWAITING_REVIEW' }), 'holder')).toBeNull());
+  test('accounting: awaiting review and not yet reviewed → review', () =>
+    expect(quickAction(claim({ status: 'AWAITING_REVIEW' }), 'accounting')?.action).toBe('review'));
+  test('accounting: already passed → nothing', () =>
+    expect(quickAction(claim({ status: 'AWAITING_REVIEW', reviewed_at: 'x' }), 'accounting')).toBeNull());
+  test('accounting never approves', () => expect(quickAction(claim({}), 'accounting')).toBeNull());
+  test('requester never has a quick action', () => expect(quickAction(claim({}), 'mine')).toBeNull());
+});
+
+describe('flowPosition — แถบขั้นตอน', () => {
+  test('five steps in order', () =>
+    expect(FLOW_STEPS.map(s => s.status)).toEqual(['PENDING_APPROVAL', 'APPROVED', 'TRANSFERRED', 'AWAITING_REVIEW', 'CLOSED']));
+  test('on-track statuses map to their step', () => {
+    expect(flowPosition('PENDING_APPROVAL')).toEqual({ index: 0, offTrack: false });
+    expect(flowPosition('AWAITING_REVIEW')).toEqual({ index: 3, offTrack: false });
+    expect(flowPosition('CLOSED')).toEqual({ index: 4, offTrack: false });
+  });
+  test('returned sits at step 0 off track', () => expect(flowPosition('RETURNED')).toEqual({ index: 0, offTrack: true }));
+  test('sent back sits at the transfer step off track (holder must resubmit)', () =>
+    expect(flowPosition('SENT_BACK')).toEqual({ index: 2, offTrack: true }));
+});

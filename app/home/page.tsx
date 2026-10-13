@@ -37,7 +37,7 @@ export default function HomePage() {
                 || (isClient && (user?.is_finance || user?.is_accounting || user?.is_treasury))) }))
             // not open to this user yet: same items, but without a link → rendered as "เร็ว ๆ นี้"
             .map(g => (g.financeAccess && !(isClient && canUseFinance(user))
-                ? { ...g, items: g.items.map(i => ({ ...i, href: undefined, children: undefined })) }
+                ? { ...g, items: g.items.map(i => (i.openToAll ? i : { ...i, href: undefined, children: undefined })) }
                 : g)),
         [isClient, user]
     );

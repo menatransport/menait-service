@@ -12,13 +12,15 @@ import { FinanceShell } from './components/FinanceShell';
  * Group Finance is open to admins and finance staff only for now (canUseFinance); anyone else who
  * reaches a /finance page sees "เปิดใช้เร็ว ๆ นี้". /finance/approvals stays open so an approver
  * outside finance can still act on a link sent to them (email / share link → /finance/approvals?doc=…).
+ * /finance/petty/* เปิดให้ทุกคนที่ล็อกอิน — เจ้าหน้าที่สาขาเปิดใบ ผู้ถือกองทุนอนุมัติ ไม่ใช่คนการเงิน
+ * (หน้าบัญชี/ปิดรอบ/ตั้งค่า ตรวจสิทธิ์ของตัวเองอยู่แล้ว และ API ตัดสินสิทธิ์ซ้ำทุกคำขอ)
  */
 export default function FinanceLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useSessionContext();
   const pathname = usePathname();
   const router = useRouter();
 
-  if (pathname.startsWith('/finance/approvals')) return children;
+  if (pathname.startsWith('/finance/approvals') || pathname.startsWith('/finance/petty')) return children;
   if (loading) return <Loading />;
   if (canUseFinance(user)) return children;
 
