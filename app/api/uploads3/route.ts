@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 import { BASE_PATH, BUCKET_NAME, FORM_ID_PATTERN, isSafeUploadName, s3 } from '@/lib/s3';
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { denyUnlessAdvViewer, isAdvOwner, loadPettyClaimFor, requireUser } from '@/lib/finance/server';
 import { isAdvTarget } from '@/lib/finance/formsubmit-guard';
 import { advUploadRole } from '@/lib/finance/adv-access';
 import { canSeeClaim, isPettyFormId } from '@/lib/finance/petty-access';
-import { canUploadPettyFile, isPettyFolder } from '@/lib/finance/petty-upload';
+import { canUploadPettyFile, folderIsFull, isPettyFolder, pettyFileProblem, pettyKeyBelongsTo } from '@/lib/finance/petty-upload';
 
 const ALLOWED_FOLDERS = ['pay', 'clear', 'check'];
 
@@ -46,6 +46,18 @@ export async function POST(req: NextRequest) {
     const loaded = await loadPettyClaimFor(form_id);
     if (!canUploadPettyFile({ user: guard.user, claim: loaded.claim, fund: loaded.fund })) {
       return NextResponse.json({ error: 'ไม่มีสิทธิ์แนบไฟล์ในรายการนี้' }, { status: 403 });
+    }
+    // หลักฐานมีแค่รูปกับ PDF และไม่เกิน 10 MB — บอกเหตุผลเป็นภาษาคน
+    const problem = pettyFileProblem(file.name, file.size);
+    if (problem) return NextResponse.json({ error: problem }, { status: 400 });
+    // หมวดที่ spec ตั้ง max ไว้ รับเพิ่มไม่ได้เมื่อเต็ม (หน้าจอซ่อนปุ่มอยู่แล้ว แต่ยิงตรงก็ต้องเจอกำแพงเดียวกัน)
+    if (folder) {
+      const existing = await s3.send(new ListObjectsV2Command({
+        Bucket: BUCKET_NAME, Prefix: `${BASE_PATH}/${form_id}/${folder}/`,
+      }));
+      if (folderIsFull(loaded.spec, folder, existing.KeyCount ?? existing.Contents?.length ?? 0)) {
+        return NextResponse.json({ error: 'หมวดนี้แนบครบจำนวนสูงสุดแล้ว ลบไฟล์เดิมก่อนถ้าจะแนบใหม่' }, { status: 409 });
+      }
     }
   }
 
@@ -154,5 +166,32 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     console.error('S3 List Error:', err);
     return NextResponse.json({ error: 'ไม่สามารถดึงรายการไฟล์ได้' }, { status: 500 });
+  }
+}
+
+// DELETE: ลบไฟล์แนบของใบเงินสดย่อย (แนบผิดใบ/ผิดหมวด) — คนที่แนบได้คือคนที่ลบได้ และเฉพาะขณะใบยังไม่ปิดรอบ
+// ใบ Advance ไม่มีลบ (หลักฐานการเงินแตะไม่ได้) — คงไว้ตามเดิม
+export async function DELETE(req: NextRequest) {
+  const guard = await requireUser(req);
+  if ('error' in guard) return guard.error;
+  const body = await req.json().catch(() => null) as { form_id?: unknown; key?: unknown } | null;
+  const form_id = typeof body?.form_id === 'string' ? body.form_id : '';
+  const key = typeof body?.key === 'string' ? body.key : '';
+  if (!isPettyFormId(form_id)) {
+    return NextResponse.json({ error: 'ลบได้เฉพาะไฟล์ของใบเงินสดย่อย' }, { status: 400 });
+  }
+  if (!pettyKeyBelongsTo(key, form_id, BASE_PATH)) {
+    return NextResponse.json({ error: 'ไฟล์ไม่ได้อยู่ในใบนี้' }, { status: 400 });
+  }
+  const loaded = await loadPettyClaimFor(form_id);
+  if (!canUploadPettyFile({ user: guard.user, claim: loaded.claim, fund: loaded.fund })) {
+    return NextResponse.json({ error: 'ไม่มีสิทธิ์ลบไฟล์ในรายการนี้' }, { status: 403 });
+  }
+  try {
+    await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: key }));
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('S3 Delete Error:', err);
+    return NextResponse.json({ error: 'ลบไฟล์ไม่สำเร็จ' }, { status: 500 });
   }
 }

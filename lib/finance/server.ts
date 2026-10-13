@@ -149,16 +149,32 @@ export async function denyUnlessAdvViewer(user: AdvUser, formId: string): Promis
 
 /** ใบเงินสดย่อย + กองทุนของมัน สำหรับการ์ดไฟล์แนบ · โหลดไม่ได้คืน null ทั้งคู่ (ผู้เรียก fail closed) */
 export async function loadPettyClaimFor(formId: string): Promise<{
-  claim: { created_by: string; fund_id: number; status: any } | null;
+  claim: { created_by: string; fund_id: number; status: any; expense_type?: string } | null;
   fund: { id: number; holder_employee_id: string } | null;
+  /** spec ของประเภทการเบิก (max ต่อหมวดไฟล์) — null เมื่อหาไม่เจอ ผู้เรียกถือว่าไม่มีเพดาน */
+  spec: { attachments?: { key: string; max?: number }[] } | null;
 }> {
   const claim = await beJsonOrNull(beUrl(`/finance/petty/claims/${encodeURIComponent(formId)}`)) as any;
   if (!claim || typeof claim.created_by !== 'string' || typeof claim.fund_id !== 'number') {
-    return { claim: null, fund: null };
+    return { claim: null, fund: null, spec: null };
   }
-  const funds = await beJsonOrNull(beUrl('/finance/petty/funds', { active: 'false' })) as any;
+  const [funds, types] = await Promise.all([
+    beJsonOrNull(beUrl('/finance/petty/funds', { active: 'false' })) as Promise<any>,
+    beJsonOrNull(beUrl('/finance/petty/expense-types', { active: 'false' })) as Promise<any>,
+  ]);
   const fund = Array.isArray(funds)
     ? funds.find((f: any) => f?.id === claim.fund_id) ?? null
     : null;
-  return { claim, fund };
+  const spec = Array.isArray(types)
+    ? types.find((t: any) => t?.code === claim.expense_type)?.spec ?? null
+    : null;
+  return { claim, fund, spec };
+}
+
+/** กองทุนที่คนนี้ถือ — ใช้ตัดสินว่าเห็นใบของกองทุนนั้นได้ไหม (fail closed: BE ล่ม = ไม่ถือกองทุนไหน) */
+export async function loadPettyFundsHeldBy(employeeId: string): Promise<{ id: number; holder_employee_id: string }[]> {
+  const funds = await beJsonOrNull(beUrl('/finance/petty/funds', { holder: employeeId, active: 'false' }));
+  return Array.isArray(funds)
+    ? funds.filter((f: any) => typeof f?.id === 'number' && typeof f?.holder_employee_id === 'string')
+    : [];
 }

@@ -31,3 +31,32 @@ export function canUploadPettyFile(opts: {
   if (claim.created_by === user.employee_id) return true;
   return !!fund && fund.id === claim.fund_id && fund.holder_employee_id === user.employee_id;
 }
+
+/** ใบเงินสดย่อยรับแค่รูปกับ PDF — หลักฐานจริงมีแค่นั้น ไฟล์โปรแกรม/ซิปไม่ใช่หลักฐาน */
+export const PETTY_EXTENSIONS = ['jpg', 'jpeg', 'png', 'heic', 'heif', 'webp', 'pdf'] as const;
+export const PETTY_MAX_BYTES = 10 * 1024 * 1024;
+
+/** ข้อความบอกว่าทำไมรับไฟล์นี้ไม่ได้ — null = รับได้ */
+export function pettyFileProblem(name: string, size: number): string | null {
+  const ext = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '';
+  if (!(PETTY_EXTENSIONS as readonly string[]).includes(ext)) {
+    return 'รับเฉพาะรูปภาพ (jpg, png, heic, webp) หรือ PDF';
+  }
+  if (size > PETTY_MAX_BYTES) return 'ไฟล์ใหญ่เกิน 10 MB';
+  return null;
+}
+
+type SpecLike = { attachments?: { key: string; max?: number }[] | null } | null | undefined;
+
+/** หมวดนี้เต็มตาม max ของ spec แล้วหรือยัง — หมวดที่ spec ไม่กำหนด max (หรือไม่รู้จัก) ไม่มีวันเต็ม */
+export function folderIsFull(spec: SpecLike, folder: string, existing: number): boolean {
+  const entry = spec?.attachments?.find(a => a.key === folder);
+  return entry?.max !== undefined && existing >= entry.max;
+}
+
+/** กุญแจ S3 ที่จะลบต้องเป็นไฟล์ใต้ใบนี้เท่านั้น ไม่ใช่ใบอื่น ไม่ใช่โฟลเดอร์ ไม่มี .. */
+export function pettyKeyBelongsTo(key: string, formId: string, basePath = 'menait-service'): boolean {
+  const prefix = `${basePath}/${formId}/`;
+  if (!key.startsWith(prefix) || key.endsWith('/')) return false;
+  return !key.split('/').some(seg => seg === '' || seg === '.' || seg === '..');
+}
