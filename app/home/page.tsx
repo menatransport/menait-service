@@ -9,7 +9,7 @@ import { Mascot } from "@/components/mascot";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { canUseFinance } from "@/lib/finance/role";
-import { MENU_GROUPS, QUICK_LINKS, isMenuItemReady, type MenuGroup, type MenuItem, type MenuTone } from "./menu-groups";
+import { MENU_GROUPS, QUICK_LINKS, isMenuItemReady, sectionHeadingAt, type MenuGroup, type MenuItem, type MenuTone } from "./menu-groups";
 
 const TONE = {
     blue: { tile: 'v2-tile-blue', soft: 'bg-[#eaf4ff]', text: 'text-brand-700', ring: 'border-[#cfe4ff]' },
@@ -193,12 +193,30 @@ function GroupColumn({ group, index, onNavigate }: { group: MenuGroup; index: nu
             ) : (
                 // The page never scrolls; a long group scrolls inside its own card
                 <div data-scroll-area className="min-h-0 overflow-y-auto overscroll-contain -mx-1 px-1 pb-1 flex flex-col gap-[clamp(6px,1vh,12px)]">
-                    {group.items.map(item => (
-                        <MenuRow key={item.title} item={item} tone={group.tone} onNavigate={onNavigate} />
-                    ))}
+                    {group.items.map((item, i) => {
+                        const heading = sectionHeadingAt(group.items, i);
+                        return (
+                            <div key={item.title} className="contents">
+                                {heading && <SectionHeading label={heading} tone={group.tone} first={i === 0} />}
+                                <MenuRow item={item} tone={group.tone} onNavigate={onNavigate} />
+                            </div>
+                        );
+                    })}
                 </div>
             )}
         </section>
+    );
+}
+
+/** หัวข้อย่อยในการ์ดกลุ่ม (เช่น Advance / เงินสดย่อย) — เส้นคั่นบาง ๆ กับชื่อหัวข้อ */
+function SectionHeading({ label, tone, first }: { label: string; tone: MenuTone; first: boolean }) {
+    const t = TONE[tone];
+    return (
+        <div className={cn('flex items-center gap-2 px-1', first ? 'pt-0.5' : 'pt-[clamp(6px,1.2vh,14px)]')}>
+            <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', t.tile)} />
+            <span className={cn('text-[12px] font-semibold tracking-wide', t.text)}>{label}</span>
+            <span className="flex-1 h-px bg-border" />
+        </div>
     );
 }
 
@@ -409,9 +427,19 @@ function AppGroup({ group, onNavigate }: { group: MenuGroup; onNavigate: (href?:
                         <span className="text-[13px]">เร็ว ๆ นี้</span>
                     </div>
                 ) : (
-                    group.items.map(item => (
-                        <AppTile key={item.title} item={item} tone={group.tone} onNavigate={onNavigate} />
-                    ))
+                    group.items.map((item, i) => {
+                        const heading = sectionHeadingAt(group.items, i);
+                        return (
+                            <div key={item.title} className="contents">
+                                {heading && (
+                                    <div className="col-span-4">
+                                        <SectionHeading label={heading} tone={group.tone} first={i === 0} />
+                                    </div>
+                                )}
+                                <AppTile item={item} tone={group.tone} onNavigate={onNavigate} />
+                            </div>
+                        );
+                    })
                 )}
             </div>
         </section>
