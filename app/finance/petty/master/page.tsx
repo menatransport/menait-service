@@ -7,11 +7,12 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { canReview } from '@/lib/finance/petty-access';
+import { fundLabel } from '@/lib/finance/petty-fund-label';
 import { fetchJson, showAlert } from '../../api';
 import { FinanceCanvas, FinanceHeading, NoAccess, Panel } from '../../components/FinanceShell';
 
 const TITLE = 'ตั้งค่าเงินสดย่อย';
-const CAPTION = 'กองทุนของแต่ละสาขา/แผนก และกติกาเอกสารของแต่ละประเภทการเบิก';
+const CAPTION = 'วงเงินสดย่อยของแต่ละสาขา/แผนก และกติกาเอกสารของแต่ละประเภทการเบิก';
 
 const BLANK_FUND = { branch_code: '', division_code: '', holder_employee_id: '', fund_limit: '' };
 
@@ -28,7 +29,7 @@ export default function PettyMasterPage() {
 
   const loadFunds = useCallback(async () => {
     try { setFunds(await fetchJson<PettyFund[]>('/api/finance/petty/funds?active=false')); }
-    catch (err) { setFunds([]); showAlert({ icon: 'error', title: 'โหลดกองทุนไม่สำเร็จ', text: (err as Error).message }); }
+    catch (err) { setFunds([]); showAlert({ icon: 'error', title: 'โหลดวงเงินไม่สำเร็จ', text: (err as Error).message }); }
   }, []);
 
   const loadTypes = useCallback(async () => {
@@ -91,44 +92,45 @@ export default function PettyMasterPage() {
       <FinanceHeading icon={Settings2} title={TITLE} caption={CAPTION} />
       <Tabs value={tab} onValueChange={v => setTab(v as 'funds' | 'types')} className="mb-4">
         <TabsList>
-          <TabsTrigger value="funds">กองทุน</TabsTrigger>
+          <TabsTrigger value="funds">วงเงินสดย่อย</TabsTrigger>
           <TabsTrigger value="types">ประเภทการเบิก</TabsTrigger>
         </TabsList>
       </Tabs>
 
       {tab === 'funds' && (
-        <Panel title="กองทุนเงินสดย่อย">
+        <Panel title="วงเงินสดย่อย">
           {funds === null ? <MascotLoader /> : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-ink-500 text-left">
                   <tr>
-                    <th className="py-2">สาขา</th><th className="py-2">แผนก</th>
-                    <th className="py-2">ผู้อนุมัติ (รหัสพนักงาน)</th>
-                    <th className="py-2 text-right">วงเงิน</th>
+                    <th className="py-2">ชื่อวงเงินสดย่อย</th>
+                    <th className="py-2">สาขา · แผนก</th>
+                    <th className="py-2">ผู้ถือเงิน / ผู้อนุมัติ</th>
+                    <th className="py-2 text-right">ยอดวงเงินสดย่อย</th>
                     <th className="py-2">สถานะ</th><th className="py-2" />
                   </tr>
                 </thead>
                 <tbody>
                   {funds.map(f => (
                     <tr key={f.id} className="border-t border-slate-100">
-                      <td className="py-2">{f.branch_code}</td>
-                      <td className="py-2">{f.division_code}</td>
-                      <td className="py-2">{f.holder_employee_id}</td>
+                      <td className="py-2 font-medium text-ink-800">{fundLabel(f)}</td>
+                      <td className="py-2 text-ink-500">{f.branch_code} · {f.division_code}</td>
+                      <td className="py-2">{f.holder_name ?? '-'} <span className="text-xs text-ink-400">{f.holder_employee_id}</span></td>
                       <td className="py-2 text-right">{f.fund_limit?.toLocaleString('th-TH', { minimumFractionDigits: 2 }) ?? '-'}</td>
                       <td className="py-2">{f.is_active ? 'เปิดใช้' : 'ปิด'}</td>
                       <td className="py-2 text-right">
                         {isAdmin && (
                           <button type="button" onClick={() => void toggleFund(f)}
                             className="text-xs text-brand-700 hover:underline">
-                            {f.is_active ? 'ปิดกองทุน' : 'เปิดใช้'}
+                            {f.is_active ? 'ปิดวงเงิน' : 'เปิดใช้'}
                           </button>
                         )}
                       </td>
                     </tr>
                   ))}
                   {funds.length === 0 && (
-                    <tr><td colSpan={6} className="py-6 text-center text-ink-400">ยังไม่มีกองทุน</td></tr>
+                    <tr><td colSpan={6} className="py-6 text-center text-ink-400">ยังไม่มีวงเงินสดย่อย</td></tr>
                   )}
                 </tbody>
               </table>
@@ -145,7 +147,7 @@ export default function PettyMasterPage() {
                 <input value={draft.division_code} onChange={e => setDraft({ ...draft, division_code: e.target.value })}
                   placeholder="B02" className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5" />
               </label>
-              <label className="text-sm">ผู้อนุมัติ
+              <label className="text-sm">ผู้ถือเงิน (ผู้อนุมัติ)
                 <input value={draft.holder_employee_id} onChange={e => setDraft({ ...draft, holder_employee_id: e.target.value })}
                   placeholder="รหัสพนักงาน" className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5" />
               </label>
@@ -156,7 +158,7 @@ export default function PettyMasterPage() {
               <button type="button" disabled={saving || !draft.branch_code || !draft.division_code || !draft.holder_employee_id}
                 onClick={() => void saveFund()}
                 className="rounded-lg bg-brand-600 px-3 py-2 text-white disabled:opacity-40">
-                เพิ่มกองทุน
+                เพิ่มวงเงิน
               </button>
             </div>
           )}
