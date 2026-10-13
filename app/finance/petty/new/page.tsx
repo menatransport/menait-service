@@ -91,7 +91,7 @@ export default function NewPettyClaimPage() {
   }, [rows, typeCode]);
 
   const requiredMissing = (() => {
-    if (!type || !fundId) return 'เลือกประเภทการเบิกและกองทุนก่อน';
+    if (!type || !fundId) return 'เลือกประเภทการเบิกและวงเงินสดย่อยก่อน';
     for (const f of headerFields(spec)) {
       if (f.auto) continue;
       const filled = f.type === 'truck'
@@ -164,9 +164,9 @@ export default function NewPettyClaimPage() {
     return (
       <FinanceCanvas title={TITLE}>
         <FinanceHeading icon={Receipt} title={TITLE} caption={CAPTION} />
-        <Panel title="ยังไม่มีกองทุนที่เปิดใบได้">
+        <Panel title="ยังไม่มีวงเงินสดย่อยที่เปิดใบได้">
           <p className="text-sm text-ink-600">
-            ยังไม่มีกองทุนเงินสดย่อยในระบบ ให้ผู้ดูแลระบบตั้งกองทุน (สาขา · แผนก · ผู้อนุมัติ) ที่หน้าตั้งค่าก่อน
+            ยังไม่มีวงเงินสดย่อยในระบบ ให้ผู้ดูแลระบบตั้งวงเงิน (สาขา · แผนก · ผู้อนุมัติ) ที่หน้าตั้งค่าก่อน
           </p>
         </Panel>
       </FinanceCanvas>
@@ -186,10 +186,10 @@ export default function NewPettyClaimPage() {
               {types.map(t => <option key={t.code} value={t.code}>{t.name_th}</option>)}
             </select>
           </label>
-          <label className="text-sm">กองทุน
+          <label className="text-sm">วงเงินสดย่อย
             <select value={fundId} onChange={e => setFundId(e.target.value)}
               className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5">
-              <option value="">เลือกกองทุน</option>
+              <option value="">เลือกวงเงินสดย่อย</option>
               {funds.map(f => (
                 <option key={f.id} value={f.id}>
                   สาขา {f.branch_code} · {f.division_code}
