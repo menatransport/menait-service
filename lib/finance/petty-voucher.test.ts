@@ -98,6 +98,26 @@ describe('Project Code ไม่มีในระบบ — ช่องบน�
   test('เลขที่ใบเป็นแบบตัวอักษรสาขา', () => expect(html).toContain('LB-B02-2610-001'));
 });
 
+describe('ใบรับรองแทนใบเสร็จไม่มีกล่องเลขที่ (ผู้ใช้สั่ง 2026-10-13)', () => {
+  const html = receiptSubstituteHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก' });
+  test('กล่อง meta เหลือแค่วันที่', () => {
+    expect(html).not.toMatch(/<div class="meta"><div><span>เลขที่<\/span>/);
+    expect(html).toMatch(/<div class="meta"><div><span>วันที่<\/span><b>\d{2}\/\d{2}\/\d{4}<\/b><\/div><\/div>/);
+  });
+  test('ใบสำคัญจ่ายยังมีเลขที่อยู่', () =>
+    expect(pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก' })).toMatch(/<span>เลขที่<\/span><b>LB-B02-2610-001<\/b>/));
+});
+
+describe('จ่ายให้ มีธนาคารและเลขบัญชี (ผู้ใช้สั่ง 2026-10-13)', () => {
+  test('ใบสำคัญจ่ายพิมพ์ ชื่อ · ธนาคาร เลขบัญชี', () => {
+    const withBank = { ...claim, detail: { payee_bank: 'KBANK', payee_account_no: '1234567890' } } as PettyClaim;
+    expect(pettyVoucherHtml({ claim: withBank, fund, typeName: 'ค่าชั่งน้ำหนัก' }))
+      .toContain(`${claim.payee_name} · ธนาคารกสิกรไทย 123-4-56789-0`);
+  });
+  test('ใบเก่าไม่มีบัญชี ยังพิมพ์แค่ชื่อ', () =>
+    expect(pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก' })).not.toContain(`${claim.payee_name} ·`));
+});
+
 describe('ของที่เจอตอนพิมพ์จริง 2026-10-13', () => {
   test('วันที่บนหัวใบเป็นวันที่ไทย ไม่ใช่วัน UTC (อนุมัติ 13/10 05:25 น. ต้องขึ้น 13/10)', () => {
     const lateNight = { ...claim, approved_at: '2026-10-12T22:25:51+00:00' } as PettyClaim;

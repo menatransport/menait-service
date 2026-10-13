@@ -7,6 +7,7 @@ import { useSessionContext } from '@/app/context/SessionContext';
 import { canCloseBatch } from '@/lib/finance/petty-access';
 import type { PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import type { PettyTab } from '@/lib/finance/petty-list';
+import { fundLabel, fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
 import { formatBaht } from '@/lib/finance/status';
 import { fetchJson, showAlert, showConfirm } from '../../api';
 import { closeBatch, getExpenseTypes, getFunds, listClaims } from '../../petty-api';
@@ -15,7 +16,7 @@ import { PettyListView } from '../../components/petty/PettyListView';
 import { PettySheet } from '../../components/petty/PettySheet';
 
 const TITLE = 'ปิดรอบคืนยอดเงินสดย่อย';
-const CAPTION = 'ติ๊กใบที่บัญชีตรวจผ่านแล้ว กดปิดรอบ ยอดจะคืนเข้ากองทุนของผู้อนุมัติ';
+const CAPTION = 'ติ๊กใบที่บัญชีตรวจผ่านแล้ว กดปิดรอบ ยอดจะคืนเข้าวงเงินของผู้อนุมัติ';
 
 type Batch = { id: number; batch_no: string; fund_id: number; total_amount: number; closed_by: string | null; closed_at: string; remark: string | null };
 
@@ -89,7 +90,7 @@ export default function PettyBatchesPage() {
 
   const fund = funds.find(f => f.id === fundId);
   const stats = [
-    { label: 'พร้อมปิดรอบ', value: ready.length, hint: fund ? `กองทุน ${fund.branch_code} · ${fund.division_code}` : undefined },
+    { label: 'พร้อมปิดรอบ', value: ready.length, hint: fund ? fundLabel(fund) : undefined },
     { label: 'ยอดพร้อมคืน (บาท)', value: formatBaht(ready.reduce((s, c) => s + c.amount, 0)) },
     { label: 'บัญชียังไม่ตรวจ', value: ofFund.filter(c => c.status === 'AWAITING_REVIEW' && !c.reviewed_at).length },
     { label: 'รอบที่ปิดแล้ว', value: batches.filter(b => b.fund_id === fundId).length },
@@ -105,7 +106,7 @@ export default function PettyBatchesPage() {
         filters={(
           <select value={fundId ?? ''} onChange={e => setFundId(Number(e.target.value))}
             className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm">
-            {funds.map(f => <option key={f.id} value={f.id}>กองทุน สาขา {f.branch_code} · {f.division_code} · {f.holder_name ?? f.holder_employee_id}</option>)}
+            {funds.map(f => <option key={f.id} value={f.id}>{fundLabelWithHolder(f)}</option>)}
           </select>
         )}
         footer={tab === 'ready' ? (
@@ -123,7 +124,7 @@ export default function PettyBatchesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-ink-500">
-                <tr><th className="px-2 py-2">รอบที่</th><th className="px-2 py-2">กองทุน</th><th className="px-2 py-2 text-right">ยอดคืน</th><th className="px-2 py-2">ปิดโดย</th><th className="px-2 py-2">เมื่อ</th></tr>
+                <tr><th className="px-2 py-2">รอบที่</th><th className="px-2 py-2">วงเงินสดย่อย</th><th className="px-2 py-2 text-right">ยอดคืน</th><th className="px-2 py-2">ปิดโดย</th><th className="px-2 py-2">เมื่อ</th></tr>
               </thead>
               <tbody>
                 {batches.map(b => {

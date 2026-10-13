@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { payeeBankText } from '@/lib/finance/petty-payee';
+import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
 import Link from 'next/link';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
@@ -181,12 +183,12 @@ export function PettyClaimDetail({ formId, onChanged, compact = false, headerRig
 
       <Panel title="หัวใบ">
         <div className={`grid gap-3 ${compact ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
-          <Field label="จ่ายให้" value={claim.payee_name ?? '-'} />
+          <Field label="จ่ายให้" value={payeeBankText(claim.detail) ? `${claim.payee_name ?? '-'} · ${payeeBankText(claim.detail)}` : (claim.payee_name ?? '-')} />
           <Field label="ยอดรวม" value={`${formatBaht(claim.amount)} บาท`} />
           <Field label="ช่วงวันที่ค่าใช้จ่าย" value={claim.period_from && claim.period_to ? `${formatDate(claim.period_from)} – ${formatDate(claim.period_to)}` : formatDate(claim.expense_date)} />
           <Field label="เลขที่ใบรับสินค้า (DD)" value={claim.dd_no ?? 'ยังไม่กรอก'} />
           <Field label="เจ้าหน้าที่ผู้เปิดใบ" value={claim.created_by_name ?? claim.created_by} />
-          <Field label="กองทุน" value={fund ? `สาขา ${fund.branch_code} · ${fund.division_code} · ${fund.holder_name ?? fund.holder_employee_id}` : '-'} />
+          <Field label="วงเงินสดย่อย" value={fund ? fundLabelWithHolder(fund) : '-'} />
           <Field label="ผู้อนุมัติ" value={claim.approved_by_name ?? claim.approved_by ?? '-'} />
           <Field label="วันที่โอน" value={formatDate(claim.transfer_date) || '-'} />
           <Field label="บัญชีตรวจเมื่อ" value={claim.reviewed_at ? new Date(claim.reviewed_at).toLocaleString('th-TH') : '-'} />

@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Receipt } from 'lucide-react';
+import { Building2, IdCard, MapPin, Receipt, User } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { claimTotal, periodOf, type PettyItemDraft } from '@/lib/finance/petty-items';
 import { blankItem, claimPayload, headerFields, isItemBased, itemsFrom } from '@/lib/finance/petty-spec';
+import { payeeBankProblem } from '@/lib/finance/petty-payee';
+import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
 import { showAlert } from '../../api';
 import { checkDuplicate, createClaim, getExpenseTypes, getFunds, uploadPettyFiles } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, Panel } from '../../components/FinanceShell';
@@ -98,6 +100,10 @@ export default function NewPettyClaimPage() {
         ? String(header.truck_code ?? '').trim() !== ''
         : String(header[f.key] ?? '').trim() !== '';
       if (f.required && !filled) return `ยังไม่กรอก ${f.label}`;
+      if (f.key === 'payee_name') {
+        const problem = payeeBankProblem(spec, header);
+        if (problem) return problem;
+      }
     }
     if (itemBased) {
       if (rows.length === 0) return 'ยังไม่มีรายการ';
@@ -178,6 +184,27 @@ export default function NewPettyClaimPage() {
       <FinanceHeading icon={Receipt} title={TITLE} caption={CAPTION} />
 
       <Panel title="ใบเบิก">
+        <div className="mb-3 rounded-xl bg-gray-50 p-3 sm:p-4">
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-gray-400">ผู้เบิกเงิน</p>
+          <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+            <span className="flex min-w-0 items-center gap-2 font-medium text-gray-800">
+              <User className="h-3.5 w-3.5 shrink-0 text-brand-600" />
+              <span className="truncate">{user ? `${user.firstname} ${user.lastname}` : '-'}</span>
+            </span>
+            <span className="flex min-w-0 items-center gap-2 text-gray-600">
+              <IdCard className="h-3.5 w-3.5 shrink-0 text-brand-600" />
+              <span className="truncate">{user?.employee_id ?? '-'}</span>
+            </span>
+            <span className="flex min-w-0 items-center gap-2 text-gray-600">
+              <Building2 className="h-3.5 w-3.5 shrink-0 text-brand-600" />
+              <span className="truncate">{user?.department ?? '-'}</span>
+            </span>
+            <span className="flex min-w-0 items-center gap-2 text-gray-600">
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-brand-600" />
+              <span className="truncate">{user?.site ?? '-'}</span>
+            </span>
+          </div>
+        </div>
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="text-sm">ประเภทการเบิก
             <select value={typeCode} onChange={e => setTypeCode(e.target.value)}
@@ -191,13 +218,11 @@ export default function NewPettyClaimPage() {
               className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5">
               <option value="">เลือกวงเงินสดย่อย</option>
               {funds.map(f => (
-                <option key={f.id} value={f.id}>
-                  สาขา {f.branch_code} · {f.division_code}
-                </option>
+                <option key={f.id} value={f.id}>{fundLabelWithHolder(f)}</option>
               ))}
             </select>
           </label>
-          <label className="text-sm">วันที่บนใบ
+          <label className="text-sm">วันที่ขอเบิก
             <input type="date" value={String(header.expense_date ?? '')}
               onChange={e => setHeader({ ...header, expense_date: e.target.value })}
               className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5" />

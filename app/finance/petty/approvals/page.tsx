@@ -6,6 +6,7 @@ import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyBalance, PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { quickAction, type PettyTab } from '@/lib/finance/petty-list';
+import { fundLabel } from '@/lib/finance/petty-fund-label';
 import { formatBaht } from '@/lib/finance/status';
 import { showAlert } from '../../api';
 import { countAttachments, getBalance, getExpenseTypes, getFunds, listClaims } from '../../petty-api';
@@ -15,7 +16,7 @@ import { PettySheet } from '../../components/petty/PettySheet';
 import { runPettyAction } from '../../components/petty/petty-actions';
 
 const TITLE = 'อนุมัติเบิกเงินสดย่อย';
-const CAPTION = 'ใบของกองทุนที่คุณถือ — อนุมัติ บันทึกการโอน และส่งบัญชี ได้จากตารางนี้';
+const CAPTION = 'ใบของวงเงินที่คุณถือ — อนุมัติ บันทึกการโอน และส่งบัญชี ได้จากตารางนี้';
 
 const TABS: PettyTab[] = [
   { key: 'pending', label: 'รออนุมัติ', statuses: ['PENDING_APPROVAL'] },
@@ -84,8 +85,8 @@ export default function PettyApprovalsPage() {
     return (
       <FinanceCanvas title={TITLE}>
         <FinanceHeading icon={BadgeCheck} title={TITLE} caption={CAPTION} />
-        <Panel title="ไม่มีกองทุนที่คุณถือ">
-          <p className="text-sm text-ink-600">หน้านี้สำหรับผู้ถือกองทุนเงินสดย่อย ถ้าควรเห็น ให้ผู้ดูแลระบบตั้งกองทุนให้ชื่อคุณ</p>
+        <Panel title="ไม่มีวงเงินสดย่อยที่คุณถือ">
+          <p className="text-sm text-ink-600">หน้านี้สำหรับผู้ถือเงินสดย่อย ถ้าควรเห็น ให้ผู้ดูแลระบบตั้งวงเงินให้ชื่อคุณ</p>
         </Panel>
       </FinanceCanvas>
     );
@@ -129,7 +130,7 @@ export default function PettyApprovalsPage() {
         filters={funds.length > 1 ? (
           <select value={fundId ?? ''} onChange={e => setFundId(Number(e.target.value))}
             className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm">
-            {funds.map(f => <option key={f.id} value={f.id}>กองทุน สาขา {f.branch_code} · {f.division_code}</option>)}
+            {funds.map(f => <option key={f.id} value={f.id}>{fundLabel(f)}</option>)}
           </select>
         ) : undefined} />
       <PettySheet formId={openId} isOpen={sheetOpen} onClose={() => setSheetOpen(false)} onChanged={() => void load()} />

@@ -4,6 +4,7 @@ import { groupForPrint } from '@/lib/finance/petty-print';
 import {
   bangkokDate, checkboxes, docHead, field, PETTY_DOC_CSS, sec, signBlock, thaiDate, totalBox,
 } from '@/lib/finance/petty-doc';
+import { payeeBankText, type PayeeBank } from '@/lib/finance/petty-payee';
 import { documentControlFooter, esc, money, printedNow, wrapDocument, type ESign } from '@/lib/finance/printShared';
 
 export const COMPANY = 'บริษัท มีนาทรานสปอร์ต จำกัด (มหาชน)';
@@ -36,6 +37,12 @@ const BRANCH_ADDRESS: Record<string, { address: string; taxId: string }> = {
 const DEPARTMENTS = ['จัดส่ง', 'ยานยนต์', 'จป.', 'HR', 'บัญชี', 'จัดซื้อ', 'เชื้อเพลิง'];
 
 /** "ทะเบียน 72-8179 (6604)" อย่างที่ใบยางจริงเขียน · หลายคันแสดงเบอร์รถเรียงกัน */
+/** "ชื่อ · ธนาคาร เลขบัญชี" บนใบสำคัญจ่าย — ใบเก่าที่ไม่มีบัญชีก็ยังเป็นแค่ชื่อ */
+function payeeLine(claim: PettyClaim): string {
+  const bank = payeeBankText(claim.detail as PayeeBank | undefined);
+  return bank ? `${claim.payee_name ?? ''} · ${bank}` : (claim.payee_name ?? '');
+}
+
 function truckRemark(items: PettyClaim['items']): string {
   const trucks = items.filter(i => i.truck_code || i.truck_plate);
   if (trucks.length === 1) {
@@ -100,7 +107,7 @@ ${docHead({ title: 'ใบสำคัญจ่ายเงินสดย่อ
 <p class="t2" style="margin-top:4px">${esc(COMPANY)}</p>
 
 ${sec(1, 'ข้อมูลการจ่าย', 'Payment')}
-<div class="grid">${field('จ่ายให้', claim.payee_name)}${field('Project Code', '')}
+<div class="grid">${field('จ่ายให้', payeeLine(claim))}${field('Project Code', '')}
 ${field('ประเภทการเบิก', typeName)}${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}</div>
 <div class="cbs"><span class="lbl">Division</span>${divisionBoxes}</div>
 <div class="cbs"><span class="lbl">สาขา</span>${branchBoxes}</div>
@@ -149,7 +156,7 @@ export function receiptSubstituteHtml(opts: VoucherOpts): string {
 
   const body = `<section class="doc-part">
 ${docHead({ title: 'ใบรับรองแทนใบเสร็จรับเงิน', english: '(Receipt Substitute)', logoUrl: opts.logoUrl,
-    meta: [['เลขที่', claim.form_id], ['วันที่', voucherDate(claim)]] })}
+    meta: [['วันที่', voucherDate(claim)]] })}
 <p class="t2" style="margin-top:4px">${esc(COMPANY)} (สาขา${esc(branchNo)})<br>${esc(addr?.address ?? '')}${addr ? ` · เลขประจำตัวผู้เสียภาษี ${esc(addr.taxId)}` : ''}</p>
 
 ${sec(1, 'รายละเอียดรายจ่าย', 'Expenses')}
