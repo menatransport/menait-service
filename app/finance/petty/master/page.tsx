@@ -22,6 +22,8 @@ export default function PettyMasterPage() {
   const [funds, setFunds] = useState<PettyFund[] | null>(null);
   const [types, setTypes] = useState<PettyExpenseType[] | null>(null);
   const [draft, setDraft] = useState({ ...BLANK_FUND });
+  /** แถวที่กำลังแก้ผู้ถือเงิน/ยอด — แก้ได้ทีละวงเงิน */
+  const [editing, setEditing] = useState<{ id: number; holder: string; limit: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
   const isAdmin = user?.role === 'a';
@@ -55,6 +57,24 @@ export default function PettyMasterPage() {
       await loadFunds();
     } catch (err) {
       showAlert({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: (err as Error).message });
+    } finally { setSaving(false); }
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+    setSaving(true);
+    try {
+      await fetchJson(`/api/finance/petty/funds/${editing.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          holder_employee_id: editing.holder.trim(),
+          fund_limit: editing.limit.trim() === '' ? null : Number(editing.limit),
+        }),
+      });
+      setEditing(null);
+      await loadFunds();
+    } catch (err) {
+      showAlert({ icon: 'error', title: 'แก้ไขไม่สำเร็จ', text: (err as Error).message });
     } finally { setSaving(false); }
   }
 
@@ -116,17 +136,46 @@ export default function PettyMasterPage() {
                     <tr key={f.id} className="border-t border-slate-100">
                       <td className="py-2 font-medium text-ink-800">{fundLabel(f)}</td>
                       <td className="py-2 text-ink-500">{f.branch_code} · {f.division_code}</td>
-                      <td className="py-2">{f.holder_name ?? '-'} <span className="text-xs text-ink-400">{f.holder_employee_id}</span></td>
-                      <td className="py-2 text-right">{f.fund_limit?.toLocaleString('th-TH', { minimumFractionDigits: 2 }) ?? '-'}</td>
-                      <td className="py-2">{f.is_active ? 'เปิดใช้' : 'ปิด'}</td>
-                      <td className="py-2 text-right">
-                        {isAdmin && (
-                          <button type="button" onClick={() => void toggleFund(f)}
-                            className="text-xs text-brand-700 hover:underline">
-                            {f.is_active ? 'ปิดวงเงิน' : 'เปิดใช้'}
-                          </button>
-                        )}
-                      </td>
+                      {editing?.id === f.id ? (
+                        <>
+                          <td className="py-2">
+                            <input value={editing.holder} onChange={e => setEditing({ ...editing, holder: e.target.value })}
+                              placeholder="รหัสพนักงาน" aria-label="รหัสผู้ถือเงิน"
+                              className="w-28 rounded-lg border border-slate-200 px-2 py-1" />
+                          </td>
+                          <td className="py-2 text-right">
+                            <input value={editing.limit} onChange={e => setEditing({ ...editing, limit: e.target.value })}
+                              inputMode="decimal" aria-label="ยอดวงเงิน"
+                              className="w-28 rounded-lg border border-slate-200 px-2 py-1 text-right" />
+                          </td>
+                          <td className="py-2">{f.is_active ? 'เปิดใช้' : 'ปิด'}</td>
+                          <td className="py-2 text-right whitespace-nowrap">
+                            <button type="button" disabled={saving || !editing.holder.trim()} onClick={() => void saveEdit()}
+                              className="rounded-lg bg-brand-600 px-2 py-1 text-xs text-white disabled:opacity-40">บันทึก</button>
+                            <button type="button" onClick={() => setEditing(null)}
+                              className="ml-2 text-xs text-ink-500 hover:underline">ยกเลิก</button>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="py-2">{f.holder_name ?? '-'} <span className="text-xs text-ink-400">{f.holder_employee_id}</span></td>
+                          <td className="py-2 text-right">{f.fund_limit?.toLocaleString('th-TH', { minimumFractionDigits: 2 }) ?? '-'}</td>
+                          <td className="py-2">{f.is_active ? 'เปิดใช้' : 'ปิด'}</td>
+                          <td className="py-2 text-right whitespace-nowrap">
+                            {isAdmin && (
+                              <>
+                                <button type="button"
+                                  onClick={() => setEditing({ id: f.id, holder: f.holder_employee_id, limit: f.fund_limit == null ? '' : String(f.fund_limit) })}
+                                  className="text-xs text-brand-700 hover:underline">แก้ไข</button>
+                                <button type="button" onClick={() => void toggleFund(f)}
+                                  className="ml-3 text-xs text-brand-700 hover:underline">
+                                  {f.is_active ? 'ปิดวงเงิน' : 'เปิดใช้'}
+                                </button>
+                              </>
+                            )}
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
                   {funds.length === 0 && (
