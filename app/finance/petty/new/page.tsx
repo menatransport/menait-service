@@ -11,6 +11,7 @@ import { blankItem, claimPayload, headerFields, isItemBased, itemsFrom } from '@
 import { payeeBankProblem } from '@/lib/finance/petty-payee';
 import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
 import { fundsForExpenseType } from '@/lib/finance/petty-account-code';
+import { bangkokToday } from '@/lib/finance/petty-doc';
 import { showAlert } from '../../api';
 import { checkDuplicate, createClaim, getExpenseTypes, getFunds, uploadPettyFiles } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, Panel } from '../../components/FinanceShell';
@@ -33,7 +34,7 @@ export default function NewPettyClaimPage() {
   const [funds, setFunds] = useState<PettyFund[] | null>(null);
   const [typeCode, setTypeCode] = useState('');
   const [fundId, setFundId] = useState('');
-  const [header, setHeader] = useState<Record<string, unknown>>({});
+  const [header, setHeader] = useState<Record<string, unknown>>(() => ({ expense_date: bangkokToday() }));
   const [rows, setRows] = useState<Row[]>([]);
   const [files, setFiles] = useState<Record<string, File[]>>({});
   const [ddNo, setDdNo] = useState('');
@@ -64,8 +65,8 @@ export default function NewPettyClaimPage() {
     })();
   }, []);
 
-  // เปลี่ยนประเภท = เริ่มกรอกใหม่ เพราะช่องและหมวดไฟล์มาจาก spec ของประเภทนั้น
-  useEffect(() => { setHeader({}); setRows([]); setFiles({}); setDups([]); }, [typeCode]);
+  // เปลี่ยนประเภท = เริ่มกรอกใหม่ เพราะช่องและหมวดไฟล์มาจาก spec ของประเภทนั้น — วันที่ขอเบิกกลับเป็นวันนี้เสมอ
+  useEffect(() => { setHeader({ expense_date: bangkokToday() }); setRows([]); setFiles({}); setDups([]); }, [typeCode]);
   // เปลี่ยนประเภทแล้ววงเงินที่เลือกไว้ไม่อยู่ในแผนกที่เบิกได้ → ล้างให้เลือกใหม่
   useEffect(() => {
     setFundId(id => (id && funds && !fundsForExpenseType(typeCode, funds).some(f => String(f.id) === id) ? '' : id));
@@ -142,7 +143,7 @@ export default function NewPettyClaimPage() {
       const body = claimPayload({
         fund_id: Number(fundId),
         expense_type: type.code,
-        expense_date: String(header.expense_date ?? new Date().toISOString().slice(0, 10)),
+        expense_date: String(header.expense_date || bangkokToday()),
         payee_name: (header.payee_name as string) ?? null,
         driver_employee_id: (header.driver_employee_id as string) ?? null,
         driver_name: (header.driver as string) ?? null,

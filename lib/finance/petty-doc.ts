@@ -86,6 +86,11 @@ export function bangkokDate(timestamp: string | null | undefined): string {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
+/** วันนี้ตามเวลาไทย 'YYYY-MM-DD' — ค่าเริ่มต้นของช่องวันที่ในฟอร์ม (ใส่ now ในเทสต์) */
+export function bangkokToday(now: Date = new Date()): string {
+  return bangkokDate(now.toISOString());
+}
+
 /** '2026-09-17' → '17/09/2026' */
 export function thaiDate(iso: string | null | undefined): string {
   if (!iso) return '';
