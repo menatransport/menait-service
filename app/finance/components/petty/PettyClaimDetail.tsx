@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { payeeBankText } from '@/lib/finance/petty-payee';
 import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
+import { accountCodeLine } from '@/lib/finance/petty-account-code';
 import Link from 'next/link';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
@@ -189,6 +190,7 @@ export function PettyClaimDetail({ formId, onChanged, compact = false, headerRig
           <Field label="เลขที่ใบรับสินค้า (DD)" value={claim.dd_no ?? 'ยังไม่กรอก'} />
           <Field label="เจ้าหน้าที่ผู้เปิดใบ" value={claim.created_by_name ?? claim.created_by} />
           <Field label="วงเงินสดย่อย" value={fund ? fundLabelWithHolder(fund) : '-'} />
+          <Field label="รหัสค่าใช้จ่าย (บัญชี)" value={accountCodeLine(fund) || '-'} />
           <Field label="ผู้อนุมัติ" value={claim.approved_by_name ?? claim.approved_by ?? '-'} />
           <Field label="วันที่โอน" value={formatDate(claim.transfer_date) || '-'} />
           <Field label="บัญชีตรวจเมื่อ" value={claim.reviewed_at ? new Date(claim.reviewed_at).toLocaleString('th-TH') : '-'} />

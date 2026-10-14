@@ -4,6 +4,7 @@ import { groupForPrint } from '@/lib/finance/petty-print';
 import {
   bangkokDate, checkboxes, docHead, field, PETTY_DOC_CSS, sec, signBlock, thaiDate, totalBox,
 } from '@/lib/finance/petty-doc';
+import { accountCodeLine } from '@/lib/finance/petty-account-code';
 import { payeeBankText, type PayeeBank } from '@/lib/finance/petty-payee';
 import { documentControlFooter, esc, money, printedNow, wrapDocument, type ESign } from '@/lib/finance/printShared';
 
@@ -107,7 +108,7 @@ ${docHead({ title: 'ใบสำคัญจ่ายเงินสดย่อ
 <p class="t2" style="margin-top:4px">${esc(COMPANY)}</p>
 
 ${sec(1, 'ข้อมูลการจ่าย', 'Payment')}
-<div class="grid">${field('จ่ายให้', payeeLine(claim))}${field('Project Code', '')}
+<div class="grid">${field('จ่ายให้', payeeLine(claim))}${field('รหัสค่าใช้จ่าย (บัญชี)', accountCodeLine(fund))}
 ${field('ประเภทการเบิก', typeName)}${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}</div>
 <div class="cbs"><span class="lbl">Division</span>${divisionBoxes}</div>
 <div class="cbs"><span class="lbl">สาขา</span>${branchBoxes}</div>

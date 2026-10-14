@@ -92,9 +92,12 @@ describe('หน่วยนับบนใบ มาจากประเภท
       .toContain('1,200.00'));
 });
 
-describe('Project Code ไม่มีในระบบ — ช่องบนกระดาษเว้นว่าง (ผู้ใช้สั่ง 2026-10-13)', () => {
+describe('รหัสค่าใช้จ่ายของบัญชี บนใบสำคัญจ่าย (ตารางบัญชี 2026-10-14)', () => {
   const html = pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก' });
-  test('ช่องยังพิมพ์หัวข้อไว้ให้เขียนด้วยมือ', () => expect(html).toMatch(/<span class="l">Project Code<\/span><span class="v"><\/span>/));
+  test('พิมพ์รหัส + ชื่อแผนกตามบัญชี แทนช่อง Project Code เดิม', () => {
+    expect(html).toMatch(/<span class="l">รหัสค่าใช้จ่าย \(บัญชี\)<\/span><span class="v">B02 ฝ่ายยานยนต์<\/span>/);
+    expect(html).not.toContain('Project Code');
+  });
   test('เลขที่ใบเป็นแบบตัวอักษรสาขา', () => expect(html).toContain('LB-B02-2610-001'));
 });
 

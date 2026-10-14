@@ -10,6 +10,7 @@ import { claimTotal, periodOf, type PettyItemDraft } from '@/lib/finance/petty-i
 import { blankItem, claimPayload, headerFields, isItemBased, itemsFrom } from '@/lib/finance/petty-spec';
 import { payeeBankProblem } from '@/lib/finance/petty-payee';
 import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
+import { fundsForExpenseType } from '@/lib/finance/petty-account-code';
 import { showAlert } from '../../api';
 import { checkDuplicate, createClaim, getExpenseTypes, getFunds, uploadPettyFiles } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, Panel } from '../../components/FinanceShell';
@@ -65,6 +66,10 @@ export default function NewPettyClaimPage() {
 
   // เปลี่ยนประเภท = เริ่มกรอกใหม่ เพราะช่องและหมวดไฟล์มาจาก spec ของประเภทนั้น
   useEffect(() => { setHeader({}); setRows([]); setFiles({}); setDups([]); }, [typeCode]);
+  // เปลี่ยนประเภทแล้ววงเงินที่เลือกไว้ไม่อยู่ในแผนกที่เบิกได้ → ล้างให้เลือกใหม่
+  useEffect(() => {
+    setFundId(id => (id && funds && !fundsForExpenseType(typeCode, funds).some(f => String(f.id) === id) ? '' : id));
+  }, [typeCode, funds]);
 
   // เตือนซ้ำขณะกรอก — ด่านจริงอยู่ที่ BE ตอนอนุมัติ ตรงนี้ให้เห็นก่อนจะส่ง
   useEffect(() => {
@@ -217,10 +222,13 @@ export default function NewPettyClaimPage() {
             <select value={fundId} onChange={e => setFundId(e.target.value)}
               className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5">
               <option value="">เลือกวงเงินสดย่อย</option>
-              {funds.map(f => (
+              {fundsForExpenseType(typeCode, funds).map(f => (
                 <option key={f.id} value={f.id}>{fundLabelWithHolder(f)}</option>
               ))}
             </select>
+            {typeCode && fundsForExpenseType(typeCode, funds).length === 0 && (
+              <span className="mt-1 block text-xs text-amber-700">ประเภทนี้ยังไม่มีวงเงินของแผนกที่บัญชีให้เบิกได้</span>
+            )}
           </label>
           <label className="text-sm">วันที่ขอเบิก
             <input type="date" value={String(header.expense_date ?? '')}
