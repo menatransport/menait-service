@@ -365,6 +365,11 @@ export function AdvanceListView({
                       {mode === 'finance' && (
                         <p className="text-xs text-gray-500 mt-0.5">ศูนย์ค่าใช้จ่าย: {item.request.cost_center ?? '-'}</p>
                       )}
+                      {mode === 'finance' && (item.fin?.voucher_no || item.fin?.clear_doc_no) && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          ใบเบิก: {item.fin?.voucher_no ?? '-'} · เอกสารบัญชีเคลียร์: {item.fin?.clear_doc_no ?? '-'}
+                        </p>
+                      )}
                       {mode === 'finance' && (
                         <p className="text-xs text-gray-500 mt-0.5">
                           วันที่โอนเงินคืนบริษัท: {formatDate(item.fin?.settle_date)}
@@ -385,19 +390,22 @@ export function AdvanceListView({
         </div>
 
         {/* Desktop table */}
-        {/* finance: 9 columns need ≥1280px; narrower screens use the cards above */}
+        {/* finance: 12 columns need ≥1280px and scroll sideways; narrower screens use the cards above */}
         <div className={`hidden ${mode === 'finance' ? 'xl:block' : 'lg:block'} overflow-x-auto ${loading ? 'min-h-52' : ''}`}>
           <table className="w-full">
             <thead className="bg-gray-100">
               <tr>
                 {mode === 'finance' ? (
                   <>
-                    <th className={FTH}>เลขที่เอกสาร</th>
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 leading-tight">เลขที่<br />ใบคำขอเบิก</th>
                     <th className={FTH}>ผู้เบิก</th>
                     <th className={FTH}>ศูนย์ค่าใช้จ่าย</th>
                     <th className={FTH}>วัตถุประสงค์</th>
                     <th className={`${FTH} text-right`}>ยอดเงิน</th>
                     <th className={FTH}>วันที่ใช้เงิน</th>
+                    <th className={FTH}>เลขที่ใบเบิก</th>
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 leading-tight">เลขที่เอกสาร<br />บัญชีเคลียร์เงิน</th>
+                    <th className="px-3 py-3 text-right text-xs font-semibold text-gray-700 leading-tight">ยอดเงินโอน<br />คืนบริษัท</th>
                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 leading-tight">วันที่โอนเงิน<br />คืนบริษัท</th>
                     <th className={FTH}>กำหนดเคลียร์</th>
                     <th className={FTH}>สถานะ</th>
@@ -417,7 +425,7 @@ export function AdvanceListView({
             <tbody className="divide-y divide-gray-100">
               {!loading && paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={mode === 'finance' ? 9 : 6} className="px-6 py-16 text-center text-gray-500">
+                  <td colSpan={mode === 'finance' ? 12 : 6} className="px-6 py-16 text-center text-gray-500">
                     <FileText size={56} className="mx-auto mb-4 text-gray-300" />
                     <p className="text-lg">ไม่มีรายการ</p>
                   </td>
@@ -447,12 +455,14 @@ export function AdvanceListView({
                       </td>
                       <td className={`${FTD} text-right tabular-nums`}>{formatBaht(item.fin?.amount_paid ?? item.request.amount)}</td>
                       <td className={`${FTD} tabular-nums`}>{formatDate(item.request.use_date)}</td>
-                      <td className={`${FTD} tabular-nums`}>
-                        <p>{formatDate(item.fin?.settle_date)}</p>
-                        {settleText(item.fin?.settle_amount) && (
-                          <p className={`text-xs font-medium ${settleTone(item.fin?.settle_amount)}`}>{settleText(item.fin?.settle_amount)}</p>
-                        )}
+                      <td className={FTD}>{item.fin?.voucher_no ?? '-'}</td>
+                      <td className={FTD}>{item.fin?.clear_doc_no ?? '-'}</td>
+                      <td className={`${FTD} text-right tabular-nums`}>
+                        {settleText(item.fin?.settle_amount) ? (
+                          <span className={`font-medium ${settleTone(item.fin?.settle_amount)}`}>{settleText(item.fin?.settle_amount)}</span>
+                        ) : '-'}
                       </td>
+                      <td className={`${FTD} tabular-nums`}>{formatDate(item.fin?.settle_date)}</td>
                       <td className={`${FTD} tabular-nums`}>{formatDate(item.fin?.clear_due_date)}</td>
                       <td className="px-3 py-2.5 align-top w-36"><StatusBadge status={item.status} overdue={item.overdue} /></td>
                     </>

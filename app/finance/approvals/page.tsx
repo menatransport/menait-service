@@ -374,12 +374,9 @@ function FinanceApprovals() {
     const result: any = await showConfirm({
       title: 'ยืนยันอนุมัติคำขอเบิกเงิน Advance',
       text: `ฟอร์ม ${item.form_id}`,
-      input: 'textarea',
-      inputLabel: 'หมายเหตุ (ถ้ามี)',
-      inputPlaceholder: 'ระบุหมายเหตุ...',
     });
     if (!result?.isConfirmed) return;
-    await submitAction(item, (result.value ?? '').trim(), 'approve');
+    await submitAction(item, '', 'approve');
   }, [submitAction]);
 
   const handleReject = useCallback(async (item: { form_id: string }) => {

@@ -3,9 +3,9 @@ import { bankLabel, formatAccountNo } from './bank';
 import { formatDate } from './status';
 
 export const EXPORT_COLUMNS = [
-  'ลำดับ', 'เลขที่เอกสาร', 'ผู้เบิก', 'แผนก', 'ศูนย์', 'สถานะ', 'เลขที่ใบเบิก', 'วันที่ตั้งเบิก', 'วันที่ใช้เงิน',
+  'ลำดับ', 'เลขที่ใบคำขอเบิก', 'ผู้เบิก', 'แผนก', 'ศูนย์', 'สถานะ', 'เลขที่ใบเบิก', 'วันที่ตั้งเบิก', 'วันที่ใช้เงิน',
   'เลขที่เอกสารจ่าย', 'วัตถุประสงค์', 'ยอดเงิน', 'วันที่โอนเงิน', 'กำหนดการเคลียร์', 'วันที่ส่งเอกสารเคลียร์', 'ยอดใช้จริง',
-  'เอกสารเคลียร์', 'รับคืน (เบิกเพิ่ม)', 'วันที่โอนเงินคืนบริษัท', 'หมายเหตุ',
+  'เลขที่เอกสารบัญชีเคลียร์เงิน', 'ยอดเงินโอนคืนบริษัท', 'วันที่โอนเงินคืนบริษัท', 'หมายเหตุ',
   'ศูนย์ค่าใช้จ่าย', 'ธนาคาร', 'เลขที่บัญชี', 'ชื่อบัญชี',
 ] as const;
 
@@ -16,7 +16,7 @@ const d = (value: string | null | undefined) => (value ? formatDate(value) : '')
 export function toSheetRows(items: AdvanceItem[]): Row[] {
   return items.map((it, idx) => ({
     'ลำดับ': idx + 1,
-    'เลขที่เอกสาร': it.form_id,
+    'เลขที่ใบคำขอเบิก': it.form_id,
     'ผู้เบิก': it.requester.name ?? it.requester.employee_id,
     'แผนก': it.requester.department ?? '',
     'ศูนย์': it.requester.site_code ?? it.requester.site ?? '',
@@ -31,8 +31,8 @@ export function toSheetRows(items: AdvanceItem[]): Row[] {
     'กำหนดการเคลียร์': d(it.fin?.clear_due_date),
     'วันที่ส่งเอกสารเคลียร์': d(it.fin?.clear_date),
     'ยอดใช้จริง': it.fin?.amount_actual ?? null,
-    'เอกสารเคลียร์': it.fin?.clear_doc_no ?? '',
-    'รับคืน (เบิกเพิ่ม)': it.fin?.settle_amount ?? null,
+    'เลขที่เอกสารบัญชีเคลียร์เงิน': it.fin?.clear_doc_no ?? '',
+    'ยอดเงินโอนคืนบริษัท': it.fin?.settle_amount ?? null,
     'วันที่โอนเงินคืนบริษัท': d(it.fin?.settle_date),
     'หมายเหตุ': it.fin?.remark ?? '',
     'ศูนย์ค่าใช้จ่าย': it.request.cost_center ?? '',
