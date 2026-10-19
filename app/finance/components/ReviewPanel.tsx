@@ -11,7 +11,8 @@ import type { AdvanceDetail } from '../types';
 import { FilePicker } from './FilePicker';
 import { Panel } from './FinanceShell';
 
-export function ReviewPanel({ detail, onSaved }: { detail: AdvanceDetail; onSaved: (d: AdvanceDetail) => void }) {
+export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = true }:
+  { detail: AdvanceDetail; onSaved: (d: AdvanceDetail) => void; canSendBack?: boolean; canClose?: boolean }) {
   const settle = detail.fin?.settle_amount ?? 0;
   const needsExtraDate = settle < 0;
   const [extraDate, setExtraDate] = useState('');
@@ -81,17 +82,21 @@ export function ReviewPanel({ detail, onSaved }: { detail: AdvanceDetail; onSave
         <label className="block space-y-1 text-sm">เอกสารเคลียร์ (เลขที่/รายการ)
           <Input value={clearDocNo} onChange={e => setClearDocNo(e.target.value)} disabled={saving} />
         </label>
-        <Button type="button" onClick={confirm} disabled={saving} className="w-full h-11 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-60">
-          ยืนยันปิดรายการ
-        </Button>
-        <div className="space-y-2 border-t border-gray-100 pt-4">
-          <label className="block space-y-1 text-sm">เหตุผลที่ส่งกลับแก้ไข
-            <Textarea value={remark} onChange={e => setRemark(e.target.value)} disabled={saving} placeholder="เช่น ใบเสร็จไม่ครบ" />
-          </label>
-          <Button type="button" variant="outline" onClick={sendBack} disabled={saving} className="w-full h-11 rounded-xl border-orange-300 text-sun-700 hover:bg-orange-50">
-            ส่งกลับแก้ไข
+        {canClose && (
+          <Button type="button" onClick={confirm} disabled={saving} className="w-full h-11 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-60">
+            ยืนยันปิดรายการ
           </Button>
-        </div>
+        )}
+        {canSendBack && (
+          <div className="space-y-2 border-t border-gray-100 pt-4">
+            <label className="block space-y-1 text-sm">เหตุผลที่ส่งกลับแก้ไข
+              <Textarea value={remark} onChange={e => setRemark(e.target.value)} disabled={saving} placeholder="เช่น ใบเสร็จไม่ครบ" />
+            </label>
+            <Button type="button" variant="outline" onClick={sendBack} disabled={saving} className="w-full h-11 rounded-xl border-orange-300 text-sun-700 hover:bg-orange-50">
+              ส่งกลับแก้ไข
+            </Button>
+          </div>
+        )}
       </div>
     </Panel>
   );

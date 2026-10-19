@@ -14,6 +14,8 @@ import { PayForm } from './PayForm';
 import { ReviewPanel } from './ReviewPanel';
 import { VoucherForm } from './VoucherForm';
 import { latestReturnRemark } from '@/lib/finance/returnInfo';
+import { PERM, can } from '@/lib/finance/permissions';
+import { useFinancePermissions } from '../usePermissions';
 
 export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; onChanged?: () => void }) {
   const [detail, setDetail] = useState<AdvanceDetail | null>(null);
@@ -30,6 +32,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
 
   const onSaved = (d: AdvanceDetail) => { setDetail(d); setRefreshKey(k => k + 1); onChanged?.(); };
 
+  const perms = useFinancePermissions();
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
 
@@ -80,8 +83,12 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
   if (error) return <NoAccess text={error} />;
   if (!detail) return <Panel title="รายละเอียดคำขอ"><div className="py-8"><MascotLoader text="กำลังโหลดรายละเอียด" size={80} /></div></Panel>;
 
-  const canVoucher = detail.status === 'AWAITING_VOUCHER';
-  const canPay = ['AWAITING_PAYMENT', 'AWAITING_CLEARING'].includes(detail.status);
+  const atVoucher = detail.status === 'AWAITING_VOUCHER';
+  const atPay = ['AWAITING_PAYMENT', 'AWAITING_CLEARING'].includes(detail.status);
+  const canVoucher = atVoucher && can(perms, PERM.voucher);
+  const canPay = atPay && can(perms, PERM.pay);
+  const canReturn = (atVoucher || detail.status === 'AWAITING_PAYMENT') && can(perms, PERM.return);
+  const canRemind = can(perms, PERM.overdueRemind);
 
   return (
     <>
@@ -90,7 +97,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
       <Panel title="ไฟล์แนบทุกขั้นตอน">
         <div className="grid gap-5 sm:grid-cols-2">
           <AttachmentPanel formId={formId} folder="request" refreshKey={refreshKey} />
-          <AttachmentPanel formId={formId} folder="pay" canUpload={Boolean(canPay)} refreshKey={refreshKey} />
+          <AttachmentPanel formId={formId} folder="pay" canUpload={canPay} refreshKey={refreshKey} />
           <AttachmentPanel formId={formId} folder="clear" refreshKey={refreshKey} />
           <AttachmentPanel formId={formId} folder="check" canUpload={detail.status === 'AWAITING_REVIEW'} refreshKey={refreshKey} />
         </div>
@@ -100,7 +107,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
           ตีกลับให้ผู้เบิกแก้ไข — รอผู้เบิกแก้ไขและส่งใหม่: {latestReturnRemark(detail.fin_logs) || '-'}
         </p>
       )}
-      {(canVoucher || detail.status === 'AWAITING_PAYMENT') && (
+      {canReturn && (
         <div className="mb-4">
           <Button type="button" variant="outline" onClick={returnToRequester} disabled={busy}
             className="border-rose-400 text-rose-600 hover:bg-rose-50 hover:text-rose-700">
@@ -108,14 +115,17 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
           </Button>
         </div>
       )}
-      {detail.overdue && (
+      {detail.overdue && canRemind && (
         <div className="mb-4">
           <Button type="button" variant="outline" onClick={sendReminder} disabled={busy}>ส่งแจ้งเตือน</Button>
         </div>
       )}
       {canVoucher && <VoucherForm key={`v-${refreshKey}`} detail={detail} onSaved={onSaved} />}
       {canPay && <PayForm key={`pay-${refreshKey}`} detail={detail} onSaved={onSaved} />}
-      {detail.status === 'AWAITING_REVIEW' && <ReviewPanel key={`rev-${refreshKey}`} detail={detail} onSaved={onSaved} />}
+      {detail.status === 'AWAITING_REVIEW' && (
+        <ReviewPanel key={`rev-${refreshKey}`} detail={detail} onSaved={onSaved}
+          canSendBack={can(perms, PERM.clearingReview)} canClose={can(perms, PERM.close)} />
+      )}
       <LogList approvalLogs={detail.approval_logs} finLogs={detail.fin_logs} />
     </>
   );

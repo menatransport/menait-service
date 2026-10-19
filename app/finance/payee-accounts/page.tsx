@@ -11,6 +11,8 @@ import { fetchJson, showAlert } from '../api';
 import { FinanceCanvas, FinanceHeading, NoAccess } from '../components/FinanceShell';
 import { MasterTab } from '../components/payee/MasterTab';
 import { RequestReviewDialog, RequestsTab } from '../components/payee/RequestsTab';
+import { PERM, can } from '@/lib/finance/permissions';
+import { useFinancePermissions } from '../usePermissions';
 
 const TITLE = 'บัญชีรับเงินพนักงาน';
 const CAPTION = 'ตรวจคำขอและจัดการบัญชีรับเงิน (K-Bank) ของพนักงาน';
@@ -29,6 +31,8 @@ function PayeeAccountsContent() {
   const [openId, setOpenId] = useState<number | null>(null);
 
   const isFinance = !!user?.is_finance;
+  const perms = useFinancePermissions();
+  const canManagePayees = can(perms, PERM.payeeAdmin);
 
   useEffect(() => { if (isFinance && deepId !== null) { setOpenId(deepId); setTab('requests'); } }, [isFinance, deepId]);
   useEffect(() => { const t = setTimeout(() => setDebounced(query.trim()), 300); return () => clearTimeout(t); }, [query]);
@@ -77,11 +81,11 @@ function PayeeAccountsContent() {
           {tab === 'requests' ? (
             <RequestsTab requests={requests} loading={requests === null} onOpen={setOpenId} />
           ) : (
-            <MasterTab accounts={accounts} loading={accounts === null} query={query} onQueryChange={setQuery} onChanged={refetchBoth} />
+            <MasterTab accounts={accounts} loading={accounts === null} query={query} onQueryChange={setQuery} onChanged={refetchBoth} canManage={canManagePayees} />
           )}
         </section>
       </Tabs>
-      {isFinance && <RequestReviewDialog requestId={openId} onClose={closeReview} onChanged={refetchBoth} />}
+      {isFinance && canManagePayees && <RequestReviewDialog requestId={openId} onClose={closeReview} onChanged={refetchBoth} />}
     </FinanceCanvas>
   );
 }

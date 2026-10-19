@@ -30,18 +30,18 @@ function StatusPill({ status }: { status: PayeeAccount['status'] }) {
   );
 }
 
-function RowActions({ a, onEdit, onToggle, onLogs }: { a: PayeeAccount; onEdit: () => void; onToggle: () => void; onLogs: () => void }) {
+function RowActions({ a, onEdit, onToggle, onLogs, canEdit = true }: { a: PayeeAccount; onEdit: () => void; onToggle: () => void; onLogs: () => void; canEdit?: boolean }) {
   return (
     <div className="flex items-center gap-1">
-      <button type="button" className={ICON_BTN} title="แก้ไข" aria-label="แก้ไข" onClick={onEdit}><Pencil className="size-4" /></button>
-      <button type="button" className={ICON_BTN} title={a.status === 'ACTIVE' ? 'ปิดใช้งาน' : 'เปิดใช้งาน'} aria-label={a.status === 'ACTIVE' ? 'ปิดใช้งาน' : 'เปิดใช้งาน'} onClick={onToggle}><Power className="size-4" /></button>
+      {canEdit && <button type="button" className={ICON_BTN} title="แก้ไข" aria-label="แก้ไข" onClick={onEdit}><Pencil className="size-4" /></button>}
+      {canEdit && <button type="button" className={ICON_BTN} title={a.status === 'ACTIVE' ? 'ปิดใช้งาน' : 'เปิดใช้งาน'} aria-label={a.status === 'ACTIVE' ? 'ปิดใช้งาน' : 'เปิดใช้งาน'} onClick={onToggle}><Power className="size-4" /></button>}
       <button type="button" className={ICON_BTN} title="ประวัติ" aria-label="ประวัติ" onClick={onLogs}><History className="size-4" /></button>
     </div>
   );
 }
 
-export function MasterTab({ accounts, loading, query, onQueryChange, onChanged }: {
-  accounts: PayeeAccount[] | null; loading: boolean; query: string; onQueryChange: (q: string) => void; onChanged: () => void | Promise<void>;
+export function MasterTab({ accounts, loading, query, onQueryChange, onChanged, canManage = true }: {
+  accounts: PayeeAccount[] | null; loading: boolean; query: string; onQueryChange: (q: string) => void; onChanged: () => void | Promise<void>; canManage?: boolean;
 }) {
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<PayeeAccount | null>(null);
@@ -82,7 +82,7 @@ export function MasterTab({ accounts, loading, query, onQueryChange, onChanged }
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
           <Input value={query} onChange={e => onQueryChange(e.target.value)} placeholder="ค้นหาชื่อ / รหัสพนักงาน / เลขที่บัญชี" className="pl-9" aria-label="ค้นหา" />
         </div>
-        <button type="button" className={BTN_PRIMARY} onClick={() => setAddOpen(true)}><Plus className="size-4" />เพิ่มบัญชี</button>
+        {canManage && <button type="button" className={BTN_PRIMARY} onClick={() => setAddOpen(true)}><Plus className="size-4" />เพิ่มบัญชี</button>}
       </div>
 
       {loading ? (
@@ -108,7 +108,7 @@ export function MasterTab({ accounts, loading, query, onQueryChange, onChanged }
                 <p className="text-xs text-gray-600">{a.account_name}</p>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-gray-500">แก้ไขล่าสุด {formatDate(a.updated_at)}{a.updated_by_name ? ` · ${a.updated_by_name}` : ''}</p>
-                  <RowActions a={a} onEdit={() => setEditing(a)} onToggle={() => toggle(a)} onLogs={() => setLogsFor(a)} />
+                  <RowActions a={a} onEdit={() => setEditing(a)} onToggle={() => toggle(a)} onLogs={() => setLogsFor(a)} canEdit={canManage} />
                 </div>
               </div>
             ))}
@@ -133,7 +133,7 @@ export function MasterTab({ accounts, loading, query, onQueryChange, onChanged }
                     <td className="px-3 py-2.5 text-sm align-top">{a.account_name}</td>
                     <td className="px-3 py-2.5 align-top"><StatusPill status={a.status} /></td>
                     <td className="px-3 py-2.5 text-xs align-top text-gray-600">{formatDate(a.updated_at)}{a.updated_by_name ? <><br />{a.updated_by_name}</> : null}</td>
-                    <td className="px-3 py-2.5 align-top"><RowActions a={a} onEdit={() => setEditing(a)} onToggle={() => toggle(a)} onLogs={() => setLogsFor(a)} /></td>
+                    <td className="px-3 py-2.5 align-top"><RowActions a={a} onEdit={() => setEditing(a)} onToggle={() => toggle(a)} onLogs={() => setLogsFor(a)} canEdit={canManage} /></td>
                   </tr>
                 ))}
               </tbody>
