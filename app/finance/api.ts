@@ -14,7 +14,8 @@ export async function fetchJson<T>(url: string, init: RequestInit = {}): Promise
   return data as T;
 }
 
-export type AdvanceAction = 'voucher' | 'pay' | 'clear' | 'send-back' | 'confirm' | 'return' | 'resubmit';
+export type AdvanceAction = 'voucher' | 'pay' | 'clear' | 'send-back' | 'confirm' | 'return' | 'resubmit'
+  | 'clear-approve' | 'clear-reject';
 
 export function putAction(formId: string, action: AdvanceAction, body: Record<string, unknown>) {
   return fetchJson<AdvanceDetail>(`/api/finance/advances/${encodeURIComponent(formId)}`, {

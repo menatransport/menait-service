@@ -9,6 +9,8 @@ import { PrintDocumentButton } from './PrintDocumentButton';
 import { AttachmentPanel } from './AttachmentPanel';
 import { NoAccess, Panel } from './FinanceShell';
 import { MascotLoader } from '@/components/loading';
+import { ClearApprovalPanel } from './ClearApprovalPanel';
+import { useClearApprovals } from '../useClearApprovals';
 import { LogList } from './LogList';
 import { PayForm } from './PayForm';
 import { ReviewPanel } from './ReviewPanel';
@@ -33,6 +35,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
   const onSaved = (d: AdvanceDetail) => { setDetail(d); setRefreshKey(k => k + 1); onChanged?.(); };
 
   const perms = useFinancePermissions();
+  const clearQueue = useClearApprovals(refreshKey);
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
 
@@ -122,6 +125,14 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
       )}
       {canVoucher && <VoucherForm key={`v-${refreshKey}`} detail={detail} onSaved={onSaved} />}
       {canPay && <PayForm key={`pay-${refreshKey}`} detail={detail} onSaved={onSaved} />}
+      {detail.status === 'CLEARING_APPROVAL' && clearQueue?.includes(detail.form_id) && (
+        <ClearApprovalPanel key={`ca-${refreshKey}`} detail={detail} onSaved={onSaved} />
+      )}
+      {detail.status === 'CLEARING_APPROVAL' && clearQueue && !clearQueue.includes(detail.form_id) && (
+        <p className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          รออนุมัติการเคลียร์จากหัวหน้า — ยังไม่ถึงคิวบัญชีตรวจ
+        </p>
+      )}
       {detail.status === 'AWAITING_REVIEW' && (
         <ReviewPanel key={`rev-${refreshKey}`} detail={detail} onSaved={onSaved}
           canSendBack={can(perms, PERM.clearingReview)} canClose={can(perms, PERM.close)} />

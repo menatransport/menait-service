@@ -28,10 +28,12 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 export async function PUT(req: NextRequest, { params }: Ctx) {
   const { form_id } = await params;
   const { action, ...fields } = await req.json();
-  if (action !== 'clear' && action !== 'resubmit' && !FINANCE_ACTIONS.has(action)) {
+  // ด่านอนุมัติการเคลียร์: คนอนุมัติคือหัวหน้า/ผู้มีอำนาจ ไม่ใช่ฝ่ายการเงิน BE เป็นคนตรวจอำนาจจริง
+  const OWNER_OR_APPROVER = new Set(['clear', 'resubmit', 'clear-approve', 'clear-reject']);
+  if (!OWNER_OR_APPROVER.has(action) && !FINANCE_ACTIONS.has(action)) {
     return NextResponse.json({ error: 'action ไม่ถูกต้อง' }, { status: 400 });
   }
-  const guard = action === 'clear' || action === 'resubmit' ? await requireUser(req) : await requireFinance(req);
+  const guard = OWNER_OR_APPROVER.has(action) ? await requireUser(req) : await requireFinance(req);
   if ('error' in guard) return guard.error;
   if (action === 'clear') {
     if (!FORM_ID_PATTERN.test(form_id)) return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });

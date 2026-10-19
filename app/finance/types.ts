@@ -79,8 +79,18 @@ export interface FinLog {
   created_at: string | null;
 }
 
+/** ด่านอนุมัติการเคลียร์ (19/10/2026) — มีค่าเฉพาะตอนสถานะ CLEARING_APPROVAL */
+export interface ClearApprovalInfo {
+  step: number;
+  total_steps: number;
+  clause?: string | null;
+  required_level?: number | null;
+  can_approve?: boolean;
+}
+
 export interface AdvanceDetail extends AdvanceItem {
   approval?: ApprovalTierInfo | null;
+  clear_approval?: ClearApprovalInfo | null;
   approval_logs: ApprovalLog[];
   fin_logs: FinLog[];
 }

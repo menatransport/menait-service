@@ -12,6 +12,8 @@ import { AttachmentPanel } from './AttachmentPanel';
 import { ClearForm } from './ClearForm';
 import { NoAccess, Panel } from './FinanceShell';
 import { MascotLoader } from '@/components/loading';
+import { ClearApprovalPanel } from './ClearApprovalPanel';
+import { useClearApprovals } from '../useClearApprovals';
 import { LogList } from './LogList';
 import { ShareApprovalLink } from './ShareApprovalLink';
 
@@ -22,6 +24,7 @@ export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChang
   const [detail, setDetail] = useState<AdvanceDetail | null>(null);
   const [error, setError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const clearQueue = useClearApprovals(refreshKey);
 
   const load = useCallback(() => {
     fetchJson<AdvanceDetail>(`/api/finance/advances/${encodeURIComponent(formId)}`)
@@ -59,6 +62,9 @@ export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChang
           )}
         </div>
       </Panel>
+      {detail.status === 'CLEARING_APPROVAL' && clearQueue?.includes(detail.form_id) && (
+        <ClearApprovalPanel key={`ca-${refreshKey}`} detail={detail} onSaved={onSaved} />
+      )}
       {detail.fin && CLEARABLE.has(detail.status) && <ClearForm key={refreshKey} detail={detail} onSaved={onSaved} />}
       {detail.status === 'AWAITING_REVIEW' && (
         <p className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">
