@@ -4,6 +4,7 @@ import { formatBkkDateTime } from '@/lib/finance/printShared';
 import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
 import type { AdvanceDetail, AdvanceItem, ApprovalTierInfo, ClearItem } from '../types';
 import { CLAIM_TITLE } from '@/lib/finance/clearingForm';
+import { sentBackLabel } from '@/lib/finance/historyLog';
 import { PrintDocumentButton } from './PrintDocumentButton';
 import { Field, Panel } from './FinanceShell';
 import { StatusBadge } from './StatusBadge';
@@ -128,7 +129,7 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
 
       {item.status === 'SENT_BACK' && fin?.review_remark && (
         <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-sun-700">
-          <span className="font-semibold">การเงินส่งกลับแก้ไข:</span> {fin.review_remark}
+          <span className="font-semibold">{sentBackLabel(detail?.fin_logs ?? [])}:</span> {fin.review_remark}
         </div>
       )}
     </>

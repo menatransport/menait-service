@@ -1,6 +1,6 @@
 /** ประวัติของใบ: การอนุมัติเคลียร์ต้องขึ้นเป็นคำไทย และเรียงตามเวลาร่วมกับขั้นตอนการเงิน (UAT A12, G1–G4) */
 import { describe, expect, test } from 'bun:test';
-import { clearSubmittedTitle, financeHistory, voucherInboxHref } from './historyLog';
+import { clearSubmittedTitle, financeHistory, sentBackLabel, voucherInboxHref } from './historyLog';
 import { LOG_ACTION_LABELS } from '@/app/finance/labels';
 
 const fin = (action: string, at: string, remark: string | null = null) =>
@@ -50,4 +50,18 @@ describe('voucherInboxHref', () => {
   test('ป๊อปอัปรอตั้งเบิกพาไปหน้างานการเงินที่มีปุ่มตั้งเบิก', () => {
     expect(voucherInboxHref('ADV-2610-001')).toBe('/finance/ADV-2610-001');
   });
+});
+
+describe('sentBackLabel', () => {
+  test('หัวหน้าไม่อนุมัติการเคลียร์ ต้องไม่บอกว่าการเงินส่งกลับ', () => {
+    expect(sentBackLabel([fin('CLEAR_SUBMIT', '2026-10-27T02:00:00Z'), fin('CLEAR_REJECT', '2026-10-27T03:00:00Z', 'ใบเสร็จไม่ตรง')]))
+      .toBe('หัวหน้าไม่อนุมัติการเคลียร์');
+  });
+  test('บัญชีตรวจแล้วส่งกลับ', () => {
+    expect(sentBackLabel([fin('CLEAR_SUBMIT', '2026-10-27T02:00:00Z'), fin('SEND_BACK', '2026-10-27T03:00:00Z', 'ขาดใบเสร็จ')])).toBe('บัญชีส่งกลับแก้ไข');
+  });
+  test('ดูครั้งล่าสุด', () => {
+    expect(sentBackLabel([fin('CLEAR_REJECT', '2026-10-27T03:00:00Z'), fin('CLEAR_SUBMIT', '2026-10-27T04:00:00Z'), fin('SEND_BACK', '2026-10-27T05:00:00Z')])).toBe('บัญชีส่งกลับแก้ไข');
+  });
+  test('ไม่มีประวัติ ใช้คำกลาง', () => expect(sentBackLabel([])).toBe('ส่งกลับแก้ไข'));
 });

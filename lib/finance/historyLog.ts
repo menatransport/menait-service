@@ -48,3 +48,11 @@ export function clearSubmittedTitle(status: string | undefined): string {
 
 /** ป๊อปอัป "มีใบคำขอเบิกใหม่รอตั้งเบิก" เปิดหน้างานการเงิน ซึ่งมีฟอร์มตั้งเบิก */
 export const voucherInboxHref = (formId: string) => `/finance/${formId}`;
+
+/** หัวกล่องสีส้มตอนใบถูกส่งกลับให้ผู้เบิกเคลียร์ใหม่ — บอกว่าใครส่งกลับ ดูจากครั้งล่าสุด */
+export function sentBackLabel(finLogs: FinLog[]): string {
+  const last = [...finLogs].reverse().find(l => l.action === 'CLEAR_REJECT' || l.action === 'SEND_BACK');
+  if (last?.action === 'CLEAR_REJECT') return 'หัวหน้าไม่อนุมัติการเคลียร์';
+  if (last?.action === 'SEND_BACK') return 'บัญชีส่งกลับแก้ไข';
+  return 'ส่งกลับแก้ไข';
+}
