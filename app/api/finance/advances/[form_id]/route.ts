@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { BASE_PATH, FORM_ID_PATTERN, hasFiles } from '@/lib/s3';
 import { CLEAR_ATTACHMENT_REQUIRED } from '@/app/finance/labels';
-import { beUrl, proxy, requireFinance, requireUser } from '@/lib/finance/server';
+import { beUrl, canViewAdv, proxy, requireFinance, requireUser } from '@/lib/finance/server';
 
 const FINANCE_ACTIONS = new Set(['voucher', 'pay', 'send-back', 'confirm', 'return']);
 
@@ -15,7 +15,10 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     const res = await fetch(beUrl(`/finance/advances/${encodeURIComponent(form_id)}`), { cache: 'no-store' });
     const data = await res.json().catch(() => null);
     if (!res.ok) return NextResponse.json({ error: data?.detail ?? 'ไม่พบรายการ' }, { status: res.status });
-    if (!guard.user.is_finance && data?.requester?.employee_id !== guard.user.employee_id) {
+    // การเงิน ผู้เบิก และผู้อนุมัติ (ทั้งอนุมัติเบิกและอนุมัติเคลียร์) เปิดดูได้ — กติกาเดียวกับไฟล์แนบและ formselect
+    const allowed = guard.user.is_finance || data?.requester?.employee_id === guard.user.employee_id
+      || (await canViewAdv(guard.user, form_id));
+    if (!allowed) {
       return NextResponse.json({ error: 'ไม่มีสิทธิ์ดูรายการนี้' }, { status: 403 });
     }
     return NextResponse.json(data);
