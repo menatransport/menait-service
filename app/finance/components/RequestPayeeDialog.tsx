@@ -10,8 +10,10 @@ import { fetchJson, showAlert, uploadPayeeFiles } from '../api';
 import { FilePicker } from './FilePicker';
 
 /** Dialog: request a new (or changed) K-Bank own-account payee. Calls onDone after the request is created. */
-export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone }: {
+export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone, isChange = false }: {
   open: boolean; onOpenChange: (open: boolean) => void; defaultName: string; onDone: () => void | Promise<void>;
+  /** มีบัญชีใน Master อยู่แล้ว = ขอเปลี่ยน ไม่ใช่ขอเพิ่ม */
+  isChange?: boolean;
 }) {
   const [accountNo, setAccountNo] = useState('');
   const [accountName, setAccountName] = useState(defaultName);
@@ -73,7 +75,7 @@ export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone }: 
     <Dialog open={open} onOpenChange={(o) => { if (!busy) onOpenChange(o); }}>
       <DialogContent className="max-h-[92vh] overflow-y-auto rounded-2xl sm:max-w-lg">
         <DialogHeader className="text-left">
-          <DialogTitle className="text-lg font-semibold text-brand-800">ขอเพิ่มบัญชีรับเงิน</DialogTitle>
+          <DialogTitle className="text-lg font-semibold text-brand-800">{isChange ? 'ขอเปลี่ยนบัญชีรับเงิน' : 'ขอเพิ่มบัญชีรับเงิน'}</DialogTitle>
           <DialogDescription className="text-xs text-gray-500">บัญชีกสิกรไทยของตัวเอง — ส่งให้บัญชีตรวจสอบก่อนใช้งาน</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">

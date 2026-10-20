@@ -244,7 +244,7 @@ export function PayeeAccountSection({ errors, onPayeeChange, onStatusChange, ful
         {radio(PAYEE_SUPPLIER, 'บัญชี Supplier')}
       </div>
       {type === PAYEE_SELF ? selfBody() : supplierBody()}
-      <RequestPayeeDialog open={dialogOpen} onOpenChange={setDialogOpen} defaultName={fullName} onDone={loadMe} />
+      <RequestPayeeDialog open={dialogOpen} onOpenChange={setDialogOpen} defaultName={fullName} onDone={loadMe} isChange={!!account} />
     </div>
   );
 }

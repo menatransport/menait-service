@@ -84,3 +84,12 @@ describe('clearSlipMissing — สลิปโอนเงินตอนคื�
     expect(clearSlipMissing({ ...base, settle: 0 })).toBe(false);
   });
 });
+
+import { amountError } from './status';
+
+describe('amountError — ช่องจำนวนเงินที่ขอเบิก', () => {
+  test('มีสตางค์ได้', () => { expect(amountError('1250.50')).toBeNull(); expect(amountError('1,250.5')).toBeNull(); });
+  test('ศูนย์หรือติดลบไม่ได้', () => { expect(amountError('0')).toBe('จำนวนเงินต้องมากกว่า 0'); expect(amountError('-5')).toBe('จำนวนเงินต้องมากกว่า 0'); });
+  test('ทศนิยมเกิน 2 ตำแหน่ง', () => expect(amountError('12.345')).toBe('ใส่ทศนิยมได้ไม่เกิน 2 ตำแหน่ง'));
+  test('เกินที่ฐานข้อมูลเก็บได้', () => expect(amountError('99999999999999999')).toBe('จำนวนเงินมากเกินไป ใส่ได้ไม่เกิน 9,999,999,999.99 บาท'));
+});

@@ -210,3 +210,28 @@ describe('expense claim form (Part 2)', () => {
     expect(render('both-noatt-sample', buildCombinedHtml(toCashAdvanceData(d), toClearingData(d), { logoUrl: logo }))).toBe('PL');
   }, 180000);
 });
+
+describe('Part 2 — ลายเซ็นผู้อนุมัติการเคลียร์', () => {
+  const log = (step: number, action: string, at: string, name: string | null = null) =>
+    ({ step, action, remark: null, action_by: `E${step}`, action_by_name: name, created_at: at });
+  test('อนุมัติขั้นเดียว ลงช่องผู้มีอำนาจอนุมัติ', () => {
+    const d = toClearingData(detail({ status: 'AWAITING_REVIEW', clear_logs: [log(1, 'SUBMITTED', '2026-10-20T02:00:00Z'), log(1, 'APPROVED', '2026-10-20T03:00:00Z', 'ศิวพร ม่วงสวย')] }));
+    expect(d.signatures.approver?.name).toBe('ศิวพร ม่วงสวย');
+    expect(d.signatures.unit_head?.name ?? '').toBe('');
+    expect(buildClearingHtml(d, {})).toContain('ศิวพร ม่วงสวย');
+  });
+  test('สองขั้น: ขั้น 1 หัวหน้าหน่วยงาน ขั้น 2 ผู้มีอำนาจอนุมัติ และนับเฉพาะรอบล่าสุด', () => {
+    const d = toClearingData(detail({ status: 'AWAITING_REVIEW', clear_logs: [
+      log(1, 'SUBMITTED', '2026-10-19T02:00:00Z'), log(1, 'APPROVED', '2026-10-19T03:00:00Z', 'คนรอบเก่า'), log(2, 'REJECTED', '2026-10-19T04:00:00Z'),
+      log(1, 'SUBMITTED', '2026-10-20T02:00:00Z'), log(1, 'APPROVED', '2026-10-20T03:00:00Z', 'ศิวพร ม่วงสวย'), log(2, 'APPROVED', '2026-10-20T04:00:00Z', 'ชยพล บุญมา'),
+    ] }));
+    expect(d.signatures.unit_head?.name).toBe('ศิวพร ม่วงสวย');
+    expect(d.signatures.approver?.name).toBe('ชยพล บุญมา');
+    expect(buildClearingHtml(d, {})).not.toContain('คนรอบเก่า');
+  });
+  test('ยังรอขั้น 2 อยู่: ขั้น 1 ลงช่องหัวหน้าหน่วยงาน ช่องผู้มีอำนาจยังว่าง', () => {
+    const d = toClearingData(detail({ status: 'CLEARING_APPROVAL', clear_logs: [log(1, 'SUBMITTED', '2026-10-20T02:00:00Z'), log(1, 'APPROVED', '2026-10-20T03:00:00Z', 'ศิวพร ม่วงสวย')] }));
+    expect(d.signatures.unit_head?.name).toBe('ศิวพร ม่วงสวย');
+    expect(d.signatures.approver?.name ?? '').toBe('');
+  });
+});

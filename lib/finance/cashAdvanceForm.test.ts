@@ -11,6 +11,7 @@ describe('cash advance form', () => {
     expect(PRINTABLE_STATUSES).toContain('AWAITING_CLEARING');
     expect(PRINTABLE_STATUSES).toContain('SENT_BACK');
     expect(PRINTABLE_STATUSES).toContain('AWAITING_REVIEW');
+    expect(PRINTABLE_STATUSES).toContain('CLEARING_APPROVAL');
     expect(PRINTABLE_STATUSES).toContain('CLOSED');
     expect(PRINTABLE_STATUSES).not.toContain('PENDING_APPROVAL');
     expect(PRINTABLE_STATUSES).not.toContain('REJECTED');

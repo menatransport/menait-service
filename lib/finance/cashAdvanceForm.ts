@@ -7,7 +7,7 @@ import { documentControlFooter, esc, formatBkkDateTime, money, printedNow, stamp
 
 export { formatBkkDateTime };
 
-export const PRINTABLE_STATUSES = ['AWAITING_VOUCHER', 'AWAITING_PAYMENT', 'AWAITING_CLEARING', 'SENT_BACK', 'AWAITING_REVIEW', 'CLOSED'];
+export const PRINTABLE_STATUSES = ['AWAITING_VOUCHER', 'AWAITING_PAYMENT', 'AWAITING_CLEARING', 'SENT_BACK', 'CLEARING_APPROVAL', 'AWAITING_REVIEW', 'CLOSED'];
 
 export { CENTER_OPTIONS } from './centers';
 

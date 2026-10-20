@@ -12,7 +12,7 @@ import type { Question } from '@/app/service/[[...slug]]/page';
 import { useSessionContext } from '@/app/context/SessionContext';
 import { accountNoError, normalizeAccountNo } from '@/lib/finance/bank';
 import { isBeforeToday } from '@/lib/finance/dates';
-import { parseAmount, todayBkk } from '@/lib/finance/status';
+import { amountError, parseAmount, todayBkk } from '@/lib/finance/status';
 import { stepChainText } from '@/lib/finance/approvalSteps';
 import type { AdvanceDetail, ApprovalTierInfo, AttachmentFile } from '../../types';
 import { fetchJson, putAction, showAlert, uploadFiles } from '../../api';
@@ -146,8 +146,8 @@ function NewAdvance() {
       if (hasPayeeType && payeeNames.includes(q.name)) continue;
       if (q.required && isBlank(values[q.name])) next[q.name] = `กรุณาระบุ${q.label}`;
       if (q.type === 'number' && !isBlank(values[q.name])) {
-        const amount = parseAmount(values[q.name]);
-        if (amount === null || amount <= 0) next[q.name] = 'จำนวนเงินต้องมากกว่า 0';
+        const err = amountError(values[q.name] as string);
+        if (err) next[q.name] = err;
       }
       if (useDateQuestion && q.id === useDateQuestion.id && !isBlank(values[q.name]) &&
         isBeforeToday(values[q.name], todayBkk())) {

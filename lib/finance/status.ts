@@ -78,6 +78,19 @@ export function clearSlipMissing(o: { settle: number | null; newFiles: number; e
   return !(o.existingFiles > 0 && (o.priorSettle ?? 0) > 0);
 }
 
+/** ยอดเงินสูงสุดที่คอลัมน์ Numeric(12,2) ของ BE เก็บได้ */
+export const MAX_AMOUNT = 9_999_999_999.99;
+
+/** ตรวจช่องจำนวนเงินที่ขอเบิก คืนข้อความภาษาไทย หรือ null ถ้าใช้ได้ */
+export function amountError(raw: string | number | null | undefined): string | null {
+  const text = typeof raw === 'number' ? String(raw) : (raw ?? '').replace(/,/g, '').trim();
+  const n = parseAmount(text);
+  if (n === null || n <= 0) return 'จำนวนเงินต้องมากกว่า 0';
+  if (/\.\d{3,}$/.test(text)) return 'ใส่ทศนิยมได้ไม่เกิน 2 ตำแหน่ง';
+  if (n > MAX_AMOUNT) return 'จำนวนเงินมากเกินไป ใส่ได้ไม่เกิน 9,999,999,999.99 บาท';
+  return null;
+}
+
 export function settleLabel(settle: number | null | undefined): string {
   if (settle === null || settle === undefined) return '-';
   if (settle > 0) return 'รับคืน';

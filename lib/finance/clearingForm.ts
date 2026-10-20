@@ -66,7 +66,8 @@ export interface ClearingFormData {
   items: ClaimRow[];
   /** หัก เงินเบิกล่วงหน้า */
   amount_paid: number | null;
-  signatures: { requester: ClearingSignature; accounting: ClearingSignature };
+  /** unit_head/approver = ผู้อนุมัติการเคลียร์ในรอบล่าสุด (ไม่มีด่านอนุมัติ = ว่าง) */
+  signatures: { requester: ClearingSignature; accounting: ClearingSignature; unit_head?: ClearingSignature; approver?: ClearingSignature };
 }
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
@@ -80,6 +81,26 @@ const toRow = (i: ClearItem): ClaimRow => ({
   vat_amount: num(i.vat_amount),
   wht_amount: num(i.wht_amount),
 });
+
+/**
+ * ผู้อนุมัติการเคลียร์ของรอบล่าสุด (หลัง SUBMITTED ครั้งสุดท้าย) → ช่องลายเซ็น ตามแบบเดียวกับ Part 1:
+ * สองขั้น ขั้น 1 = หัวหน้าหน่วยงาน ขั้น 2 = ผู้มีอำนาจอนุมัติ · ขั้นเดียวจบ = ผู้มีอำนาจอนุมัติ · ยังรอขั้น 2 = ขั้น 1 อยู่ช่องหัวหน้า
+ */
+function clearApprovalSignatures(detail: AdvanceDetail): { unit_head?: ClearingSignature; approver?: ClearingSignature } {
+  const logs = detail.clear_logs ?? [];
+  let start = 0;
+  logs.forEach((l, i) => { if (l.action === 'SUBMITTED') start = i; });
+  const approved = logs.slice(start).filter(l => l.action === 'APPROVED' && l.created_at);
+  const stamp = (l: (typeof approved)[number]): ClearingSignature => {
+    const name = l.action_by_name ?? l.action_by ?? '';
+    return { name, date: dmy(l.created_at), esign: { name, timestamp: l.created_at!, ref: 'อนุมัติเคลียร์' } };
+  };
+  const s1 = approved.find(l => l.step === 1);
+  const s2 = approved.find(l => l.step === 2);
+  if (s2) return { ...(s1 ? { unit_head: stamp(s1) } : {}), approver: stamp(s2) };
+  if (!s1) return {};
+  return detail.status === 'CLEARING_APPROVAL' ? { unit_head: stamp(s1) } : { approver: stamp(s1) };
+}
 
 export function toClearingData(detail: AdvanceDetail): ClearingFormData {
   const fin = detail.fin;
@@ -105,6 +126,7 @@ export function toClearingData(detail: AdvanceDetail): ClearingFormData {
     items,
     amount_paid: num(fin?.amount_paid),
     signatures: {
+      ...clearApprovalSignatures(detail),
       requester: {
         name, date: dmy(fin?.clear_submitted_at),
         ...(fin?.clear_submitted_at ? { esign: { name, timestamp: fin.clear_submitted_at, ref: detail.form_id } } : {}),
@@ -244,11 +266,11 @@ export function clearingBody(data: ClearingFormData, opts: { logoUrl?: string; b
   const nameDate = (x?: ClearingSignature) => line('ชื่อ', x?.name ?? '') + line('วันที่', valid(x) ? dmy(valid(x)!.timestamp) : x?.date ?? '');
   const cells: [string, string][] = [
     [stampHtml(valid(sg.requester)), nameDate(sg.requester)],
-    ['', nameDate()], ['', nameDate()], ['', nameDate()],
+    [stampHtml(valid(sg.unit_head)), nameDate(sg.unit_head)], ['', nameDate()], [stampHtml(valid(sg.approver)), nameDate(sg.approver)],
     // วันที่รับเอกสาร is written by hand when accounting receives the paper; the system only knows the close time (stamp).
     [stampHtml(valid(sg.accounting)), line('วันที่รับเอกสาร', '') + line('ชื่อ', sg.accounting.name)],
   ];
-  const anyEsign = valid(sg.requester) || valid(sg.accounting);
+  const anyEsign = valid(sg.requester) || valid(sg.accounting) || valid(sg.unit_head) || valid(sg.approver);
 
   return `<section class="doc-part cf">${opts.band ? '<div class="doc-band"></div>' : ''}
 <header class="head">${logo}<div><div class="t1">${CLAIM_TITLE}</div><div class="t2">${CLAIM_SUBTITLE}</div></div>
