@@ -14,6 +14,7 @@ import { NoAccess, Panel } from './FinanceShell';
 import { MascotLoader } from '@/components/loading';
 import { ClearApprovalPanel } from './ClearApprovalPanel';
 import { useClearApprovals } from '../useClearApprovals';
+import { useSessionContext } from '@/app/context/SessionContext';
 import { LogList } from './LogList';
 import { ShareApprovalLink } from './ShareApprovalLink';
 
@@ -25,6 +26,7 @@ export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChang
   const [error, setError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const clearQueue = useClearApprovals(refreshKey);
+  const { user } = useSessionContext();
 
   const load = useCallback(() => {
     fetchJson<AdvanceDetail>(`/api/finance/advances/${encodeURIComponent(formId)}`)
@@ -65,7 +67,8 @@ export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChang
       {detail.status === 'CLEARING_APPROVAL' && clearQueue?.includes(detail.form_id) && (
         <ClearApprovalPanel key={`ca-${refreshKey}`} detail={detail} onSaved={onSaved} />
       )}
-      {detail.fin && CLEARABLE.has(detail.status) && <ClearForm key={refreshKey} detail={detail} onSaved={onSaved} />}
+      {/* ฟอร์มเคลียร์เป็นของผู้เบิกคนเดียว หัวหน้าที่เปิดใบมาอนุมัติ/ตีกลับเคลียร์ต้องไม่เห็นปุ่มแก้ */}
+      {detail.fin && CLEARABLE.has(detail.status) && user?.employee_id === detail.requester.employee_id && <ClearForm key={refreshKey} detail={detail} onSaved={onSaved} />}
       {detail.status === 'AWAITING_REVIEW' && (
         <p className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">
           ส่งเคลียร์เงินแล้ว รอบัญชีตรวจ — แก้ไขไม่ได้ หากต้องแก้ไข ให้ติดต่อบัญชีเพื่อส่งกลับแก้ไข

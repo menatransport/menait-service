@@ -42,14 +42,27 @@ export async function uploadFiles(formId: string, files: File[], folder?: 'vouch
   return failed;
 }
 
-export const showAlert = (options: Record<string, unknown>) =>
-  import('sweetalert2').then(({ default: Swal }) => Swal.fire({ confirmButtonText: 'ตกลง', ...options }));
+// SweetAlert จำค่า aria-hidden ตอนเปิด แล้วคืนค่าตอนปิด ถ้าเปิดตอน Dialog/Sheet ของ Radix ยังค้างอยู่ มันจะคืน aria-hidden="true"
+// ให้หน้าหลักทั้งที่ Dialog ปิดไปแล้ว โปรแกรมอ่านหน้าจอและ getByRole มองไม่เห็นทั้งหน้า ล้างทิ้งเมื่อไม่มี Dialog เปิดอยู่
+export function clearStaleAriaHidden(doc: Document = document): void {
+  if (doc.querySelector('[role="dialog"][data-state="open"], .swal2-container')) return;
+  for (const el of Array.from(doc.body.children)) {
+    if (el.getAttribute('aria-hidden') === 'true' && !el.hasAttribute('data-radix-focus-guard')) el.removeAttribute('aria-hidden');
+  }
+}
 
-export const showConfirm = (options: Record<string, unknown>) =>
-  import('sweetalert2').then(({ default: Swal }) => Swal.fire({
-    showCancelButton: true, confirmButtonColor: '#1c6ef2', cancelButtonColor: '#d33',
-    confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', ...options,
-  }));
+const fire = (options: Record<string, unknown>) =>
+  import('sweetalert2').then(({ default: Swal }) => {
+    const didDestroy = options.didDestroy as (() => void) | undefined;
+    return Swal.fire({ ...options, didDestroy: () => { didDestroy?.(); setTimeout(() => clearStaleAriaHidden(), 0); } });
+  });
+
+export const showAlert = (options: Record<string, unknown>) => fire({ confirmButtonText: 'ตกลง', ...options });
+
+export const showConfirm = (options: Record<string, unknown>) => fire({
+  showCancelButton: true, confirmButtonColor: '#1c6ef2', cancelButtonColor: '#d33',
+  confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', ...options,
+});
 
 /** Uploads bookbank files to a payee request one by one (multipart field "file"); returns names that failed. */
 export async function uploadPayeeFiles(requestId: number | string, files: File[]): Promise<string[]> {

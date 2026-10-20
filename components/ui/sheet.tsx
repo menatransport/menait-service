@@ -5,6 +5,9 @@ import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { installSwalFocusGuard, isFromSweetAlert } from "@/lib/ui/sweetalert-guard"
+
+installSwalFocusGuard()
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
@@ -48,10 +51,18 @@ function SheetContent({
   className,
   children,
   side = "right",
+  onPointerDownOutside,
+  onInteractOutside,
+  onFocusOutside,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
 }) {
+  // คลิกใน SweetAlert ที่เปิดทับ Sheet ไม่นับเป็นคลิกนอก Sheet ไม่งั้น Sheet ปิดเองทั้งที่ยังทำงานอยู่ (เหมือน Dialog)
+  const keepOpen = <E extends Event>(handler?: (e: E) => void) => (e: E) => {
+    if (isFromSweetAlert(e as unknown as Parameters<typeof isFromSweetAlert>[0])) { e.preventDefault(); return }
+    handler?.(e)
+  }
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -69,6 +80,9 @@ function SheetContent({
             "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t",
           className
         )}
+        onPointerDownOutside={keepOpen(onPointerDownOutside)}
+        onInteractOutside={keepOpen(onInteractOutside)}
+        onFocusOutside={keepOpen(onFocusOutside)}
         {...props}
       >
         {children}
