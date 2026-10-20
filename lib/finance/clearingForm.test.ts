@@ -235,3 +235,11 @@ describe('Part 2 — ลายเซ็นผู้อนุมัติกา�
     expect(d.signatures.approver?.name ?? '').toBe('');
   });
 });
+
+test('Part 2 — คนเดียวผ่านทั้งสองขั้น ลงชื่อช่องผู้มีอำนาจอนุมัติช่องเดียว', () => {
+  const l = (step: number, at: string) => ({ step, action: step === 0 ? 'SUBMITTED' : 'APPROVED', remark: null, action_by: 'M5', action_by_name: 'ชยพล บุญมา', created_at: at });
+  const d = toClearingData(detail({ status: 'AWAITING_REVIEW', clear_logs: [
+    { ...l(0, '2026-10-20T02:00:00Z'), step: 1 }, l(1, '2026-10-20T03:00:00Z'), l(2, '2026-10-20T03:00:00Z')] }));
+  expect(d.signatures.approver?.name).toBe('ชยพล บุญมา');
+  expect(d.signatures.unit_head?.name ?? '').toBe('');
+});

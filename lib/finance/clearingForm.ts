@@ -97,7 +97,8 @@ function clearApprovalSignatures(detail: AdvanceDetail): { unit_head?: ClearingS
   };
   const s1 = approved.find(l => l.step === 1);
   const s2 = approved.find(l => l.step === 2);
-  if (s2) return { ...(s1 ? { unit_head: stamp(s1) } : {}), approver: stamp(s2) };
+  // คนเดียวกดผ่านทั้งสองขั้น (ข้ามขั้นตามระดับ) ลงชื่อช่องเดียวเหมือน Part 1
+  if (s2) return { ...(s1 && s1.action_by !== s2.action_by ? { unit_head: stamp(s1) } : {}), approver: stamp(s2) };
   if (!s1) return {};
   return detail.status === 'CLEARING_APPROVAL' ? { unit_head: stamp(s1) } : { approver: stamp(s1) };
 }
