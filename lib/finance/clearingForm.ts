@@ -230,6 +230,9 @@ table.csum td.v { width: 24mm; text-align: right; font-weight: 600; border: 1px 
 table.csum tr.diff td.v { background: var(--teal); border-color: var(--teal); color: #fff; font-weight: 700; }
 table.csum tr.diff td.k { font-weight: 600; }
 .cf .right .esign-note { text-align: right; margin-top: 6px; }
+/* ช่องลายเซ็น 5 ช่องแคบกว่า Part 1: ให้ชื่อกับวันที่ขึ้นบรรทัดใหม่ได้ ไม่ตัดเป็น ... จนวันที่หาย */
+.cf table.sig .row { gap: 4px; font-size: 10px; }
+.cf table.sig .row i { white-space: normal; overflow: visible; text-overflow: clip; word-break: break-word; font-size: 10.5px; }
 `;
 
 /** Column widths in mm (รายละเอียด takes the rest). The summary value cell uses the same width as (E). */
