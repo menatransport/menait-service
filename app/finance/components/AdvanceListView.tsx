@@ -214,7 +214,7 @@ export function AdvanceListView({
           })}
         </TabsList>
 
-        <MonthRangeFilter startMonth={startMonth} endMonth={endMonth} onChange={handleMonthRangeChange} />
+        <MonthRangeFilter startMonth={startMonth} endMonth={endMonth} onChange={handleMonthRangeChange} compact />
       </div>
 
       <section className="bg-white rounded-2xl shadow-xl border border-white/30 overflow-hidden relative">

@@ -17,8 +17,18 @@ const toClearRow = (i: ClearItem): ClearItemRow => ({
 
 export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approval?: ApprovalTierInfo | null }; detail?: AdvanceDetail }) {
   const fin = item.fin;
+  // ใบที่ไม่อนุมัติ: บอกให้เห็นตั้งแต่ด้านบนว่าใครไม่อนุมัติและเพราะอะไร ไม่ต้องไล่หาในประวัติ
+  const rejection = item.status === 'REJECTED'
+    ? [...(detail?.approval_logs ?? [])].reverse().find(l => l.action === 'REJECTED') ?? null
+    : null;
   return (
     <>
+      {rejection && (
+        <p className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          ไม่อนุมัติโดย {rejection.actor_name ?? '-'}{rejection.action_at ? ` เมื่อ ${formatDate(rejection.action_at)}` : ''}
+          {rejection.remark ? ` · เหตุผล: ${rejection.remark}` : ''}
+        </p>
+      )}
       <Panel title={`คำขอเบิกเงิน ${item.form_id}`} actions={<StatusBadge status={item.status} overdue={item.overdue} />}>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Field label="ผู้เบิกเงิน" value={item.requester.name ?? item.requester.employee_id} />
@@ -42,6 +52,7 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
                   {item.approval.steps!.map(st => {
                     const done = item.approval!.step_approvals?.find(a => a.step === st.step && a.action_at);
                     const waiting = item.status === 'PENDING_APPROVAL' && item.approval!.current_step === st.step; // only the current step waits
+                    const rejectedHere = !done && rejection && item.approval!.current_step === st.step;
                     const when = done?.action_at ? formatBkkDateTime(done.action_at) : null;
                     return (
                       <li key={st.step} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-800">
@@ -49,6 +60,7 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
                         {' — '}
                         {done
                           ? <span className="text-emerald-700">{done.name ?? '-'}{when ? ` · ${when.date} ${when.time.slice(0, 5)} น.` : ''}</span>
+                          : rejectedHere ? <span className="text-rose-700">ไม่อนุมัติ · {rejection!.actor_name ?? '-'}</span>
                           : waiting ? <span className="text-amber-700">รอ</span> : <span className="text-gray-400">-</span>}
                       </li>
                     );
@@ -61,7 +73,8 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
         </div>
       </Panel>
 
-      {fin && (
+      {/* ใบที่ตีกลับหรือรออนุมัติรอบใหม่ มีแถว fin แต่ยังไม่มีเลขตั้งเบิก/การจ่าย ไม่ต้องโชว์แผงที่มีแต่ขีด */}
+      {fin && (fin.voucher_no || fin.voucher_date || fin.amount_paid !== null && fin.amount_paid !== undefined) && (
         <Panel title="ข้อมูลตั้งเบิก / การจ่ายเงิน">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <Field label="เลขที่ตั้งเบิก" value={fin.voucher_no} />
@@ -89,7 +102,27 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
             <Field label="หมายเหตุ" value={fin.remark} />
           </div>
           {fin.clear_items && fin.clear_items.length > 0 && (
-            <div className="mt-4 overflow-x-auto rounded-xl border">
+            <>
+            {/* มือถือ: การ์ดทีละรายการ ไม่ต้องปัดตารางไปด้านข้างเพื่อดูยอด */}
+            <ul className="mt-4 space-y-2 sm:hidden">
+              {fin.clear_items.map(i => (
+                <li key={i.line_no} className="rounded-xl border px-3 py-2 text-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="min-w-0 text-gray-800">{i.description}</p>
+                    <p className="shrink-0 font-semibold tabular-nums">{formatBaht(i.net_amount)}</p>
+                  </div>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {formatDate(i.expense_date)}{i.vehicle ? ` · ${i.vehicle}` : ''} · ใบกำกับ {i.has_receipt ? 'มี' : 'ไม่มี'}
+                    {Number(i.wht_amount) ? ` · หัก ณ ที่จ่าย ${formatBaht(i.wht_amount)}` : ''}
+                  </p>
+                </li>
+              ))}
+              <li className="flex justify-between rounded-xl bg-gray-50 px-3 py-2 text-sm font-semibold">
+                <span>รวมสุทธิ</span>
+                <span className="tabular-nums">{formatBaht(sumItems(fin.clear_items.map(toClearRow)).e)}</span>
+              </li>
+            </ul>
+            <div className="mt-4 hidden overflow-x-auto rounded-xl border sm:block">
               <table className="w-full min-w-[720px] text-sm">
                 <thead className="bg-gray-50 text-xs text-gray-600">
                   <tr>
@@ -125,6 +158,7 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
                 </tfoot>
               </table>
             </div>
+            </>
           )}
         </Panel>
       )}

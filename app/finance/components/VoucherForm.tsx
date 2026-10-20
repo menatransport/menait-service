@@ -16,8 +16,10 @@ export function VoucherForm({ detail, onSaved }: {
   detail: AdvanceDetail; onSaved: (d: AdvanceDetail) => void;
 }) {
   const fin = detail.fin;
-  const [voucherNo, setVoucherNo] = useState(fin?.voucher_no ?? '');
-  const [voucherDate, setVoucherDate] = useState(fin?.voucher_date ?? todayBkk());
+  // รอบใหม่หลังตีกลับ/ส่งใหม่ เลขกับวันที่ของรอบก่อนใช้ไม่ได้แล้ว เริ่มว่าง ไม่ให้เผลอบันทึกเลขเดิมซ้ำ
+  const fresh = !fin || FRESH_VOUCHER_STATUSES.has(fin.fin_status ?? '');
+  const [voucherNo, setVoucherNo] = useState(fresh ? '' : fin?.voucher_no ?? '');
+  const [voucherDate, setVoucherDate] = useState((fresh ? null : fin?.voucher_date) ?? todayBkk());
   const [saving, setSaving] = useState(false);
   const rejected = fin?.fin_status === 'VOUCHER_REJECTED';
   // a fin row exists after a return/resubmit/voucher rejection too, but no voucher stands for this round yet
@@ -33,7 +35,7 @@ export function VoucherForm({ detail, onSaved }: {
     setSaving(true);
     try {
       const saved = await putAction(detail.form_id, 'voucher', {
-        voucher_no: voucherNo, voucher_date: voucherDate, is_edit: detail.status === 'AWAITING_VOUCHER' ? false : Boolean(fin),
+        voucher_no: voucherNo.trim() || null, voucher_date: voucherDate, is_edit: detail.status === 'AWAITING_VOUCHER' ? false : Boolean(fin),
       });
       await showAlert({ icon: 'success', title: 'บันทึกตั้งเบิกแล้ว' });
       onSaved(saved);

@@ -38,6 +38,7 @@ export function AttachmentPanel({ formId, folder, canUpload = false, refreshKey 
       const failed = await uploadFiles(formId, pending, folder === 'request' ? undefined : folder);
       setPending([]);
       if (failed.length) showAlert({ icon: 'error', title: 'อัปโหลดไม่สำเร็จ', text: failed.join(', ') });
+      else showAlert({ icon: 'success', title: `แนบไฟล์แล้ว ${pending.length} ไฟล์`, timer: 1400, showConfirmButton: false });
     } finally {
       setUploading(false);
     }

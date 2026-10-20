@@ -25,8 +25,8 @@ test('rows follow the Excel sheet columns', () => {
   expect(row['ลำดับ']).toBe(1);
   expect(row['ศูนย์']).toBe('สสบ.');
   expect(row['สถานะ']).toBe('จ่ายแล้วรอเคลียร์ (เกินกำหนด)');
-  expect(row['วันที่โอนเงิน']).toBe('09/07/26');
-  expect(row['กำหนดการเคลียร์']).toBe('16/07/26');
+  expect(row['วันที่โอนเงิน']).toBe('09/07/2026');
+  expect(row['กำหนดการเคลียร์']).toBe('16/07/2026');
   expect(row['ยอดเงิน']).toBe(12740);
   expect(row['วันที่ส่งเอกสารเคลียร์']).toBe('');
 });

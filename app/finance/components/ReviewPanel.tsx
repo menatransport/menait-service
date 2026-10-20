@@ -28,7 +28,7 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
     setSaving(true);
     try {
       const saved = await putAction(detail.form_id, 'confirm', {
-        clear_doc_no: clearDocNo,
+        clear_doc_no: clearDocNo.trim() || null,
         settle_date: needsExtraDate ? extraDate : null,
         expected_clear_submitted_at: detail.fin?.clear_submitted_at ?? null,
       });

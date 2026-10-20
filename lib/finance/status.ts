@@ -109,12 +109,12 @@ export function formatDate(value: string | null | undefined): string {
   if (!value) return '-';
   if (ISO_DATE.test(value)) {
     const [y, m, d] = value.split('-');
-    return `${d}/${m}/${y.slice(2)}`;
+    return `${d}/${m}/${y}`;
   }
   const dt = new Date(value);
   if (Number.isNaN(dt.getTime())) return '-';
   const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Bangkok', day: '2-digit', month: '2-digit', year: '2-digit',
+    timeZone: 'Asia/Bangkok', day: '2-digit', month: '2-digit', year: 'numeric',
   }).formatToParts(dt);
   const part = (t: string) => parts.find(p => p.type === t)?.value ?? '';
   return `${part('day')}/${part('month')}/${part('year')}`;

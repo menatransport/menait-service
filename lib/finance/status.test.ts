@@ -40,8 +40,8 @@ describe('settle', () => {
 describe('formatting', () => {
   test('baht', () => expect(formatBaht(12740)).toBe('12,740.00'));
   test('baht null', () => expect(formatBaht(null)).toBe('-'));
-  test('date-only never shifts', () => expect(formatDate('2026-07-09')).toBe('09/07/26'));
-  test('UTC datetime shown in Bangkok', () => expect(formatDate('2026-07-08T18:30:00+00:00')).toBe('09/07/26'));
+  test('date-only never shifts', () => expect(formatDate('2026-07-09')).toBe('09/07/2026'));
+  test('UTC datetime shown in Bangkok', () => expect(formatDate('2026-07-08T18:30:00+00:00')).toBe('09/07/2026'));
   test('empty', () => expect(formatDate(null)).toBe('-'));
   test('todayBkk after 17:00 UTC is next day', () =>
     expect(todayBkk(new Date('2026-07-08T17:30:00Z'))).toBe('2026-07-09'));

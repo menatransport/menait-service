@@ -144,7 +144,10 @@ function NewAdvance() {
     const next: Record<string, string> = {};
     for (const q of form.questions) {
       if (hasPayeeType && payeeNames.includes(q.name)) continue;
-      if (q.required && isBlank(values[q.name])) next[q.name] = `กรุณาระบุ${q.label}`;
+      // ป้ายคำถามบางข้อเป็นวลีค้าง เช่น "เบิกเงิน Advance สำหรับ" ต่อหน้า "กรุณาระบุ" แล้วอ่านไม่รู้เรื่อง
+      if (q.required && isBlank(values[q.name])) {
+        next[q.name] = /สำหรับ\s*$/.test(q.label ?? '') ? 'กรุณาระบุว่าเบิกเงินไปใช้ทำอะไร' : `กรุณาระบุ${q.label}`;
+      }
       if (q.type === 'number' && !isBlank(values[q.name])) {
         const err = amountError(values[q.name] as string);
         if (err) next[q.name] = err;
@@ -170,7 +173,10 @@ function NewAdvance() {
       if (!canSubmitPayee(isSupplier ? PAYEE_SUPPLIER : PAYEE_SELF, payeeStatus.loaded ? payeeStatus.state : 'none', files.length + existingCount)) {
         setErrors(next);
         return showAlert(isSupplier
-          ? { icon: 'warning', title: 'กรุณาแนบ bookbank หรือใบแจ้งหนี้ที่มีเลขบัญชี' }
+          ? { icon: 'warning', title: 'กรุณาแนบ bookbank หรือใบแจ้งหนี้ที่มีเลขบัญชี',
+              // ช่องบัญชี Supplier ที่ยังขาด บอกพร้อมกันในป๊อปอัปเดียว ไม่ให้กดส่งแล้วเจอทีละเรื่อง
+              ...(['adv_bank', 'adv_account_no', 'adv_account_name'].some(k => next[k])
+                ? { text: 'และกรอกธนาคาร เลขที่บัญชี ชื่อบัญชีของ Supplier ให้ครบ' } : {}) }
           : { icon: 'warning', title: 'ยังไม่มีบัญชีรับเงินที่บัญชีอนุมัติ — กรุณาขอเพิ่มบัญชีรับเงิน หรือเลือกบัญชี Supplier' });
       }
     }
