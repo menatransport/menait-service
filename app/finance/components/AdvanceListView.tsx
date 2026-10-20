@@ -217,7 +217,7 @@ export function AdvanceListView({
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60" />
                 <input
                   type="text"
-                  placeholder="ค้นหา เลขที่เอกสาร / ผู้เบิก / เลขที่ใบเบิก / วัตถุประสงค์"
+                  placeholder="ค้นหา เลขที่คำขอเบิกเงิน / ผู้เบิก / เลขที่ใบเบิก / วัตถุประสงค์"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="w-64 pl-8 pr-8 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-white/50 focus:outline-none focus:bg-white/20 focus:border-white/40 transition-all"
@@ -397,7 +397,7 @@ export function AdvanceListView({
               <tr>
                 {mode === 'finance' ? (
                   <>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 leading-tight">เลขที่<br />ใบคำขอเบิก</th>
+                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 leading-tight">เลขที่<br />คำขอเบิกเงิน</th>
                     <th className={FTH}>ผู้เบิก</th>
                     <th className={FTH}>ศูนย์ค่าใช้จ่าย</th>
                     <th className={FTH}>วัตถุประสงค์</th>
@@ -412,7 +412,7 @@ export function AdvanceListView({
                   </>
                 ) : (
                   <>
-                    <th className={TH}>เลขที่เอกสาร</th>
+                    <th className={TH}>เลขที่คำขอเบิกเงิน</th>
                     <th className={TH}>วัตถุประสงค์</th>
                     <th className={`${TH} text-right`}>ยอดเงิน</th>
                     <th className={TH}>วันที่ใช้เงิน</th>

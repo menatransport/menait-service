@@ -3,7 +3,7 @@ import { bankLabel, formatAccountNo } from './bank';
 import { formatDate } from './status';
 
 export const EXPORT_COLUMNS = [
-  'ลำดับ', 'เลขที่ใบคำขอเบิก', 'ผู้เบิก', 'แผนก', 'ศูนย์', 'สถานะ', 'เลขที่ใบเบิก', 'วันที่ตั้งเบิก', 'วันที่ใช้เงิน',
+  'ลำดับ', 'เลขที่คำขอเบิกเงิน', 'ผู้เบิก', 'แผนก', 'ศูนย์', 'สถานะ', 'เลขที่ใบเบิก', 'วันที่ตั้งเบิก', 'วันที่ใช้เงิน',
   'เลขที่เอกสารจ่าย', 'วัตถุประสงค์', 'ยอดเงิน', 'วันที่โอนเงิน', 'กำหนดการเคลียร์', 'วันที่ส่งเอกสารเคลียร์', 'ยอดใช้จริง',
   'เลขที่เอกสารบัญชีเคลียร์เงิน', 'ยอดเงินโอนคืนบริษัท', 'วันที่โอนเงินคืนบริษัท', 'หมายเหตุ',
   'ศูนย์ค่าใช้จ่าย', 'ธนาคาร', 'เลขที่บัญชี', 'ชื่อบัญชี',
@@ -16,7 +16,7 @@ const d = (value: string | null | undefined) => (value ? formatDate(value) : '')
 export function toSheetRows(items: AdvanceItem[]): Row[] {
   return items.map((it, idx) => ({
     'ลำดับ': idx + 1,
-    'เลขที่ใบคำขอเบิก': it.form_id,
+    'เลขที่คำขอเบิกเงิน': it.form_id,
     'ผู้เบิก': it.requester.name ?? it.requester.employee_id,
     'แผนก': it.requester.department ?? '',
     'ศูนย์': it.requester.site_code ?? it.requester.site ?? '',

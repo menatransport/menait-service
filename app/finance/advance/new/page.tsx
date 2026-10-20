@@ -223,7 +223,7 @@ function NewAdvance() {
       await showAlert({
         icon: failed.length ? 'warning' : 'success',
         title: 'ส่งคำขอเบิกเงินแล้ว',
-        text: failed.length ? `อัปโหลดไม่สำเร็จ: ${failed.join(', ')} (แนบเพิ่มได้ในหน้ารายการ)` : `เลขที่เอกสาร ${res.form_id}`,
+        text: failed.length ? `อัปโหลดไม่สำเร็จ: ${failed.join(', ')} (แนบเพิ่มได้ในหน้ารายการ)` : `เลขที่คำขอเบิกเงิน ${res.form_id}`,
       });
       router.push(`/finance/advance/${encodeURIComponent(res.form_id)}`);
     } catch (err) {
