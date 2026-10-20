@@ -169,3 +169,18 @@ export interface SuggestedApprovers {
   step_label?: string | null;
   approvers: SuggestedApprover[];
 }
+
+/** ใบที่รอผู้ใช้คนนี้อนุมัติการเคลียร์ (BE /finance/clear-approvals/pending) */
+export interface ClearPendingItem {
+  form_id: string;
+  amount_actual: number | null;
+  amount_paid?: number | null;
+  settle_amount?: number | null;
+  step: number;
+  total_steps: number;
+  clause: string | null;
+  requester_employee_id: string;
+  requester_name?: string | null;
+  requester_department?: string | null;
+  clear_submitted_at?: string | null;
+}

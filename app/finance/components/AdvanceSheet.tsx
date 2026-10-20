@@ -12,12 +12,15 @@ export function AdvanceSheet({
   isOpen,
   onClose,
   onChanged,
+  hideFullPage = false,
 }: {
   mode: 'finance' | 'mine';
   formId: string | null;
   isOpen: boolean;
   onClose: () => void;
   onChanged?: () => void;
+  /** หัวหน้าที่ไม่ได้อยู่ฝ่ายการเงินเปิดหน้าเต็มไม่ได้ — ซ่อนลิงก์ไปเลย */
+  hideFullPage?: boolean;
 }) {
   const fullPageHref = formId
     ? (mode === 'finance' ? `/finance/${encodeURIComponent(formId)}` : `/finance/advance/${encodeURIComponent(formId)}`)
@@ -37,7 +40,7 @@ export function AdvanceSheet({
                 <SheetTitle className="font-display text-brand-800 truncate">{formId ?? ''}</SheetTitle>
               </div>
             </div>
-            {formId && (
+            {formId && !hideFullPage && (
               <Link
                 href={fullPageHref}
                 target="_blank"

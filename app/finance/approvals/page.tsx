@@ -13,9 +13,11 @@ import { stepBadge } from '@/lib/finance/approvalSteps';
 import { fetchJson, showAlert, showConfirm } from '../api';
 import type { PendingApprovalItem } from '../types';
 import { AttachmentPanel } from '../components/AttachmentPanel';
+import { ClearApprovalQueue } from '../components/ClearApprovalQueue';
+import { useClearPendingItems } from '../useClearApprovals';
 import { Field, FinanceHeading, FinanceShell, Panel } from '../components/FinanceShell';
 
-type ApvView = 'pending' | 'history';
+type ApvView = 'pending' | 'clear' | 'history';
 const HISTORY_PAGE_SIZE = 20;
 
 type ApprovalListItem = {
@@ -221,7 +223,9 @@ function PendingCard({
 
 function FinanceApprovals() {
   const { user } = useSessionContext();
-  const doc = useSearchParams().get('doc');
+  const params = useSearchParams();
+  const doc = params.get('doc');
+  const tabParam = params.get('tab');
   const [notice, setNotice] = useState('');
   const handledDoc = useRef<string | null>(null);
   const activeDoc = useRef<string | null>(null);
@@ -235,7 +239,11 @@ function FinanceApprovals() {
       if (scrollTimer.current) clearTimeout(scrollTimer.current);
     };
   }, [doc]);
-  const [apvView, setApvView] = useState<ApvView>('pending');
+  // ลิงก์จากอีเมลรอท่านอนุมัติการเคลียร์มาพร้อม ?tab=clear
+  const [apvView, setApvView] = useState<ApvView>(tabParam === 'clear' ? 'clear' : 'pending');
+  const [clearKey, setClearKey] = useState(0);
+  const clearItems = useClearPendingItems(clearKey);
+  const refreshClear = useCallback(() => setClearKey(k => k + 1), []);
   const [items, setItems] = useState<ApprovalItem[]>([]);
   const [pending, setPending] = useState<PendingApprovalItem[]>([]);
   const [pendingTab, setPendingTab] = useState<'mine' | 'delegable'>('mine');
@@ -249,6 +257,7 @@ function FinanceApprovals() {
   const load = useCallback(async () => {
     if (!user?.employee_id) return;
     const seq = ++loadSeq.current; // a slow older page must not overwrite a newer one
+    if (apvView === 'clear') { setLoading(false); return; } // แท็บเคลียร์โหลดเอง (useClearPendingItems)
     setLoading(true);
     setError('');
     try {
@@ -400,15 +409,15 @@ function FinanceApprovals() {
         title="อนุมัติเบิกเงิน Advance"
         caption="อนุมัติตามวงเงินในตารางอำนาจอนุมัติ ข้อ 6"
         actions={
-          <div role="tablist" aria-label="มุมมองรายการ" className="v2-glass inline-flex rounded-full p-1">
-            {([['pending', 'รออนุมัติ'], ['history', 'อนุมัติ/ไม่อนุมัติแล้ว']] as const).map(([value, label]) => (
+          <div role="tablist" aria-label="มุมมองรายการ" className="v2-glass inline-flex max-w-full overflow-x-auto rounded-full p-1">
+            {([['pending', 'รออนุมัติ'], ['clear', `รออนุมัติเคลียร์${clearItems?.length ? ` (${clearItems.length})` : ''}`], ['history', 'อนุมัติ/ไม่อนุมัติแล้ว']] as const).map(([value, label]) => (
               <button
                 key={value}
                 type="button"
                 role="tab"
                 aria-selected={apvView === value}
                 onClick={() => { setApvView(value); setHistoryPage(1); }}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all cursor-pointer ${apvView === value ? 'bg-linear-to-r from-brand-600 to-brand-500 text-white shadow-md' : 'text-ink-700 hover:text-brand-600'}`}
+                className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition-all cursor-pointer sm:px-4 sm:text-sm ${apvView === value ? 'bg-linear-to-r from-brand-600 to-brand-500 text-white shadow-md' : 'text-ink-700 hover:text-brand-600'}`}
               >
                 {label}
               </button>
@@ -424,8 +433,10 @@ function FinanceApprovals() {
           </button>
         </div>
       )}
-      <Panel title={apvView === 'pending' ? 'รายการรออนุมัติ' : 'รายการอนุมัติ/ไม่อนุมัติแล้ว'}>
-        {loading ? (
+      <Panel title={apvView === 'pending' ? 'รายการรออนุมัติ' : apvView === 'clear' ? 'ใบเคลียร์รออนุมัติ' : 'รายการอนุมัติ/ไม่อนุมัติแล้ว'}>
+        {apvView === 'clear' ? (
+          <ClearApprovalQueue items={clearItems} doc={tabParam === 'clear' ? doc : null} onChanged={refreshClear} onNotice={setNotice} />
+        ) : loading ? (
           <div className="py-8"><MascotLoader text="กำลังโหลดรายการ" size={80} /></div>
         ) : error ? (
           <p className="text-sm text-rose-600">{error}</p>
