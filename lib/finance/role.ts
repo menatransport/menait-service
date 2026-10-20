@@ -20,8 +20,9 @@ export function canUseFinance(user: { role?: string | null; is_finance?: boolean
   return !!user && (user.role === 'a' || user.is_finance === true);
 }
 
-/** คนนอกแผนกการเงินที่ต้องเข้าหน้าการเงินได้เสมอ: คุณป้อง (660057) ผู้บริหาร อนุมัติขั้น 2 ใบยอดสูง */
-const ALWAYS_FINANCE_IDS = ['660057'];
+/** คนนอกแผนกการเงินที่ต้องเข้าหน้าการเงินได้เสมอ
+ * 660057 คุณป้อง ผู้บริหาร อนุมัติขั้น 2 ใบยอดสูง · 670108 narongkorn.a superadmin ทำได้ทุกปุ่ม (หลังบ้านกำหนดสิทธิ์) */
+const ALWAYS_FINANCE_IDS = ['660057', '670108'];
 
 export function financeConfig(env: Record<string, string | undefined> = process.env) {
   return {
