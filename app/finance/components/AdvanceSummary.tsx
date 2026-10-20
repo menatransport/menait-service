@@ -64,9 +64,9 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
       {fin && (
         <Panel title="ข้อมูลตั้งเบิก / การจ่ายเงิน">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <Field label="เลขที่ใบเบิก" value={fin.voucher_no} />
+            <Field label="เลขที่ตั้งเบิก" value={fin.voucher_no} />
             <Field label="วันที่ตั้งเบิก" value={formatDate(fin.voucher_date)} />
-            <Field label="เลขที่เอกสารจ่าย" value={fin.payment_doc_no} />
+            <Field label="เลขที่ทำจ่าย" value={fin.payment_doc_no} />
             <Field label="ยอดเงิน" value={formatBaht(fin.amount_paid)} />
             <Field label="วันที่โอนเงิน" value={formatDate(fin.transfer_date)} />
             <Field label="กำหนดการเคลียร์" value={formatDate(fin.clear_due_date)} />
@@ -81,7 +81,7 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <Field label="วันที่ส่งเอกสารเคลียร์" value={formatDate(fin.clear_date)} />
             <Field label="ยอดใช้จริง" value={formatBaht(fin.amount_actual)} />
-            <Field label="เอกสารเคลียร์" value={fin.clear_doc_no} />
+            <Field label="เลขที่เอกสารเคลียร์เงิน" value={fin.clear_doc_no} />
             <Field label={`รับคืน (เบิกเพิ่ม) · ${settleLabel(fin.settle_amount)}`} value={formatBaht(fin.settle_amount)} />
             <Field label="วันที่โอนเงินคืนบริษัท" value={formatDate(fin.settle_date)} />
             <Field label="หมายเหตุ" value={fin.remark} />

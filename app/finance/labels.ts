@@ -1,7 +1,7 @@
 export const FIELD_LABELS: Record<string, string> = {
-  acc_code: 'รหัสบัญชี', voucher_no: 'เลขที่ใบเบิก', voucher_date: 'วันที่ตั้งเบิก', payment_doc_no: 'เลขที่เอกสารจ่าย',
+  acc_code: 'รหัสบัญชี', voucher_no: 'เลขที่ตั้งเบิก', voucher_date: 'วันที่ตั้งเบิก', payment_doc_no: 'เลขที่ทำจ่าย',
   purpose: 'วัตถุประสงค์', amount_paid: 'ยอดเงิน', transfer_date: 'วันที่โอนเงิน', clear_due_date: 'กำหนดการเคลียร์',
-  clear_date: 'วันที่ส่งเอกสารเคลียร์', amount_actual: 'ยอดใช้จริง', clear_doc_no: 'เอกสารเคลียร์',
+  clear_date: 'วันที่ส่งเอกสารเคลียร์', amount_actual: 'ยอดใช้จริง', clear_doc_no: 'เลขที่เอกสารเคลียร์เงิน',
   settle_amount: 'รับคืน (เบิกเพิ่ม)', settle_date: 'วันที่โอนเงินคืนบริษัท', remark: 'หมายเหตุ',
   items: 'จำนวนรายการค่าใช้จ่าย', items_total: 'ยอดรวมสุทธิ (รายการ)',
   // request fields changed by the requester while ตีกลับ (RESUBMIT log); `<field>_forced` = system took it from the Master

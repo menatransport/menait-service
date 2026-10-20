@@ -79,7 +79,7 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
             </div>
           </div>
         )}
-        <label className="block space-y-1 text-sm">เอกสารเคลียร์ (เลขที่/รายการ)
+        <label className="block space-y-1 text-sm">เลขที่เอกสารเคลียร์เงิน
           <Input value={clearDocNo} onChange={e => setClearDocNo(e.target.value)} disabled={saving} />
         </label>
         {canClose && (

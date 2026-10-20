@@ -81,7 +81,7 @@ export function PayForm({ detail, onSaved }: {
             {detail.request.cost_center && <p className="text-gray-600">ศูนย์ค่าใช้จ่าย: {detail.request.cost_center}</p>}
           </div>
         )}
-        <label className="space-y-1 text-sm">เลขที่เอกสารจ่าย
+        <label className="space-y-1 text-sm">เลขที่ทำจ่าย
           <Input value={paymentDocNo} onChange={e => setPaymentDocNo(e.target.value)} disabled={saving} />
         </label>
         <label className="space-y-1 text-sm">ยอดเงิน (บาท) *
