@@ -51,6 +51,8 @@ export function parseAmount(raw: string | number | null | undefined): number | n
   if (typeof raw === 'number') return Number.isFinite(raw) ? round2(raw) : null;
   const cleaned = raw.replace(/,/g, '').trim();
   if (cleaned === '') return null;
+  // ตัวเลขธรรมดาเท่านั้น Number() รับ 1e3 / 0x10 / Infinity ด้วย ซึ่งไม่ใช่ยอดเงินที่คนพิมพ์
+  if (!/^-?(\d+\.?\d*|\.\d+)$/.test(cleaned)) return null;
   const n = Number(cleaned);
   return Number.isFinite(n) ? round2(n) : null;
 }
@@ -63,6 +65,17 @@ export function computeSettle(amountPaid: number, amountActual: number): number 
 /** ต้องแนบสลิปโอนเงินเฉพาะกรณีคืนเงินบริษัท เบิกเพิ่มหรือยอดพอดีไม่ต้องแนบ */
 export function clearNeedsSlip(settle: number | null | undefined): boolean {
   return typeof settle === 'number' && settle > 0;
+}
+
+/**
+ * คืนเงินบริษัทแล้วยังไม่มีสลิปไหม — ไฟล์เดิมในโฟลเดอร์เคลียร์นับเป็นสลิปได้เฉพาะเมื่อรอบก่อนก็เป็นการคืนเงิน
+ * (รอบก่อนเบิกเพิ่ม ไฟล์เดิมคือใบเสร็จ) หรือเป็นไฟล์ที่อัปโหลดไปในรอบนี้แล้ว
+ */
+export function clearSlipMissing(o: { settle: number | null; newFiles: number; existingFiles: number;
+  priorSettle: number | null | undefined; uploadedNow: number }): boolean {
+  if (!clearNeedsSlip(o.settle)) return false;
+  if (o.newFiles > 0 || o.uploadedNow > 0) return false;
+  return !(o.existingFiles > 0 && (o.priorSettle ?? 0) > 0);
 }
 
 export function settleLabel(settle: number | null | undefined): string {

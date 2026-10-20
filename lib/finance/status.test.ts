@@ -20,6 +20,8 @@ describe('parseAmount', () => {
   test('commas', () => expect(parseAmount('1,000.50')).toBe(1000.5));
   test('rounds to 2 decimals', () => expect(parseAmount('10.126')).toBe(10.13));
   test('blank is null, not zero', () => expect(parseAmount('  ')).toBeNull());
+  test('ไม่รับเลขยกกำลังหรือฐานสิบหก', () => { expect(parseAmount('1e3')).toBeNull(); expect(parseAmount('0x10')).toBeNull(); expect(parseAmount('Infinity')).toBeNull(); });
+  test('ยังรับทศนิยมและติดลบ (ให้ตัวตรวจฟอร์มเตือนเอง)', () => { expect(parseAmount('.5')).toBe(0.5); expect(parseAmount('-20')).toBe(-20); expect(parseAmount('12.')).toBe(12); });
   test('garbage is null', () => expect(parseAmount('abc')).toBeNull());
   test('number passthrough', () => expect(parseAmount(4840)).toBe(4840));
 });
@@ -64,4 +66,21 @@ describe('clearNeedsSlip', () => {
   test('company pays more: slip optional', () => expect(clearNeedsSlip(-1200)).toBe(false));
   test('exact amount: slip optional', () => expect(clearNeedsSlip(0)).toBe(false));
   test('unknown settle: slip optional', () => expect(clearNeedsSlip(null)).toBe(false));
+});
+
+import { clearSlipMissing } from './status';
+
+describe('clearSlipMissing — สลิปโอนเงินตอนคืนเงินบริษัท', () => {
+  const base = { settle: 800, newFiles: 0, existingFiles: 0, priorSettle: null as number | null, uploadedNow: 0 };
+  test('คืนเงิน ไม่มีไฟล์เลย = ขาด', () => expect(clearSlipMissing(base)).toBe(true));
+  test('คืนเงิน แนบใหม่ = ครบ', () => expect(clearSlipMissing({ ...base, newFiles: 1 })).toBe(false));
+  test('เคลียร์ใหม่ รอบก่อนก็คืนเงิน มีไฟล์เดิม = ครบ', () => expect(clearSlipMissing({ ...base, existingFiles: 2, priorSettle: 500 })).toBe(false));
+  test('เคลียร์ใหม่ รอบก่อนเบิกเพิ่ม ไฟล์เดิมเป็นใบเสร็จ ไม่นับเป็นสลิป', () =>
+    expect(clearSlipMissing({ ...base, existingFiles: 1, priorSettle: -200 })).toBe(true));
+  test('อัปโหลดรอบนี้ไปแล้วแต่บันทึกพลาด กดซ้ำไม่ต้องแนบอีก', () =>
+    expect(clearSlipMissing({ ...base, existingFiles: 1, priorSettle: -200, uploadedNow: 1 })).toBe(false));
+  test('เบิกเพิ่มหรือพอดี ไม่ต้องมีสลิป', () => {
+    expect(clearSlipMissing({ ...base, settle: -200 })).toBe(false);
+    expect(clearSlipMissing({ ...base, settle: 0 })).toBe(false);
+  });
 });

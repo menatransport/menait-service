@@ -102,7 +102,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
           <AttachmentPanel formId={formId} folder="request" refreshKey={refreshKey} />
           <AttachmentPanel formId={formId} folder="pay" canUpload={canPay} refreshKey={refreshKey} />
           <AttachmentPanel formId={formId} folder="clear" refreshKey={refreshKey} />
-          <AttachmentPanel formId={formId} folder="check" canUpload={detail.status === 'AWAITING_REVIEW'} refreshKey={refreshKey} />
+          <AttachmentPanel formId={formId} folder="check" canUpload={detail.status === 'AWAITING_REVIEW' && can(perms, PERM.close)} refreshKey={refreshKey} />
         </div>
       </Panel>
       {detail.status === 'RETURNED' && (
@@ -133,7 +133,8 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
           รออนุมัติการเคลียร์จากหัวหน้า — ยังไม่ถึงคิวบัญชีตรวจ
         </p>
       )}
-      {detail.status === 'AWAITING_REVIEW' && (
+      {/* คนที่ไม่มีสิทธิ์ตรวจหรือปิดรายการ เห็นแผงนี้แล้วกดอะไรไม่ได้ ไฟล์ที่เลือกก็ไม่ถูกส่ง ซ่อนไปเลย */}
+      {detail.status === 'AWAITING_REVIEW' && (can(perms, PERM.clearingReview) || can(perms, PERM.close)) && (
         <ReviewPanel key={`rev-${refreshKey}`} detail={detail} onSaved={onSaved}
           canSendBack={can(perms, PERM.clearingReview)} canClose={can(perms, PERM.close)} />
       )}

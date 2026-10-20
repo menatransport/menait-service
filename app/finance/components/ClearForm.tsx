@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { MAX_CLEAR_ITEMS, carryOverDefaults, invalidNumberErrors, rowTotals, savedAmount, sumItems, validateItems } from '@/lib/finance/clearItems';
 import { formatDateThaiShort } from '@/lib/finance/dates';
-import { clearNeedsSlip, computeSettle, formatBaht, parseAmount, settleLabel } from '@/lib/finance/status';
+import { clearNeedsSlip, clearSlipMissing, computeSettle, formatBaht, parseAmount, settleLabel } from '@/lib/finance/status';
 import { fetchJson, putAction, showAlert, showConfirm, uploadFiles } from '../api';
 import { CLEAR_ATTACHMENT_REQUIRED } from '../labels';
 import type { AdvanceDetail, AttachmentFile } from '../types';
@@ -38,6 +38,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
   const [existingClear, setExistingClear] = useState(0);
+  const [uploadedNow, setUploadedNow] = useState(0);
   useEffect(() => {
     fetchJson<{ files?: AttachmentFile[] } | AttachmentFile[]>(`/api/uploads3?form_id=${encodeURIComponent(detail.form_id)}`)
       .then(data => {
@@ -72,7 +73,9 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
     if (settle !== null && settle > 0 && !settleDate) {
       return showAlert({ icon: 'warning', title: 'มียอดต้องคืนบริษัท', text: 'กรุณาระบุวันที่โอนเงินคืนบริษัท' });
     }
-    if (needsSlip && files.length === 0 && existingClear === 0) return showAlert({ icon: 'warning', title: CLEAR_ATTACHMENT_REQUIRED });
+    if (clearSlipMissing({ settle, newFiles: files.length, existingFiles: existingClear, priorSettle: fin.settle_amount, uploadedNow })) {
+      return showAlert({ icon: 'warning', title: CLEAR_ATTACHMENT_REQUIRED });
+    }
     const ok: any = await showConfirm({
       icon: 'question', title: 'ยืนยันส่งเคลียร์เงิน',
       text: `ยอดใช้จริง ${formatBaht(totals.e)} บาท (${rows.length} รายการ) — ส่งแล้วแก้ไขไม่ได้ จนกว่าบัญชีจะส่งกลับแก้ไข`,
@@ -88,6 +91,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
       }
       // Uploaded files now exist server-side: count them so a retry after a failed save does not re-upload duplicates.
       setExistingClear(n => n + files.length);
+      setUploadedNow(n => n + files.length);
       setFiles([]);
       const saved = await putAction(detail.form_id, 'clear', {
         clear_date: clearDate,

@@ -27,7 +27,6 @@ function PayeeAccountsContent() {
   const [requests, setRequests] = useState<PayeeRequest[] | null>(null);
   const [accounts, setAccounts] = useState<PayeeAccount[] | null>(null);
   const [query, setQuery] = useState('');
-  const [debounced, setDebounced] = useState('');
   const [openId, setOpenId] = useState<number | null>(null);
 
   const isFinance = !!user?.is_finance;
@@ -35,18 +34,17 @@ function PayeeAccountsContent() {
   const canManagePayees = can(perms, PERM.payeeAdmin);
 
   useEffect(() => { if (isFinance && deepId !== null) { setOpenId(deepId); setTab('requests'); } }, [isFinance, deepId]);
-  useEffect(() => { const t = setTimeout(() => setDebounced(query.trim()), 300); return () => clearTimeout(t); }, [query]);
 
   const loadRequests = useCallback(async () => {
     try { setRequests(await fetchJson<PayeeRequest[]>('/api/finance/payee-requests?status=PENDING')); }
     catch (err) { setRequests([]); showAlert({ icon: 'error', title: 'โหลดคำขอไม่สำเร็จ', text: (err as Error).message }); }
   }, []);
+  // Master มีไม่กี่สิบบัญชี โหลดทั้งหมดแล้วค้นในหน้า (MasterTab) — BE ค้นได้แค่รหัสกับชื่อ ค้นเลขบัญชี/แผนกไม่เจอ
   const loadAccounts = useCallback(async () => {
     try {
-      const qs = debounced ? `?q=${encodeURIComponent(debounced)}` : '';
-      setAccounts(await fetchJson<PayeeAccount[]>(`/api/finance/payee-accounts${qs}`));
+      setAccounts(await fetchJson<PayeeAccount[]>('/api/finance/payee-accounts'));
     } catch (err) { setAccounts([]); showAlert({ icon: 'error', title: 'โหลดบัญชีไม่สำเร็จ', text: (err as Error).message }); }
-  }, [debounced]);
+  }, []);
 
   useEffect(() => { if (isFinance) loadRequests(); }, [isFinance, loadRequests]);
   useEffect(() => { if (isFinance) loadAccounts(); }, [isFinance, loadAccounts]);
@@ -79,7 +77,7 @@ function PayeeAccountsContent() {
         </TabsList>
         <section className="relative overflow-hidden rounded-2xl border border-white/30 bg-white shadow-xl">
           {tab === 'requests' ? (
-            <RequestsTab requests={requests} loading={requests === null} onOpen={setOpenId} />
+            <RequestsTab requests={requests} loading={requests === null} onOpen={setOpenId} canReview={isFinance && canManagePayees} />
           ) : (
             <MasterTab accounts={accounts} loading={accounts === null} query={query} onQueryChange={setQuery} onChanged={refetchBoth} canManage={canManagePayees} />
           )}

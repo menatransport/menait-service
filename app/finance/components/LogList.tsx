@@ -1,8 +1,8 @@
 import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
 import { formatDate } from '@/lib/finance/status';
-import { FIELD_LABELS, LOG_ACTION_LABELS, logRemarkLabel } from '../labels';
+import { FIELD_LABELS, logRemarkLabel } from '../labels';
 import type { ApprovalLog, FinLog } from '../types';
-import { financeHistory, type ClearLog } from '@/lib/finance/historyLog';
+import { fullHistory, type ClearLog } from '@/lib/finance/historyLog';
 import { Panel } from './FinanceShell';
 
 const show = (v: unknown) => (v === null || v === undefined || v === '' ? '-' : String(v));
@@ -27,19 +27,13 @@ function showValue(field: string, v: unknown): string {
 }
 
 export function LogList({ approvalLogs, finLogs, clearLogs }: { approvalLogs: ApprovalLog[]; finLogs: FinLog[]; clearLogs?: ClearLog[] }) {
-  const rows = financeHistory(finLogs, clearLogs);
-  if (approvalLogs.length === 0 && rows.length === 0) return null;
+  const rows = fullHistory(approvalLogs, finLogs, clearLogs);
+  if (rows.length === 0) return null;
   return (
     <Panel title="ประวัติ">
       <ol className="space-y-3 text-sm">
-        {approvalLogs.map((log, i) => (
-          <li key={`a-${i}`} className="border-l-2 border-mint-400 pl-3">
-            <p className="font-medium">{LOG_ACTION_LABELS[log.action] ?? log.action} · {log.actor_name ?? '-'}</p>
-            <p className="text-xs text-gray-500">{formatDate(log.action_at)}{log.remark ? ` · ${log.remark}` : ''}</p>
-          </li>
-        ))}
         {rows.map(log => (
-          <li key={log.key} className={`border-l-2 pl-3 ${log.action === 'CLEAR_APPROVE' ? 'border-mint-400' : 'border-brand-600'}`}>
+          <li key={log.key} className={`border-l-2 pl-3 ${log.key.startsWith('a-') || log.action === 'CLEAR_APPROVE' ? 'border-mint-400' : 'border-brand-600'}`}>
             <p className="font-medium">{log.label} · {log.actor ?? '-'}</p>
             <p className="text-xs text-gray-500">{formatDate(log.at)}{logRemarkLabel(log.action, log.remark) ? ` · ${logRemarkLabel(log.action, log.remark)}` : ''}</p>
             {log.changes && Object.keys(log.changes).length > 0 && (

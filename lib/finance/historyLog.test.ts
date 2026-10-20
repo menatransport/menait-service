@@ -65,3 +65,26 @@ describe('sentBackLabel', () => {
   });
   test('ไม่มีประวัติ ใช้คำกลาง', () => expect(sentBackLabel([])).toBe('ส่งกลับแก้ไข'));
 });
+
+import { fullHistory } from './historyLog';
+
+describe('fullHistory — อนุมัติ + การเงิน + อนุมัติเคลียร์ ในเส้นเวลาเดียว', () => {
+  const apv = (action: string, at: string, actor = 'ศิวพร ม่วงสวย') => ({ level_no: 1, action, remark: null, action_at: at, actor_name: actor });
+  test('รอบสองหลังตีกลับ อยู่ใต้รอบแรก ไม่ลอยขึ้นบน', () => {
+    const rows = fullHistory(
+      [apv('APPROVED', '2026-10-05T02:00:00Z'), apv('RESUBMITTED', '2026-10-06T03:00:00Z', 'ผู้เบิก'), apv('APPROVED', '2026-10-06T04:00:00Z')],
+      [fin('VOUCHER', '2026-10-05T05:00:00Z'), fin('RETURN', '2026-10-06T01:00:00Z'), fin('RESUBMIT', '2026-10-06T03:00:00Z')],
+      undefined,
+    );
+    expect(rows.map(r => r.label)).toEqual(['อนุมัติ', 'ตั้งเบิกทำจ่าย', 'ตีกลับให้ผู้เบิกแก้ไข', 'ส่งใหม่หลังแก้ไข', 'อนุมัติ']);
+  });
+  test('ชื่อคนทำแทนรหัสพนักงาน ถ้า BE ส่งชื่อมา', () => {
+    const rows = fullHistory([], [{ ...fin('PAY', '2026-10-19T03:00:00Z'), action_by: '610197', action_by_name: 'ณัฐนิชา ใจดี' }], undefined);
+    expect(rows[0].actor).toBe('ณัฐนิชา ใจดี');
+  });
+  test('ไม่โชว์ฟิลด์ภายในของระบบในรายการที่เปลี่ยน', () => {
+    const rows = fullHistory([], [{ ...fin('RESUBMIT', '2026-10-19T03:00:00Z'),
+      changes: { amount: [5000, 4500], fin_status: ['RETURNED', 'RESUBMITTED'], status_approve: ['Approved', 'In Progress'], current_approval_level: [3, 1] } }], undefined);
+    expect(Object.keys(rows[0].changes ?? {})).toEqual(['amount']);
+  });
+});

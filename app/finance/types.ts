@@ -76,6 +76,8 @@ export interface FinLog {
   changes: Record<string, unknown> | null; // usually [before, after]; tolerate scalars
   remark: string | null;
   action_by: string | null;
+  /** ชื่อคนทำ (BE ใหม่ส่งมา) — ไม่มีก็ใช้รหัสพนักงาน */
+  action_by_name?: string | null;
   created_at: string | null;
 }
 

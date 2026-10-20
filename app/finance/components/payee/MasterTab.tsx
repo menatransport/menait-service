@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FileText, History, Pencil, Plus, Power, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -50,8 +50,10 @@ export function MasterTab({ accounts, loading, query, onQueryChange, onChanged, 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return accounts ?? [];
+    const digits = q.replace(/[\s-]/g, '');
     return (accounts ?? []).filter(a => [a.employee_id, a.employee_name, a.department, a.account_no, a.account_name]
-      .some(v => (v ?? '').toLowerCase().includes(q)));
+      .some(v => (v ?? '').toLowerCase().includes(q))
+      || (/^\d+$/.test(digits) && (a.account_no ?? '').includes(digits)));
   }, [accounts, query]);
 
   const [toggling, setToggling] = useState(false);
@@ -158,44 +160,60 @@ function AddAccountDialog({ open, onOpenChange, onDone }: { open: boolean; onOpe
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [lookupError, setLookupError] = useState('');
   const [busy, setBusy] = useState(false);
+  // ค้นชื่อตอนออกจากช่องรหัส ถ้ากดบันทึกทันที คลิกนั้นจะไปเริ่มค้นพอดี เก็บงานค้นไว้ให้ submit รอผลแทนการทิ้งคลิก
+  const lookupRef = useRef<{ id: string; run: Promise<PersonInfo | null> } | null>(null);
 
   useEffect(() => {
-    if (open) { setEmpId(''); setPerson(null); setLookup('idle'); setAccountNo(''); setAccountName(''); setErrors({}); }
+    if (open) { setEmpId(''); setPerson(null); setLookup('idle'); setAccountNo(''); setAccountName(''); setErrors({}); lookupRef.current = null; }
   }, [open]);
 
-  const doLookup = async () => {
-    const id = empId.trim();
+  const runLookup = async (id: string): Promise<PersonInfo | null> => {
     setPerson(null);
-    if (!id) { setLookup('idle'); return; }
+    if (!id) { setLookup('idle'); return null; }
     setLookup('loading');
     try {
       const res = await fetch(`/api/finance/people/${encodeURIComponent(id)}`, { cache: 'no-store' });
       const data = await res.json().catch(() => null);
-      if (res.status === 404) { setLookup('notfound'); return; }
+      if (res.status === 404) { setLookup('notfound'); return null; }
       if (!res.ok) throw new Error(data?.error ?? `เกิดข้อผิดพลาด (${res.status})`);
       const p = data as PersonInfo;
       setPerson(p); setLookup('idle');
       setAccountName(prev => prev.trim() ? prev : (p.name ?? ''));
+      setErrors(prev => { const rest = { ...prev }; delete rest.employee_id; delete rest.account_name; return rest; });
+      return p;
     } catch (err) {
       setLookupError((err as Error).message);
       setLookup('error');
+      return null;
     }
   };
 
+  const doLookup = () => {
+    const id = empId.trim();
+    const run = runLookup(id);
+    lookupRef.current = { id, run };
+    return run;
+  };
+
   const submit = async () => {
-    if (lookup === 'loading') return;
+    const id = empId.trim();
+    let found = person;
+    if (lookupRef.current?.id === id) found = await lookupRef.current.run;
+    else if (id && !found) found = await doLookup();
     const next: Record<string, string> = {};
-    if (!person) next.employee_id = 'กรุณาระบุรหัสพนักงานที่มีอยู่ในระบบ';
+    if (!found) next.employee_id = 'กรุณาระบุรหัสพนักงานที่มีอยู่ในระบบ';
     const accErr = kbankAccountError(accountNo);
     if (accErr) next.account_no = accErr;
-    if (!accountName.trim()) next.account_name = 'กรุณาระบุชื่อบัญชี';
+    // ชื่อบัญชีที่เพิ่งเติมจากผลค้นยังไม่อยู่ใน state รอบนี้ ใช้ชื่อพนักงานแทน
+    const name = accountName.trim() || (found?.name ?? '').trim();
+    if (!name) next.account_name = 'กรุณาระบุชื่อบัญชี';
     setErrors(next);
     if (Object.keys(next).length) return;
     setBusy(true);
     try {
       await fetchJson('/api/finance/payee-accounts', {
         method: 'POST',
-        body: JSON.stringify({ employee_id: person!.employee_id, account_no: normalizeAccountNo(accountNo), account_name: accountName.trim() }),
+        body: JSON.stringify({ employee_id: found!.employee_id, account_no: normalizeAccountNo(accountNo), account_name: name }),
       });
       onOpenChange(false);
       try { await onDone(); } catch { /* list shows its own error */ }
