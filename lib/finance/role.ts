@@ -20,9 +20,12 @@ export function canUseFinance(user: { role?: string | null; is_finance?: boolean
   return !!user && (user.role === 'a' || user.is_finance === true);
 }
 
+/** คนนอกแผนกการเงินที่ต้องเข้าหน้าการเงินได้เสมอ: คุณป้อง (660057) ผู้บริหาร อนุมัติขั้น 2 ใบยอดสูง */
+const ALWAYS_FINANCE_IDS = ['660057'];
+
 export function financeConfig(env: Record<string, string | undefined> = process.env) {
   return {
     deptIds: parseIdList(env.FINANCE_DEPARTMENT_IDS ?? '4,6'),
-    employeeIds: parseIdList(env.FINANCE_EMPLOYEE_IDS),
+    employeeIds: [...new Set([...ALWAYS_FINANCE_IDS, ...parseIdList(env.FINANCE_EMPLOYEE_IDS)])],
   };
 }
