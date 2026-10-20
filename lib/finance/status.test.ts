@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   STATUS_LABELS, addDays, computeSettle, displayFileName, formatBaht, formatDate, parseAmount,
-  settleLabel, todayBkk, toBkkYM, uniqueFileName,
+  clearNeedsSlip, settleLabel, todayBkk, toBkkYM, uniqueFileName,
 } from './status';
 
 describe('labels', () => {
@@ -57,4 +57,11 @@ describe('file names', () => {
     expect(uniqueFileName('a/b.pdf', 1)).toBe('1-a_b.pdf');
   });
   test('display strips prefix', () => expect(displayFileName('1751980000000-slip.jpg')).toBe('slip.jpg'));
+});
+
+describe('clearNeedsSlip', () => {
+  test('refund to company needs a transfer slip', () => expect(clearNeedsSlip(440)).toBe(true));
+  test('company pays more: slip optional', () => expect(clearNeedsSlip(-1200)).toBe(false));
+  test('exact amount: slip optional', () => expect(clearNeedsSlip(0)).toBe(false));
+  test('unknown settle: slip optional', () => expect(clearNeedsSlip(null)).toBe(false));
 });

@@ -28,8 +28,8 @@ export function logRemarkLabel(action: string, remark: string | null): string | 
 }
 
 export const FOLDER_LABELS: Record<string, string> = {
-  request: 'เอกสารประกอบการขอเบิก', pay: 'หลักฐานการจ่ายเงิน', clear: 'เอกสารเคลียร์ / สลิปคืนเงิน',
+  request: 'เอกสารประกอบการขอเบิก', pay: 'หลักฐานการจ่ายเงิน', clear: 'เอกสารเคลียร์ / สลิปโอนเงิน',
   check: 'หลักฐานการเงิน (จ่ายเพิ่ม)',
 };
 
-export const CLEAR_ATTACHMENT_REQUIRED = 'กรุณาแนบใบเสร็จ / สลิปคืนเงินอย่างน้อย 1 ไฟล์';
+export const CLEAR_ATTACHMENT_REQUIRED = 'มียอดต้องคืนบริษัท กรุณาแนบสลิปโอนเงินอย่างน้อย 1 ไฟล์';

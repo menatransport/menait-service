@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { MAX_CLEAR_ITEMS, carryOverDefaults, invalidNumberErrors, rowTotals, savedAmount, sumItems, validateItems } from '@/lib/finance/clearItems';
 import { formatDateThaiShort } from '@/lib/finance/dates';
-import { computeSettle, formatBaht, parseAmount, settleLabel } from '@/lib/finance/status';
+import { clearNeedsSlip, computeSettle, formatBaht, parseAmount, settleLabel } from '@/lib/finance/status';
 import { fetchJson, putAction, showAlert, showConfirm, uploadFiles } from '../api';
 import { CLEAR_ATTACHMENT_REQUIRED } from '../labels';
 import type { AdvanceDetail, AttachmentFile } from '../types';
@@ -62,6 +62,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
   const totals = sumItems(itemRows);
   const actualNum = totals.e;
   const settle = computeSettle(fin.amount_paid ?? 0, actualNum);
+  const needsSlip = clearNeedsSlip(settle);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,7 +72,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
     if (settle !== null && settle > 0 && !settleDate) {
       return showAlert({ icon: 'warning', title: 'มียอดต้องคืนบริษัท', text: 'กรุณาระบุวันที่โอนเงินคืนบริษัท' });
     }
-    if (files.length === 0 && existingClear === 0) return showAlert({ icon: 'warning', title: CLEAR_ATTACHMENT_REQUIRED });
+    if (needsSlip && files.length === 0 && existingClear === 0) return showAlert({ icon: 'warning', title: CLEAR_ATTACHMENT_REQUIRED });
     const ok: any = await showConfirm({
       icon: 'question', title: 'ยืนยันส่งเคลียร์เงิน',
       text: `ยอดใช้จริง ${formatBaht(totals.e)} บาท (${rows.length} รายการ) — ส่งแล้วแก้ไขไม่ได้ จนกว่าบัญชีจะส่งกลับแก้ไข`,
@@ -179,7 +180,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
           <Textarea value={remark} onChange={e => setRemark(e.target.value)} disabled={saving} />
         </label>
         <div className="sm:col-span-2">
-          <p className="mb-1 text-sm">แนบใบเสร็จ / สลิปคืนเงิน *</p>
+          <p className="mb-1 text-sm">แนบสลิปโอนเงิน {needsSlip ? '*' : <span className="text-gray-500">(ไม่บังคับ ต้องแนบเฉพาะกรณีคืนเงินบริษัท)</span>}</p>
           {existingClear > 0 && <p className="text-xs text-gray-500">มีไฟล์แนบแล้ว {existingClear} ไฟล์ (แนบเพิ่มได้)</p>}
           <FilePicker files={files} onChange={setFiles} disabled={saving} />
         </div>

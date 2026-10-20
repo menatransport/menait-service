@@ -60,6 +60,11 @@ export function computeSettle(amountPaid: number, amountActual: number): number 
   return round2(amountPaid - amountActual);
 }
 
+/** ต้องแนบสลิปโอนเงินเฉพาะกรณีคืนเงินบริษัท เบิกเพิ่มหรือยอดพอดีไม่ต้องแนบ */
+export function clearNeedsSlip(settle: number | null | undefined): boolean {
+  return typeof settle === 'number' && settle > 0;
+}
+
 export function settleLabel(settle: number | null | undefined): string {
   if (settle === null || settle === undefined) return '-';
   if (settle > 0) return 'รับคืน';

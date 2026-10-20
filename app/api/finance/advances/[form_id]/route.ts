@@ -35,7 +35,8 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   }
   const guard = OWNER_OR_APPROVER.has(action) ? await requireUser(req) : await requireFinance(req);
   if ('error' in guard) return guard.error;
-  if (action === 'clear') {
+  // ต้องมีสลิปเฉพาะกรณีคืนเงินบริษัท — BE บังคับ settle_date ทุกครั้งที่มียอดคืน จึงใช้เป็นตัวบอกได้
+  if (action === 'clear' && fields.settle_date) {
     if (!FORM_ID_PATTERN.test(form_id)) return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
     try {
       if (!(await hasFiles(`${BASE_PATH}/${form_id}/clear/`))) {
