@@ -9,7 +9,9 @@ export const EXPORT_COLUMNS = [
   'ศูนย์ค่าใช้จ่าย', 'ธนาคาร', 'เลขที่บัญชี', 'ชื่อบัญชี',
 ] as const;
 
-type Row = Record<(typeof EXPORT_COLUMNS)[number], string | number | null>;
+export type ExportColumn = (typeof EXPORT_COLUMNS)[number];
+
+type Row = Record<ExportColumn, string | number | null>;
 
 const d = (value: string | null | undefined) => (value ? formatDate(value) : '');
 

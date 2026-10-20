@@ -5,7 +5,8 @@ import { ArrowDown, ArrowUp, Calendar, FileSpreadsheet, FileText, Filter, Search
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MonthRangeFilter, currentMonth, shiftMonths } from '@/components/month-range-filter';
 import { PaginationControls } from '@/components/pagination-controls';
-import { exportAdvancesXlsx } from '@/lib/finance/export';
+import { EXPORT_COLUMNS, exportAdvancesXlsx, type ExportColumn } from '@/lib/finance/export';
+import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
 import {
   ADVANCE_PAGE_SIZE, buildAdvanceQuery, fetchAllAdvances, tabCount, totalPages,
   type AdvancePage, type AdvanceSummary, type ScopeFilter, type TabFilter,
@@ -28,6 +29,42 @@ function settleText(amount: number | null | undefined): string | null {
   return `${settleLabel(amount)} ${formatBaht(Math.abs(amount))} บาท`;
 }
 const settleTone = (amount: number | null | undefined) => (amount !== null && amount !== undefined && amount < 0 ? 'text-orange-700' : 'text-brand-700');
+
+// ตารางฝ่ายการเงินใช้คอลัมน์ชุดเดียวกับ Excel (EXPORT_COLUMNS) ทั้งชื่อและลำดับ — เพิ่มคอลัมน์ที่ export แล้ว TypeScript จะบังคับให้มีช่องตรงนี้ด้วย
+const MONEY_COLS = new Set<ExportColumn>(['ยอดเงิน', 'ยอดใช้จริง', 'ยอดเงินโอนคืนบริษัท']);
+const dash = (v: string | number | null | undefined) => (v === null || v === undefined || v === '' ? '-' : v);
+const FIN_CELLS: Record<ExportColumn, (item: AdvanceItem, no: number) => ReactNode> = {
+  'ลำดับ': (_, no) => no,
+  'เลขที่คำขอเบิกเงิน': it => <span className="font-medium text-brand-800">{it.form_id}</span>,
+  'ผู้เบิก': it => it.requester.name ?? it.requester.employee_id,
+  'แผนก': it => dash(it.requester.department),
+  'ศูนย์': it => dash(it.requester.site_code ?? it.requester.site),
+  'สถานะ': it => <StatusBadge status={it.status} overdue={it.overdue} />,
+  'เลขที่ตั้งเบิก': it => dash(it.fin?.voucher_no),
+  'วันที่ตั้งเบิก': it => formatDate(it.fin?.voucher_date),
+  'เลขที่ทำจ่าย': it => dash(it.fin?.payment_doc_no),
+  'วันที่ใช้เงิน': it => formatDate(it.request.use_date),
+  'วัตถุประสงค์': it => {
+    const text = it.fin?.purpose ?? it.request.purpose;
+    return <div className="max-w-[16rem] truncate" title={text ?? undefined}>{dash(text)}</div>;
+  },
+  'ยอดเงิน': it => formatBaht(it.fin?.amount_paid ?? it.request.amount),
+  'วันที่โอนเงิน': it => formatDate(it.fin?.transfer_date),
+  'กำหนดการเคลียร์': it => formatDate(it.fin?.clear_due_date),
+  'วันที่ส่งเอกสารเคลียร์': it => formatDate(it.fin?.clear_date),
+  'ยอดใช้จริง': it => (it.fin?.amount_actual === null || it.fin?.amount_actual === undefined ? '-' : formatBaht(it.fin.amount_actual)),
+  'เลขที่เอกสารเคลียร์เงิน': it => dash(it.fin?.clear_doc_no),
+  'ยอดเงินโอนคืนบริษัท': it => {
+    const text = settleText(it.fin?.settle_amount);
+    return text ? <span className={`font-medium ${settleTone(it.fin?.settle_amount)}`}>{text}</span> : '-';
+  },
+  'วันที่โอนเงินคืนบริษัท': it => formatDate(it.fin?.settle_date),
+  'หมายเหตุ': it => <div className="max-w-[14rem] truncate" title={it.fin?.remark ?? undefined}>{dash(it.fin?.remark)}</div>,
+  'ศูนย์ค่าใช้จ่าย': it => dash(it.request.cost_center),
+  'ธนาคาร': it => (it.request.bank ? bankLabel(it.request.bank) : '-'),
+  'เลขที่บัญชี': it => (it.request.account_no ? formatAccountNo(it.request.account_no) : '-'),
+  'ชื่อบัญชี': it => dash(it.request.account_name),
+};
 
 export interface AdvanceListTab extends TabFilter {
   key: string;
@@ -390,26 +427,15 @@ export function AdvanceListView({
         </div>
 
         {/* Desktop table */}
-        {/* finance: 12 columns need ≥1280px and scroll sideways; narrower screens use the cards above */}
+        {/* finance: 24 columns (same as Excel) scroll sideways on ≥1280px; narrower screens use the cards above */}
         <div className={`hidden ${mode === 'finance' ? 'xl:block' : 'lg:block'} overflow-x-auto ${loading ? 'min-h-52' : ''}`}>
           <table className="w-full">
             <thead className="bg-gray-100">
               <tr>
                 {mode === 'finance' ? (
-                  <>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 leading-tight">เลขที่<br />คำขอเบิกเงิน</th>
-                    <th className={FTH}>ผู้เบิก</th>
-                    <th className={FTH}>ศูนย์ค่าใช้จ่าย</th>
-                    <th className={FTH}>วัตถุประสงค์</th>
-                    <th className={`${FTH} text-right`}>ยอดเงิน</th>
-                    <th className={FTH}>วันที่ใช้เงิน</th>
-                    <th className={FTH}>เลขที่ตั้งเบิก</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 leading-tight">เลขที่เอกสาร<br />เคลียร์เงิน</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-gray-700 leading-tight">ยอดเงินโอน<br />คืนบริษัท</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-700 leading-tight">วันที่โอนเงิน<br />คืนบริษัท</th>
-                    <th className={FTH}>กำหนดเคลียร์</th>
-                    <th className={FTH}>สถานะ</th>
-                  </>
+                  EXPORT_COLUMNS.map(col => (
+                    <th key={col} className={`${FTH} ${MONEY_COLS.has(col) ? 'text-right' : ''}`}>{col}</th>
+                  ))
                 ) : (
                   <>
                     <th className={TH}>เลขที่คำขอเบิกเงิน</th>
@@ -425,47 +451,23 @@ export function AdvanceListView({
             <tbody className="divide-y divide-gray-100">
               {!loading && paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={mode === 'finance' ? 12 : 6} className="px-6 py-16 text-center text-gray-500">
+                  <td colSpan={mode === 'finance' ? EXPORT_COLUMNS.length : 6} className="px-6 py-16 text-center text-gray-500">
                     <FileText size={56} className="mx-auto mb-4 text-gray-300" />
                     <p className="text-lg">ไม่มีรายการ</p>
                   </td>
                 </tr>
-              ) : paginated.map(item => (
+              ) : paginated.map((item, i) => (
                 <tr
                   key={item.form_id}
                   onClick={() => onOpen(item)}
                   className={`cursor-pointer hover:bg-gray-50 transition-colors ${item.overdue ? 'bg-rose-50/60' : ''}`}
                 >
                   {mode === 'finance' ? (
-                    <>
-                      <td className={`${FTD} font-medium text-brand-800`}>{item.form_id}</td>
-                      <td className="px-3 py-2.5 text-sm align-top">
-                        <div className="min-w-44 max-w-60">
-                          <p className="font-medium text-gray-800 leading-snug">{item.requester.name ?? item.requester.employee_id}</p>
-                          <p className="text-xs text-gray-500 leading-snug">
-                            {[item.requester.department, item.requester.site_code ?? item.requester.site].filter(Boolean).join(' · ') || '-'}
-                          </p>
-                        </div>
+                    EXPORT_COLUMNS.map(col => (
+                      <td key={col} className={`${FTD} ${MONEY_COLS.has(col) ? 'text-right tabular-nums' : ''}`}>
+                        {FIN_CELLS[col](item, (currentPage - 1) * ADVANCE_PAGE_SIZE + i + 1)}
                       </td>
-                      <td className={FTD}>{item.request.cost_center ?? '-'}</td>
-                      <td className="px-3 py-2.5 text-sm align-top">
-                        <div className="max-w-[9rem] xl:max-w-[15rem] 2xl:max-w-[24rem] truncate" title={item.fin?.purpose ?? item.request.purpose ?? undefined}>
-                          {item.fin?.purpose ?? item.request.purpose ?? '-'}
-                        </div>
-                      </td>
-                      <td className={`${FTD} text-right tabular-nums`}>{formatBaht(item.fin?.amount_paid ?? item.request.amount)}</td>
-                      <td className={`${FTD} tabular-nums`}>{formatDate(item.request.use_date)}</td>
-                      <td className={FTD}>{item.fin?.voucher_no ?? '-'}</td>
-                      <td className={FTD}>{item.fin?.clear_doc_no ?? '-'}</td>
-                      <td className={`${FTD} text-right tabular-nums`}>
-                        {settleText(item.fin?.settle_amount) ? (
-                          <span className={`font-medium ${settleTone(item.fin?.settle_amount)}`}>{settleText(item.fin?.settle_amount)}</span>
-                        ) : '-'}
-                      </td>
-                      <td className={`${FTD} tabular-nums`}>{formatDate(item.fin?.settle_date)}</td>
-                      <td className={`${FTD} tabular-nums`}>{formatDate(item.fin?.clear_due_date)}</td>
-                      <td className="px-3 py-2.5 align-top w-36"><StatusBadge status={item.status} overdue={item.overdue} /></td>
-                    </>
+                    ))
                   ) : (
                     <>
                       <td className={`${TD} font-medium text-brand-800`}>{item.form_id}</td>
