@@ -17,6 +17,7 @@ export const LOG_ACTION_LABELS: Record<string, string> = {
   RETURN: 'ตีกลับให้ผู้เบิกแก้ไข', RETURNED: 'ตีกลับให้ผู้เบิกแก้ไข', RESUBMITTED: 'ส่งใหม่หลังแก้ไข',
   APPROVED: 'อนุมัติ', REJECTED: 'ไม่อนุมัติ',
   OVERDUE_REMIND: 'แจ้งเตือนเกินกำหนด',
+  CLEAR_REJECT: 'ไม่อนุมัติการเคลียร์',
 };
 
 const OVERDUE_REMIND_REMARKS: Record<string, string> = { auto: 'อัตโนมัติ', manual: 'ส่งโดยบัญชี' };

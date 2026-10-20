@@ -93,6 +93,7 @@ export interface AdvanceDetail extends AdvanceItem {
   clear_approval?: ClearApprovalInfo | null;
   approval_logs: ApprovalLog[];
   fin_logs: FinLog[];
+  clear_logs?: import('@/lib/finance/historyLog').ClearLog[];
 }
 
 export type AttachmentFolder = 'request' | 'pay' | 'clear' | 'check';

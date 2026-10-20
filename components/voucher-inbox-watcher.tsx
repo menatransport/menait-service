@@ -1,5 +1,6 @@
 'use client';
 
+import { voucherInboxHref } from '@/lib/finance/historyLog';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { BellRing, X } from 'lucide-react';
@@ -106,7 +107,7 @@ export default function VoucherInboxWatcher() {
                 <p className="text-xs text-gray-500">{baht(t.amount)}</p>
               )}
               <Link
-                href={`/finance/advance/${t.form_id}`}
+                href={voucherInboxHref(t.form_id)}
                 onClick={() => dismiss(t.form_id)}
                 className="mt-2 inline-block rounded-lg bg-brand-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-brand-700"
               >

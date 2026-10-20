@@ -2,6 +2,7 @@ import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
 import { formatDate } from '@/lib/finance/status';
 import { FIELD_LABELS, LOG_ACTION_LABELS, logRemarkLabel } from '../labels';
 import type { ApprovalLog, FinLog } from '../types';
+import { financeHistory, type ClearLog } from '@/lib/finance/historyLog';
 import { Panel } from './FinanceShell';
 
 const show = (v: unknown) => (v === null || v === undefined || v === '' ? '-' : String(v));
@@ -25,8 +26,9 @@ function showValue(field: string, v: unknown): string {
   return show(v);
 }
 
-export function LogList({ approvalLogs, finLogs }: { approvalLogs: ApprovalLog[]; finLogs: FinLog[] }) {
-  if (approvalLogs.length === 0 && finLogs.length === 0) return null;
+export function LogList({ approvalLogs, finLogs, clearLogs }: { approvalLogs: ApprovalLog[]; finLogs: FinLog[]; clearLogs?: ClearLog[] }) {
+  const rows = financeHistory(finLogs, clearLogs);
+  if (approvalLogs.length === 0 && rows.length === 0) return null;
   return (
     <Panel title="ประวัติ">
       <ol className="space-y-3 text-sm">
@@ -36,10 +38,10 @@ export function LogList({ approvalLogs, finLogs }: { approvalLogs: ApprovalLog[]
             <p className="text-xs text-gray-500">{formatDate(log.action_at)}{log.remark ? ` · ${log.remark}` : ''}</p>
           </li>
         ))}
-        {finLogs.map((log, i) => (
-          <li key={`f-${i}`} className="border-l-2 border-brand-600 pl-3">
-            <p className="font-medium">{LOG_ACTION_LABELS[log.action] ?? log.action} · {log.action_by ?? '-'}</p>
-            <p className="text-xs text-gray-500">{formatDate(log.created_at)}{logRemarkLabel(log.action, log.remark) ? ` · ${logRemarkLabel(log.action, log.remark)}` : ''}</p>
+        {rows.map(log => (
+          <li key={log.key} className={`border-l-2 pl-3 ${log.action === 'CLEAR_APPROVE' ? 'border-mint-400' : 'border-brand-600'}`}>
+            <p className="font-medium">{log.label} · {log.actor ?? '-'}</p>
+            <p className="text-xs text-gray-500">{formatDate(log.at)}{logRemarkLabel(log.action, log.remark) ? ` · ${logRemarkLabel(log.action, log.remark)}` : ''}</p>
             {log.changes && Object.keys(log.changes).length > 0 && (
               <ul className="mt-1 text-xs text-gray-600">
                 {Object.entries(log.changes).map(([field, v]) => {

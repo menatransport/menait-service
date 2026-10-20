@@ -1,5 +1,6 @@
 'use client';
 
+import { clearSubmittedTitle } from '@/lib/finance/historyLog';
 import { useEffect, useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -101,7 +102,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
         settle_date: settle !== null && settle > 0 ? settleDate : null,
         remark,
       });
-      await showAlert({ icon: 'success', title: 'ส่งเคลียร์เงินแล้ว รอบัญชีตรวจ' });
+      await showAlert({ icon: 'success', title: clearSubmittedTitle(saved?.status) });
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: (err as Error).message });

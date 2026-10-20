@@ -59,6 +59,11 @@ describe('validateSingleItem', () => {
   test('bad number text reported', () => {
     expect(validateSingleItem(raw({ a: '12abc' }), row({ amount_before_vat: null }), parseAmount)[0]).toBe('ยอดเงิน รูปแบบตัวเลขไม่ถูกต้อง');
   });
+  test('ยอดเงินเว้นว่างต้องเตือน ไม่นับเป็น 0', () => {
+    expect(validateSingleItem(raw({ a: '' }), row({ amount_before_vat: null }), parseAmount)).toContain('กรุณาระบุยอดเงิน');
+    expect(validateSingleItem(raw({ a: '  ' }), row({ amount_before_vat: null }), parseAmount)).toContain('กรุณาระบุยอดเงิน');
+  });
+  test('ยอดเงิน 0 ที่พิมพ์เองยังบันทึกได้', () => expect(validateSingleItem(raw({ a: '0' }), row({ amount_before_vat: 0 }), parseAmount)).toEqual([]));
   test('wht over total', () => expect(validateSingleItem(raw({ d: '108' }), row({ wht_amount: 108 }), parseAmount)[0]).toContain('ยอดสุทธิต้องไม่ติดลบ'));
 });
 

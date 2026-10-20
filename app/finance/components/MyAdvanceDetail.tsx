@@ -71,7 +71,7 @@ export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChang
           ส่งเคลียร์เงินแล้ว รอบัญชีตรวจ — แก้ไขไม่ได้ หากต้องแก้ไข ให้ติดต่อบัญชีเพื่อส่งกลับแก้ไข
         </p>
       )}
-      <LogList approvalLogs={detail.approval_logs} finLogs={detail.fin_logs} />
+      <LogList approvalLogs={detail.approval_logs} finLogs={detail.fin_logs} clearLogs={detail.clear_logs} />
     </>
   );
 }

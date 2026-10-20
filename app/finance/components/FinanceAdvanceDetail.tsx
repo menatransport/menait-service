@@ -137,7 +137,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
         <ReviewPanel key={`rev-${refreshKey}`} detail={detail} onSaved={onSaved}
           canSendBack={can(perms, PERM.clearingReview)} canClose={can(perms, PERM.close)} />
       )}
-      <LogList approvalLogs={detail.approval_logs} finLogs={detail.fin_logs} />
+      <LogList approvalLogs={detail.approval_logs} finLogs={detail.fin_logs} clearLogs={detail.clear_logs} />
     </>
   );
 }
