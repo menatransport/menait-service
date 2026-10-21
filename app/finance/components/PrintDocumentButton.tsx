@@ -35,7 +35,7 @@ export function PrintDocumentButton({ detail, initial, compact = false, label }:
       const html = parts === 'part1' ? buildCashAdvanceHtml(cash, { logoUrl, attachmentsHtml: att1 })
         : parts === 'part2' ? buildClearingHtml(toClearingData(detail), { logoUrl, attachmentsHtml: att2 })
         : buildCombinedHtml(cash, toClearingData(detail), { logoUrl, part1AttachmentsHtml: att1, part2AttachmentsHtml: att2 });
-      if (!openPrintWindow(html)) showAlert({ icon: 'error', title: 'เบราว์เซอร์บล็อกหน้าต่างพิมพ์' });
+      if (!openPrintWindow(html)) showAlert({ icon: 'error', title: 'เปิดหน้าพิมพ์ไม่ได้', text: 'ลองรีเฟรชหน้าแล้วกดพิมพ์อีกครั้ง' });
       else setOpen(false);
     } catch (err) {
       showAlert({ icon: 'error', title: 'พิมพ์ไม่ได้', text: err instanceof Error ? err.message : String(err) });

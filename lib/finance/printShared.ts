@@ -148,31 +148,50 @@ table.print-wrap.seg + table.print-wrap.seg { break-before: page; }
 
 export const PRINT_READY_TIMEOUT_MS = 15000;
 
+/** Hidden frame used for printing (one at a time). */
+export const PRINT_FRAME_ID = 'fin-print-frame';
+
 /**
- * Opens the print popup, waits for load + every <img> + fonts, prints, closes after print.
- * Returns false when the browser blocked the popup (caller shows the alert).
+ * Prints the document from a hidden iframe on the current page (ผู้ใช้แจ้ง 21/10/2026: หน้าต่างพิมพ์ปิดไม่ได้).
+ * The old popup only closed itself on `afterprint`, which some browsers / the installed PWA never fire,
+ * so the user was left with a window they could not close. A frame has no window to close at all.
+ * Waits for load + every <img> + fonts (or PRINT_READY_TIMEOUT_MS), prints, removes the frame after print.
+ * Returns false only when the frame could not be created.
  */
 export function openPrintWindow(html: string): boolean {
-  const w = window.open('', '', 'width=900,height=1000');
-  if (!w) return false;
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  w.onafterprint = () => w.close();
+  document.getElementById(PRINT_FRAME_ID)?.remove();
+  const frame = document.createElement('iframe');
+  frame.id = PRINT_FRAME_ID;
+  frame.setAttribute('aria-hidden', 'true');
+  frame.tabIndex = -1;
+  // Off-screen but full size: a 0×0 or display:none frame prints blank in some browsers.
+  frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:900px;height:1000px;border:0;opacity:0;pointer-events:none;';
+  document.body.appendChild(frame);
+  const w = frame.contentWindow;
+  const doc = frame.contentDocument ?? w?.document;
+  if (!w || !doc) { frame.remove(); return false; }
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  let removed = false;
+  const cleanup = () => { if (removed) return; removed = true; frame.remove(); };
+  w.addEventListener('afterprint', () => setTimeout(cleanup, 500), { once: true });
+
   const loaded = new Promise<void>(resolve => {
-    if (w.document.readyState === 'complete') resolve();
+    if (doc.readyState === 'complete') resolve();
     else w.addEventListener('load', () => resolve(), { once: true });
   });
-  const imagesReady = () => Promise.all(Array.from(w.document.images).map(img =>
+  const imagesReady = () => Promise.all(Array.from(doc.images).map(img =>
     img.complete ? Promise.resolve() : new Promise<void>(res => { img.onload = () => res(); img.onerror = () => res(); })));
-  // A stalled image/font must not hang the popup forever: print anyway after the timeout.
-  const ready = loaded.then(() => imagesReady()).then(() => w.document.fonts.ready).then(() => undefined);
+  // A stalled image/font must not hang printing forever: print anyway after the timeout.
+  const ready = loaded.then(() => imagesReady()).then(() => doc.fonts?.ready).then(() => undefined);
   const timeout = new Promise<void>(res => setTimeout(res, PRINT_READY_TIMEOUT_MS));
   Promise.race([ready, timeout])
     .catch(() => undefined)
     .finally(() => {
-      if (w.closed) return;
-      try { w.focus(); w.print(); } catch { try { w.close(); } catch { /* popup already gone */ } }
+      if (removed) return;
+      try { w.focus(); w.print(); } catch { cleanup(); }
     });
   return true;
 }
