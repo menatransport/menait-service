@@ -13,5 +13,6 @@ describe('approvalSteps', () => {
   test('badge degrades without fields', () => {
     expect(stepBadge(undefined, undefined)).toBeNull();
     expect(stepBadge(2, 2)).toBe('ขั้น 2/2');
+    expect(stepBadge(1, 1)).toBeNull(); // ขั้นเดียวตาม TOA ไม่ต้องบอกขั้น (21/10/2026)
   });
 });

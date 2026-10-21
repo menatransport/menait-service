@@ -6,8 +6,8 @@ export function stepChainText(steps: ApprovalStep[] | null | undefined): string 
   return steps.map(s => `ขั้น ${s.step}: ${s.label}`).join(' → ');
 }
 
-/** "ขั้น 1/2" badge text; null when the item carries no step info (old BE). */
+/** "ขั้น 1/2" badge text; null when the item carries no step info (old BE) or there is only one step (TOA 21/10/2026). */
 export function stepBadge(step: number | null | undefined, total: number | null | undefined): string | null {
-  if (!step || !total) return null;
+  if (!step || !total || total < 2) return null;
   return `ขั้น ${step}/${total}`;
 }
