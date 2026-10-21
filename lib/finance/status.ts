@@ -85,6 +85,7 @@ export const MAX_AMOUNT = 9_999_999_999.99;
 export function amountError(raw: string | number | null | undefined): string | null {
   const text = typeof raw === 'number' ? String(raw) : (raw ?? '').replace(/,/g, '').trim();
   const n = parseAmount(text);
+  if (n === null && text !== '' && !/^-?[\d.]+$/.test(text)) return 'ใส่จำนวนเงินเป็นตัวเลขธรรมดา เช่น 1000 หรือ 1,500.50';
   if (n === null || n <= 0) return 'จำนวนเงินต้องมากกว่า 0';
   if (/\.\d{3,}$/.test(text)) return 'ใส่ทศนิยมได้ไม่เกิน 2 ตำแหน่ง';
   if (n > MAX_AMOUNT) return 'จำนวนเงินมากเกินไป ใส่ได้ไม่เกิน 9,999,999,999.99 บาท';

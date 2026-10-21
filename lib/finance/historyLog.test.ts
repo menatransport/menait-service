@@ -17,6 +17,11 @@ describe('financeHistory', () => {
     expect(rows.map(r => r.label)).toEqual(['ส่งเคลียร์เงิน', 'อนุมัติการเคลียร์ ขั้น 1', 'อนุมัติการเคลียร์ ขั้น 2', 'ยืนยันปิดรายการ']);
   });
 
+  test('อนุมัติเคลียร์ขั้นเดียว (TOA 21/10/2026) ไม่ต้องบอกขั้น', () => {
+    const rows = financeHistory([fin('CLEAR_SUBMIT', '2026-10-19T03:00:00Z')], [clr(1, 'APPROVED', '2026-10-19T04:00:00Z')]);
+    expect(rows.map(r => r.label)).toEqual(['ส่งเคลียร์เงิน', 'อนุมัติการเคลียร์']);
+  });
+
   test('ไม่อนุมัติการเคลียร์ขึ้นครั้งเดียว พร้อมเหตุผล ไม่เป็นรหัสดิบ', () => {
     const rows = financeHistory(
       [fin('CLEAR_SUBMIT', '2026-10-19T03:00:00Z'), fin('CLEAR_REJECT', '2026-10-19T04:00:00Z', 'ใบเสร็จไม่ครบ')],

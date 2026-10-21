@@ -11,3 +11,13 @@ export function stepBadge(step: number | null | undefined, total: number | null 
   if (!step || !total || total < 2) return null;
   return `ขั้น ${step}/${total}`;
 }
+
+/** ข้อความสายอนุมัติใต้ช่องจำนวนเงิน · ระดับที่ต้องการสูงกว่าตาม TOA เพราะต้องสูงกว่าผู้เบิก ให้บอกเหตุผลด้วย */
+export function approvalHintText(r: { required_level: number; clause: string; approver_label: string; steps?: ApprovalStep[] | null }): string {
+  const chain = stepChainText(r.steps);
+  if (chain) return chain;
+  const m = r.approver_label?.match(/ระดับ\s*(\d+)/);
+  const toaMin = m ? Number(m[1]) : null;
+  const why = toaMin !== null && r.required_level > toaMin ? ' · ต้องสูงกว่าระดับผู้เบิก' : '';
+  return `ต้องอนุมัติโดยระดับ ${r.required_level} ขึ้นไป (ข้อ ${r.clause} · ${r.approver_label}${why})`;
+}

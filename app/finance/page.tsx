@@ -10,6 +10,8 @@ import { AdvanceListView, type AdvanceListTab } from './components/AdvanceListVi
 import { AdvanceSheet } from './components/AdvanceSheet';
 import { FinanceCanvas, FinanceHeading, NoAccess, SummaryTiles } from './components/FinanceShell';
 import type { AdvanceItem } from './types';
+import { PERM, can } from '@/lib/finance/permissions';
+import { useFinancePermissions } from './usePermissions';
 import { fetchAllAdvances, type AdvancePage, type AdvanceSummary } from '@/lib/finance/advanceQuery';
 
 const TABS: AdvanceListTab[] = [
@@ -27,6 +29,9 @@ const TABS: AdvanceListTab[] = [
 
 export default function FinanceQueuePage() {
   const { user, loading } = useSessionContext();
+  const perms = useFinancePermissions();
+  // ปุ่มส่งแจ้งเตือนเกินกำหนด เฉพาะคนที่มีสิทธิ์ (แผนกบัญชี) — หลังบ้านกัน 403 อยู่แล้ว ไม่ควรโชว์ให้กดแล้วค่อยโดนปฏิเสธ
+  const canRemind = can(perms, PERM.overdueRemind);
   const [summary, setSummary] = useState<AdvanceSummary | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [tab, setTab] = useState('voucher');
@@ -147,7 +152,7 @@ export default function FinanceQueuePage() {
         onOpen={handleOpen}
         exportFileBase="advance"
         refreshKey={refreshKey}
-        headerAction={tab === 'overdue' && overdueCount > 0 ? (
+        headerAction={tab === 'overdue' && overdueCount > 0 && canRemind ? (
           <button type="button" onClick={remindAll} disabled={reminding}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-all cursor-pointer disabled:opacity-50">
             <BellRing size={14} /> <span>ส่งแจ้งเตือนทั้งหมด ({overdueCount})</span>

@@ -175,7 +175,14 @@ export function openPrintWindow(html: string): boolean {
   doc.close();
 
   let removed = false;
-  const cleanup = () => { if (removed) return; removed = true; frame.remove(); };
+  // หลังพิมพ์ โฟกัสค้างอยู่ในเฟรม ปุ่ม Esc ของ Sheet/Dialog ในหน้าหลักเลยไม่ทำงาน คืนโฟกัสให้หน้าหลักเสมอ
+  const refocusPage = () => {
+    try {
+      if (document.activeElement === frame) frame.blur();
+      window.focus();
+    } catch { /* frame already gone */ }
+  };
+  const cleanup = () => { if (removed) return; removed = true; refocusPage(); frame.remove(); };
   w.addEventListener('afterprint', () => setTimeout(cleanup, 500), { once: true });
 
   const loaded = new Promise<void>(resolve => {
@@ -191,7 +198,9 @@ export function openPrintWindow(html: string): boolean {
     .catch(() => undefined)
     .finally(() => {
       if (removed) return;
-      try { w.focus(); w.print(); } catch { cleanup(); }
+      try { w.focus(); w.print(); } catch { cleanup(); return; }
+      // print() returns once the dialog closes (or right away in browsers that print asynchronously)
+      setTimeout(refocusPage, 0);
     });
   return true;
 }

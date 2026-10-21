@@ -57,6 +57,13 @@ describe('expense claim form (Part 2)', () => {
     expect(d.items.map(r => r.amount_before_vat)).toEqual(REF_ITEMS.map(([a]) => a));
     expect(d.items[5]).toMatchObject({ receipt: 'N', vehicle: '70-1234 (รถโม่)' });
   });
+  test('วันที่รับเอกสารในช่องแผนกบัญชี มาจากวันที่รับเอกสารตัวจริงที่ติ๊กตอนปิดรายการ', () => {
+    const d = toClearingData(detail({ status: 'CLOSED' }, { original_received_date: '2026-10-05' }));
+    expect(d.received_date).toBe('5/10/2026');
+    expect(buildClearingHtml(d, {})).toContain('5/10/2026');
+    expect(toClearingData(detail()).received_date).toBe('');
+  });
+
   test('e-sign: requester from clear_submitted_at; แผนกบัญชีและการเงิน only when CLOSED', () => {
     const open = toClearingData(detail());
     expect(open.signatures.requester.esign).toEqual({ name: 'สุนิสา ทาระเวท', timestamp: '2026-09-10T03:15:00+00:00', ref: 'ADV-2026-0001' });

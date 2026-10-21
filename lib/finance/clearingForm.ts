@@ -52,6 +52,12 @@ export interface ClaimRow {
   wht_amount: number | null;
 }
 
+/** 'YYYY-MM-DD' → 'd/m/yyyy' (แบบเดียวกับวันที่ใต้ลายเซ็น) */
+function ymdToDmy(value: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value ?? '');
+  return m ? `${Number(m[3])}/${Number(m[2])}/${m[1]}` : '';
+}
+
 export interface ClearingSignature { name: string; date: string; esign?: ESign }
 
 export interface ClearingFormData {
@@ -68,6 +74,8 @@ export interface ClearingFormData {
   amount_paid: number | null;
   /** unit_head/approver = ผู้อนุมัติการเคลียร์ในรอบล่าสุด (ไม่มีด่านอนุมัติ = ว่าง) */
   signatures: { requester: ClearingSignature; accounting: ClearingSignature; unit_head?: ClearingSignature; approver?: ClearingSignature };
+  /** วันที่รับเอกสาร (ช่องแผนกบัญชี) = fin.original_received_date แบบ d/m/yyyy · ยังไม่ได้รับ = '' */
+  received_date?: string;
 }
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
@@ -126,6 +134,7 @@ export function toClearingData(detail: AdvanceDetail): ClearingFormData {
     },
     items,
     amount_paid: num(fin?.amount_paid),
+    received_date: ymdToDmy(fin?.original_received_date),
     signatures: {
       ...clearApprovalSignatures(detail),
       requester: {
@@ -271,8 +280,8 @@ export function clearingBody(data: ClearingFormData, opts: { logoUrl?: string; b
   const cells: [string, string][] = [
     [stampHtml(valid(sg.requester)), nameDate(sg.requester)],
     [stampHtml(valid(sg.unit_head)), nameDate(sg.unit_head)], ['', nameDate()], [stampHtml(valid(sg.approver)), nameDate(sg.approver)],
-    // วันที่รับเอกสาร is written by hand when accounting receives the paper; the system only knows the close time (stamp).
-    [stampHtml(valid(sg.accounting)), line('วันที่รับเอกสาร', '') + line('ชื่อ', sg.accounting.name)],
+    // วันที่รับเอกสาร = วันที่บัญชีติ๊กรับเอกสารตัวจริงตอนปิดรายการ (21/10/2026) ใบเก่าที่ไม่มีค่าเว้นว่างให้เขียนเอง
+    [stampHtml(valid(sg.accounting)), line('วันที่รับเอกสาร', data.received_date ?? '') + line('ชื่อ', sg.accounting.name)],
   ];
   const anyEsign = valid(sg.requester) || valid(sg.accounting) || valid(sg.unit_head) || valid(sg.approver);
 

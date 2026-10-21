@@ -31,9 +31,11 @@ export function financeHistory(finLogs: FinLog[], clearLogs: ClearLog[] | undefi
     key: `f-${i}`, action: l.action, label: LOG_ACTION_LABELS[l.action] ?? l.action,
     actor: l.action_by_name ?? l.action_by, at: l.created_at, remark: l.remark, changes: l.changes,
   }));
+  // ขั้นเดียวตาม TOA (21/10/2026) ไม่ต้องบอกขั้น · ใบเก่าที่มีขั้น 2 ยังบอกขั้นเหมือนเดิม
+  const multiStep = (clearLogs ?? []).some(l => (l.step ?? 1) > 1);
   (clearLogs ?? []).forEach((l, i) => {
     if (l.action !== 'APPROVED') return;
-    rows.push({ key: `c-${i}`, action: 'CLEAR_APPROVE', label: `อนุมัติการเคลียร์ ขั้น ${l.step}`,
+    rows.push({ key: `c-${i}`, action: 'CLEAR_APPROVE', label: multiStep ? `อนุมัติการเคลียร์ ขั้น ${l.step}` : 'อนุมัติการเคลียร์',
       actor: l.action_by_name ?? l.action_by, at: l.created_at, remark: l.remark, changes: null });
   });
   const t = (s: string | null) => (s ? Date.parse(s) : 0);

@@ -88,6 +88,11 @@ describe('clearSlipMissing — สลิปโอนเงินตอนคื�
 import { amountError } from './status';
 
 describe('amountError — ช่องจำนวนเงินที่ขอเบิก', () => {
+  test('พิมพ์แบบวิทยาศาสตร์หรือฐานสิบหก บอกให้พิมพ์ตัวเลขธรรมดา', () => {
+    expect(amountError('1e3')).toBe('ใส่จำนวนเงินเป็นตัวเลขธรรมดา เช่น 1000 หรือ 1,500.50');
+    expect(amountError('0x10')).toBe('ใส่จำนวนเงินเป็นตัวเลขธรรมดา เช่น 1000 หรือ 1,500.50');
+    expect(amountError('')).toBe('จำนวนเงินต้องมากกว่า 0');
+  });
   test('มีสตางค์ได้', () => { expect(amountError('1250.50')).toBeNull(); expect(amountError('1,250.5')).toBeNull(); });
   test('ศูนย์หรือติดลบไม่ได้', () => { expect(amountError('0')).toBe('จำนวนเงินต้องมากกว่า 0'); expect(amountError('-5')).toBe('จำนวนเงินต้องมากกว่า 0'); });
   test('ทศนิยมเกิน 2 ตำแหน่ง', () => expect(amountError('12.345')).toBe('ใส่ทศนิยมได้ไม่เกิน 2 ตำแหน่ง'));

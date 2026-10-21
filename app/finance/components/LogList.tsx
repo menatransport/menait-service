@@ -8,7 +8,7 @@ import { Panel } from './FinanceShell';
 
 const show = (v: unknown) => (v === null || v === undefined || v === '' ? '-' : String(v));
 
-const DATE_FIELDS = new Set(['voucher_date', 'transfer_date', 'clear_due_date', 'clear_date', 'settle_date', 'use_date']);
+const DATE_FIELDS = new Set(['voucher_date', 'transfer_date', 'clear_due_date', 'clear_date', 'settle_date', 'use_date', 'original_received_date']);
 const MONEY_FIELDS = new Set(['amount', 'amount_paid', 'amount_actual', 'settle_amount', 'items_total']);
 
 /** วันที่และเวลา ให้เห็นลำดับขั้นที่เกิดในวันเดียวกัน */

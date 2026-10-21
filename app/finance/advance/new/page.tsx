@@ -13,7 +13,7 @@ import { useSessionContext } from '@/app/context/SessionContext';
 import { accountNoError, normalizeAccountNo } from '@/lib/finance/bank';
 import { isBeforeToday } from '@/lib/finance/dates';
 import { amountError, parseAmount, todayBkk } from '@/lib/finance/status';
-import { stepChainText } from '@/lib/finance/approvalSteps';
+import { approvalHintText } from '@/lib/finance/approvalSteps';
 import type { AdvanceDetail, ApprovalTierInfo, AttachmentFile } from '../../types';
 import { fetchJson, putAction, showAlert, uploadFiles } from '../../api';
 import { AttachmentPanel } from '../../components/AttachmentPanel';
@@ -66,12 +66,13 @@ function NewAdvance() {
   useEffect(() => {
     const amount = parseAmount(amountValue);
     setHint(null);
-    if (amount === null || amount <= 0) return;
+    // ยอดผิดรูปแบบ (ทศนิยมเกิน / เกินเพดาน) ไม่ต้องโชว์สายอนุมัติคู่กับข้อความแดง
+    if (amount === null || amount <= 0 || amountError(amountValue as string)) return;
     let cancelled = false;
     const timer = setTimeout(() => {
       fetchJson<ApprovalTierInfo>(
         `/api/finance/approval-preview?amount=${encodeURIComponent(String(amount))}`)
-        .then(r => { if (!cancelled) setHint({ text: stepChainText(r.steps) ?? `ต้องอนุมัติโดยระดับ ${r.required_level} ขึ้นไป (ข้อ ${r.clause} · ${r.approver_label})`, error: false, clause: r.clause, requiredLevel: r.required_level }); })
+        .then(r => { if (!cancelled) setHint({ text: approvalHintText(r), error: false, clause: r.clause, requiredLevel: r.required_level }); })
         .catch(err => { if (!cancelled) setHint({ text: err.message, error: true }); });
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };

@@ -330,6 +330,7 @@ export const FormField = memo(({
                 <div className="space-y-1.5">
                     <FieldLabel index={index} label={question.label} required={question.required} />
                     <textarea
+                        aria-label={question.label}
                         value={currentValue as string || ''}
                         onChange={(e) => {
                             handleTextChange(e);
@@ -358,6 +359,7 @@ export const FormField = memo(({
                     <FieldLabel index={index} label={question.label} required={question.required} />
                     <input
                         type="number"
+                        aria-label={question.label}
                         value={currentValue as string || ''}
                         min={minNumber}
                         // ช่องจำนวนเงิน (มี minNumber): รับสตางค์ได้ และเลื่อนล้อเมาส์ไม่ให้ตัวเลขเปลี่ยนเอง
