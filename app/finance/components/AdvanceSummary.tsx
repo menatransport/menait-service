@@ -95,6 +95,7 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
             <Field label="วันที่ส่งเอกสารเคลียร์" value={formatDate(fin.clear_date)} />
             <Field label="ยอดใช้จริง" value={formatBaht(fin.amount_actual)} />
             <Field label="เลขที่เอกสารเคลียร์เงิน" value={fin.clear_doc_no} />
+            {fin.original_received_date && <Field label="วันที่รับเอกสารตัวจริง" value={formatDate(fin.original_received_date)} />}
             <Field label={`รับคืน (เบิกเพิ่ม) · ${settleLabel(fin.settle_amount)}`}
               value={fin.settle_amount === null || fin.settle_amount === undefined ? '-' : formatBaht(Math.abs(fin.settle_amount))} />
             {/* เบิกเพิ่ม: วันที่นี้คือวันที่การเงินโอนส่วนต่างให้ผู้เบิก ไม่ใช่วันที่ผู้เบิกโอนคืน */}

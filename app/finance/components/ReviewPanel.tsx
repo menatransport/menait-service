@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DateField } from './DateField';
 import { Textarea } from '@/components/ui/textarea';
-import { formatBaht, settleLabel } from '@/lib/finance/status';
-import { putAction, showAlert, showConfirm, uploadFiles } from '../api';
+import { formatBaht, settleLabel, todayBkk } from '@/lib/finance/status';
+import { clearDocNoError } from '@/lib/finance/docNo';
+import { confirmUniqueDocNo, putAction, showAlert, showConfirm, uploadFiles } from '../api';
 import type { AdvanceDetail } from '../types';
 import { FilePicker } from './FilePicker';
 import { Panel } from './FinanceShell';
@@ -17,25 +18,44 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
   const needsExtraDate = settle < 0;
   const [extraDate, setExtraDate] = useState('');
   const [clearDocNo, setClearDocNo] = useState(detail.fin?.clear_doc_no ?? '');
+  // ปิดรายการได้เมื่อรับเอกสารตัวจริงแล้ว พร้อมวันที่รับ (ผู้ใช้สั่ง 21/10/2026)
+  const [received, setReceived] = useState(Boolean(detail.fin?.original_received_date));
+  const [receivedDate, setReceivedDate] = useState(detail.fin?.original_received_date ?? '');
   const [remark, setRemark] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
 
+  const onReceived = (checked: boolean) => {
+    setReceived(checked);
+    if (checked && !receivedDate) setReceivedDate(todayBkk());
+  };
+
   const confirm = async () => {
     if (needsExtraDate && !extraDate) return showAlert({ icon: 'warning', title: 'กรุณาระบุวันที่การเงินโอนเงินเพิ่ม' });
+    if (needsExtraDate && files.length === 0) return showAlert({ icon: 'warning', title: 'กรุณาแนบสลิปโอนเงินเพิ่ม' });
+    if (!received || !receivedDate) return showAlert({ icon: 'warning', title: 'กรุณาติ๊กรับเอกสารตัวจริงแล้ว และใส่วันที่รับ' });
+    if (receivedDate > todayBkk()) return showAlert({ icon: 'warning', title: 'วันที่รับเอกสารตัวจริงต้องไม่เกินวันนี้' });
+    const docError = clearDocNoError(clearDocNo);
+    if (docError) return showAlert({ icon: 'warning', title: docError });
+    if (!(await confirmUniqueDocNo('clear_doc_no', clearDocNo, detail.form_id))) return;
     const ok = await showConfirm({ title: 'ยืนยันปิดรายการ?', text: `${detail.form_id} · ${settleLabel(settle)} ${formatBaht(Math.abs(settle))}` });
     if (!ok.isConfirmed) return;
     setSaving(true);
     try {
+      // สลิปโอนเงินเพิ่มบังคับแนบ: อัปโหลดให้ได้ก่อน ค่อยปิดรายการ จะได้ไม่มีใบที่ปิดแล้วแต่ไม่มีสลิป
+      const failed = await uploadFiles(detail.form_id, files, 'check');
+      if (failed.length) {
+        await showAlert({ icon: 'error', title: 'แนบสลิปไม่สำเร็จ ยังไม่ได้ปิดรายการ', text: `อัปโหลดไม่สำเร็จ: ${failed.join(', ')} ลองใหม่อีกครั้ง` });
+        return;
+      }
       const saved = await putAction(detail.form_id, 'confirm', {
-        clear_doc_no: clearDocNo.trim() || null,
+        clear_doc_no: clearDocNo.trim(),
+        original_received_date: receivedDate,
         settle_date: needsExtraDate ? extraDate : null,
         expected_clear_submitted_at: detail.fin?.clear_submitted_at ?? null,
       });
-      const failed = await uploadFiles(detail.form_id, files, 'check');
       setFiles([]);
-      await showAlert({ icon: failed.length ? 'warning' : 'success', title: 'ปิดรายการแล้ว',
-        text: failed.length ? `อัปโหลดไม่สำเร็จ: ${failed.join(', ')}` : undefined });
+      await showAlert({ icon: 'success', title: 'ปิดรายการแล้ว' });
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ปิดรายการไม่สำเร็จ', text: (err as Error).message });
@@ -74,13 +94,24 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
               <DateField value={extraDate} onChange={setExtraDate} disabled={saving} />
             </label>
             <div>
-              <p className="mb-1 text-sm">แนบสลิปโอนเงินเพิ่ม</p>
+              <p className="mb-1 text-sm">แนบสลิปโอนเงินเพิ่ม *</p>
               <FilePicker files={files} onChange={setFiles} disabled={saving} />
             </div>
           </div>
         )}
-        <label className="block space-y-1 text-sm">เลขที่เอกสารเคลียร์เงิน
-          <Input value={clearDocNo} onChange={e => setClearDocNo(e.target.value)} disabled={saving} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="flex items-center gap-2 self-end pb-2 text-sm font-medium">
+            <input type="checkbox" checked={received} onChange={e => onReceived(e.target.checked)} disabled={saving}
+              className="h-4 w-4 cursor-pointer accent-brand-600" />
+            รับเอกสารตัวจริงแล้ว *
+          </label>
+          <label className="space-y-1 text-sm">วันที่รับเอกสารตัวจริง *
+            <DateField value={receivedDate} onChange={setReceivedDate} disabled={saving || !received} />
+          </label>
+        </div>
+        <label className="block space-y-1 text-sm">เลขที่เอกสารเคลียร์เงิน * <span className="text-xs text-ink-500">(10 หลัก)</span>
+          <Input value={clearDocNo} onChange={e => setClearDocNo(e.target.value.replace(/\s/g, ''))} maxLength={10}
+            placeholder="เช่น CL69100001" disabled={saving} />
         </label>
         {canClose && (
           <Button type="button" onClick={confirm} disabled={saving} className="w-full h-11 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-60">

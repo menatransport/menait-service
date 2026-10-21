@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { todayBkk } from '@/lib/finance/status';
-import { putAction, showAlert } from '../api';
+import { putAction, showAlert, confirmUniqueDocNo } from '../api';
 import type { AdvanceDetail } from '../types';
 import { DateField } from './DateField';
 import { Panel } from './FinanceShell';
@@ -32,6 +32,7 @@ export function VoucherForm({ detail, onSaved }: {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!voucherDate) return showAlert({ icon: 'warning', title: 'กรุณาระบุวันที่ตั้งเบิก' });
+    if (!(await confirmUniqueDocNo('voucher_no', voucherNo, detail.form_id))) return;
     setSaving(true);
     try {
       const saved = await putAction(detail.form_id, 'voucher', {

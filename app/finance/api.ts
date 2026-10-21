@@ -1,6 +1,7 @@
 'use client';
 
 import { uniqueFileName } from '@/lib/finance/status';
+import { duplicateText, type DocNoField } from '@/lib/finance/docNo';
 import type { AdvanceDetail } from './types';
 
 export async function fetchJson<T>(url: string, init: RequestInit = {}): Promise<T> {
@@ -87,4 +88,22 @@ export function sendOverdueReminders(formIds: string[]) {
     method: 'POST',
     body: JSON.stringify({ form_ids: formIds }),
   });
+}
+
+/** เลขซ้ำกับใบอื่นไหม ถ้าซ้ำถามก่อนว่าจะใช้ต่อหรือไม่ · true = บันทึกต่อได้ (ผู้ใช้สั่ง 21/10/2026 แจ้งเมื่อเลขซ้ำ) */
+export async function confirmUniqueDocNo(field: DocNoField, value: string | null | undefined, formId: string): Promise<boolean> {
+  const text = (value ?? '').trim();
+  if (!text) return true;
+  let formIds: string[] = [];
+  try {
+    const qs = new URLSearchParams({ field, value: text, exclude_form_id: formId });
+    const data = await fetchJson<{ form_ids: string[] }>(`/api/finance/advances/duplicate-doc-no?${qs}`);
+    formIds = data.form_ids ?? [];
+  } catch {
+    return true;
+  }
+  if (!formIds.length) return true;
+  const ok = await showConfirm({ icon: 'warning', title: 'เลขนี้ซ้ำกับใบอื่น', text: `${duplicateText(field, text, formIds)} ใช้เลขนี้ต่อไหม`,
+    confirmButtonText: 'ใช้เลขนี้ต่อ', cancelButtonText: 'กลับไปแก้' });
+  return Boolean(ok.isConfirmed);
 }

@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
 import { toBkkDate } from '@/lib/finance/dates';
 import { CLEAR_DUE_DAYS, addDays, parseAmount } from '@/lib/finance/status';
-import { putAction, showAlert, uploadFiles } from '../api';
+import { putAction, showAlert, uploadFiles, confirmUniqueDocNo } from '../api';
 import type { AdvanceDetail } from '../types';
 import { DateField } from './DateField';
 import { FilePicker } from './FilePicker';
@@ -40,6 +40,7 @@ export function PayForm({ detail, onSaved }: {
     if (amountNum === null || amountNum < 0) return showAlert({ icon: 'warning', title: 'กรุณาระบุยอดเงิน (ไม่ติดลบ)' });
     if (!transferDate) return showAlert({ icon: 'warning', title: 'กรุณาระบุวันที่โอนเงิน' });
     if (dueDate && dueDate < transferDate) return showAlert({ icon: 'warning', title: 'กำหนดการเคลียร์ต้องไม่ก่อนวันที่โอนเงิน' });
+    if (!(await confirmUniqueDocNo('payment_doc_no', paymentDocNo, detail.form_id))) return;
     setSaving(true);
     try {
       const saved = await putAction(detail.form_id, 'pay', {

@@ -37,6 +37,8 @@ export interface FinInfo {
   clear_date: string | null;
   amount_actual: number | null;
   clear_doc_no: string | null;
+  /** วันที่รับเอกสารตัวจริง (ติ๊กตอนปิดรายการ) */
+  original_received_date?: string | null;
   clear_items?: ClearItem[];
   settle_amount: number | null;
   settle_date: string | null;
