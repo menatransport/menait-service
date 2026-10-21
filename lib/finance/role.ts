@@ -12,14 +12,6 @@ export function isFinanceUser(
   return !!user.employee_id && employeeIds.includes(user.employee_id);
 }
 
-/**
- * Group Finance is open only to admins (role "a") and finance staff (is_finance, from the
- * department / employee lists above, set at login); everyone else sees it as "เปิดใช้เร็ว ๆ นี้".
- */
-export function canUseFinance(user: { role?: string | null; is_finance?: boolean } | null | undefined): boolean {
-  return !!user && (user.role === 'a' || user.is_finance === true);
-}
-
 /** คนนอกแผนกการเงินที่ต้องเข้าหน้าการเงินได้เสมอ
  * 660057 คุณป้อง ผู้บริหาร อนุมัติขั้น 2 ใบยอดสูง · 670108 narongkorn.a superadmin ทำได้ทุกปุ่ม (หลังบ้านกำหนดสิทธิ์) */
 const ALWAYS_FINANCE_IDS = ['660057', '670108'];
