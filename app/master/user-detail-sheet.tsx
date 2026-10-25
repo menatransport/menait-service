@@ -27,7 +27,7 @@ interface UserDetailSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onUpdate?: (data: UserData) => Promise<boolean>;
-    /** Lookup options (id -> label) for ฝ่าย / สถานที่ / ตำแหน่ง */
+    /** Lookup options (id -> label) for แผนก / สถานที่ / ตำแหน่ง */
     lookups?: MasterLookups;
 }
 
@@ -74,7 +74,7 @@ const INFO_FIELDS: InfoField[] = [
     { label: 'นามสกุล', field: 'lastname', icon: User, editType: 'input' },
     { label: 'สถานะ', field: 'employee_status', icon: BadgeCheck, editType: 'dropdown', optionKey: 'employee_status' },
     { label: 'อีเมล', field: 'email', icon: Mail, editType: 'input' },
-    { label: 'ฝ่าย', field: 'department', editField: 'department_id', icon: Building, editType: 'dropdown', optionKey: 'departments' },
+    { label: 'แผนก', field: 'department', editField: 'department_id', icon: Building, editType: 'dropdown', optionKey: 'departments' },
     { label: 'สถานที่', field: 'site', editField: 'site_id', icon: MapPin, editType: 'dropdown', optionKey: 'sites' },
     { label: 'ตำแหน่ง', field: 'position', editField: 'position_id', icon: Briefcase, editType: 'dropdown', optionKey: 'positions' },
     // ระดับ is derived from the selected ตำแหน่ง on the backend

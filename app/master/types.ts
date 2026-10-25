@@ -2,9 +2,22 @@
 
 export type { UserData } from '@/components/profile-form';
 
+/** แผนก */
 export interface DepartmentGroup {
+    key: string;
     department: string;
+    departmentEn: string;
     users: import('@/components/profile-form').UserData[];
+}
+
+/** ฝ่าย → แผนก. A ฝ่าย with a single แผนก lists its users directly (no sub-group). */
+export interface DivisionGroup {
+    key: string;
+    division: string;
+    divisionEn: string;
+    code: string | null;
+    departments: DepartmentGroup[];
+    total: number;
 }
 
 export interface LookupOption {
