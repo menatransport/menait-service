@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { signToken, COOKIE_NAME, EXPIRES_IN } from '@/lib/jwt';
-import { financeConfig, isFinanceUser } from '@/lib/finance/role';
+import { buildSessionUser } from '@/lib/session-user';
 
 export async function POST(request: NextRequest) {
     const reqBody = await request.json();
@@ -23,13 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (data.user) {
-        data.user.role = [21].includes(data.user.department_id)
-            ? 'a'
-            : ["680043", "670108"].includes(data.user.employee_id)
-                ? 'a'
-                : 'u';
-        const finance = financeConfig();
-        data.user.is_finance = isFinanceUser(data.user, finance.deptIds, finance.employeeIds);
+        data.user = buildSessionUser(data.user);
         const token = await signToken(data.user);
         const response = NextResponse.json(data);
         response.cookies.set(COOKIE_NAME, token, {
