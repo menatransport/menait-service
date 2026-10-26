@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatAccountNo, normalizeAccountNo } from '@/lib/finance/bank';
 import { checkPayeeFiles, kbankAccountError, PAYEE_MAX_FILES, type PayeeRequest } from '@/lib/finance/payee';
-import { confirmReview, fetchJson, showAlert, uploadPayeeFiles } from '../api';
+import { confirmReview, fetchJson, showAlert, uploadPayeeFiles, showSuccess } from '../api';
 import { FilePicker } from './FilePicker';
 
 /** Dialog: request a new (or changed) K-Bank own-account payee. Calls onDone after the request is created. */
@@ -80,7 +80,7 @@ export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone, is
     if (failed.length) {
       await showAlert({ icon: 'warning', title: 'อัปโหลดไฟล์ไม่สำเร็จ กรุณาแนบไฟล์เพิ่มจากกล่องคำขอ', text: failed.join(', ') });
     } else {
-      await showAlert({ icon: 'success', title: 'ส่งคำขอแล้ว รอบัญชีตรวจสอบ' });
+      await showSuccess('ส่งคำขอแล้ว รอบัญชีตรวจสอบ');
     }
   };
 

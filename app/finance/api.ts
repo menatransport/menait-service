@@ -60,6 +60,10 @@ const fire = (options: Record<string, unknown>) =>
 
 export const showAlert = (options: Record<string, unknown>) => fire({ confirmButtonText: 'ตกลง', ...options });
 
+/** แจ้งบันทึกสำเร็จแล้วปิดเอง — ผู้ใช้ยืนยันมาแล้วรอบหนึ่ง ไม่ต้องกด "ตกลง" ซ้ำอีกรอบ */
+export const showSuccess = (title: string, text?: string) =>
+  fire({ icon: 'success', title, text, timer: text ? 2200 : 1500, showConfirmButton: false });
+
 export const showConfirm = (options: Record<string, unknown>) => fire({
   showCancelButton: true, confirmButtonColor: '#1c6ef2', cancelButtonColor: '#d33',
   confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', ...options,
@@ -75,17 +79,20 @@ export type ReviewRow = [label: string, value: string | number | null | undefine
  * ป๊อปอัปทบทวนก่อนบันทึก/ส่ง: ตารางสรุปค่าที่จะบันทึกให้ผู้ใช้ตรวจอีกรอบ กดยืนยันแล้วค่อยบันทึกจริง
  * (Bew 26/10/2026: ปุ่มบันทึก/ส่งทุกจุดใน Finance ต้องมีป๊อปอัปทบทวนก่อน)
  */
-export async function confirmReview({ title, rows, note, confirmButtonText = 'ยืนยันบันทึก' }: {
-  title: string; rows: ReviewRow[]; note?: string; confirmButtonText?: string;
+export async function confirmReview({ title, rows, note, warning, confirmButtonText = 'ยืนยันบันทึก' }: {
+  title: string; rows: ReviewRow[]; note?: string;
+  /** คำเตือนที่ต้องเห็นก่อนยืนยัน เช่น เลขเอกสารซ้ำ — รวมไว้ในป๊อปอัปเดียว ไม่ถามแยกอีกรอบ */
+  warning?: string | null; confirmButtonText?: string;
 }): Promise<boolean> {
   const body = rows.map(([label, value]) => {
     const text = value === null || value === undefined || String(value).trim() === '' ? '-' : String(value);
     return `<tr><th style="padding:6px 12px 6px 0;width:40%;vertical-align:top;font-weight:400;color:#64748b">${escapeHtml(label)}</th>`
       + `<td style="padding:6px 0;color:#1e293b;font-weight:500;white-space:pre-line;word-break:break-word">${escapeHtml(text)}</td></tr>`;
   }).join('');
-  const html = `<table style="width:100%;border-collapse:collapse;font-size:14px;text-align:left;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0">${body}</table>`
+  const html = (warning ? `<p style="margin:0 0 12px;padding:8px 12px;border:1px solid #f59e0b;border-radius:6px;font-size:13px;color:#92400e;text-align:left">${escapeHtml(warning)}</p>` : '')
+    + `<table style="width:100%;border-collapse:collapse;font-size:14px;text-align:left;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0">${body}</table>`
     + (note ? `<p style="margin:12px 0 0;font-size:12px;color:#64748b;text-align:left">${escapeHtml(note)}</p>` : '');
-  const res = await showConfirm({ icon: 'question', title, html, confirmButtonText, cancelButtonText: 'กลับไปแก้ไข' });
+  const res = await showConfirm({ icon: warning ? 'warning' : 'question', title, html, confirmButtonText, cancelButtonText: 'กลับไปแก้ไข' });
   return Boolean(res.isConfirmed);
 }
 
@@ -114,20 +121,19 @@ export function sendOverdueReminders(formIds: string[]) {
   });
 }
 
-/** เลขซ้ำกับใบอื่นไหม ถ้าซ้ำถามก่อนว่าจะใช้ต่อหรือไม่ · true = บันทึกต่อได้ (ผู้ใช้สั่ง 21/10/2026 แจ้งเมื่อเลขซ้ำ) */
-export async function confirmUniqueDocNo(field: DocNoField, value: string | null | undefined, formId: string): Promise<boolean> {
+/**
+ * เลขซ้ำกับใบอื่นไหม (ผู้ใช้สั่ง 21/10/2026 แจ้งเมื่อเลขซ้ำ) · คืนข้อความเตือนให้ใส่ใน confirmReview ป๊อปอัปเดียวกัน
+ * (26/10/2026: เดิมถามเลขซ้ำแยกอีกป๊อปอัป ผู้ใช้ต้องยืนยันสองรอบ) · null = ไม่ซ้ำ หรือเช็กไม่ได้
+ */
+export async function duplicateDocNoWarning(field: DocNoField, value: string | null | undefined, formId: string): Promise<string | null> {
   const text = (value ?? '').trim();
-  if (!text) return true;
-  let formIds: string[] = [];
+  if (!text) return null;
   try {
     const qs = new URLSearchParams({ field, value: text, exclude_form_id: formId });
     const data = await fetchJson<{ form_ids: string[] }>(`/api/finance/advances/duplicate-doc-no?${qs}`);
-    formIds = data.form_ids ?? [];
+    const formIds = data.form_ids ?? [];
+    return formIds.length ? `เลขนี้ซ้ำกับใบอื่น: ${duplicateText(field, text, formIds)} ตรวจให้แน่ใจก่อนยืนยัน` : null;
   } catch {
-    return true;
+    return null;
   }
-  if (!formIds.length) return true;
-  const ok = await showConfirm({ icon: 'warning', title: 'เลขนี้ซ้ำกับใบอื่น', text: `${duplicateText(field, text, formIds)} ใช้เลขนี้ต่อไหม`,
-    confirmButtonText: 'ใช้เลขนี้ต่อ', cancelButtonText: 'กลับไปแก้' });
-  return Boolean(ok.isConfirmed);
 }

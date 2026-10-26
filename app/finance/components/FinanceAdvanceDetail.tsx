@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { fetchJson, putAction, sendOverdueReminders, showAlert, showConfirm } from '../api';
+import { fetchJson, putAction, sendOverdueReminders, showAlert, showConfirm, showSuccess } from '../api';
 import type { AdvanceDetail } from '../types';
 import { AdvanceSummary } from './AdvanceSummary';
 import { PrintDocumentButton } from './PrintDocumentButton';
@@ -51,7 +51,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
     setBusy(true);
     try {
       const saved = await putAction(formId, 'return', { remark: String(res.value).trim() });
-      await showAlert({ icon: 'success', title: 'ตีกลับให้ผู้เบิกแก้ไขแล้ว' });
+      await showSuccess('ตีกลับให้ผู้เบิกแก้ไขแล้ว');
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ตีกลับไม่สำเร็จ', text: (err as Error).message });
@@ -70,7 +70,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
     try {
       const r = await sendOverdueReminders([formId]);
       if (r.disabled) await showAlert({ icon: 'warning', title: 'อีเมลยังปิดอยู่ — ยังไม่ได้ส่ง' });
-      else if (r.sent > 0) await showAlert({ icon: 'success', title: 'ส่งแจ้งเตือนแล้ว' });
+      else if (r.sent > 0) await showSuccess('ส่งแจ้งเตือนแล้ว');
       else await showAlert({ icon: 'info', title: 'ไม่ได้ส่งแจ้งเตือน', text: r.skipped.map(s => s.reason).join(', ') || undefined });
       load();
       setRefreshKey(k => k + 1);

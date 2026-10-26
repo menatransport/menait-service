@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatDate, todayBkk } from '@/lib/finance/status';
-import { confirmReview, putAction, showAlert, confirmUniqueDocNo } from '../api';
+import { confirmReview, duplicateDocNoWarning, putAction, showAlert, showSuccess } from '../api';
 import type { AdvanceDetail } from '../types';
 import { DateField } from './DateField';
 import { Panel } from './FinanceShell';
@@ -32,8 +32,9 @@ export function VoucherForm({ detail, onSaved }: {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!voucherDate) return showAlert({ icon: 'warning', title: 'กรุณาระบุวันที่ตั้งเบิก' });
-    if (!(await confirmUniqueDocNo('voucher_no', voucherNo, detail.form_id))) return;
+    const warning = await duplicateDocNoWarning('voucher_no', voucherNo, detail.form_id);
     if (!(await confirmReview({
+      warning,
       title: editing ? 'ยืนยันแก้ไขข้อมูลตั้งเบิก' : 'ยืนยันบันทึกตั้งเบิก',
       rows: [['เลขที่คำขอ', detail.form_id], ['เลขที่ตั้งเบิก', voucherNo.trim()], ['วันที่ตั้งเบิก', formatDate(voucherDate)]],
     }))) return;
@@ -42,7 +43,7 @@ export function VoucherForm({ detail, onSaved }: {
       const saved = await putAction(detail.form_id, 'voucher', {
         voucher_no: voucherNo.trim() || null, voucher_date: voucherDate, is_edit: detail.status === 'AWAITING_VOUCHER' ? false : Boolean(fin),
       });
-      await showAlert({ icon: 'success', title: 'บันทึกตั้งเบิกแล้ว' });
+      await showSuccess('บันทึกตั้งเบิกแล้ว');
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: (err as Error).message });

@@ -9,7 +9,7 @@ import { bankLabel, formatAccountNo, normalizeAccountNo } from '@/lib/finance/ba
 import { formatDate } from '@/lib/finance/status';
 import { kbankAccountError, type PayeeAccount } from '@/lib/finance/payee';
 import { formatPayeeChanges, PAYEE_LOG_ACTION_LABELS } from '@/lib/finance/payee-log';
-import { confirmReview, fetchJson, showAlert, showConfirm } from '../../api';
+import { confirmReview, fetchJson, showAlert, showConfirm, showSuccess } from '../../api';
 
 type PersonInfo = { employee_id: string; name: string | null; department: string | null; position: string | null };
 type PayeeLog = { action: string; changes: unknown; remark: string | null; action_by: string | null; action_by_name: string | null; created_at: string | null };
@@ -227,7 +227,7 @@ function AddAccountDialog({ open, onOpenChange, onDone }: { open: boolean; onOpe
       });
       onOpenChange(false);
       try { await onDone(); } catch { /* list shows its own error */ }
-      await showAlert({ icon: 'success', title: 'เพิ่มบัญชีแล้ว' });
+      await showSuccess('เพิ่มบัญชีแล้ว');
     } catch (err) {
       await showAlert({ icon: 'error', title: 'เพิ่มบัญชีไม่สำเร็จ', text: (err as Error).message });
     } finally {
@@ -313,7 +313,7 @@ function EditAccountDialog({ account, onClose, onDone }: { account: PayeeAccount
       });
       onClose();
       try { await onDone(); } catch { /* list shows its own error */ }
-      await showAlert({ icon: 'success', title: 'บันทึกแล้ว' });
+      await showSuccess('บันทึกแล้ว');
     } catch (err) {
       await showAlert({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: (err as Error).message });
     } finally {

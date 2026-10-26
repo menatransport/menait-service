@@ -7,7 +7,7 @@ import { DateField } from './DateField';
 import { Textarea } from '@/components/ui/textarea';
 import { formatBaht, formatDate, settleLabel, todayBkk } from '@/lib/finance/status';
 import { CLEAR_DOC_NO_MAX, clearDocNoError } from '@/lib/finance/docNo';
-import { confirmReview, confirmUniqueDocNo, putAction, showAlert, uploadFiles } from '../api';
+import { confirmReview, duplicateDocNoWarning, putAction, showAlert, showSuccess, uploadFiles } from '../api';
 import type { AdvanceDetail } from '../types';
 import { FilePicker } from './FilePicker';
 import { Panel } from './FinanceShell';
@@ -37,8 +37,9 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
     if (receivedDate > todayBkk()) return showAlert({ icon: 'warning', title: 'วันที่รับเอกสารตัวจริงต้องไม่เกินวันนี้' });
     const docError = clearDocNoError(clearDocNo);
     if (docError) return showAlert({ icon: 'warning', title: docError });
-    if (!(await confirmUniqueDocNo('clear_doc_no', clearDocNo, detail.form_id))) return;
+    const warning = await duplicateDocNoWarning('clear_doc_no', clearDocNo, detail.form_id);
     if (!(await confirmReview({
+      warning,
       title: 'ยืนยันปิดรายการ?',
       rows: [
         ['เลขที่คำขอ', detail.form_id],
@@ -66,7 +67,7 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
         expected_clear_submitted_at: detail.fin?.clear_submitted_at ?? null,
       });
       setFiles([]);
-      await showAlert({ icon: 'success', title: 'ปิดรายการแล้ว' });
+      await showSuccess('ปิดรายการแล้ว');
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ปิดรายการไม่สำเร็จ', text: (err as Error).message });
@@ -89,7 +90,7 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
         expected_clear_submitted_at: detail.fin?.clear_submitted_at ?? null,
       });
       setRemark('');
-      await showAlert({ icon: 'success', title: 'ส่งกลับให้ผู้เบิกแก้ไขแล้ว' });
+      await showSuccess('ส่งกลับให้ผู้เบิกแก้ไขแล้ว');
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ส่งกลับไม่สำเร็จ', text: (err as Error).message });

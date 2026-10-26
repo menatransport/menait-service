@@ -8,7 +8,7 @@ import { MascotLoader } from '@/components/loading';
 import { formatAccountNo } from '@/lib/finance/bank';
 import { displayFileName, formatDate } from '@/lib/finance/status';
 import type { PayeeRequest } from '@/lib/finance/payee';
-import { fetchJson, showAlert, showConfirm } from '../../api';
+import { fetchJson, showAlert, showConfirm, showSuccess } from '../../api';
 import { Field } from '../FinanceShell';
 
 type PayeeFile = { key: string; fileName: string; url: string };
@@ -108,7 +108,7 @@ export function RequestReviewDialog({ requestId, onClose, onChanged }: {
       });
       onClose();
       try { await onChanged(); } catch { /* lists show their own error state */ }
-      await showAlert({ icon: 'success', title: kind === 'approve' ? 'อนุมัติแล้ว' : 'ไม่อนุมัติคำขอแล้ว' });
+      await showSuccess(kind === 'approve' ? 'อนุมัติแล้ว' : 'ไม่อนุมัติคำขอแล้ว');
     } catch (err) {
       await showAlert({ icon: 'error', title: 'ดำเนินการไม่สำเร็จ', text: (err as Error).message });
       // คำขออาจถูกยกเลิกหรือมีคนตรวจไปแล้ว ดึงสถานะล่าสุดมาแสดง ไม่ให้ปุ่มอนุมัติค้าง

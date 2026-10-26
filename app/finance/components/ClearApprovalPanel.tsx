@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Panel } from './FinanceShell';
-import { putAction, showAlert, showConfirm } from '../api';
+import { putAction, showAlert, showConfirm, showSuccess } from '../api';
 import { formatBaht } from '@/lib/finance/status';
 import type { AdvanceDetail } from '../types';
 
@@ -35,10 +35,7 @@ export function ClearApprovalPanel({ detail, onSaved }: {
         ? { remark: remark.trim() || undefined }
         : { review_remark: remark.trim() };
       const data = await putAction(detail.form_id, action, body);
-      await showAlert({
-        icon: 'success',
-        title: action === 'clear-approve' ? 'อนุมัติการเคลียร์แล้ว' : 'ส่งกลับให้ผู้เบิกแก้ไขแล้ว',
-      });
+      await showSuccess(action === 'clear-approve' ? 'อนุมัติการเคลียร์แล้ว' : 'ส่งกลับให้ผู้เบิกแก้ไขแล้ว');
       onSaved(data);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ทำรายการไม่สำเร็จ', text: (err as Error).message });

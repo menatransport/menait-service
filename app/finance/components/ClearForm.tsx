@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { MAX_CLEAR_ITEMS, carryOverDefaults, invalidNumberErrors, rowTotals, savedAmount, sumItems, validateItems } from '@/lib/finance/clearItems';
 import { formatDateThaiShort } from '@/lib/finance/dates';
 import { clearNeedsSlip, clearSlipMissing, computeSettle, formatBaht, parseAmount, settleLabel } from '@/lib/finance/status';
-import { fetchJson, putAction, showAlert, showConfirm, uploadFiles } from '../api';
+import { fetchJson, putAction, showAlert, showConfirm, uploadFiles, showSuccess } from '../api';
 import { CLEAR_ATTACHMENT_REQUIRED } from '../labels';
 import type { AdvanceDetail, AttachmentFile } from '../types';
 import { ClearItemDialog, toRow, type DraftRow } from './ClearItemDialog';
@@ -107,7 +107,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
         settle_date: settle !== null && settle > 0 ? settleDate : null,
         remark,
       });
-      await showAlert({ icon: 'success', title: clearSubmittedTitle(saved?.status) });
+      await showSuccess(clearSubmittedTitle(saved?.status));
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: (err as Error).message });

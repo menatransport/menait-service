@@ -15,7 +15,7 @@ import { isBeforeToday } from '@/lib/finance/dates';
 import { amountError, formatBaht, formatDate, parseAmount, todayBkk } from '@/lib/finance/status';
 import { stepChainText } from '@/lib/finance/approvalSteps';
 import type { AdvanceDetail, ApprovalTierInfo, AttachmentFile } from '../../types';
-import { confirmReview, fetchJson, putAction, showAlert, uploadFiles, type ReviewRow } from '../../api';
+import { confirmReview, fetchJson, putAction, showAlert, showSuccess, uploadFiles, type ReviewRow } from '../../api';
 import { AttachmentPanel } from '../../components/AttachmentPanel';
 import { FilePicker } from '../../components/FilePicker';
 import { PayeeAccountSection, type PayeeSectionStatus } from '../../components/PayeeAccountSection';
@@ -236,11 +236,9 @@ function NewAdvance() {
           const now = await fetchJson<{ status?: string }>(`/api/finance/advances/${encodeURIComponent(editId)}`).catch(() => null);
           if (now?.status !== 'PENDING_APPROVAL') throw err;
         }
-        await showAlert({
-          icon: failedEdit.length ? 'warning' : 'success',
-          title: 'ส่งคำขอใหม่แล้ว รออนุมัติ',
-          text: failedEdit.length ? `อัปโหลดไม่สำเร็จ: ${failedEdit.join(', ')} (แนบเพิ่มได้ในหน้ารายการ)` : undefined,
-        });
+        if (failedEdit.length) {
+          await showAlert({ icon: 'warning', title: 'ส่งคำขอใหม่แล้ว รออนุมัติ', text: `อัปโหลดไม่สำเร็จ: ${failedEdit.join(', ')} (แนบเพิ่มได้ในหน้ารายการ)` });
+        } else await showSuccess('ส่งคำขอใหม่แล้ว รออนุมัติ');
         router.push(`/finance/advance/${encodeURIComponent(editId)}`);
         return;
       }
@@ -252,11 +250,9 @@ function NewAdvance() {
       };
       const res = await fetchJson<{ form_id: string }>('/api/formsubmit', { method: 'POST', body: JSON.stringify(payload) });
       const failed = await uploadFiles(res.form_id, files);
-      await showAlert({
-        icon: failed.length ? 'warning' : 'success',
-        title: 'ส่งคำขอเบิกเงินแล้ว',
-        text: failed.length ? `อัปโหลดไม่สำเร็จ: ${failed.join(', ')} (แนบเพิ่มได้ในหน้ารายการ)` : `เลขที่คำขอเบิกเงิน ${res.form_id}`,
-      });
+      if (failed.length) {
+        await showAlert({ icon: 'warning', title: 'ส่งคำขอเบิกเงินแล้ว', text: `อัปโหลดไม่สำเร็จ: ${failed.join(', ')} (แนบเพิ่มได้ในหน้ารายการ)` });
+      } else await showSuccess('ส่งคำขอเบิกเงินแล้ว', `เลขที่คำขอเบิกเงิน ${res.form_id}`);
       router.push(`/finance/advance/${encodeURIComponent(res.form_id)}`);
     } catch (err) {
       showAlert({ icon: 'error', title: isEdit ? 'บันทึกและส่งใหม่ไม่สำเร็จ' : 'ส่งคำขอไม่สำเร็จ', text: (err as Error).message });

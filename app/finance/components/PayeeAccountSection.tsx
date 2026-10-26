@@ -5,7 +5,7 @@ import { AlertCircle, Landmark, Paperclip, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { BANKS, bankLabel, accountNoError, formatAccountNo } from '@/lib/finance/bank';
 import { checkPayeeFiles, PAYEE_SELF, PAYEE_SUPPLIER, selfPayeeState, type PayeeMe, type SelfPayeeState } from '@/lib/finance/payee';
-import { fetchJson, showAlert, showConfirm, uploadPayeeFiles } from '../api';
+import { fetchJson, showAlert, showConfirm, showSuccess, uploadPayeeFiles } from '../api';
 import { RequestPayeeDialog } from './RequestPayeeDialog';
 
 export type PayeeSectionStatus = { loaded: boolean; state: SelfPayeeState };
@@ -106,9 +106,8 @@ export function PayeeAccountSection({ errors, onPayeeChange, onStatusChange, ful
     setBusy(true);
     try {
       const failed = await uploadPayeeFiles(me.request.id, files);
-      await showAlert(failed.length
-        ? { icon: 'warning', title: 'อัปโหลดไฟล์ไม่สำเร็จ', text: failed.join(', ') }
-        : { icon: 'success', title: 'แนบไฟล์เพิ่มแล้ว' });
+      if (failed.length) await showAlert({ icon: 'warning', title: 'อัปโหลดไฟล์ไม่สำเร็จ', text: failed.join(', ') });
+      else await showSuccess('แนบไฟล์เพิ่มแล้ว');
     } finally {
       attachingRef.current = false;
       setBusy(false);
