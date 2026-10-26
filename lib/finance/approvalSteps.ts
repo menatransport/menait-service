@@ -34,3 +34,13 @@ export function signatureSlots<T>(signers: StepSigner<T>[], done: boolean): Sign
   if (rest[1]) out.manager = rest[1].item;
   return out;
 }
+
+export type QueueTab = 'mine' | 'delegable';
+
+/** แยกคิวรออนุมัติเป็น รอฉันอนุมัติ / อนุมัติแทนได้ — รายการที่ไม่มี tab (BE เก่า) นับเป็นของฉัน */
+export function splitByTab<T extends { tab?: QueueTab }>(items: T[]): { mine: T[]; delegable: T[] } {
+  return {
+    mine: items.filter(i => i.tab !== 'delegable'),
+    delegable: items.filter(i => i.tab === 'delegable'),
+  };
+}

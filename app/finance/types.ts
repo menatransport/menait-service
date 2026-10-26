@@ -180,6 +180,9 @@ export interface ClearPendingItem {
   settle_amount?: number | null;
   step: number;
   total_steps: number;
+  /** ระดับของขั้นที่รออยู่ และแท็บย่อยแบบคิวขอเบิก (ไม่มีใน BE เก่า → นับเป็นรอฉันอนุมัติ) */
+  step_required_level?: number;
+  tab?: 'mine' | 'delegable';
   clause: string | null;
   requester_employee_id: string;
   requester_name?: string | null;

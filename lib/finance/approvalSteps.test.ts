@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { signatureSlots, stepBadge, stepChainText } from './approvalSteps';
+import { signatureSlots, splitByTab, stepBadge, stepChainText } from './approvalSteps';
 
 describe('approvalSteps', () => {
   test('chain text only for 2+ steps', () => {
@@ -37,5 +37,23 @@ describe('signatureSlots', () => {
   });
   test('nothing approved yet', () => {
     expect(signatureSlots([], false)).toEqual({});
+  });
+});
+
+// แท็บรออนุมัติเคลียร์แยก รอฉันอนุมัติ / อนุมัติแทนได้ เหมือนแท็บขอเบิก (ผู้ใช้สั่ง 26/10/2026)
+describe('splitByTab', () => {
+  test('splits mine and delegable, keeping order', () => {
+    const got = splitByTab([
+      { form_id: 'A', tab: 'delegable' as const },
+      { form_id: 'B', tab: 'mine' as const },
+      { form_id: 'C', tab: 'mine' as const },
+    ]);
+    expect(got.mine.map(i => i.form_id)).toEqual(['B', 'C']);
+    expect(got.delegable.map(i => i.form_id)).toEqual(['A']);
+  });
+  test('an item without tab (older BE) counts as mine', () => {
+    const got = splitByTab([{ form_id: 'A' }]);
+    expect(got.mine.map(i => i.form_id)).toEqual(['A']);
+    expect(got.delegable).toEqual([]);
   });
 });
