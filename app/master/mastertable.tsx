@@ -289,7 +289,7 @@ MobileDivisionGroup.displayName = 'MobileDivisionGroup';
 
 // ===================== MASTER TABLE (USER) =====================
 
-export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, onAdd, lookups }: MasterTableProps) => {
+export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, onAdd, lookups, org, onDepartmentCreated }: MasterTableProps) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
@@ -482,6 +482,8 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
                 onOpenChange={setSheetOpen}
                 onUpdate={onUpdate}
                 lookups={lookups}
+                org={org}
+                onDepartmentCreated={onDepartmentCreated}
             />
 
             {onAdd && (
@@ -489,6 +491,10 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
                     open={addDialogOpen}
                     onOpenChange={setAddDialogOpen}
                     onAdd={onAdd}
+                    org={org}
+                    lookups={lookups}
+                    existingUsers={data}
+                    onDepartmentCreated={onDepartmentCreated}
                 />
             )}
 

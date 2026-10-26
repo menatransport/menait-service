@@ -37,9 +37,13 @@ export interface MasterTableProps {
     error: string | null;
     onRetry: () => void;
     onUpdate?: (data: import('@/components/profile-form').UserData) => Promise<boolean>;
-    onAdd?: (data: Omit<import('@/components/profile-form').UserCreate, 'id'>) => Promise<boolean>;
+    /** Resolves true on success, or an error message for the form */
+    onAdd?: (data: Omit<import('@/components/profile-form').UserCreate, 'id'>) => Promise<true | string>;
     /** Lookup options (id -> label) used by the edit dropdowns */
     lookups?: MasterLookups;
+    /** สายงาน → ฝ่าย → แผนก tree for the add/edit pickers */
+    org: import('./org-structure').OrgIndex;
+    onDepartmentCreated?: (department: import('./org-structure').OrgDepartment) => void;
 }
 
 // ===================== FORM TABLE TYPES =====================
