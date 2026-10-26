@@ -56,7 +56,8 @@ export function VoucherForm({ detail, onSaved }: {
     <Panel title={rejected ? 'ตั้งเบิกทำจ่าย (แก้ไขตามที่ตีกลับ)' : editing ? 'แก้ไขข้อมูลตั้งเบิก' : 'ตั้งเบิกทำจ่าย'}>
       {rejected && (
         <div className="mb-4 rounded-lg border border-orange-300 bg-orange-50 px-4 py-3 text-sm text-orange-800">
-          การเงินตีกลับ: {rejectRemark || '-'}
+          การเงินส่งกลับให้แก้: {rejectRemark || '-'}
+          {fin?.voucher_no && <span className="block text-xs text-orange-700">เลขที่ตั้งเบิกเดิม {fin.voucher_no}</span>}
         </div>
       )}
       <div className="mb-4"><PayeeTypeBadge payeeType={detail.request.payee_type} withHint /></div>

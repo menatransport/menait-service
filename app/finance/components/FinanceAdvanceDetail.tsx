@@ -16,7 +16,7 @@ import { PayForm } from './PayForm';
 import { ReviewPanel } from './ReviewPanel';
 import { VoucherForm } from './VoucherForm';
 import { latestReturnRemark } from '@/lib/finance/returnInfo';
-import { PERM, can } from '@/lib/finance/permissions';
+import { PERM, can, canSendVoucherBack } from '@/lib/finance/permissions';
 import { useFinancePermissions } from '../usePermissions';
 
 export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; onChanged?: () => void }) {
@@ -61,6 +61,28 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
     }
   };
 
+  const sendBackToVoucher = async () => {
+    if (inFlight.current) return;
+    const res = await showConfirm({
+      title: 'ส่งกลับให้บัญชีแก้ตั้งเบิก?', text: `${detail?.form_id ?? ''} · เลขที่ตั้งเบิกตอนนี้ ${detail?.fin?.voucher_no || '-'}`,
+      input: 'textarea', inputPlaceholder: 'แก้อะไร เช่น เลขที่ตั้งเบิกผิด', inputAttributes: { maxlength: '1000' },
+      inputValidator: (v: string) => (v?.trim() ? undefined : 'กรุณาบอกว่าต้องแก้อะไร'),
+    });
+    if (!res.isConfirmed) return;
+    inFlight.current = true;
+    setBusy(true);
+    try {
+      const saved = await putAction(formId, 'reject-voucher', { remark: String(res.value).trim() });
+      await showSuccess('ส่งกลับให้บัญชีแก้แล้ว');
+      onSaved(saved);
+    } catch (err) {
+      showAlert({ icon: 'error', title: 'ส่งกลับไม่สำเร็จ', text: (err as Error).message });
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  };
+
   const sendReminder = async () => {
     if (inFlight.current) return;
     const res = await showConfirm({ title: 'ส่งอีเมลแจ้งเตือนเกินกำหนดถึงผู้เบิก?', text: detail?.form_id });
@@ -92,6 +114,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
   const canPay = atPay && can(perms, PERM.pay);
   const canReturn = (atVoucher || detail.status === 'AWAITING_PAYMENT') && can(perms, PERM.return);
   const canRemind = can(perms, PERM.overdueRemind);
+  const canVoucherBack = canSendVoucherBack(detail.status, perms);
 
   return (
     <>
@@ -110,12 +133,20 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
           ตีกลับให้ผู้เบิกแก้ไข — รอผู้เบิกแก้ไขและส่งใหม่: {latestReturnRemark(detail.fin_logs) || '-'}
         </p>
       )}
-      {canReturn && (
-        <div className="mb-4">
-          <Button type="button" variant="outline" onClick={returnToRequester} disabled={busy}
-            className="border-rose-400 text-rose-600 hover:bg-rose-50 hover:text-rose-700">
-            ตีกลับให้ผู้เบิกแก้ไข
-          </Button>
+      {(canReturn || canVoucherBack) && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {canVoucherBack && (
+            <Button type="button" variant="outline" onClick={sendBackToVoucher} disabled={busy}
+              className="border-amber-400 text-amber-700 hover:bg-amber-50 hover:text-amber-800">
+              ส่งกลับให้บัญชีแก้ตั้งเบิก
+            </Button>
+          )}
+          {canReturn && (
+            <Button type="button" variant="outline" onClick={returnToRequester} disabled={busy}
+              className="border-rose-400 text-rose-600 hover:bg-rose-50 hover:text-rose-700">
+              ตีกลับให้ผู้เบิกแก้ไข
+            </Button>
+          )}
         </div>
       )}
       {detail.overdue && canRemind && (
