@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  CLEAR_DOC_NO_MAX, DOC_NO_LABELS, DOC_NO_MAX, docNoChanges, docNoEditError, editableDocFields, type DocNoField,
+  CLEAR_DOC_NO_LEN, DOC_NO_LABELS, DOC_NO_MAX, docNoChanges, docNoEditError, editableDocFields, type DocNoField,
 } from '@/lib/finance/docNo';
 import { duplicateDocNoWarning, putAction, showSuccess } from '../api';
 import type { AdvanceDetail } from '../types';
@@ -73,7 +73,7 @@ export function EditDocNumbersButton({ detail, onSaved }: { detail: AdvanceDetai
             {fields.map(f => (
               <label key={f} className="block space-y-1 text-sm">
                 <span>{DOC_NO_LABELS[f]} <span className="text-xs text-gray-400">เดิม {detail.fin?.[f]}</span></span>
-                <Input value={draft[f] ?? ''} disabled={saving} maxLength={f === 'clear_doc_no' ? CLEAR_DOC_NO_MAX : DOC_NO_MAX}
+                <Input value={draft[f] ?? ''} disabled={saving} maxLength={f === 'clear_doc_no' ? CLEAR_DOC_NO_LEN : DOC_NO_MAX}
                   onChange={e => setDraft(d => ({ ...d, [f]: f === 'clear_doc_no' ? e.target.value.replace(/\s/g, '') : e.target.value }))} />
               </label>
             ))}

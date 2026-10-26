@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { DateField } from './DateField';
 import { Textarea } from '@/components/ui/textarea';
 import { formatBaht, formatDate, settleLabel, todayBkk } from '@/lib/finance/status';
-import { CLEAR_DOC_NO_MAX, clearDocNoError } from '@/lib/finance/docNo';
+import { CLEAR_DOC_NO_LEN, clearDocNoError } from '@/lib/finance/docNo';
 import { confirmReview, duplicateDocNoWarning, putAction, showAlert, showSuccess, uploadFiles } from '../api';
 import type { AdvanceDetail } from '../types';
 import { FilePicker } from './FilePicker';
@@ -126,9 +126,9 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
             <DateField value={receivedDate} onChange={setReceivedDate} disabled={saving || !received} />
           </label>
         </div>
-        <label className="block space-y-1 text-sm">เลขที่เอกสารเคลียร์เงิน *
-          <Input value={clearDocNo} onChange={e => setClearDocNo(e.target.value.replace(/\s/g, ''))} maxLength={CLEAR_DOC_NO_MAX}
-            placeholder="เช่น CL69100001" disabled={saving} />
+        <label className="block space-y-1 text-sm">เลขที่เอกสารเคลียร์เงิน * <span className="text-xs text-ink-500">({CLEAR_DOC_NO_LEN} หลัก)</span>
+          <Input value={clearDocNo} onChange={e => setClearDocNo(e.target.value.replace(/\s/g, ''))} maxLength={CLEAR_DOC_NO_LEN}
+            placeholder="เช่น CL691000012345" disabled={saving} />
         </label>
         {canClose && (
           <Button type="button" onClick={confirm} disabled={saving} className="w-full h-11 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-60">

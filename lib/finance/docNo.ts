@@ -8,16 +8,15 @@ export const DOC_NO_LABELS: Record<DocNoField, string> = {
 };
 
 const CLEAR_DOC_NO_RE = /^[A-Za-z0-9]+$/;
-/** ความยาวสูงสุดตามคอลัมน์ fin_advances.clear_doc_no (หลังบ้านเช็กแบบเดียวกัน) */
-export const CLEAR_DOC_NO_MAX = 100;
+/** เลขที่เอกสารเคลียร์เงินต้องมีกี่หลัก (ผู้ใช้สั่ง 26/10/2026 เปลี่ยนจาก 10 เป็น 14) — หลังบ้านเช็กแบบเดียวกัน */
+export const CLEAR_DOC_NO_LEN = 14;
 
-/** เลขที่เอกสารเคลียร์เงิน: บังคับกรอก ตัวเลขหรืออักษรอังกฤษ ไม่ล็อก 10 หลักแล้ว (ผู้ใช้สั่ง 26/10/2026)
- * คืนข้อความเตือน หรือ null ถ้าใช้ได้ */
+/** เลขที่เอกสารเคลียร์เงิน: บังคับกรอก ตัวเลขหรืออักษรอังกฤษ 14 หลักพอดี · คืนข้อความเตือน หรือ null ถ้าใช้ได้ */
 export function clearDocNoError(value: string | null | undefined): string | null {
   const text = (value ?? '').trim();
   if (!text) return 'กรุณากรอกเลขที่เอกสารเคลียร์เงิน';
   if (!CLEAR_DOC_NO_RE.test(text)) return 'เลขที่เอกสารเคลียร์เงินใช้ได้แค่ตัวเลขกับอักษรอังกฤษ ไม่มีขีดหรือเว้นวรรค';
-  if (text.length > CLEAR_DOC_NO_MAX) return `เลขที่เอกสารเคลียร์เงินยาวได้ไม่เกิน ${CLEAR_DOC_NO_MAX} ตัว`;
+  if (text.length !== CLEAR_DOC_NO_LEN) return `เลขที่เอกสารเคลียร์เงินต้องมี ${CLEAR_DOC_NO_LEN} หลัก (ตอนนี้ ${text.length} หลัก)`;
   return null;
 }
 
