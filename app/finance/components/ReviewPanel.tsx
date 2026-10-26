@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { DateField } from './DateField';
 import { Textarea } from '@/components/ui/textarea';
 import { formatBaht, settleLabel, todayBkk } from '@/lib/finance/status';
-import { clearDocNoError } from '@/lib/finance/docNo';
+import { CLEAR_DOC_NO_MAX, clearDocNoError } from '@/lib/finance/docNo';
 import { confirmUniqueDocNo, putAction, showAlert, showConfirm, uploadFiles } from '../api';
 import type { AdvanceDetail } from '../types';
 import { FilePicker } from './FilePicker';
@@ -109,8 +109,8 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
             <DateField value={receivedDate} onChange={setReceivedDate} disabled={saving || !received} />
           </label>
         </div>
-        <label className="block space-y-1 text-sm">เลขที่เอกสารเคลียร์เงิน * <span className="text-xs text-ink-500">(10 หลัก)</span>
-          <Input value={clearDocNo} onChange={e => setClearDocNo(e.target.value.replace(/\s/g, ''))} maxLength={10}
+        <label className="block space-y-1 text-sm">เลขที่เอกสารเคลียร์เงิน *
+          <Input value={clearDocNo} onChange={e => setClearDocNo(e.target.value.replace(/\s/g, ''))} maxLength={CLEAR_DOC_NO_MAX}
             placeholder="เช่น CL69100001" disabled={saving} />
         </label>
         {canClose && (
