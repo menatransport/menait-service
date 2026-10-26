@@ -17,11 +17,16 @@ import { useClearApprovals } from '../useClearApprovals';
 import { useSessionContext } from '@/app/context/SessionContext';
 import { LogList } from './LogList';
 import { ShareApprovalLink } from './ShareApprovalLink';
+import { RequesterOutstanding } from './RequesterOutstanding';
 
 // once submitted (AWAITING_REVIEW) the clearing is locked until Accounting sends it back
 const CLEARABLE = new Set(['AWAITING_CLEARING', 'SENT_BACK']);
 
-export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChanged?: () => void }) {
+export function MyAdvanceDetail({ formId, onChanged, showRequesterOutstanding = false }: {
+  formId: string; onChanged?: () => void;
+  /** หน้าอนุมัติเท่านั้น: โชว์ยอดค้างเคลียร์ของผู้ขอเบิก */
+  showRequesterOutstanding?: boolean;
+}) {
   const [detail, setDetail] = useState<AdvanceDetail | null>(null);
   const [error, setError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -47,6 +52,7 @@ export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChang
     <>
       <PrintDocumentButton detail={detail} />
       <AdvanceSummary item={detail} detail={detail} />
+      {showRequesterOutstanding && <RequesterOutstanding formId={formId} name={detail.requester.name} />}
       {detail.status === 'RETURNED' && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <p className="min-w-0 break-words">บัญชีตีกลับให้แก้ไข: {latestReturnRemark(detail.fin_logs) || '-'}</p>

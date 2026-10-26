@@ -83,7 +83,7 @@ export async function loadPayeeRequestFor(
 type AdvUser = Pick<UserInfo, 'employee_id' | 'is_finance'>;
 
 /** GET a BE JSON resource; null on any non-2xx, network or parse error (callers fail closed). */
-async function beJsonOrNull(url: string): Promise<unknown | null> {
+export async function beJsonOrNull(url: string): Promise<unknown | null> {
   try {
     const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
     if (!res.ok) return null;

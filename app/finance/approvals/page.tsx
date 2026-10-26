@@ -510,7 +510,7 @@ function FinanceApprovals() {
           </div>
         )}
       </Panel>
-      <AdvanceSheet mode="mine" formId={viewId} isOpen={viewId !== null} hideFullPage
+      <AdvanceSheet mode="mine" formId={viewId} isOpen={viewId !== null} hideFullPage showRequesterOutstanding
         onClose={() => setViewId(null)} />
     </FinanceShell>
   );
