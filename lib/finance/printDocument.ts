@@ -5,9 +5,9 @@ import { attachmentPagesHtml, type PrintFile, type PrintParts } from './printSha
 
 /**
  * Folders printed as image pages after Part 2. Part 1 prints its form page only, no attachments
- * (ผู้ใช้แจ้ง 26/10/2026: ใบคำขอเบิกพิมพ์หน้าเดียวพอ ไม่ต้องมีหลักฐาน).
+ * (ผู้ใช้แจ้ง 26/10/2026: ใบคำขอเบิกพิมพ์หน้าเดียวพอ ไม่ต้องมีหลักฐาน). related = เอกสารที่เกี่ยวข้อง (27/10/2026).
  */
-export const PART2_ATTACHMENT_FOLDERS = ['clear', 'check'];
+export const PART2_ATTACHMENT_FOLDERS = ['clear', 'related', 'check'];
 
 /** Part 1 alone prints no attachments, so it skips loading the file list. */
 export const printNeedsFiles = (parts: PrintParts) => parts !== 'part1';

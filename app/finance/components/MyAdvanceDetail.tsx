@@ -68,6 +68,7 @@ export function MyAdvanceDetail({ formId, onChanged, showRequesterOutstanding = 
           <AttachmentPanel formId={formId} folder="request" canUpload={detail.status === 'PENDING_APPROVAL' && isOwner} refreshKey={refreshKey} />
           {detail.fin && <AttachmentPanel formId={formId} folder="pay" refreshKey={refreshKey} />}
           {detail.fin && <AttachmentPanel formId={formId} folder="clear" refreshKey={refreshKey} />}
+          {detail.fin && <AttachmentPanel formId={formId} folder="related" refreshKey={refreshKey} />}
           {detail.fin?.settle_amount !== null && detail.fin?.settle_amount !== undefined && detail.fin.settle_amount < 0 && (
             <AttachmentPanel formId={formId} folder="check" refreshKey={refreshKey} />
           )}

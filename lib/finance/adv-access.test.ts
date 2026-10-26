@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { advDetailGrantsView, advUploadRole, isAdvRequester, isAdvStepApprover, listHasForm } from './adv-access';
+import { advDetailGrantsView, advUploadRole, isAdvRequester, isAdvStepApprover, isAdvUploadFolder, listHasForm } from './adv-access';
 
 const detail = {
   form_id: 'ADV-2610-001',
@@ -73,5 +73,17 @@ describe('advUploadRole', () => {
     expect(advUploadRole('check')).toBe('finance');
     expect(advUploadRole('clear')).toBe('owner');
     expect(advUploadRole('')).toBe('owner');
+  });
+  test('related docs (clearing, optional) belong to the requester like the slip', () => {
+    expect(advUploadRole('related')).toBe('owner');
+  });
+});
+
+describe('isAdvUploadFolder', () => {
+  test('request (no folder), pay, clear, related and check are allowed', () => {
+    for (const f of ['', 'pay', 'clear', 'related', 'check']) expect(isAdvUploadFolder(f)).toBe(true);
+  });
+  test('anything else is refused', () => {
+    for (const f of ['voucher', 'request', 'x', '../clear', 'clear/x', 'RELATED']) expect(isAdvUploadFolder(f)).toBe(false);
   });
 });

@@ -127,6 +127,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
           <AttachmentPanel formId={formId} folder="request" refreshKey={refreshKey} />
           <AttachmentPanel formId={formId} folder="pay" canUpload={canPay} refreshKey={refreshKey} />
           <AttachmentPanel formId={formId} folder="clear" refreshKey={refreshKey} />
+          <AttachmentPanel formId={formId} folder="related" refreshKey={refreshKey} />
           <AttachmentPanel formId={formId} folder="check" canUpload={detail.status === 'AWAITING_REVIEW' && can(perms, PERM.close)} refreshKey={refreshKey} />
         </div>
       </Panel>

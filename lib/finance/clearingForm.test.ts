@@ -238,6 +238,14 @@ describe('พิมพ์ — Part 1 หน้าเดียว ไม่แน
     expect(html).toContain('https://s3/clear.png');
     expect(html).toContain('<table class="print-wrap seg fill">');
   });
+  test('Part 2 attaches the optional related documents after the slip (ผู้ใช้ 27/10/2026)', () => {
+    const withRelated = [...files, { folder: 'related', fileName: 'related.png', url: 'https://s3/related.png' }];
+    const html = buildPrintHtml(detail({ status: 'CLOSED' }), 'part2', withRelated, { logoUrl: '', labels: { ...labels, related: 'เอกสารที่เกี่ยวข้อง' } });
+    expect(html).toContain('https://s3/related.png');
+    expect(html).toContain('เอกสารที่เกี่ยวข้อง');
+    expect(html.indexOf('https://s3/clear.png')).toBeLessThan(html.indexOf('https://s3/related.png'));
+    expect(buildPrintHtml(detail({ status: 'CLOSED' }), 'part1', withRelated, { logoUrl: '', labels })).not.toContain('https://s3/related.png');
+  });
   test('Part 1 alone needs no file list', () => {
     expect(printNeedsFiles('part1')).toBe(false);
     expect(printNeedsFiles('part2')).toBe(true);

@@ -26,7 +26,7 @@ export function putAction(formId: string, action: AdvanceAction, body: Record<st
 }
 
 /** Uploads sequentially; returns names of files that failed. */
-export async function uploadFiles(formId: string, files: File[], folder?: 'voucher' | 'pay' | 'clear' | 'check'): Promise<string[]> {
+export async function uploadFiles(formId: string, files: File[], folder?: 'voucher' | 'pay' | 'clear' | 'related' | 'check'): Promise<string[]> {
   const failed: string[] = [];
   for (const file of files) {
     const fd = new FormData();

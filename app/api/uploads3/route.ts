@@ -4,9 +4,7 @@ import { BASE_PATH, BUCKET_NAME, FORM_ID_PATTERN, isSafeUploadName, s3 } from '@
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { denyUnlessAdvViewer, isAdvOwner, requireUser } from '@/lib/finance/server';
 import { isAdvTarget } from '@/lib/finance/formsubmit-guard';
-import { advUploadRole } from '@/lib/finance/adv-access';
-
-const ALLOWED_FOLDERS = ['pay', 'clear', 'check'];
+import { advUploadRole, isAdvUploadFolder } from '@/lib/finance/adv-access';
 
 export async function POST(req: NextRequest) {
   const guard = await requireUser(req);
@@ -15,7 +13,7 @@ export async function POST(req: NextRequest) {
   const file = formData.get('file') as File | null;
   const form_id = formData.get('form_id') as string;
   const folder = ((formData.get('folder') as string | null) ?? '').trim();
-  if (folder && !ALLOWED_FOLDERS.includes(folder)) {
+  if (!isAdvUploadFolder(folder)) {
     return NextResponse.json({ error: 'โฟลเดอร์ไม่ถูกต้อง' }, { status: 400 });
   }
 
@@ -35,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
   }
 
-  // ADV: pay/check are Finance's evidence; request (no folder) and clear belong to the requester
+  // ADV: pay/check are Finance's evidence; request (no folder), clear and related belong to the requester
   if (isAdvTarget({ formId: form_id })) {
     const allowed = advUploadRole(folder) === 'finance'
       ? guard.user.is_finance === true

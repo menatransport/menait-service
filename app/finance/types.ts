@@ -100,7 +100,7 @@ export interface AdvanceDetail extends AdvanceItem {
   clear_logs?: import('@/lib/finance/historyLog').ClearLog[];
 }
 
-export type AttachmentFolder = 'request' | 'pay' | 'clear' | 'check';
+export type AttachmentFolder = 'request' | 'pay' | 'clear' | 'related' | 'check';
 
 export interface AttachmentFile {
   key: string;

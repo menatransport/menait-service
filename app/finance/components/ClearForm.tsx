@@ -36,6 +36,8 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
   const [settleDate, setSettleDate] = useState(fin.settle_date ?? '');
   const [remark, setRemark] = useState(fin.remark ?? '');
   const [files, setFiles] = useState<File[]>([]);
+  const [relatedFiles, setRelatedFiles] = useState<File[]>([]);
+  const [existingRelated, setExistingRelated] = useState(0);
   const [saving, setSaving] = useState(false);
   const [existingClear, setExistingClear] = useState(0);
   const [uploadedNow, setUploadedNow] = useState(0);
@@ -44,8 +46,9 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
       .then(data => {
         const list = Array.isArray(data) ? data : data.files ?? [];
         setExistingClear(list.filter(f => f.folder === 'clear').length);
+        setExistingRelated(list.filter(f => f.folder === 'related').length);
       })
-      .catch(() => setExistingClear(0));
+      .catch(() => { setExistingClear(0); setExistingRelated(0); });
   }, [detail.form_id]);
 
   /** popup state: a NEW item (appended on save) or an existing one being edited */
@@ -93,6 +96,14 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
       setExistingClear(n => n + files.length);
       setUploadedNow(n => n + files.length);
       setFiles([]);
+      // เอกสารที่เกี่ยวข้อง (optional): keep only the files that failed, so a retry uploads just those
+      const failedRelated = await uploadFiles(detail.form_id, relatedFiles, 'related');
+      setExistingRelated(n => n + relatedFiles.length - failedRelated.length);
+      setRelatedFiles(fs => fs.filter(f => failedRelated.includes(f.name)));
+      if (failedRelated.length) {
+        await showAlert({ icon: 'error', title: 'อัปโหลดเอกสารที่เกี่ยวข้องไม่สำเร็จ ยังไม่ได้ส่งเคลียร์', text: failedRelated.join(', ') });
+        return;
+      }
       const saved = await putAction(detail.form_id, 'clear', {
         clear_date: clearDate,
         items: itemRows.map(r => ({
@@ -187,6 +198,11 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
           <p className="mb-1 text-sm">แนบสลิปโอนเงิน {needsSlip ? '*' : <span className="text-gray-500">(ไม่บังคับ ต้องแนบเฉพาะกรณีคืนเงินบริษัท)</span>}</p>
           {existingClear > 0 && <p className="text-xs text-gray-500">มีไฟล์แนบแล้ว {existingClear} ไฟล์ (แนบเพิ่มได้)</p>}
           <FilePicker files={files} onChange={setFiles} disabled={saving} />
+        </div>
+        <div className="sm:col-span-2">
+          <p className="mb-1 text-sm">แนบเอกสารที่เกี่ยวข้อง <span className="text-gray-500">(ไม่บังคับ)</span></p>
+          {existingRelated > 0 && <p className="text-xs text-gray-500">มีไฟล์แนบแล้ว {existingRelated} ไฟล์ (แนบเพิ่มได้)</p>}
+          <FilePicker files={relatedFiles} onChange={setRelatedFiles} disabled={saving} />
         </div>
         <div className="sm:col-span-2">
           <Button type="submit" disabled={saving} className="w-full h-11 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-60">

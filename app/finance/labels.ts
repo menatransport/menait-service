@@ -1,3 +1,5 @@
+import type { AttachmentFolder } from './types';
+
 export const FIELD_LABELS: Record<string, string> = {
   acc_code: 'รหัสบัญชี', voucher_no: 'เลขที่ตั้งเบิก', voucher_date: 'วันที่ตั้งเบิก', payment_doc_no: 'เลขที่ทำจ่าย',
   purpose: 'วัตถุประสงค์', amount_paid: 'ยอดเงิน', transfer_date: 'วันที่โอนเงิน', clear_due_date: 'กำหนดการเคลียร์',
@@ -27,9 +29,9 @@ export function logRemarkLabel(action: string, remark: string | null): string | 
   return action === 'OVERDUE_REMIND' ? (OVERDUE_REMIND_REMARKS[remark] ?? remark) : remark;
 }
 
-export const FOLDER_LABELS: Record<string, string> = {
+export const FOLDER_LABELS: Record<AttachmentFolder, string> = {
   request: 'เอกสารประกอบการขอเบิก', pay: 'หลักฐานการจ่ายเงิน', clear: 'เอกสารเคลียร์ / สลิปโอนเงิน',
-  check: 'หลักฐานการเงิน (จ่ายเพิ่ม)',
+  related: 'เอกสารที่เกี่ยวข้อง', check: 'หลักฐานการเงิน (จ่ายเพิ่ม)',
 };
 
 export const CLEAR_ATTACHMENT_REQUIRED = 'มียอดต้องคืนบริษัท กรุณาแนบสลิปโอนเงินอย่างน้อย 1 ไฟล์';

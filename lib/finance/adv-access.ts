@@ -31,8 +31,17 @@ export function listHasForm(list: unknown, formId: string): boolean {
   return list.some(item => asRecord(item)?.form_id === formId);
 }
 
-/** Upload folders on an ADV: pay/check are Finance's; request (no folder) and clear are the requester's. */
+/** Upload folders on an ADV: pay/check are Finance's; request (no folder), clear and related are the requester's. */
 export type AdvUploadRole = 'finance' | 'owner';
 export function advUploadRole(folder: string): AdvUploadRole {
   return folder === 'pay' || folder === 'check' ? 'finance' : 'owner';
+}
+
+/**
+ * Sub-folders /api/uploads3 accepts ('' = the request's own files, no sub-folder). related = เอกสารที่เกี่ยวข้อง
+ * the requester adds with the clearing, optional (ผู้ใช้สั่ง 27/10/2026).
+ */
+export const ADV_UPLOAD_FOLDERS = ['pay', 'clear', 'related', 'check'] as const;
+export function isAdvUploadFolder(folder: string): boolean {
+  return folder === '' || (ADV_UPLOAD_FOLDERS as readonly string[]).includes(folder);
 }
