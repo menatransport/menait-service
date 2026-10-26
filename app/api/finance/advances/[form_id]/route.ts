@@ -3,7 +3,7 @@ import { BASE_PATH, FORM_ID_PATTERN, hasFiles } from '@/lib/s3';
 import { CLEAR_ATTACHMENT_REQUIRED } from '@/app/finance/labels';
 import { beUrl, canViewAdv, proxy, requireFinance, requireUser } from '@/lib/finance/server';
 
-const FINANCE_ACTIONS = new Set(['voucher', 'pay', 'send-back', 'confirm', 'return', 'reject-voucher']);
+const FINANCE_ACTIONS = new Set(['voucher', 'pay', 'send-back', 'confirm', 'return', 'reject-voucher', 'doc-numbers']);
 
 type Ctx = { params: Promise<{ form_id: string }> };
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { PERM, can, canSendVoucherBack, type PermissionState } from './permissions';
+import { PERM, can, canEditDocNumbers, canSendVoucherBack, type PermissionState } from './permissions';
 
 const bow: PermissionState = { permissions: [PERM.pay, PERM.return] };
 
@@ -37,5 +37,17 @@ describe('canSendVoucherBack — การเงินส่งกลับใ�
   });
   it('ไม่มีสิทธิ์จ่ายเงิน ไม่เห็นปุ่ม', () => {
     expect(canSendVoucherBack('AWAITING_PAYMENT', { permissions: [PERM.voucher] })).toBe(false);
+  });
+});
+
+describe('canEditDocNumbers — การเงินแก้เลขที่เอกสาร (ผู้ใช้ 26/10/2026)', () => {
+  it('สิทธิ์จ่ายเงิน แก้ได้ทุกสถานะหลังตั้งเบิก รวมปิดแล้ว', () => {
+    for (const s of ['AWAITING_PAYMENT', 'AWAITING_CLEARING', 'SENT_BACK', 'CLEARING_APPROVAL', 'AWAITING_REVIEW', 'CLOSED']) {
+      expect(canEditDocNumbers(s, bow)).toBe(true);
+    }
+    for (const s of ['PENDING_APPROVAL', 'AWAITING_VOUCHER', 'RETURNED', 'REJECTED']) expect(canEditDocNumbers(s, bow)).toBe(false);
+  });
+  it('ไม่มีสิทธิ์จ่ายเงิน ไม่เห็นปุ่ม', () => {
+    expect(canEditDocNumbers('CLOSED', { permissions: [PERM.voucher, PERM.close] })).toBe(false);
   });
 });

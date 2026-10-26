@@ -15,7 +15,7 @@ export async function fetchJson<T>(url: string, init: RequestInit = {}): Promise
   return data as T;
 }
 
-export type AdvanceAction = 'voucher' | 'pay' | 'clear' | 'send-back' | 'confirm' | 'return' | 'reject-voucher' | 'resubmit'
+export type AdvanceAction = 'voucher' | 'pay' | 'clear' | 'send-back' | 'confirm' | 'return' | 'reject-voucher' | 'doc-numbers' | 'resubmit'
   | 'clear-approve' | 'clear-reject';
 
 export function putAction(formId: string, action: AdvanceAction, body: Record<string, unknown>) {

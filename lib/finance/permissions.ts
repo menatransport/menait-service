@@ -1,4 +1,5 @@
 /** สิทธิ์ตามหน้าที่ของงาน Advance — ชื่อต้องตรงกับ services/finance/permission_logic.py */
+import { DOC_NO_EDIT_STATUSES } from './docNo';
 export const PERM = {
   voucher: 'voucher',
   pay: 'pay',
@@ -29,4 +30,9 @@ export function can(state: PermissionState | null, permission: Permission): bool
  */
 export function canSendVoucherBack(status: string, state: PermissionState | null): boolean {
   return status === 'AWAITING_PAYMENT' && can(state, PERM.pay);
+}
+
+/** การเงิน (สิทธิ์จ่ายเงิน) แก้เลขที่ตั้งเบิก / เลขที่ทำจ่าย / เลขที่เคลียร์ที่กรอกผิด ทุกสถานะหลังตั้งเบิก (ผู้ใช้สั่ง 26/10/2026) */
+export function canEditDocNumbers(status: string, state: PermissionState | null): boolean {
+  return DOC_NO_EDIT_STATUSES.includes(status) && can(state, PERM.pay);
 }
