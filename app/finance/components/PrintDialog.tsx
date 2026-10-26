@@ -76,7 +76,7 @@ export default function PrintDialog({ open, onOpenChange, onConfirm, documentNo,
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3">
-          <span className="text-[11px] text-slate-500">แนบหน้ารูปภาพให้อัตโนมัติ</span>
+          <span className="text-[11px] text-slate-500">{selected === 'part1' ? 'พิมพ์หน้าเดียว ไม่แนบไฟล์' : 'Part 2 แนบหน้ารูปภาพให้อัตโนมัติ'}</span>
           <div className="flex gap-2">
             {/* กดยกเลิกได้ตลอด แม้กำลังเตรียมเอกสาร (โหลดไฟล์แนบช้า) — ผู้เรียกยกเลิกงานพิมพ์ที่ค้างให้ */}
             <button type="button" onClick={() => onOpenChange(false)}

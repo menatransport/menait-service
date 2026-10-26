@@ -7,6 +7,7 @@ import {
 } from './clearingForm';
 import { toCashAdvanceData } from './cashAdvanceForm';
 import { attachmentPagesHtml } from './printShared';
+import { buildPrintHtml, printNeedsFiles } from './printDocument';
 
 /** Reference example (ADV/20260930095247.pdf page 2): 6 receipts, advance 2,000.00. */
 const REF_ITEMS: [number, number][] = [[398.13, 27.87], [403.74, 28.26], [251.40, 17.60], [398.13, 27.87], [357.94, 25.06], [66.00, 0]];
@@ -208,7 +209,40 @@ describe('expense claim form (Part 2)', () => {
     expect(render('both-sample', buildCombinedHtml(toCashAdvanceData(d), toClearingData(d),
       { logoUrl: logo, part1AttachmentsHtml: att(['request', 'request']), part2AttachmentsHtml: att(['clear', 'clear']) }))).toBe('PPLL');
     expect(render('both-noatt-sample', buildCombinedHtml(toCashAdvanceData(d), toClearingData(d), { logoUrl: logo }))).toBe('PL');
+    const files = ['request', 'pay'].map((folder, i) => ({ folder, fileName: `f${i}.png`, url: logo }));
+    expect(render('part1-sample', buildPrintHtml(d, 'part1', files, { logoUrl: logo, labels: {} }))).toBe('P');
   }, 180000);
+});
+
+describe('พิมพ์ — Part 1 หน้าเดียว ไม่แนบหลักฐาน (ผู้ใช้ 26/10/2026)', () => {
+  const files = ['request', 'pay', 'clear', 'check'].map(folder => ({ folder, fileName: `${folder}.png`, url: `https://s3/${folder}.png` }));
+  const labels = { request: 'เอกสารประกอบการขอเบิก', pay: 'หลักฐานการจ่าย', clear: 'เอกสารเคลียร์', check: 'หลักฐานการเงิน' };
+  const build = (parts: 'part1' | 'part2' | 'both') => buildPrintHtml(detail({ status: 'CLOSED' }), parts, files, { logoUrl: '', labels });
+
+  test('Part 1 prints the form only, even when request / pay files exist', () => {
+    const html = build('part1');
+    expect(html).toContain('ใบคำขอเบิกเงินล่วงหน้า');
+    expect(html).not.toContain('class="att"');
+    for (const f of files) expect(html).not.toContain(f.url);
+  });
+  test('Part 2 still attaches its receipts', () => {
+    const html = build('part2');
+    expect(html).toContain('https://s3/clear.png');
+    expect(html).toContain('https://s3/check.png');
+    expect(html).not.toContain('https://s3/request.png');
+  });
+  test('ทั้งหมด: Part 1 without attachments, Part 2 with its receipts', () => {
+    const html = build('both');
+    expect(html).not.toContain('https://s3/request.png');
+    expect(html).not.toContain('https://s3/pay.png');
+    expect(html).toContain('https://s3/clear.png');
+    expect(html).toContain('<table class="print-wrap seg fill">');
+  });
+  test('Part 1 alone needs no file list', () => {
+    expect(printNeedsFiles('part1')).toBe(false);
+    expect(printNeedsFiles('part2')).toBe(true);
+    expect(printNeedsFiles('both')).toBe(true);
+  });
 });
 
 describe('Part 2 — ลายเซ็นผู้อนุมัติการเคลียร์', () => {

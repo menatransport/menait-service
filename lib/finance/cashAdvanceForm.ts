@@ -102,11 +102,11 @@ table.items td.no { width: 9mm; color: var(--muted); }
 table.items td.a { font-weight: 600; }
 .sum { display: grid; grid-template-columns: 1fr auto; gap: 16px; margin-top: 8px; align-items: stretch; }
 .dates { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px; row-gap: 5px; align-content: start; }
-.tot { background: var(--teal); color: #fff; border-radius: 3px; padding: 7px 12px; min-width: 68mm; }
-.tot .k { font-size: 10px; opacity: 0.85; }
-.tot .amt { font-size: 22px; font-weight: 700; line-height: 1.15; text-align: right; }
-.tot .amt span { font-size: 11px; font-weight: 500; margin-left: 4px; }
-.tot .words { font-size: 11px; font-style: italic; text-align: right; border-top: 1px solid rgba(255,255,255,.35); margin-top: 4px; padding-top: 3px; }
+.tot { border: 1.5px solid var(--teal); border-radius: 3px; padding: 7px 12px; min-width: 68mm; }
+.tot .k { font-size: 10px; color: var(--muted); }
+.tot .amt { font-size: 22px; font-weight: 700; line-height: 1.15; text-align: right; color: var(--teal); }
+.tot .amt span { font-size: 11px; font-weight: 500; margin-left: 4px; color: var(--ink); }
+.tot .words { font-size: 11px; font-style: italic; text-align: right; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 3px; }
 .more { grid-column: 1 / -1; margin-top: 2px; }
 .more .l { font-size: 9.5px; color: var(--muted); }
 .more .ln { border-bottom: 1px solid var(--line); min-height: 19px; font-size: 12px; }

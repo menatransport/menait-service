@@ -3,9 +3,9 @@
 import { useRef, useState } from 'react';
 import { Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { buildCashAdvanceHtml, PRINTABLE_STATUSES, toCashAdvanceData } from '@/lib/finance/cashAdvanceForm';
-import { buildClearingHtml, buildCombinedHtml, toClearingData } from '@/lib/finance/clearingForm';
-import { attachmentPagesHtml, openPrintWindow, type PrintFile, type PrintParts } from '@/lib/finance/printShared';
+import { PRINTABLE_STATUSES } from '@/lib/finance/cashAdvanceForm';
+import { buildPrintHtml, printNeedsFiles } from '@/lib/finance/printDocument';
+import { openPrintWindow, type PrintFile, type PrintParts } from '@/lib/finance/printShared';
 import { showAlert } from '../api';
 import { FOLDER_LABELS } from '../labels';
 import type { AdvanceDetail } from '../types';
@@ -38,15 +38,9 @@ export function PrintDocumentButton({ detail, initial, compact = false, label }:
     const id = ++runId.current;
     setPreparing(true);
     try {
-      const files = await fetchFiles();
+      const files = printNeedsFiles(parts) ? await fetchFiles() : [];
       if (id !== runId.current) return;
-      const logoUrl = `${window.location.origin}/mena.png`;
-      const att1 = attachmentPagesHtml(files, ['request', 'pay'], FOLDER_LABELS);
-      const att2 = attachmentPagesHtml(files, ['clear', 'check'], FOLDER_LABELS);
-      const cash = toCashAdvanceData(detail);
-      const html = parts === 'part1' ? buildCashAdvanceHtml(cash, { logoUrl, attachmentsHtml: att1 })
-        : parts === 'part2' ? buildClearingHtml(toClearingData(detail), { logoUrl, attachmentsHtml: att2 })
-        : buildCombinedHtml(cash, toClearingData(detail), { logoUrl, part1AttachmentsHtml: att1, part2AttachmentsHtml: att2 });
+      const html = buildPrintHtml(detail, parts, files, { logoUrl: `${window.location.origin}/mena.png`, labels: FOLDER_LABELS });
       // ปิด Dialog ให้เสร็จก่อนค่อยเปิดหน้าพิมพ์ (บั๊ก 26/10/2026: หน้าพรีวิวพิมพ์ของเบราว์เซอร์หยุดหน้าเว็บไว้
       // กลางแอนิเมชันปิด Dialog เลยค้างทับหน้าจอ กดออกไม่ได้)
       setOpen(false);

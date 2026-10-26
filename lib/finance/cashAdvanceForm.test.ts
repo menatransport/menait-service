@@ -48,6 +48,14 @@ describe('cash advance form', () => {
     expect(html).not.toContain('1 Nov 22');
     expect((html.match(/class="cb checked"/g) ?? []).length).toBe(1); // ลาดกระบัง/ขอนแก่น
   });
+  test('amount box is a plain outline, no colour fill (ผู้ใช้ 26/10/2026: เปลืองหมึกตอนพิมพ์)', () => {
+    const html = buildCashAdvanceHtml(sample as any, {});
+    const rule = (sel: string) => html.match(new RegExp(`\\n${sel.replace(/\./g, '\\.')} \\{[^}]*\\}`))?.[0] ?? '';
+    expect(rule('.tot')).toContain('border: 1.5px solid var(--teal)');
+    expect(rule('.tot')).not.toContain('background');
+    expect(rule('.tot')).not.toContain('color: #fff');
+    expect(rule('.tot .words')).not.toContain('rgba(255,255,255');
+  });
   test('document_no shows in the meta box and the footer; toCashAdvanceData sets it from form_id', () => {
     const html = buildCashAdvanceHtml({ ...sample, document_no: 'ADV-2026-0007' } as any, {});
     expect(html).toContain('<span>เลขที่</span><b>ADV-2026-0007</b>');
