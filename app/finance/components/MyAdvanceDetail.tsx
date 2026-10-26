@@ -41,6 +41,8 @@ export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChang
   if (error) return <NoAccess text={error} />;
   if (!detail) return <Panel title="รายละเอียดคำขอ"><div className="py-8"><MascotLoader text="กำลังโหลดรายละเอียด" size={80} /></div></Panel>;
 
+  const isOwner = user?.employee_id === detail.requester.employee_id;
+
   return (
     <>
       <PrintDocumentButton detail={detail} />
@@ -53,10 +55,11 @@ export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChang
           </Link>
         </div>
       )}
-      {detail.status === 'PENDING_APPROVAL' && <ShareApprovalLink detail={detail} />}
+      {/* หัวหน้าเปิดดูจากหน้าอนุมัติได้ (26/10/2026) — ลิงก์ส่งผู้อนุมัติกับการแนบไฟล์เป็นของผู้เบิกคนเดียว */}
+      {detail.status === 'PENDING_APPROVAL' && isOwner && <ShareApprovalLink detail={detail} />}
       <Panel title="ไฟล์แนบ">
         <div className="grid gap-5 sm:grid-cols-2">
-          <AttachmentPanel formId={formId} folder="request" canUpload={detail.status === 'PENDING_APPROVAL'} refreshKey={refreshKey} />
+          <AttachmentPanel formId={formId} folder="request" canUpload={detail.status === 'PENDING_APPROVAL' && isOwner} refreshKey={refreshKey} />
           {detail.fin && <AttachmentPanel formId={formId} folder="pay" refreshKey={refreshKey} />}
           {detail.fin && <AttachmentPanel formId={formId} folder="clear" refreshKey={refreshKey} />}
           {detail.fin?.settle_amount !== null && detail.fin?.settle_amount !== undefined && detail.fin.settle_amount < 0 && (
@@ -68,7 +71,7 @@ export function MyAdvanceDetail({ formId, onChanged }: { formId: string; onChang
         <ClearApprovalPanel key={`ca-${refreshKey}`} detail={detail} onSaved={onSaved} />
       )}
       {/* ฟอร์มเคลียร์เป็นของผู้เบิกคนเดียว หัวหน้าที่เปิดใบมาอนุมัติ/ตีกลับเคลียร์ต้องไม่เห็นปุ่มแก้ */}
-      {detail.fin && CLEARABLE.has(detail.status) && user?.employee_id === detail.requester.employee_id && <ClearForm key={refreshKey} detail={detail} onSaved={onSaved} />}
+      {detail.fin && CLEARABLE.has(detail.status) && isOwner && <ClearForm key={refreshKey} detail={detail} onSaved={onSaved} />}
       {detail.status === 'AWAITING_REVIEW' && (
         <p className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">
           ส่งเคลียร์เงินแล้ว รอบัญชีตรวจ — แก้ไขไม่ได้ หากต้องแก้ไข ให้ติดต่อบัญชีเพื่อส่งกลับแก้ไข

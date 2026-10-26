@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { BadgeCheck, Check, CheckCircle2, Clock, Info, X, XCircle } from 'lucide-react';
+import { BadgeCheck, Check, CheckCircle2, Clock, FileText, Info, X, XCircle } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
 import { PaginationControls } from '@/components/pagination-controls';
 import { Mascot } from '@/components/mascot';
@@ -12,6 +12,7 @@ import { formatBaht, formatDate } from '@/lib/finance/status';
 import { stepBadge } from '@/lib/finance/approvalSteps';
 import { fetchJson, showAlert, showConfirm } from '../api';
 import type { PendingApprovalItem } from '../types';
+import { AdvanceSheet } from '../components/AdvanceSheet';
 import { AttachmentPanel } from '../components/AttachmentPanel';
 import { ClearApprovalQueue } from '../components/ClearApprovalQueue';
 import { useClearPendingItems } from '../useClearApprovals';
@@ -61,6 +62,7 @@ const getUseDate = (values?: FormValue[]) =>
 
 const BTN_REJECT = 'inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50';
 const BTN_APPROVE = 'inline-flex items-center gap-1.5 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 px-5 py-2 text-sm font-semibold text-white shadow-md transition-all hover:from-brand-700 hover:to-brand-600 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50';
+const BTN_VIEW = 'inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50';
 const CARD = 'rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5';
 
 /** The requested amount is what the approver decides on — give it the most weight on the card. */
@@ -161,9 +163,10 @@ function ApprovalCard({
 }
 
 function PendingCard({
-  item, processing, highlight = false, onApprove, onReject,
+  item, processing, highlight = false, onApprove, onReject, onView,
 }: {
   item: PendingApprovalItem; processing: boolean; highlight?: boolean; onApprove: () => void; onReject: () => void;
+  onView: () => void;
 }) {
   const { requester, request, tier } = item;
   const badge = stepBadge(item.step, item.total_steps);
@@ -198,7 +201,11 @@ function PendingCard({
         {item.tab === 'delegable' && (
           <p className="mb-2 flex items-center gap-1.5 text-xs text-gray-500"><Info className="h-3.5 w-3.5 text-brand-600" /> อนุมัติแทนได้ — มีผู้มีสิทธิ์ระดับ {item.step_required_level ?? tier.required_level}+ ที่ใกล้กว่า</p>
         )}
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          {/* ดูใบเต็ม ๆ ในแผงข้าง: ข้อมูลผู้รับเงิน ไฟล์แนบ ประวัติ (ผู้ใช้สั่ง 26/10/2026) */}
+          <button type="button" onClick={onView} className={`${BTN_VIEW} mr-auto`}>
+            <FileText className="h-4 w-4" /> ดูรายละเอียดทั้งหมด
+          </button>
           <button
             type="button"
             disabled={processing}
@@ -250,6 +257,7 @@ function FinanceApprovals() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyTotal, setHistoryTotal] = useState(0);
   const loadSeq = useRef(0);
@@ -470,6 +478,7 @@ function FinanceApprovals() {
                         highlight={!!doc && item.form_id === doc}
                         onApprove={() => handleApprove(item)}
                         onReject={() => handleReject(item)}
+                        onView={() => setViewId(item.form_id)}
                       />
                     ))}
                   </div>
@@ -501,6 +510,8 @@ function FinanceApprovals() {
           </div>
         )}
       </Panel>
+      <AdvanceSheet mode="mine" formId={viewId} isOpen={viewId !== null} hideFullPage
+        onClose={() => setViewId(null)} />
     </FinanceShell>
   );
 }
