@@ -190,7 +190,7 @@ function PendingCard({
         <Field label="วันที่ยื่นคำขอ" value={formatDate(item.created_at)} />
         <Field label="ค่าใช้จ่ายรายศูนย์" value={request.cost_center ?? '-'} />
         <div className="col-span-2"><Field label="ขั้นอนุมัติ" value={item.step_label ? `ข้อ ${tier.clause} · ${item.step_label}` : `ข้อ ${tier.clause} · ${tier.approver_label} — ผู้อนุมัติระดับ ${tier.required_level} ขึ้นไป`} /></div>
-        <div className="col-span-2 sm:col-span-3"><Field label={PURPOSE_LABEL} value={request.purpose} /></div>
+        <div className="col-span-2 sm:col-span-3"><Field label={PURPOSE_LABEL} value={request.purpose} copyText={request.purpose} /></div>
       </div>
 
       <div className="mt-4">

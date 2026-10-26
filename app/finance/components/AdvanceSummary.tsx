@@ -69,7 +69,7 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
               )}
             </div>
           )}
-          <div className="col-span-2 sm:col-span-3"><Field label="เบิกเงิน Advance สำหรับ" value={item.request.purpose} /></div>
+          <div className="col-span-2 sm:col-span-3"><Field label="เบิกเงิน Advance สำหรับ" value={item.request.purpose} copyText={item.request.purpose} /></div>
         </div>
       </Panel>
 
