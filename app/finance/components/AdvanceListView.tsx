@@ -15,6 +15,7 @@ import { formatBaht, formatDate, settleLabel, todayBkk } from '@/lib/finance/sta
 import { fetchJson, showAlert } from '../api';
 import type { AdvanceItem } from '../types';
 import { StatusBadge } from './StatusBadge';
+import { CopyTextButton } from './CopyTextButton';
 
 const TH = 'px-4 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap';
 const TD = 'px-4 py-3 text-sm whitespace-nowrap';
@@ -46,7 +47,12 @@ const FIN_CELLS: Record<ExportColumn, (item: AdvanceItem, no: number) => ReactNo
   'วันที่ใช้เงิน': it => formatDate(it.request.use_date),
   'วัตถุประสงค์': it => {
     const text = it.fin?.purpose ?? it.request.purpose;
-    return <div className="max-w-[16rem] truncate" title={text ?? undefined}>{dash(text)}</div>;
+    return (
+      <div className="flex max-w-[18rem] items-center gap-1">
+        <span className="truncate" title={text ?? undefined}>{dash(text)}</span>
+        {text && <CopyTextButton text={text} compact />}
+      </div>
+    );
   },
   'ยอดเงิน': it => formatBaht(it.fin?.amount_paid ?? it.request.amount),
   'วันที่โอนเงิน': it => formatDate(it.fin?.transfer_date),
@@ -393,7 +399,10 @@ export function AdvanceListView({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-xs text-brand-600 font-medium">{item.form_id}</p>
-                      <p className="font-semibold text-gray-800 text-sm truncate">{item.fin?.purpose ?? item.request.purpose ?? '-'}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-semibold text-gray-800 text-sm truncate">{item.fin?.purpose ?? item.request.purpose ?? '-'}</p>
+                        {(item.fin?.purpose ?? item.request.purpose) && <CopyTextButton text={(item.fin?.purpose ?? item.request.purpose)!} compact />}
+                      </div>
                       {mode === 'finance' && (
                         <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                           <User size={11} /> {item.requester.name ?? item.requester.employee_id}
@@ -471,7 +480,12 @@ export function AdvanceListView({
                   ) : (
                     <>
                       <td className={`${TD} font-medium text-brand-800`}>{item.form_id}</td>
-                      <td className={`${TD} max-w-xs truncate`}>{item.fin?.purpose ?? item.request.purpose ?? '-'}</td>
+                      <td className={`${TD} max-w-xs`}>
+                        <div className="flex items-center gap-1">
+                          <span className="truncate">{item.fin?.purpose ?? item.request.purpose ?? '-'}</span>
+                          {(item.fin?.purpose ?? item.request.purpose) && <CopyTextButton text={(item.fin?.purpose ?? item.request.purpose)!} compact />}
+                        </div>
+                      </td>
                       <td className={`${TD} text-right`}>{formatBaht(item.fin?.amount_paid ?? item.request.amount)}</td>
                       <td className={TD}>{formatDate(item.request.use_date)}</td>
                       <td className={TD}>{formatDate(item.fin?.clear_due_date)}</td>

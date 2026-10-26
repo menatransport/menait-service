@@ -84,7 +84,7 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
             <Field label="วันที่โอนเงิน" value={formatDate(fin.transfer_date)} />
             <Field label="กำหนดการเคลียร์" value={formatDate(fin.clear_due_date)} />
             {fin.acc_code && <Field label="บัญชี" value={`${fin.acc_code} ${fin.acc_name ?? ''}`} />}
-            <div className="col-span-2"><Field label="วัตถุประสงค์" value={fin.purpose} /></div>
+            <div className="col-span-2"><Field label="วัตถุประสงค์" value={fin.purpose} copyText={fin.purpose} /></div>
           </div>
         </Panel>
       )}
