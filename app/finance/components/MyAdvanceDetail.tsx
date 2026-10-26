@@ -50,9 +50,9 @@ export function MyAdvanceDetail({ formId, onChanged, showRequesterOutstanding = 
 
   return (
     <>
+      {showRequesterOutstanding && <RequesterOutstanding formId={formId} name={detail.requester.name} />}
       <PrintDocumentButton detail={detail} />
       <AdvanceSummary item={detail} detail={detail} />
-      {showRequesterOutstanding && <RequesterOutstanding formId={formId} name={detail.requester.name} />}
       {detail.status === 'RETURNED' && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <p className="min-w-0 break-words">บัญชีตีกลับให้แก้ไข: {latestReturnRemark(detail.fin_logs) || '-'}</p>
