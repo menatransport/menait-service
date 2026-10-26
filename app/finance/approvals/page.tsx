@@ -418,7 +418,7 @@ function FinanceApprovals() {
         caption="อนุมัติตามวงเงินในตารางอำนาจอนุมัติ ข้อ 6"
         actions={
           <div role="tablist" aria-label="มุมมองรายการ" className="v2-glass inline-flex max-w-full overflow-x-auto rounded-full p-1">
-            {([['pending', 'รออนุมัติ'], ['clear', `รออนุมัติเคลียร์${clearItems?.length ? ` (${clearItems.length})` : ''}`], ['history', 'อนุมัติ/ไม่อนุมัติแล้ว']] as const).map(([value, label]) => (
+            {([['pending', 'รออนุมัติเบิก'], ['clear', `รออนุมัติเคลียร์${clearItems?.length ? ` (${clearItems.length})` : ''}`], ['history', 'อนุมัติ/ไม่อนุมัติแล้ว']] as const).map(([value, label]) => (
               <button
                 key={value}
                 type="button"
