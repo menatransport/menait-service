@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { spawnSync } from 'child_process';
 import sample from './cash-advance-sample.json';
 import { buildCashAdvanceHtml, dmy, formatBkkDateTime, thaiShortDate, validateCashAdvance, toCashAdvanceData, PRINTABLE_STATUSES } from './cashAdvanceForm';
+import type { CashAdvanceFormData } from './cashAdvanceForm';
 
 describe('cash advance form', () => {
   test('PRINTABLE_STATUSES includes correct statuses and excludes others', () => {
@@ -49,7 +50,7 @@ describe('cash advance form', () => {
     expect((html.match(/class="cb checked"/g) ?? []).length).toBe(1); // ลาดกระบัง/ขอนแก่น
   });
   test('amount box is a plain outline, no colour fill (ผู้ใช้ 26/10/2026: เปลืองหมึกตอนพิมพ์)', () => {
-    const html = buildCashAdvanceHtml(sample as any, {});
+    const html = buildCashAdvanceHtml(sample as unknown as CashAdvanceFormData, {});
     const rule = (sel: string) => html.match(new RegExp(`\\n${sel.replace(/\./g, '\\.')} \\{[^}]*\\}`))?.[0] ?? '';
     expect(rule('.tot')).toContain('border: 1.5px solid var(--teal)');
     expect(rule('.tot')).not.toContain('background');
