@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DateField } from './DateField';
 import { Textarea } from '@/components/ui/textarea';
-import { formatBaht, settleLabel, todayBkk } from '@/lib/finance/status';
+import { formatBaht, formatDate, settleLabel, todayBkk } from '@/lib/finance/status';
 import { CLEAR_DOC_NO_MAX, clearDocNoError } from '@/lib/finance/docNo';
-import { confirmUniqueDocNo, putAction, showAlert, showConfirm, uploadFiles } from '../api';
+import { confirmReview, confirmUniqueDocNo, putAction, showAlert, uploadFiles } from '../api';
 import type { AdvanceDetail } from '../types';
 import { FilePicker } from './FilePicker';
 import { Panel } from './FinanceShell';
@@ -38,8 +38,19 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
     const docError = clearDocNoError(clearDocNo);
     if (docError) return showAlert({ icon: 'warning', title: docError });
     if (!(await confirmUniqueDocNo('clear_doc_no', clearDocNo, detail.form_id))) return;
-    const ok = await showConfirm({ title: 'ยืนยันปิดรายการ?', text: `${detail.form_id} · ${settleLabel(settle)} ${formatBaht(Math.abs(settle))}` });
-    if (!ok.isConfirmed) return;
+    if (!(await confirmReview({
+      title: 'ยืนยันปิดรายการ?',
+      rows: [
+        ['เลขที่คำขอ', detail.form_id],
+        [settleLabel(settle), `${formatBaht(Math.abs(settle))} บาท`],
+        ...(needsExtraDate ? [['วันที่การเงินโอนเงินเพิ่ม', formatDate(extraDate)] as [string, string]] : []),
+        ['เลขที่เอกสารเคลียร์เงิน', clearDocNo.trim()],
+        ['วันที่รับเอกสารตัวจริง', formatDate(receivedDate)],
+        ['ไฟล์ที่แนบ', files.length ? `${files.length} ไฟล์` : 'ไม่มี'],
+      ],
+      note: 'ปิดรายการแล้วแก้ไขไม่ได้',
+      confirmButtonText: 'ยืนยันปิดรายการ',
+    }))) return;
     setSaving(true);
     try {
       // สลิปโอนเงินเพิ่มบังคับแนบ: อัปโหลดให้ได้ก่อน ค่อยปิดรายการ จะได้ไม่มีใบที่ปิดแล้วแต่ไม่มีสลิป
@@ -66,6 +77,11 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
 
   const sendBack = async () => {
     if (!remark.trim()) return showAlert({ icon: 'warning', title: 'กรุณาระบุเหตุผลที่ส่งกลับ' });
+    if (!(await confirmReview({
+      title: 'ส่งกลับให้ผู้เบิกแก้ไข?',
+      rows: [['เลขที่คำขอ', detail.form_id], ['เหตุผลที่ส่งกลับ', remark.trim()]],
+      confirmButtonText: 'ยืนยันส่งกลับ',
+    }))) return;
     setSaving(true);
     try {
       const saved = await putAction(detail.form_id, 'send-back', {

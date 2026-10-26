@@ -5,7 +5,7 @@ import { FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { displayFileName } from '@/lib/finance/status';
 import { FOLDER_LABELS } from '../labels';
-import { showAlert, uploadFiles } from '../api';
+import { confirmReview, showAlert, uploadFiles } from '../api';
 import type { AttachmentFile, AttachmentFolder } from '../types';
 import { FilePicker } from './FilePicker';
 
@@ -33,6 +33,11 @@ export function AttachmentPanel({ formId, folder, canUpload = false, refreshKey 
   useEffect(() => { load(); }, [load, refreshKey]);
 
   const upload = async () => {
+    if (!(await confirmReview({
+      title: 'ยืนยันแนบไฟล์?',
+      rows: [['แนบใน', FOLDER_LABELS[folder]], ['ไฟล์', pending.map(f => f.name).join('\n')]],
+      confirmButtonText: `แนบ ${pending.length} ไฟล์`,
+    }))) return;
     setUploading(true);
     try {
       const failed = await uploadFiles(formId, pending, folder === 'request' ? undefined : folder);

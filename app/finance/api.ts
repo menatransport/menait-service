@@ -65,6 +65,30 @@ export const showConfirm = (options: Record<string, unknown>) => fire({
   confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', ...options,
 });
 
+const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+/** [หัวข้อ, ค่า] — ค่าว่างแสดงเป็น "-" */
+export type ReviewRow = [label: string, value: string | number | null | undefined];
+
+/**
+ * ป๊อปอัปทบทวนก่อนบันทึก/ส่ง: ตารางสรุปค่าที่จะบันทึกให้ผู้ใช้ตรวจอีกรอบ กดยืนยันแล้วค่อยบันทึกจริง
+ * (Bew 26/10/2026: ปุ่มบันทึก/ส่งทุกจุดใน Finance ต้องมีป๊อปอัปทบทวนก่อน)
+ */
+export async function confirmReview({ title, rows, note, confirmButtonText = 'ยืนยันบันทึก' }: {
+  title: string; rows: ReviewRow[]; note?: string; confirmButtonText?: string;
+}): Promise<boolean> {
+  const body = rows.map(([label, value]) => {
+    const text = value === null || value === undefined || String(value).trim() === '' ? '-' : String(value);
+    return `<tr><th style="padding:6px 12px 6px 0;width:40%;vertical-align:top;font-weight:400;color:#64748b">${escapeHtml(label)}</th>`
+      + `<td style="padding:6px 0;color:#1e293b;font-weight:500;white-space:pre-line;word-break:break-word">${escapeHtml(text)}</td></tr>`;
+  }).join('');
+  const html = `<table style="width:100%;border-collapse:collapse;font-size:14px;text-align:left;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0">${body}</table>`
+    + (note ? `<p style="margin:12px 0 0;font-size:12px;color:#64748b;text-align:left">${escapeHtml(note)}</p>` : '');
+  const res = await showConfirm({ icon: 'question', title, html, confirmButtonText, cancelButtonText: 'กลับไปแก้ไข' });
+  return Boolean(res.isConfirmed);
+}
+
 /** Uploads bookbank files to a payee request one by one (multipart field "file"); returns names that failed. */
 export async function uploadPayeeFiles(requestId: number | string, files: File[]): Promise<string[]> {
   const failed: string[] = [];

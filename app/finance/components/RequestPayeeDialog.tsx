@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatAccountNo, normalizeAccountNo } from '@/lib/finance/bank';
 import { checkPayeeFiles, kbankAccountError, PAYEE_MAX_FILES, type PayeeRequest } from '@/lib/finance/payee';
-import { fetchJson, showAlert, uploadPayeeFiles } from '../api';
+import { confirmReview, fetchJson, showAlert, uploadPayeeFiles } from '../api';
 import { FilePicker } from './FilePicker';
 
 /** Dialog: request a new (or changed) K-Bank own-account payee. Calls onDone after the request is created. */
@@ -46,6 +46,19 @@ export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone, is
     if (Object.keys(next).length) return;
 
     submittingRef.current = true;
+    const ok = await confirmReview({
+      title: isChange ? 'ยืนยันขอเปลี่ยนบัญชีรับเงิน' : 'ยืนยันขอเพิ่มบัญชีรับเงิน',
+      rows: [
+        ['ธนาคาร', 'ธนาคารกสิกรไทย'],
+        ['เลขที่บัญชี', formatAccountNo(normalizeAccountNo(accountNo))],
+        ['ชื่อบัญชี', accountName.trim()],
+        ['หมายเหตุ', remark.trim()],
+        ['bookbank ที่แนบ', files.map(f => f.name).join('\n')],
+      ],
+      note: 'ส่งให้บัญชีตรวจสอบก่อนใช้งาน',
+      confirmButtonText: 'ยืนยันส่งคำขอ',
+    });
+    if (!ok) { submittingRef.current = false; return; }
     setBusy(true);
     let created: PayeeRequest;
     try {

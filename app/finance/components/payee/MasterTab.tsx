@@ -9,7 +9,7 @@ import { bankLabel, formatAccountNo, normalizeAccountNo } from '@/lib/finance/ba
 import { formatDate } from '@/lib/finance/status';
 import { kbankAccountError, type PayeeAccount } from '@/lib/finance/payee';
 import { formatPayeeChanges, PAYEE_LOG_ACTION_LABELS } from '@/lib/finance/payee-log';
-import { fetchJson, showAlert, showConfirm } from '../../api';
+import { confirmReview, fetchJson, showAlert, showConfirm } from '../../api';
 
 type PersonInfo = { employee_id: string; name: string | null; department: string | null; position: string | null };
 type PayeeLog = { action: string; changes: unknown; remark: string | null; action_by: string | null; action_by_name: string | null; created_at: string | null };
@@ -209,6 +209,16 @@ function AddAccountDialog({ open, onOpenChange, onDone }: { open: boolean; onOpe
     if (!name) next.account_name = 'กรุณาระบุชื่อบัญชี';
     setErrors(next);
     if (Object.keys(next).length) return;
+    if (!(await confirmReview({
+      title: 'ยืนยันเพิ่มบัญชีรับเงิน',
+      rows: [
+        ['พนักงาน', `${found!.employee_id} ${found!.name ?? ''}`],
+        ['ธนาคาร', bankLabel('KBANK')],
+        ['เลขที่บัญชี', formatAccountNo(normalizeAccountNo(accountNo))],
+        ['ชื่อบัญชี', name],
+      ],
+      note: 'เพิ่มเข้า Master โดยตรง ใช้รับเงินได้ทันที',
+    }))) return;
     setBusy(true);
     try {
       await fetchJson('/api/finance/payee-accounts', {
@@ -284,6 +294,17 @@ function EditAccountDialog({ account, onClose, onDone }: { account: PayeeAccount
     if (!accountName.trim()) next.account_name = 'กรุณาระบุชื่อบัญชี';
     setErrors(next);
     if (Object.keys(next).length) return;
+    const newNo = normalizeAccountNo(accountNo);
+    if (!(await confirmReview({
+      title: 'ยืนยันแก้ไขบัญชีรับเงิน',
+      rows: [
+        ['พนักงาน', `${account.employee_id} ${account.employee_name ?? ''}`],
+        ['เลขที่บัญชี', newNo === normalizeAccountNo(account.account_no)
+          ? formatAccountNo(newNo) : `${formatAccountNo(account.account_no)} → ${formatAccountNo(newNo)}`],
+        ['ชื่อบัญชี', accountName.trim() === account.account_name
+          ? accountName.trim() : `${account.account_name} → ${accountName.trim()}`],
+      ],
+    }))) return;
     setBusy(true);
     try {
       await fetchJson(`/api/finance/payee-accounts/${account.id}`, {

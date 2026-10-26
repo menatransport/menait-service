@@ -10,12 +10,12 @@ import { Mascot } from '@/components/mascot';
 import { buildSubmitValues, prefillFormValues, renderFormField } from '@/components/renderForm';
 import type { Question } from '@/app/service/[[...slug]]/page';
 import { useSessionContext } from '@/app/context/SessionContext';
-import { accountNoError, normalizeAccountNo } from '@/lib/finance/bank';
+import { accountNoError, bankLabel, formatAccountNo, normalizeAccountNo } from '@/lib/finance/bank';
 import { isBeforeToday } from '@/lib/finance/dates';
-import { amountError, parseAmount, todayBkk } from '@/lib/finance/status';
+import { amountError, formatBaht, formatDate, parseAmount, todayBkk } from '@/lib/finance/status';
 import { stepChainText } from '@/lib/finance/approvalSteps';
 import type { AdvanceDetail, ApprovalTierInfo, AttachmentFile } from '../../types';
-import { fetchJson, putAction, showAlert, uploadFiles } from '../../api';
+import { confirmReview, fetchJson, putAction, showAlert, uploadFiles, type ReviewRow } from '../../api';
 import { AttachmentPanel } from '../../components/AttachmentPanel';
 import { FilePicker } from '../../components/FilePicker';
 import { PayeeAccountSection, type PayeeSectionStatus } from '../../components/PayeeAccountSection';
@@ -28,6 +28,20 @@ interface AdvForm { form_code: string; form_name: string; form_status: string; q
 const payeeNames = ['adv_payee_type', 'adv_bank', 'adv_account_no', 'adv_account_name'];
 
 const isBlank = (v: unknown) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
+
+/** ค่าที่ผู้ใช้กรอก แปลงเป็นข้อความอ่านง่ายสำหรับป๊อปอัปทบทวนก่อนส่ง */
+function reviewValue(q: Question, value: any): string {
+  if (q.name === 'adv_payee_type') return value === PAYEE_SUPPLIER ? 'บัญชี Supplier' : value === PAYEE_SELF ? 'บัญชีตัวเอง' : String(value);
+  if (q.name === 'adv_bank') return bankLabel(value);
+  if (q.name === 'adv_account_no') return formatAccountNo(String(value));
+  if (q.name === 'adv_amount' || (q.type === 'number' && /เงิน|บาท/.test(q.label ?? ''))) return `${formatBaht(parseAmount(value))} บาท`;
+  const label = (v: unknown) => q.options?.find(o => o.value === String(v))?.label ?? String(v);
+  if (Array.isArray(value)) return value.map(label).join(', ');
+  if (typeof value === 'boolean') return value ? 'ใช่' : 'ไม่ใช่';
+  if (value instanceof Date) return formatDate(value.toISOString());
+  if (q.type === 'date' || q.type === 'datetime') return formatDate(String(value));
+  return label(value);
+}
 
 // The "adv_use_date" question by name, falling back to the first datetime/date question.
 const findUseDateQuestion = (questions: Question[]): Question | undefined =>
@@ -181,6 +195,18 @@ function NewAdvance() {
       }
     }
     if (Object.keys(next).length) { setErrors(next); return; }
+
+    const rows: ReviewRow[] = form.questions
+      .filter(q => !isBlank(values[q.name]))
+      .map(q => [q.label.replace(/\s*สำหรับ\s*$/, ''), reviewValue(q, values[q.name])]);
+    if (files.length) rows.push(['ไฟล์แนบ', files.map(f => f.name).join('\n')]);
+    if (hint && !hint.error) rows.push(['ผู้อนุมัติ', hint.text]);
+    if (!(await confirmReview({
+      title: isEdit ? 'ยืนยันบันทึกและส่งใหม่' : 'ยืนยันส่งคำขอเบิกเงิน',
+      rows,
+      note: 'ส่งแล้วจะแก้ไขไม่ได้ จนกว่าบัญชีจะตีกลับให้แก้ไข',
+      confirmButtonText: isEdit ? 'ยืนยันส่งใหม่' : 'ยืนยันส่งคำขอ',
+    }))) return;
 
     setSubmitting(true);
     try {

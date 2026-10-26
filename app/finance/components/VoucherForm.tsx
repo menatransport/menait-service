@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { todayBkk } from '@/lib/finance/status';
-import { putAction, showAlert, confirmUniqueDocNo } from '../api';
+import { formatDate, todayBkk } from '@/lib/finance/status';
+import { confirmReview, putAction, showAlert, confirmUniqueDocNo } from '../api';
 import type { AdvanceDetail } from '../types';
 import { DateField } from './DateField';
 import { Panel } from './FinanceShell';
@@ -33,6 +33,10 @@ export function VoucherForm({ detail, onSaved }: {
     e.preventDefault();
     if (!voucherDate) return showAlert({ icon: 'warning', title: 'กรุณาระบุวันที่ตั้งเบิก' });
     if (!(await confirmUniqueDocNo('voucher_no', voucherNo, detail.form_id))) return;
+    if (!(await confirmReview({
+      title: editing ? 'ยืนยันแก้ไขข้อมูลตั้งเบิก' : 'ยืนยันบันทึกตั้งเบิก',
+      rows: [['เลขที่คำขอ', detail.form_id], ['เลขที่ตั้งเบิก', voucherNo.trim()], ['วันที่ตั้งเบิก', formatDate(voucherDate)]],
+    }))) return;
     setSaving(true);
     try {
       const saved = await putAction(detail.form_id, 'voucher', {

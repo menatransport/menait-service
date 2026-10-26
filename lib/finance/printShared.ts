@@ -160,6 +160,8 @@ export const PRINT_FRAME_ID = 'fin-print-frame';
  */
 export function openPrintWindow(html: string): boolean {
   document.getElementById(PRINT_FRAME_ID)?.remove();
+  // print() ย้ายโฟกัสเข้าเฟรม พอเฟรมถูกลบโฟกัสหลุดไปที่ body กด Esc ปิด Sheet ไม่ได้ — คืนโฟกัสเดิมหลังพิมพ์
+  const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const frame = document.createElement('iframe');
   frame.id = PRINT_FRAME_ID;
   frame.setAttribute('aria-hidden', 'true');
@@ -175,7 +177,12 @@ export function openPrintWindow(html: string): boolean {
   doc.close();
 
   let removed = false;
-  const cleanup = () => { if (removed) return; removed = true; frame.remove(); };
+  const cleanup = () => {
+    if (removed) return;
+    removed = true;
+    frame.remove();
+    if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+  };
   w.addEventListener('afterprint', () => setTimeout(cleanup, 500), { once: true });
 
   const loaded = new Promise<void>(resolve => {
