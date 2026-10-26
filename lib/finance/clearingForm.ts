@@ -4,6 +4,7 @@ import { centerCheckboxesHtml, centerFromSite } from './centers';
 import { rowTotals, sumItems } from './clearItems';
 import { toBkkDate } from './dates';
 import { documentControlFooter, esc, formatBkkDateTime, money, printedNow, stampHtml, wrapDocument, wrapSegments, type DocumentControl, type ESign } from './printShared';
+import { signatureSlots } from './approvalSteps';
 
 /** Part 2 = the company's "ใบขอเบิกค่าใช้จ่าย/เคลียร์เบิกล่วงหน้า (Expense Claim Form)", landscape A4 (spec v2 §5i.2). */
 export const CLAIM_TITLE = 'ใบขอเบิกค่าใช้จ่าย/เคลียร์เบิกล่วงหน้า';
@@ -66,8 +67,9 @@ export interface ClearingFormData {
   items: ClaimRow[];
   /** หัก เงินเบิกล่วงหน้า */
   amount_paid: number | null;
-  /** unit_head/approver = ผู้อนุมัติการเคลียร์ในรอบล่าสุด (ไม่มีด่านอนุมัติ = ว่าง) */
-  signatures: { requester: ClearingSignature; accounting: ClearingSignature; unit_head?: ClearingSignature; approver?: ClearingSignature };
+  /** unit_head/manager/approver = ผู้อนุมัติการเคลียร์ในรอบล่าสุด (ไม่มีด่านอนุมัติ = ว่าง) */
+  signatures: { requester: ClearingSignature; accounting: ClearingSignature; unit_head?: ClearingSignature;
+    manager?: ClearingSignature; approver?: ClearingSignature };
 }
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
@@ -83,10 +85,10 @@ const toRow = (i: ClearItem): ClaimRow => ({
 });
 
 /**
- * ผู้อนุมัติการเคลียร์ของรอบล่าสุด (หลัง SUBMITTED ครั้งสุดท้าย) → ช่องลายเซ็น ตามแบบเดียวกับ Part 1:
- * สองขั้น ขั้น 1 = หัวหน้าหน่วยงาน ขั้น 2 = ผู้มีอำนาจอนุมัติ · ขั้นเดียวจบ = ผู้มีอำนาจอนุมัติ · ยังรอขั้น 2 = ขั้น 1 อยู่ช่องหัวหน้า
+ * ผู้อนุมัติการเคลียร์ของรอบล่าสุด (หลัง SUBMITTED ครั้งสุดท้าย) → ช่องลายเซ็น ตามแบบเดียวกับ Part 1 (signatureSlots):
+ * คนแรก = หัวหน้าหน่วยงาน · คนถัดไป = ผู้จัดการ · อนุมัติครบแล้วคนสุดท้าย = ผู้มีอำนาจอนุมัติ · คนเดียวกดหลายขั้นลงช่องเดียว
  */
-function clearApprovalSignatures(detail: AdvanceDetail): { unit_head?: ClearingSignature; approver?: ClearingSignature } {
+function clearApprovalSignatures(detail: AdvanceDetail): { unit_head?: ClearingSignature; manager?: ClearingSignature; approver?: ClearingSignature } {
   const logs = detail.clear_logs ?? [];
   let start = 0;
   logs.forEach((l, i) => { if (l.action === 'SUBMITTED') start = i; });
@@ -95,12 +97,13 @@ function clearApprovalSignatures(detail: AdvanceDetail): { unit_head?: ClearingS
     const name = l.action_by_name ?? l.action_by ?? '';
     return { name, date: dmy(l.created_at), esign: { name, timestamp: l.created_at!, ref: 'อนุมัติเคลียร์' } };
   };
-  const s1 = approved.find(l => l.step === 1);
-  const s2 = approved.find(l => l.step === 2);
-  // คนเดียวกดผ่านทั้งสองขั้น (ข้ามขั้นตามระดับ) ลงชื่อช่องเดียวเหมือน Part 1
-  if (s2) return { ...(s1 && s1.action_by !== s2.action_by ? { unit_head: stamp(s1) } : {}), approver: stamp(s2) };
-  if (!s1) return {};
-  return detail.status === 'CLEARING_APPROVAL' ? { unit_head: stamp(s1) } : { approver: stamp(s1) };
+  const slots = signatureSlots(approved.map(l => ({ step: l.step, who: l.action_by, item: l })),
+    detail.status !== 'CLEARING_APPROVAL');
+  return {
+    ...(slots.unit_head ? { unit_head: stamp(slots.unit_head) } : {}),
+    ...(slots.manager ? { manager: stamp(slots.manager) } : {}),
+    ...(slots.approver ? { approver: stamp(slots.approver) } : {}),
+  };
 }
 
 export function toClearingData(detail: AdvanceDetail): ClearingFormData {
@@ -270,11 +273,12 @@ export function clearingBody(data: ClearingFormData, opts: { logoUrl?: string; b
   const nameDate = (x?: ClearingSignature) => line('ชื่อ', x?.name ?? '') + line('วันที่', valid(x) ? dmy(valid(x)!.timestamp) : x?.date ?? '');
   const cells: [string, string][] = [
     [stampHtml(valid(sg.requester)), nameDate(sg.requester)],
-    [stampHtml(valid(sg.unit_head)), nameDate(sg.unit_head)], ['', nameDate()], [stampHtml(valid(sg.approver)), nameDate(sg.approver)],
+    [stampHtml(valid(sg.unit_head)), nameDate(sg.unit_head)], [stampHtml(valid(sg.manager)), nameDate(sg.manager)],
+    [stampHtml(valid(sg.approver)), nameDate(sg.approver)],
     // วันที่รับเอกสาร is written by hand when accounting receives the paper; the system only knows the close time (stamp).
     [stampHtml(valid(sg.accounting)), line('วันที่รับเอกสาร', '') + line('ชื่อ', sg.accounting.name)],
   ];
-  const anyEsign = valid(sg.requester) || valid(sg.accounting) || valid(sg.unit_head) || valid(sg.approver);
+  const anyEsign = valid(sg.requester) || valid(sg.accounting) || valid(sg.unit_head) || valid(sg.manager) || valid(sg.approver);
 
   return `<section class="doc-part cf">${opts.band ? '<div class="doc-band"></div>' : ''}
 <header class="head">${logo}<div><div class="t1">${CLAIM_TITLE}</div><div class="t2">${CLAIM_SUBTITLE}</div></div>

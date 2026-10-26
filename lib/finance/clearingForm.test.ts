@@ -229,6 +229,16 @@ describe('Part 2 — ลายเซ็นผู้อนุมัติกา�
     expect(d.signatures.approver?.name).toBe('ชยพล บุญมา');
     expect(buildClearingHtml(d, {})).not.toContain('คนรอบเก่า');
   });
+  test('สามขั้นขึ้นไป (ไล่ทุกขั้นตาม TOA): คนที่สองลงช่องผู้จัดการ', () => {
+    const d = toClearingData(detail({ status: 'AWAITING_REVIEW', clear_logs: [
+      log(1, 'SUBMITTED', '2026-10-20T02:00:00Z'), log(1, 'APPROVED', '2026-10-20T03:00:00Z', 'พุทธชาติ นุเคราะห์'),
+      log(2, 'APPROVED', '2026-10-20T04:00:00Z', 'เจษฎา รองศักดิ์'), log(3, 'APPROVED', '2026-10-20T05:00:00Z', 'กอบชัย ชิดเชื้อสกุลชน'),
+    ] }));
+    expect(d.signatures.unit_head?.name).toBe('พุทธชาติ นุเคราะห์');
+    expect(d.signatures.manager?.name).toBe('เจษฎา รองศักดิ์');
+    expect(d.signatures.approver?.name).toBe('กอบชัย ชิดเชื้อสกุลชน');
+    expect(buildClearingHtml(d, {})).toContain('เจษฎา รองศักดิ์');
+  });
   test('ยังรอขั้น 2 อยู่: ขั้น 1 ลงช่องหัวหน้าหน่วยงาน ช่องผู้มีอำนาจยังว่าง', () => {
     const d = toClearingData(detail({ status: 'CLEARING_APPROVAL', clear_logs: [log(1, 'SUBMITTED', '2026-10-20T02:00:00Z'), log(1, 'APPROVED', '2026-10-20T03:00:00Z', 'ศิวพร ม่วงสวย')] }));
     expect(d.signatures.unit_head?.name).toBe('ศิวพร ม่วงสวย');

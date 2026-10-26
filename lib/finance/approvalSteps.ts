@@ -11,3 +11,26 @@ export function stepBadge(step: number | null | undefined, total: number | null 
   if (!step || !total || total < 2) return null;
   return `ขั้น ${step}/${total}`;
 }
+
+export type StepSigner<T> = { step: number; who: string | null | undefined; item: T };
+export type SignatureSlots<T> = { unit_head?: T; manager?: T; approver?: T };
+
+/**
+ * ผู้อนุมัติตามขั้น → ช่องลายเซ็นในใบพิมพ์ (มี 3 ช่อง แต่ไล่ทุกขั้นตาม TOA ได้ถึง 5 ขั้น · ผู้ใช้สั่ง 26/10/2026)
+ * คนเดียวกดหลายขั้นติดกัน (ข้ามขั้นตามระดับ) นับเป็นลายเซ็นเดียว · อนุมัติครบแล้ว: คนสุดท้าย = ผู้มีอำนาจอนุมัติ
+ * คนแรก = หัวหน้าหน่วยงาน · คนถัดไป = ผู้จัดการ · คนอื่นตรงกลางไม่มีช่อง แต่ยังอยู่ในประวัติอนุมัติ
+ */
+export function signatureSlots<T>(signers: StepSigner<T>[], done: boolean): SignatureSlots<T> {
+  const groups: StepSigner<T>[] = [];
+  for (const s of [...signers].sort((a, b) => a.step - b.step)) {
+    const last = groups[groups.length - 1];
+    if (last && s.who && last.who === s.who) continue;
+    groups.push(s);
+  }
+  const out: SignatureSlots<T> = {};
+  const rest = done ? groups.slice(0, -1) : groups;
+  if (done && groups.length) out.approver = groups[groups.length - 1].item;
+  if (rest[0]) out.unit_head = rest[0].item;
+  if (rest[1]) out.manager = rest[1].item;
+  return out;
+}

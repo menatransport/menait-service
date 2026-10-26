@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { stepBadge, stepChainText } from './approvalSteps';
+import { signatureSlots, stepBadge, stepChainText } from './approvalSteps';
 
 describe('approvalSteps', () => {
   test('chain text only for 2+ steps', () => {
@@ -14,5 +14,28 @@ describe('approvalSteps', () => {
     expect(stepBadge(undefined, undefined)).toBeNull();
     expect(stepBadge(2, 2)).toBe('ขั้น 2/2');
     expect(stepBadge(1, 1)).toBeNull(); // ขั้นเดียวตาม TOA ไม่ต้องบอกขั้น (21/10/2026)
+  });
+});
+
+// ไล่ทุกขั้นตาม TOA (ผู้ใช้สั่ง 26/10/2026): ใบพิมพ์มีช่องผู้อนุมัติ 3 ช่อง แต่ใบหนึ่งอาจมี 4–5 ขั้น
+describe('signatureSlots', () => {
+  const s = (step: number, who: string) => ({ step, who, item: who });
+  test('four signers, approved: first = หัวหน้าหน่วยงาน, second = ผู้จัดการ, last = ผู้มีอำนาจอนุมัติ', () => {
+    expect(signatureSlots([s(1, 'A'), s(2, 'B'), s(3, 'C'), s(4, 'D')], true))
+      .toEqual({ unit_head: 'A', manager: 'B', approver: 'D' });
+  });
+  test('one person across consecutive steps (skip) signs once', () => {
+    expect(signatureSlots([s(1, 'A'), s(2, 'A'), s(3, 'B')], true)).toEqual({ unit_head: 'A', approver: 'B' });
+    expect(signatureSlots([s(1, 'A'), s(2, 'A')], true)).toEqual({ approver: 'A' });
+  });
+  test('still pending: signers so far fill หัวหน้าหน่วยงาน then ผู้จัดการ, approver stays empty', () => {
+    expect(signatureSlots([s(1, 'A'), s(2, 'B')], false)).toEqual({ unit_head: 'A', manager: 'B' });
+    expect(signatureSlots([s(1, 'A')], false)).toEqual({ unit_head: 'A' });
+  });
+  test('order comes from the step number, not the list order', () => {
+    expect(signatureSlots([s(3, 'C'), s(1, 'A'), s(2, 'B')], true)).toEqual({ unit_head: 'A', manager: 'B', approver: 'C' });
+  });
+  test('nothing approved yet', () => {
+    expect(signatureSlots([], false)).toEqual({});
   });
 });
