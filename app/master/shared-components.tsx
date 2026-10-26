@@ -183,6 +183,15 @@ export const TableWrapper = memo(({ children }: TableWrapperProps) => (
 ));
 TableWrapper.displayName = 'TableWrapper';
 
+// ===================== MANAGER TAG =====================
+
+/** Plain tag on a ฝ่าย's manager row (see division-managers.ts) */
+export const ManagerTag = () => (
+    <span className="inline-flex items-center h-5 px-1.5 text-[10px] font-semibold rounded border border-brand-600/40 text-brand-700 bg-white shrink-0">
+        ผู้จัดการฝ่าย
+    </span>
+);
+
 // ===================== TABLE HEAD =====================
 
 interface TableHeadProps {

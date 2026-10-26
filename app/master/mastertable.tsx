@@ -19,9 +19,9 @@ import {
 } from './constants';
 import {
     StatusBadge, UserEmptyState, FormEmptyState, ErrorState,
-    TableHeader, TableWrapper, TableHead, ExcelButton
+    TableHeader, TableWrapper, TableHead, ExcelButton, ManagerTag
 } from './shared-components';
-import { groupUsersByDivision } from './group-users';
+import { groupWithManagers, managersByDivision, type ManagedDivision } from './division-managers';
 import type {
     UserData, FormData, DivisionGroup,
     MasterTableProps, TableFormProps
@@ -48,10 +48,12 @@ const divisionCount = (group: DivisionGroup) =>
         ? `${group.departments.length} แผนก · ${group.total} คน`
         : `${group.total} คน`;
 
+const fullName = (u: UserData) => `${u.firstname ?? ''} ${u.lastname ?? ''}`.trim();
+
 const DivisionHeaderRow = memo(({
     group, isOpen, onToggle
 }: {
-    group: DivisionGroup;
+    group: ManagedDivision;
     isOpen: boolean;
     onToggle: () => void;
 }) => (
@@ -73,6 +75,12 @@ const DivisionHeaderRow = memo(({
                 )}
                 {group.divisionEn && group.divisionEn !== group.division && (
                     <span className="text-xs text-brand-700/50 truncate">{group.divisionEn}</span>
+                )}
+                {/* ผู้จัดการฝ่าย stays visible when the ฝ่าย is collapsed */}
+                {!isOpen && group.managers.length > 0 && (
+                    <span className="text-xs text-gray-500 truncate">
+                        · ผู้จัดการฝ่าย: <span className="text-gray-700 font-medium">{group.managers.map(fullName).join(', ')}</span>
+                    </span>
                 )}
                 <span className="ml-auto"><CountChip strong>{divisionCount(group)}</CountChip></span>
             </div>
@@ -110,14 +118,16 @@ const DepartmentHeaderRow = memo(({
 DepartmentHeaderRow.displayName = 'DepartmentHeaderRow';
 
 const UserRow = memo(({
-    user, onView, nested
+    user, onView, nested, manager
 }: {
     user: UserData;
     onView: (u: UserData) => void;
     /** sits under a แผนก sub-header → one more indent step */
     nested?: boolean;
+    /** ผู้จัดการฝ่าย — listed first in the ฝ่าย */
+    manager?: boolean;
 }) => (
-    <tr className="transition-colors hover:bg-gray-50/80 even:bg-gray-50/40">
+    <tr className={`transition-colors hover:bg-gray-50/80 ${manager ? 'bg-brand-600/[0.04]' : 'even:bg-gray-50/40'}`}>
         <td className={`whitespace-nowrap px-4 py-2.5 ${nested ? 'pl-[4.5rem]' : 'pl-11'}`}>
             <span className="font-mono text-xs font-semibold text-brand-600">
                 {user.employee_id}
@@ -135,8 +145,9 @@ const UserRow = memo(({
                     textClassName="text-[10px] font-bold"
                 />
                 <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">
-                        {user.firstname} {user.lastname}
+                    <p className="flex items-center gap-1.5 text-sm font-medium text-gray-800">
+                        <span className="truncate">{user.firstname} {user.lastname}</span>
+                        {manager && <ManagerTag />}
                     </p>
                     <p className="text-[11px] text-gray-400 truncate">{user.email}</p>
                 </div>
@@ -175,12 +186,13 @@ const UserRow = memo(({
 UserRow.displayName = 'UserRow';
 
 const UserMobileCard = memo(({
-    user, onView
+    user, onView, manager
 }: {
     user: UserData;
-    onView: (u: UserData) => void
+    onView: (u: UserData) => void;
+    manager?: boolean;
 }) => (
-    <div className="bg-white border border-gray-100 rounded-xl p-3.5 space-y-2">
+    <div className={`bg-white border rounded-xl p-3.5 space-y-2 ${manager ? 'border-brand-600/30' : 'border-gray-100'}`}>
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
                 <UserAvatar
@@ -199,7 +211,10 @@ const UserMobileCard = memo(({
                     <p className="text-[11px] text-gray-400 font-mono">{user.employee_id}</p>
                 </div>
             </div>
-            <StatusBadge status={user.employee_status} />
+            <div className="flex items-center gap-1.5 shrink-0">
+                {manager && <ManagerTag />}
+                <StatusBadge status={user.employee_status} />
+            </div>
         </div>
         <div className="grid grid-cols-2 gap-1.5 text-xs text-gray-500">
             <div className="flex items-center gap-1.5">
@@ -225,7 +240,7 @@ UserMobileCard.displayName = 'UserMobileCard';
 const MobileDivisionGroup = memo(({
     group, isOpen, isDeptOpen, onToggle, onToggleDept, onViewUser
 }: {
-    group: DivisionGroup;
+    group: ManagedDivision;
     isOpen: boolean;
     isDeptOpen: (key: string) => boolean;
     onToggle: (key: string) => void;
@@ -245,10 +260,21 @@ const MobileDivisionGroup = memo(({
                 </span>
                 <span className="flex-1 min-w-0 text-left">
                     <span className="block text-sm font-bold text-brand-800 truncate">{group.division}</span>
-                    {group.code && <span className="block font-mono text-[10px] text-brand-700/60">{group.code}</span>}
+                    {!isOpen && group.managers.length > 0 ? (
+                        <span className="block text-[11px] text-gray-500 truncate">ผู้จัดการฝ่าย: {group.managers.map(fullName).join(', ')}</span>
+                    ) : group.code ? (
+                        <span className="block font-mono text-[10px] text-brand-700/60">{group.code}</span>
+                    ) : null}
                 </span>
                 <CountChip strong>{divisionCount(group)}</CountChip>
             </button>
+            {isOpen && group.managers.length > 0 && (
+                <div className="p-2.5 space-y-2 bg-gray-50/50">
+                    {group.managers.map(user => (
+                        <UserMobileCard key={user.id} user={user} onView={onViewUser} manager />
+                    ))}
+                </div>
+            )}
             {isOpen && (single ? (
                 <div className="p-2.5 space-y-2 bg-gray-50/50">
                     {group.departments[0].users.map(user => (
@@ -332,10 +358,13 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
         [lookups?.departments]
     );
 
+    // ผู้จัดการฝ่าย come from the unfiltered list, so they stay listed next to any search hit in their ฝ่าย
+    const managers = useMemo(() => managersByDivision(data, deptLabels), [data, deptLabels]);
+
     // js-combine-iterations: Single pass for filter + group
     const { groups, totalFiltered, departmentCount, hasDivisions } = useMemo(
-        () => groupUsersByDivision(data, searchTerm, deptLabels),
-        [data, searchTerm, deptLabels]
+        () => groupWithManagers(data, searchTerm, deptLabels, managers),
+        [data, searchTerm, deptLabels, managers]
     );
 
     const expandAll = useCallback(() => setCollapsed(new Set()), []);
@@ -394,7 +423,7 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
             {!isLoading && groups.length > 0 && (
                 <div className="px-4 sm:px-6 py-2.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                     <p className="text-[11px] text-gray-400">
-                        จัดกลุ่มตามฝ่าย → แผนก · เรียงตามระดับตำแหน่ง (มาก → น้อย)
+                        จัดกลุ่มตามฝ่าย → แผนก · ผู้จัดการฝ่ายอยู่ลำดับแรก · เรียงตามระดับตำแหน่ง (มาก → น้อย)
                     </p>
                     <div className="flex items-center gap-1.5">
                         <button onClick={expandAll} className="text-[11px] text-brand-600 hover:underline cursor-pointer px-1.5 py-0.5">
@@ -430,6 +459,9 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
                                                 isOpen={divOpen}
                                                 onToggle={() => toggleGroup(group.key)}
                                             />
+                                            {divOpen && group.managers.map(user => (
+                                                <UserRow key={user.id} user={user} onView={handleViewUser} manager />
+                                            ))}
                                             {divOpen && (single
                                                 ? group.departments[0].users.map(user => (
                                                     <UserRow key={user.id} user={user} onView={handleViewUser} />
