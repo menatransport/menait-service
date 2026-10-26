@@ -314,7 +314,7 @@ export interface ClearingOpts { logoUrl?: string; fontCss?: boolean; printed?: s
 /** Part 2 on its own: every page (form + its image pages) is landscape. */
 export function buildClearingHtml(data: ClearingFormData, opts: ClearingOpts = {}): string {
   return wrapDocument({
-    title: `${data.document_no} — ${CLAIM_TITLE}`,
+    title: `${data.document_no} - Part 2 : Expense Claim Form`,
     body: clearingBody(data, { logoUrl: opts.logoUrl, band: true }) + (opts.attachmentsHtml ?? ''),
     extraCss: CASH_ADVANCE_CSS + CLAIM_CSS, fontCss: opts.fontCss, tableClass: 'claim',
     footerHtml: documentControlFooter(clearingFooter(data, opts.printed)),
@@ -333,7 +333,7 @@ export function buildCombinedHtml(
   const att1 = opts.part1AttachmentsHtml ?? '';
   const att2 = opts.part2AttachmentsHtml ?? '';
   return wrapSegments({
-    title: `${cash.document_no ?? clearing.document_no} — ใบคำขอเบิกเงินล่วงหน้า + ${CLAIM_TITLE}`,
+    title: `${cash.document_no ?? clearing.document_no}`,
     segments: [
       { body: cashAdvanceBody(cash, { logoUrl: opts.logoUrl }) + att1, className: att1 ? '' : 'fill' },
       { body: clearingBody(clearing, { logoUrl: opts.logoUrl, band: false }) + att2, className: att2 ? 'claim' : 'claim fill' },

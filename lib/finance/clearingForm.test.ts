@@ -165,7 +165,7 @@ describe('expense claim form (Part 2)', () => {
   });
   test('window title and Document Control use the new Part 2 name', () => {
     const html = buildClearingHtml(toClearingData(detail()), {});
-    expect(html).toContain('<title>ADV-2026-0001 — ใบขอเบิกค่าใช้จ่าย/เคลียร์เบิกล่วงหน้า</title>');
+    expect(html).toContain('<title>ADV-2026-0001 - Part 2 : Expense Claim Form</title>');
     expect(html).toContain('Expense Claim Form (ADV)');
     expect(html).not.toContain(['ใบเคลียร์', 'เงิน'].join('')); // old Part 2 name (split so the repo grep stays clean)
   });
@@ -182,7 +182,7 @@ describe('expense claim form (Part 2)', () => {
     expect((html.match(/class="seg-footer"/g) ?? []).length).toBe(2);
     expect(html.indexOf('(Cash Advance Request form)')).toBeLessThan(html.indexOf('(Expense Claim Form)'));
     expect(html.indexOf('<table class="print-wrap seg fill">')).toBeLessThan(html.indexOf('<table class="print-wrap seg claim fill">'));
-    expect(html).toContain('<title>ADV-2026-0001 — ใบคำขอเบิกเงินล่วงหน้า + ใบขอเบิกค่าใช้จ่าย/เคลียร์เบิกล่วงหน้า</title>');
+    expect(html).toContain('<title>ADV-2026-0001</title>');
     const att = buildCombinedHtml(toCashAdvanceData(detail()), toClearingData(detail()), { part1AttachmentsHtml: '<section class="att">a</section>', part2AttachmentsHtml: '<section class="att">b</section>' });
     expect(att).toContain('<table class="print-wrap seg">');
     expect(att).toContain('<table class="print-wrap seg claim">');

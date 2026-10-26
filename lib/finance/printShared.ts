@@ -176,10 +176,15 @@ export function openPrintWindow(html: string): boolean {
   doc.write(html);
   doc.close();
 
+  // Chrome ตั้งชื่อไฟล์ PDF จากชื่อหน้าแม่ ไม่ใช่ของเฟรม — ยืม <title> ของเอกสารมาใช้ระหว่างพิมพ์แล้วคืนค่าเดิม
+  const pageTitle = document.title;
+  if (doc.title) document.title = doc.title;
+
   let removed = false;
   const cleanup = () => {
     if (removed) return;
     removed = true;
+    document.title = pageTitle;
     frame.remove();
     if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
   };

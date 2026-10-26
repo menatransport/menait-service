@@ -188,7 +188,7 @@ ${anyEsign ? '<div class="esign-note">ลงนามอิเล็กทรอ
 export function buildCashAdvanceHtml(data: CashAdvanceFormData, opts: CashAdvanceOpts = {}): string {
   const body = cashAdvanceBody(data, opts) + (opts.attachmentsHtml ?? '');
   return wrapDocument({
-    title: `${data.document_no ? `${data.document_no} — ` : ''}ใบคำขอเบิกเงินล่วงหน้า`,
+    title: `${data.document_no ? `${data.document_no} - ` : ''}Part 1 : Cash Advance Request`,
     body, extraCss: PART_CSS, fontCss: opts.fontCss,
     footerHtml: documentControlFooter(cashAdvanceFooter(data, opts.printed)),
   });
