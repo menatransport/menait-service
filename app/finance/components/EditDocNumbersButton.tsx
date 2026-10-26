@@ -34,7 +34,7 @@ export function EditDocNumbersButton({ detail, onSaved }: { detail: AdvanceDetai
 
   const save = async () => {
     const changes = docNoChanges(detail.fin, draft);
-    const err = docNoEditError(changes, remark);
+    const err = docNoEditError(changes);
     if (err) { setError(err); return; }
     setError('');
     const key = JSON.stringify(changes);
@@ -45,7 +45,7 @@ export function EditDocNumbersButton({ detail, onSaved }: { detail: AdvanceDetai
     }
     setSaving(true);
     try {
-      const saved = await putAction(detail.form_id, 'doc-numbers', { ...changes, remark: remark.trim() });
+      const saved = await putAction(detail.form_id, 'doc-numbers', { ...changes, ...(remark.trim() ? { remark: remark.trim() } : {}) });
       setOpen(false);
       await showSuccess('แก้ไขเลขที่เอกสารแล้ว');
       onSaved(saved);
@@ -67,7 +67,7 @@ export function EditDocNumbersButton({ detail, onSaved }: { detail: AdvanceDetai
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>แก้ไขเลขที่เอกสาร</DialogTitle>
-            <DialogDescription>{detail.form_id} · แก้ได้เฉพาะเลขที่กรอกไว้แล้ว ประวัติจะเก็บเลขเดิมกับเหตุผลไว้</DialogDescription>
+            <DialogDescription>{detail.form_id} · แก้ได้เฉพาะเลขที่กรอกไว้แล้ว ประวัติจะเก็บเลขเดิมไว้</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             {fields.map(f => (
@@ -78,7 +78,7 @@ export function EditDocNumbersButton({ detail, onSaved }: { detail: AdvanceDetai
               </label>
             ))}
             <label className="block space-y-1 text-sm">
-              <span>เหตุผลที่แก้ *</span>
+              <span>เหตุผล <span className="text-xs text-gray-400">(ไม่บังคับ)</span></span>
               <Textarea value={remark} onChange={e => setRemark(e.target.value)} maxLength={1000} disabled={saving}
                 placeholder="เช่น บัญชีพิมพ์เลขผิด" rows={2} />
             </label>

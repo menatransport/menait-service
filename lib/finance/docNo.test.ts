@@ -35,12 +35,12 @@ describe('การเงินแก้เลขที่เอกสารท�
     expect(docNoChanges(fin, { voucher_no: 'PV-1' })).toEqual({});
   });
   test('ข้อความเตือนก่อนบันทึก', () => {
-    expect(docNoEditError({}, 'ผิด')).toBe('ไม่มีเลขที่เปลี่ยน');
-    expect(docNoEditError({ voucher_no: 'PV-9' }, '  ')).toBe('กรุณาระบุเหตุผลที่แก้ไข');
-    expect(docNoEditError({ voucher_no: '' }, 'ผิด')).toBe('กรุณากรอกเลขที่ตั้งเบิก');
-    expect(docNoEditError({ payment_doc_no: 'P'.repeat(51) }, 'ผิด')).toContain('50');
-    expect(docNoEditError({ clear_doc_no: 'CL-2' }, 'ผิด')).toContain('ตัวเลขกับอักษรอังกฤษ');
-    expect(docNoEditError({ clear_doc_no: 'CL2' }, 'ผิด')).toContain('14 หลัก');
-    expect(docNoEditError({ voucher_no: 'PV-9', clear_doc_no: 'CL691000000002' }, 'ผิด')).toBeNull();
+    expect(docNoEditError({})).toBe('ไม่มีเลขที่เปลี่ยน');
+    expect(docNoEditError({ voucher_no: 'PV-9' })).toBeNull(); // เหตุผลไม่บังคับ เก็บประวัติไว้พอ (ผู้ใช้สั่ง 26/10/2026)
+    expect(docNoEditError({ voucher_no: '' })).toBe('กรุณากรอกเลขที่ตั้งเบิก');
+    expect(docNoEditError({ payment_doc_no: 'P'.repeat(51) })).toContain('50');
+    expect(docNoEditError({ clear_doc_no: 'CL-2' })).toContain('ตัวเลขกับอักษรอังกฤษ');
+    expect(docNoEditError({ clear_doc_no: 'CL2' })).toContain('14 หลัก');
+    expect(docNoEditError({ voucher_no: 'PV-9', clear_doc_no: 'CL691000000002' })).toBeNull();
   });
 });

@@ -51,8 +51,8 @@ export function docNoChanges(fin: DocNos | null | undefined, draft: DocNos): Par
   return out;
 }
 
-/** ข้อความเตือนก่อนบันทึก หรือ null ถ้าส่งได้ */
-export function docNoEditError(changes: Partial<Record<DocNoField, string>>, remark: string | null | undefined): string | null {
+/** ข้อความเตือนก่อนบันทึก หรือ null ถ้าส่งได้ · เหตุผลไม่บังคับ เก็บประวัติไว้พอ (ผู้ใช้สั่ง 26/10/2026) */
+export function docNoEditError(changes: Partial<Record<DocNoField, string>>): string | null {
   const fields = DOC_NO_FIELDS.filter(f => changes[f] !== undefined);
   if (!fields.length) return 'ไม่มีเลขที่เปลี่ยน';
   for (const f of fields) {
@@ -63,6 +63,5 @@ export function docNoEditError(changes: Partial<Record<DocNoField, string>>, rem
       if (err) return err;
     } else if (text.length > DOC_NO_MAX) return `${DOC_NO_LABELS[f]}ยาวได้ไม่เกิน ${DOC_NO_MAX} ตัว`;
   }
-  if (!(remark ?? '').trim()) return 'กรุณาระบุเหตุผลที่แก้ไข';
   return null;
 }
