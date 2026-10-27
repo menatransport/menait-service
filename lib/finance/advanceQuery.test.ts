@@ -78,3 +78,14 @@ test('fetchAllAdvances dedupes repeated rows and caps pages', async () => {
   await fetchAllAdvances(async () => { calls++; return { items: [mk(`X${calls}`)], total: 1_000_000, page: 1, page_size: 1, summary } as AdvancePage; }, {}, {}, 1);
   expect(calls).toBe(100);
 });
+
+test('fetchAllAdvances hands back the first page (summary + options) for the column-filter view', async () => {
+  const mk = (id: string) => ({ form_id: id }) as AdvanceItem;
+  const seen: number[] = [];
+  const opts = { cost_centers: ['ศลบ'], departments: ['แผนกบัญชี'] };
+  await fetchAllAdvances(async query => {
+    const page = Number(new URLSearchParams(query).get('page'));
+    return { items: [mk(`P${page}`)], total: 2, page, page_size: 1, summary, options: opts } as AdvancePage;
+  }, {}, {}, 1, res => seen.push(res.page));
+  expect(seen).toEqual([1]);
+});

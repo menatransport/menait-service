@@ -11,13 +11,19 @@ export const EXPORT_COLUMNS = [
 
 export type ExportColumn = (typeof EXPORT_COLUMNS)[number];
 
-type Row = Record<ExportColumn, string | number | null>;
+export type SheetRow = Record<ExportColumn, string | number | null>;
+type Row = SheetRow;
 
 const d = (value: string | null | undefined) => (value ? formatDate(value) : '');
 
 export function toSheetRows(items: AdvanceItem[]): Row[] {
-  return items.map((it, idx) => ({
-    'ลำดับ': idx + 1,
+  return items.map((it, idx) => toSheetRow(it, idx + 1));
+}
+
+/** One advance as an Excel row (also the plain text the column filters search). */
+export function toSheetRow(it: AdvanceItem, no: number): Row {
+  return {
+    'ลำดับ': no,
     'เลขที่คำขอเบิกเงิน': it.form_id,
     'ผู้เบิก': it.requester.name ?? it.requester.employee_id,
     'แผนก': it.requester.department ?? '',
@@ -41,7 +47,7 @@ export function toSheetRows(items: AdvanceItem[]): Row[] {
     'ธนาคาร': it.request.bank ? bankLabel(it.request.bank) : '',
     'เลขที่บัญชี': it.request.account_no ? formatAccountNo(it.request.account_no) : '',
     'ชื่อบัญชี': it.request.account_name ?? '',
-  }));
+  };
 }
 
 export async function exportAdvancesXlsx(items: AdvanceItem[], fileName: string): Promise<void> {

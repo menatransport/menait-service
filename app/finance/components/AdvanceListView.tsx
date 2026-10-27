@@ -8,10 +8,14 @@ import { PaginationControls } from '@/components/pagination-controls';
 import { EXPORT_COLUMNS, exportAdvancesXlsx, type ExportColumn } from '@/lib/finance/export';
 import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
 import {
-  ADVANCE_PAGE_SIZE, buildAdvanceQuery, fetchAllAdvances, tabCount, totalPages,
+  ADVANCE_EXPORT_PAGE_SIZE, ADVANCE_PAGE_SIZE, buildAdvanceQuery, fetchAllAdvances, tabCount, totalPages,
   type AdvancePage, type AdvanceSummary, type ScopeFilter, type TabFilter,
 } from '@/lib/finance/advanceQuery';
-import { formatBaht, formatDate, settleLabel, todayBkk } from '@/lib/finance/status';
+import {
+  DATE_FILTER_COLUMNS, MONEY_FILTER_COLUMNS, OVERDUE_FILTER, applyColumnFilters, hasColumnFilters, settleText,
+  type ColumnFilters,
+} from '@/lib/finance/columnFilters';
+import { STATUS_LABELS, formatBaht, formatDate, todayBkk, type AdvanceStatus } from '@/lib/finance/status';
 import { fetchJson, showAlert } from '../api';
 import type { AdvanceItem } from '../types';
 import { StatusBadge } from './StatusBadge';
@@ -23,12 +27,6 @@ const TD = 'px-4 py-3 text-sm whitespace-nowrap';
 const FTH = 'px-3 py-3 text-left text-xs font-semibold text-gray-700 whitespace-nowrap';
 const FTD = 'px-3 py-2.5 text-sm whitespace-nowrap align-top';
 
-/** Settlement after clearing: "รับคืน 500.00 บาท" (employee returns) / "เบิกเพิ่ม 450.00 บาท" (company pays more). */
-function settleText(amount: number | null | undefined): string | null {
-  if (amount === null || amount === undefined) return null;
-  if (amount === 0) return 'พอดี';
-  return `${settleLabel(amount)} ${formatBaht(Math.abs(amount))} บาท`;
-}
 const settleTone = (amount: number | null | undefined) => (amount !== null && amount !== undefined && amount < 0 ? 'text-orange-700' : 'text-brand-700');
 
 // ตารางฝ่ายการเงินใช้คอลัมน์ชุดเดียวกับ Excel (EXPORT_COLUMNS) ทั้งชื่อและลำดับ — เพิ่มคอลัมน์ที่ export แล้ว TypeScript จะบังคับให้มีช่องตรงนี้ด้วย
@@ -79,6 +77,13 @@ export interface AdvanceListTab extends TabFilter {
 
 const SEARCH_DEBOUNCE_MS = 300;
 
+// ช่องกรองใต้หัวคอลัมน์ (ตารางฝ่ายการเงิน)
+const FILTER_INPUT = 'w-full rounded-md border bg-white px-2 py-1 text-xs font-normal text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-brand-600/40';
+const filterTone = (active: boolean) => (active ? 'border-brand-600 ring-1 ring-brand-600/30' : 'border-gray-300');
+const WIDE_FILTER_COLS = new Set<ExportColumn>(['ผู้เบิก', 'วัตถุประสงค์', 'หมายเหตุ', 'ชื่อบัญชี', 'แผนก']);
+const filterPlaceholder = (col: ExportColumn) =>
+  MONEY_FILTER_COLUMNS.has(col) ? 'เช่น >5000' : DATE_FILTER_COLUMNS.has(col) ? 'วว/ดด/ปปปป' : 'ค้นหา';
+
 export function AdvanceListView({
   mode,
   tabs,
@@ -113,6 +118,10 @@ export function AdvanceListView({
   const [deptFilter, setDeptFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showFilters, setShowFilters] = useState(false);
+  // ตัวกรองรายคอลัมน์ (กรองในเบราว์เซอร์) แผนก/ศูนย์ค่าใช้จ่ายยังใช้ ccFilter/deptFilter ที่ส่งให้ BE
+  const [colFilters, setColFilters] = useState<ColumnFilters>({});
+  const [debouncedCols, setDebouncedCols] = useState<ColumnFilters>({});
+  const [allRows, setAllRows] = useState<{ key: string; items: AdvanceItem[] } | null>(null);
   // page is keyed by the filter signature, so any tab/filter/sort change is page 1 in the same render (one fetch)
   const [pageState, setPageState] = useState<{ key: string; page: number }>({ key: '', page: 1 });
 
@@ -138,6 +147,12 @@ export function AdvanceListView({
     const t = setTimeout(() => setDebouncedQ(search), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [search]);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedCols(colFilters), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [colFilters]);
+  // มีช่องกรองรายคอลัมน์ = ดึงทุกใบในแท็บ/ช่วงเดือนนี้มากรองและแบ่งหน้าเอง (BE กรองให้แค่ค้นหา เดือน แผนก ศูนย์ค่าใช้จ่าย)
+  const clientMode = mode === 'finance' && hasColumnFilters(debouncedCols);
 
   const scope = useMemo<ScopeFilter>(
     () => ({ q: debouncedQ, startMonth, endMonth, costCenter: mode === 'finance' ? ccFilter : 'all', department: mode === 'finance' ? deptFilter : 'all', sort: sortOrder }),
@@ -145,7 +160,13 @@ export function AdvanceListView({
   );
   useEffect(() => { onScopeChange?.(scope); }, [scope, onScopeChange]);
 
-  const filterKey = useMemo(() => JSON.stringify([activeTab, scope]), [activeTab, scope]);
+  const filterKey = useMemo(
+    () => JSON.stringify([activeTab, scope, clientMode ? debouncedCols : null]),
+    [activeTab, scope, clientMode, debouncedCols],
+  );
+  // ชุดข้อมูลทั้งหมดของแท็บ+ขอบเขตนี้ ใช้ซ้ำได้ตอนพิมพ์ช่องกรองเพิ่ม ไม่ต้องดึงใหม่
+  const allKey = useMemo(() => JSON.stringify([activeTab, scope, refreshKey]), [activeTab, scope, refreshKey]);
+  const allRowsKey = allRows?.key;
   const currentPage = pageState.key === filterKey ? pageState.page : 1;
   const setCurrentPage = useCallback((page: number) => setPageState({ key: filterKey, page }), [filterKey]);
 
@@ -156,6 +177,29 @@ export function AdvanceListView({
 
   useEffect(() => {
     if (!activeTabDef) return;
+    if (clientMode) {
+      if (allRowsKey === allKey) return;
+      const seq = ++reqSeq.current;
+      setLoading(true);
+      fetchAllAdvances(q => fetchJson<AdvancePage>(listUrl(q)), scope, activeTabDef, ADVANCE_EXPORT_PAGE_SIZE, first => {
+        if (seq !== reqSeq.current) return;
+        setSummary(first.summary);
+        onSummary?.(first.summary);
+        if (first.options) { setCcOpts(first.options.cost_centers ?? []); setDeptOpts(first.options.departments ?? []); }
+      })
+        .then(items => {
+          if (seq !== reqSeq.current) return;
+          setAllRows({ key: allKey, items });
+          setLoading(false);
+        })
+        .catch(err => {
+          if (seq !== reqSeq.current) return;
+          setAllRows({ key: allKey, items: [] });
+          setLoading(false);
+          showAlert({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ', text: err.message });
+        });
+      return;
+    }
     const seq = ++reqSeq.current;
     setLoading(true);
     fetchJson<AdvancePage>(listUrl(buildAdvanceQuery(scope, activeTabDef, currentPage, ADVANCE_PAGE_SIZE)))
@@ -177,23 +221,78 @@ export function AdvanceListView({
         setLoading(false);
         showAlert({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ', text: err.message });
       });
-  }, [activeTabDef, scope, currentPage, setCurrentPage, listUrl, refreshKey, onSummary]);
+  }, [activeTabDef, scope, currentPage, setCurrentPage, listUrl, refreshKey, onSummary, clientMode, allKey, allRowsKey]);
 
   const withSelected = (opts: string[], sel: string) => (sel !== 'all' && !opts.includes(sel) ? [...opts, sel].sort() : opts);
   const ccOptions = useMemo(() => withSelected(ccOpts, ccFilter), [ccOpts, ccFilter]);
   const deptOptions = useMemo(() => withSelected(deptOpts, deptFilter), [deptOpts, deptFilter]);
 
-  const pages = totalPages(total, ADVANCE_PAGE_SIZE);
-  const hasActiveFilters = search.trim() !== '' || (mode === 'finance' && (ccFilter !== 'all' || deptFilter !== 'all'));
-  const paginated = rows;
+  const filteredAll = useMemo(
+    () => (clientMode && allRows && allRows.key === allKey ? applyColumnFilters(allRows.items, debouncedCols) : null),
+    [clientMode, allRows, allKey, debouncedCols],
+  );
+  const shownTotal = filteredAll ? filteredAll.length : total;
+  const pages = totalPages(shownTotal, ADVANCE_PAGE_SIZE);
+  const page = Math.min(currentPage, pages);
+  const colFilterActive = mode === 'finance' && hasColumnFilters(colFilters);
+  const hasActiveFilters = search.trim() !== '' || (mode === 'finance' && (ccFilter !== 'all' || deptFilter !== 'all')) || colFilterActive;
+  const paginated = filteredAll ? filteredAll.slice((page - 1) * ADVANCE_PAGE_SIZE, page * ADVANCE_PAGE_SIZE) : rows;
 
+  const statusFilter = colFilters['สถานะ'] ?? '';
+  const statusOptions = useMemo(() => {
+    const keys = (activeTabDef?.status?.length ? activeTabDef.status : Object.keys(STATUS_LABELS)) as AdvanceStatus[];
+    return statusFilter && statusFilter !== OVERDUE_FILTER && !keys.includes(statusFilter as AdvanceStatus)
+      ? [...keys, statusFilter as AdvanceStatus] : keys;
+  }, [activeTabDef, statusFilter]);
+
+  const setColFilter = (col: ExportColumn, value: string) => setColFilters(f => ({ ...f, [col]: value }));
   const toggleSort = () => setSortOrder(o => (o === 'desc' ? 'asc' : 'desc'));
-  const clearFilters = () => { setSearch(''); setCcFilter('all'); setDeptFilter('all'); };
+  const clearFilters = () => { setSearch(''); setCcFilter('all'); setDeptFilter('all'); setColFilters({}); };
+
+  const renderColumnFilter = (col: ExportColumn) => {
+    if (col === 'ลำดับ') {
+      return hasActiveFilters ? (
+        <button type="button" onClick={clearFilters} title="ล้างตัวกรองทั้งหมด" aria-label="ล้างตัวกรองทั้งหมด"
+          className="flex size-6 items-center justify-center rounded-md text-gray-500 hover:bg-red-50 hover:text-red-600 cursor-pointer">
+          <X size={14} />
+        </button>
+      ) : null;
+    }
+    const label = `กรอง${col}`;
+    if (col === 'แผนก' || col === 'ศูนย์ค่าใช้จ่าย') {
+      const isDept = col === 'แผนก';
+      const value = isDept ? deptFilter : ccFilter;
+      return (
+        <select aria-label={label} value={value} onChange={e => (isDept ? setDeptFilter : setCcFilter)(e.target.value)}
+          className={`${FILTER_INPUT} ${filterTone(value !== 'all')} cursor-pointer ${isDept ? 'min-w-36' : 'min-w-28'}`}>
+          <option value="all">ทั้งหมด</option>
+          {(isDept ? deptOptions : ccOptions).map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      );
+    }
+    if (col === 'สถานะ') {
+      return (
+        <select aria-label={label} value={statusFilter} onChange={e => setColFilter(col, e.target.value)}
+          className={`${FILTER_INPUT} ${filterTone(statusFilter !== '')} min-w-32 cursor-pointer`}>
+          <option value="">ทั้งหมด</option>
+          {statusOptions.map(s => <option key={s} value={s}>{STATUS_LABELS[s] ?? s}</option>)}
+          <option value={OVERDUE_FILTER}>เกินกำหนด</option>
+        </select>
+      );
+    }
+    const value = colFilters[col] ?? '';
+    return (
+      <input type="text" aria-label={label} value={value} placeholder={filterPlaceholder(col)}
+        onChange={e => setColFilter(col, e.target.value)}
+        className={`${FILTER_INPUT} ${filterTone(value.trim() !== '')} ${WIDE_FILTER_COLS.has(col) ? 'min-w-36' : 'min-w-24'}`} />
+    );
+  };
   const handleExport = async () => {
     if (!exportFileBase || !activeTabDef || exporting) return;
     setExporting(true);
     try {
-      const all = await fetchAllAdvances(q => fetchJson<AdvancePage>(listUrl(q)), scope, activeTabDef);
+      // มีช่องกรองรายคอลัมน์ = ส่งออกเฉพาะใบที่เห็นหลังกรอง
+      const all = filteredAll ?? await fetchAllAdvances(q => fetchJson<AdvancePage>(listUrl(q)), scope, activeTabDef);
       exportAdvancesXlsx(all, `${exportFileBase}-${activeTab}-${todayBkk()}.xlsx`);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ส่งออก Excel ไม่สำเร็จ', text: (err as Error).message });
@@ -230,7 +329,7 @@ export function AdvanceListView({
               <div>
                 <h2 className="text-lg lg:text-xl text-white font-semibold">{activeTabDef?.label ?? ''}</h2>
                 <p className="text-white/70 text-xs lg:text-sm mt-0.5">
-                  {`${total} รายการ`}
+                  {filteredAll && allRows ? `${shownTotal} จาก ${allRows.items.length} รายการ` : `${total} รายการ`}
                 </p>
               </div>
 
@@ -276,9 +375,18 @@ export function AdvanceListView({
                 <button
                   type="button"
                   onClick={() => setShowFilters(v => !v)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${showFilters || hasActiveFilters ? 'bg-white text-brand-800' : 'bg-white/10 text-white hover:bg-white/20 border border-white/20'}`}
+                  className={`flex xl:hidden items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${showFilters || hasActiveFilters ? 'bg-white text-brand-800' : 'bg-white/10 text-white hover:bg-white/20 border border-white/20'}`}
                 >
                   <Filter size={14} /> <span>ตัวกรอง</span>
+                </button>
+              )}
+              {mode === 'finance' && hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white text-brand-800 transition-all cursor-pointer hover:bg-white/90"
+                >
+                  <X size={14} /> <span>ล้างตัวกรอง</span>
                 </button>
               )}
 
@@ -297,7 +405,7 @@ export function AdvanceListView({
                 <button
                   type="button"
                   onClick={handleExport}
-                  disabled={!total || exporting}
+                  disabled={!shownTotal || exporting}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <FileSpreadsheet size={14} /> <span>{exporting ? 'กำลังส่งออก...' : 'Excel'}</span>
@@ -328,7 +436,7 @@ export function AdvanceListView({
               <button
                 type="button"
                 onClick={handleExport}
-                disabled={!total || exporting}
+                disabled={!shownTotal || exporting}
                 className="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-600 text-white disabled:opacity-60 cursor-pointer"
               >
                 <FileSpreadsheet size={16} />
@@ -338,8 +446,9 @@ export function AdvanceListView({
         </div>
 
         {/* Finance-mode filter row */}
+        {/* จอแคบ (การ์ด) ใช้แถบนี้ จอกว้างกรองที่ใต้หัวคอลัมน์ */}
         {mode === 'finance' && showFilters && (
-          <div className="p-3 lg:p-4 bg-linear-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+          <div className="xl:hidden p-3 lg:p-4 bg-linear-to-r from-gray-50 to-gray-100 border-b border-gray-200">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <span className="text-xs font-medium text-gray-500 shrink-0">ศูนย์ค่าใช้จ่าย</span>
@@ -436,7 +545,7 @@ export function AdvanceListView({
         </div>
 
         {/* Desktop table */}
-        {/* finance: 24 columns (same as Excel) scroll sideways on ≥1280px; narrower screens use the cards above */}
+        {/* finance: 24 columns (same as Excel) scroll sideways on ≥1280px, with a filter box under every header; narrower screens use the cards above */}
         <div className={`hidden ${mode === 'finance' ? 'xl:block' : 'lg:block'} overflow-x-auto ${loading ? 'min-h-52' : ''}`}>
           <table className="w-full">
             <thead className="bg-gray-100">
@@ -456,6 +565,13 @@ export function AdvanceListView({
                   </>
                 )}
               </tr>
+              {mode === 'finance' && (
+                <tr className="bg-gray-50 border-t border-gray-200">
+                  {EXPORT_COLUMNS.map(col => (
+                    <th key={col} className="px-2 py-1.5 text-left align-top">{renderColumnFilter(col)}</th>
+                  ))}
+                </tr>
+              )}
             </thead>
             <tbody className="divide-y divide-gray-100">
               {!loading && paginated.length === 0 ? (
@@ -474,7 +590,7 @@ export function AdvanceListView({
                   {mode === 'finance' ? (
                     EXPORT_COLUMNS.map(col => (
                       <td key={col} className={`${FTD} ${MONEY_COLS.has(col) ? 'text-right tabular-nums' : ''}`}>
-                        {FIN_CELLS[col](item, (currentPage - 1) * ADVANCE_PAGE_SIZE + i + 1)}
+                        {FIN_CELLS[col](item, (page - 1) * ADVANCE_PAGE_SIZE + i + 1)}
                       </td>
                     ))
                   ) : (
@@ -499,7 +615,7 @@ export function AdvanceListView({
         </div>
 
         <div className="flex justify-end p-4 border-t border-gray-100">
-          <PaginationControls currentPage={currentPage} totalPages={pages} onPageChange={setCurrentPage} />
+          <PaginationControls currentPage={page} totalPages={pages} onPageChange={setCurrentPage} />
         </div>
       </section>
     </Tabs>
