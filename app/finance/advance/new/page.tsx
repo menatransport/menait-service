@@ -12,7 +12,7 @@ import type { Question } from '@/app/service/[[...slug]]/page';
 import { useSessionContext } from '@/app/context/SessionContext';
 import { accountNoError, bankLabel, formatAccountNo, normalizeAccountNo } from '@/lib/finance/bank';
 import { isBeforeToday } from '@/lib/finance/dates';
-import { amountError, formatBaht, formatDate, parseAmount, todayBkk } from '@/lib/finance/status';
+import { amountError, formatBaht, formatDate, parseAmount, TEST_MAX_AMOUNT, TEST_MAX_AMOUNT_TEXT, todayBkk } from '@/lib/finance/status';
 import { stepChainText } from '@/lib/finance/approvalSteps';
 import type { AdvanceDetail, ApprovalTierInfo, AttachmentFile } from '../../types';
 import { confirmReview, fetchJson, putAction, showAlert, showSuccess, uploadFiles, type ReviewRow } from '../../api';
@@ -81,6 +81,7 @@ function NewAdvance() {
     const amount = parseAmount(amountValue);
     setHint(null);
     if (amount === null || amount <= 0) return;
+    if (amount > TEST_MAX_AMOUNT) { setHint({ text: TEST_MAX_AMOUNT_TEXT, error: true }); return; }
     let cancelled = false;
     const timer = setTimeout(() => {
       fetchJson<ApprovalTierInfo>(
