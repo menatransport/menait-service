@@ -49,7 +49,7 @@ export function resubmitClaim(claim: PettyClaim) {
     fund_id: claim.fund_id, expense_type: claim.expense_type, expense_date: claim.expense_date,
     driver_employee_id: claim.driver_employee_id, driver_name: claim.driver_name, payee_name: claim.payee_name,
     detail: claim.detail ?? {}, dd_no: claim.dd_no, receipt_no: claim.receipt_no,
-    wht_applicable: claim.wht_applicable ?? false, items,
+    wht_applicable: claim.wht_applicable ?? false, cost_center: claim.cost_center ?? null, items,
   });
 }
 

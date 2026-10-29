@@ -20,6 +20,10 @@ describe('toPettySheetRows', () => {
 
   test('every column is present', () =>
     expect(Object.keys(row).sort()).toEqual([...PETTY_EXPORT_COLUMNS].sort()));
+  test('ศูนย์และแผนกของผู้เบิก ออกเป็นรหัส + ชื่อ · ใบเก่าว่าง', () => {
+    expect(toPettySheetRows([{ ...claim, cost_center: '3B02' }], types, funds)[0]['ศูนย์และแผนก']).toBe('3B02 ศลบ - ยานยนต์');
+    expect(row['ศูนย์และแผนก']).toBe('');
+  });
   test('branch and division come from the fund', () => {
     expect(row['สาขา']).toBe('03');
     expect(row['แผนก']).toBe('B02');

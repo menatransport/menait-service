@@ -14,6 +14,7 @@ import { payeeBankProblem } from '@/lib/finance/petty-payee';
 import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
 import { fundsForExpenseType } from '@/lib/finance/petty-account-code';
 import { bangkokToday } from '@/lib/finance/petty-doc';
+import { COST_CENTER_GROUPS, defaultCostCenter } from '@/lib/finance/petty-cost-centers';
 import { showAlert } from '../../api';
 import { checkDuplicate, createClaim, getExpenseTypes, getFunds, uploadPettyFiles } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, Panel } from '../../components/FinanceShell';
@@ -36,6 +37,9 @@ export default function NewPettyClaimPage() {
   const [funds, setFunds] = useState<PettyFund[] | null>(null);
   const [typeCode, setTypeCode] = useState('');
   const [fundId, setFundId] = useState('');
+  // ศูนย์และแผนกของผู้เบิก — เลือกตามวงเงินให้ก่อน ผู้เปิดใบเปลี่ยนเองได้ (ผู้ใช้สั่ง 29/10/2026)
+  const [costCenter, setCostCenter] = useState('');
+  const [costCenterPicked, setCostCenterPicked] = useState(false);
   const [header, setHeader] = useState<Record<string, unknown>>(() => ({ expense_date: bangkokToday() }));
   const [rows, setRows] = useState<Row[]>([]);
   const [files, setFiles] = useState<Record<string, File[]>>({});
@@ -78,6 +82,12 @@ export default function NewPettyClaimPage() {
     setFundId(id => (id && funds && !fundsForExpenseType(typeCode, funds).some(f => String(f.id) === id) ? '' : id));
   }, [typeCode, funds]);
 
+  // เปลี่ยนวงเงิน → เลือกศูนย์และแผนกตามวงเงินให้ใหม่ ถ้าผู้เปิดใบยังไม่ได้เลือกเอง
+  useEffect(() => {
+    if (costCenterPicked) return;
+    setCostCenter(defaultCostCenter(funds?.find(f => String(f.id) === fundId)));
+  }, [fundId, funds, costCenterPicked]);
+
   // เตือนซ้ำขณะกรอก — ด่านจริงอยู่ที่ BE ตอนอนุมัติ ตรงนี้ให้เห็นก่อนจะส่ง
   useEffect(() => {
     if (!typeCode || rows.length === 0) { setDups([]); return; }
@@ -106,6 +116,7 @@ export default function NewPettyClaimPage() {
 
   const requiredMissing = (() => {
     if (!type || !fundId) return 'เลือกประเภทการเบิกและวงเงินสดย่อยก่อน';
+    if (!costCenter) return 'ยังไม่เลือกศูนย์และแผนก';
     for (const f of headerFields(spec)) {
       if (f.auto) continue;
       const filled = f.type === 'truck'
@@ -155,6 +166,7 @@ export default function NewPettyClaimPage() {
         driver_name: (header.driver as string) ?? null,
         receipt_no: (header.receipt_no as string) ?? null,
         dd_no: ddNo.trim() || null,
+        cost_center: costCenter,
         detail: header,
       }, items);
 
@@ -217,7 +229,7 @@ export default function NewPettyClaimPage() {
             </span>
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="text-sm">ประเภทการเบิก
             <select value={typeCode} onChange={e => setTypeCode(e.target.value)}
               className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5">
@@ -236,6 +248,17 @@ export default function NewPettyClaimPage() {
             {typeCode && fundsForExpenseType(typeCode, funds).length === 0 && (
               <span className="mt-1 block text-xs text-amber-700">ประเภทนี้ยังไม่มีวงเงินของแผนกที่บัญชีให้เบิกได้</span>
             )}
+          </label>
+          <label className="text-sm">ศูนย์และแผนก
+            <select value={costCenter} onChange={e => { setCostCenter(e.target.value); setCostCenterPicked(true); }}
+              className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5">
+              <option value="">เลือกศูนย์และแผนก</option>
+              {COST_CENTER_GROUPS.map(g => (
+                <optgroup key={g.center} label={g.center}>
+                  {g.items.map(c => <option key={c.code} value={c.code}>{c.code} {c.name}</option>)}
+                </optgroup>
+              ))}
+            </select>
           </label>
           <label className="text-sm">วันที่ขอเบิก
             <input type="date" value={String(header.expense_date ?? '')}

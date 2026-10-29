@@ -457,3 +457,12 @@ describe('ตราในช่องลงนามของใบสำคั�
     expect(html).toContain('<i>กฤตบุญ ลายเงิน</i>');
   });
 });
+
+describe('รหัสค่าใช้จ่ายของผู้เบิก = ศูนย์และแผนกที่เลือกตอนเปิดใบ (ผู้ใช้สั่ง 29/10/2026)', () => {
+  test('ใบที่เลือกแล้ว พิมพ์รหัสที่เลือก', () =>
+    expect(pettyVoucherHtml({ claim: { ...claim, cost_center: '3B04' }, fund, typeName: 'x' }))
+      .toMatch(/<span class="l">รหัสค่าใช้จ่ายของผู้เบิก \(บัญชี\)<\/span><span class="v">3B04 ศลบ - ความปลอดภัย<\/span>/));
+  test('ใบเก่าที่ไม่มี พิมพ์รหัสแผนกของวงเงินแบบเดิม', () =>
+    expect(pettyVoucherHtml({ claim, fund, typeName: 'x' }))
+      .toMatch(/<span class="l">รหัสค่าใช้จ่ายของผู้เบิก \(บัญชี\)<\/span><span class="v">B02 ฝ่ายยานยนต์<\/span>/));
+});

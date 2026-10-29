@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { Check, FileText, Paperclip, Undo2 } from 'lucide-react';
 import type { PettyClaim, PettySpec } from '@/app/finance/types-petty';
+import { costCenterLabel } from '@/lib/finance/petty-cost-centers';
 import { needsDebtDoc } from '@/lib/finance/petty-debt';
 import { pettyFileProblem } from '@/lib/finance/petty-upload';
 import { formatDate } from '@/lib/finance/status';
@@ -68,6 +69,7 @@ export function PendingClaimCard({ claim, typeName, spec, files, highlight, proc
         <Field label="วันที่ขอเบิก" value={formatDate(claim.expense_date)} />
         <Field label="ประเภท" value={typeName} />
         <Field label="จ่ายให้" value={claim.payee_name ?? '-'} />
+        <Field label="ศูนย์และแผนก" value={costCenterLabel(claim.cost_center) || '-'} />
         <Field label="เอกสาร" value={docsText.tone === 'muted' ? docsText.text
           : <span className={DOCS_TONE[docsText.tone]}>{docsText.text}</span>} />
         {debt && (

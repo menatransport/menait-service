@@ -8,6 +8,7 @@ import type { PettyClaim, PettyExpenseType, PettyFund, PettyRound, PettyRoundLog
 import { parseNumberFilter } from './columnFilters';
 import { PETTY_STATUS_LABELS, type PettyRoundStatus, type PettyStatus } from './petty-status';
 import { formatBaht, formatDate, toBkkYM } from './status';
+import { costCenterLabel } from './petty-cost-centers';
 
 // ---------------------------------------------------------------- แถบ
 
@@ -165,6 +166,7 @@ export const CLAIM_COLUMNS: WorklistColumn<PettyClaim>[] = [
   { label: 'ผู้เปิดใบ', wide: true, text: c => c.created_by_name ?? c.created_by },
   { label: 'สาขา', text: (c, x) => x.fundOf(c.fund_id)?.branch_code ?? '' },
   { label: 'แผนก', text: (c, x) => x.fundOf(c.fund_id)?.division_code ?? '' },
+  { label: 'ศูนย์และแผนก', wide: true, text: c => costCenterLabel(c.cost_center) },
   { label: 'สถานะ', text: c => CLAIM_STATUS_LABELS[c.status] ?? c.status },
   { label: 'รอบ', text: (c, x) => x.roundNo(c.batch_id) ?? '' },
   { label: 'ประเภท', text: (c, x) => x.typeName(c.expense_type) },

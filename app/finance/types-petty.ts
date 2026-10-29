@@ -53,6 +53,8 @@ export type PettyClaim = {
   created_by: string; approved_by: string | null; approved_at: string | null;
   /** เวลาเปิดใบ — ตรา e-Signature ช่องผู้ขอเบิกบนใบสำคัญจ่าย (BE เก่าไม่ส่ง = ไม่มีตรา) */
   created_at?: string | null;
+  /** ศูนย์และแผนกของผู้เบิก เช่น '3B02' (lib/finance/petty-cost-centers.ts) — ใบเก่าว่าง */
+  cost_center?: string | null;
   /** ชื่อ-สกุลจาก users — ใบพิมพ์/หน้าจอใช้แทนรหัส (ไม่มี = ใช้รหัส) */
   created_by_name?: string | null; approved_by_name?: string | null;
   transfer_date: string | null; review_remark: string | null; return_reason: string | null;

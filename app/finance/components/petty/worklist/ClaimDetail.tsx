@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
-import { accountCodeLine } from '@/lib/finance/petty-account-code';
+import { claimCostCenterLine } from '@/lib/finance/petty-cost-centers';
 import { canApprove, canReview } from '@/lib/finance/petty-access';
 import { needsDebtDoc } from '@/lib/finance/petty-debt';
 import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
@@ -172,7 +172,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
           <Field label="เลขที่ใบรับสินค้า (DD)" value={claim.dd_no ?? (usesDd ? 'ยังไม่กรอก' : '-')} />
           <Field label="เจ้าหน้าที่ผู้เปิดใบ" value={claim.created_by_name ?? claim.created_by} />
           <Field label="วงเงินสดย่อย" value={fund ? fundLabelWithHolder(fund) : '-'} />
-          <Field label="รหัสค่าใช้จ่าย (บัญชี)" value={accountCodeLine(fund) || '-'} />
+          <Field label="รหัสค่าใช้จ่ายของผู้เบิก (บัญชี)" value={claimCostCenterLine(claim, fund) || '-'} />
           <Field label="เจ้าของเงินสด (ผู้อนุมัติจ่าย)" value={claim.approved_by_name ?? claim.approved_by ?? '-'} />
           <Field label="วันที่จ่าย" value={claim.transfer_date ? formatDate(claim.transfer_date) : '-'} />
           {(claim.debt_doc_no || needsDebtDoc(claim)) && (

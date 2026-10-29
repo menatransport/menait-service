@@ -101,7 +101,7 @@ describe('worklistStats', () => {
 describe('columns', () => {
   test('claim columns read like the Advance sheet', () => {
     expect(CLAIM_COLUMNS.map(c => c.label)).toEqual([
-      'ลำดับ', 'เลขที่ใบเบิก', 'ผู้เปิดใบ', 'สาขา', 'แผนก', 'สถานะ', 'รอบ', 'ประเภท', 'จ่ายให้', 'ช่วงวันที่',
+      'ลำดับ', 'เลขที่ใบเบิก', 'ผู้เปิดใบ', 'สาขา', 'แผนก', 'ศูนย์และแผนก', 'สถานะ', 'รอบ', 'ประเภท', 'จ่ายให้', 'ช่วงวันที่',
       'ยอดเงิน', 'เลขที่ DD', 'วันที่จ่าย', 'เจ้าของเงินสด', 'หมายเหตุ',
     ]);
   });
@@ -119,10 +119,11 @@ describe('columns', () => {
     expect(CLAIM_STATUS_LABELS.CLOSED).toBe('ปิดแล้ว');
   });
   test('claim cell text', () => {
-    const c = claim('SENT_BACK', { review_remark: 'ใบชั่งเบลอ', dd_no: 'LBDD26100012' });
+    const c = claim('SENT_BACK', { review_remark: 'ใบชั่งเบลอ', dd_no: 'LBDD26100012', cost_center: '3B02' });
     const text = Object.fromEntries(CLAIM_COLUMNS.map(col => [col.label, col.text(c, ctx)]));
     expect(text['เลขที่ใบเบิก']).toBe(c.form_id);
     expect(text['สาขา']).toBe('03');
+    expect(text['ศูนย์และแผนก']).toBe('3B02 ศลบ - ยานยนต์');
     expect(text['สถานะ']).toBe('ส่งกลับแก้ไข');
     expect(text['รอบ']).toBe('LB-B02-2610-B6');
     expect(text['ช่วงวันที่']).toBe('18/10/2026 – 20/10/2026');
