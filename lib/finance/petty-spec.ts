@@ -17,6 +17,28 @@ export function requiredAttachments(spec: PettySpec | null | undefined): PettySp
   return (spec?.attachments ?? []).filter(a => a.required === true);
 }
 
+/**
+ * หมวดไฟล์ที่เป็นของเจ้าของเงินสด แนบตอนอนุมัติจ่าย ไม่ใช่ของคนเปิดใบ (flow v2: จ่ายเงินแล้วแนบสลิปแล้วอนุมัติในจังหวะเดียว)
+ * spec ทุกประเภทติ๊ก `transfer` ว่าบังคับ — บังคับก่อนอนุมัติ แต่ตอนเปิดใบคนเปิดใบยังไม่มีสลิป
+ * หน้าเปิดใบ หน้าใบ และการ์ดหน้าอนุมัติ อ่านรายการนี้ที่เดียวกัน
+ */
+export const HOLDER_ATTACHMENTS = ['transfer'] as const;
+
+export function isHolderAttachment(key: string): boolean {
+  return (HOLDER_ATTACHMENTS as readonly string[]).includes(key);
+}
+
+/** ไฟล์บังคับที่คนเปิดใบต้องแนบก่อนส่ง = หมวดบังคับทั้งหมด ยกเว้นของเจ้าของเงินสด (แนบมาด้วยได้ แต่ไม่บังคับ) */
+export function requiredAtCreate(spec: PettySpec | null | undefined): PettySpecAttachment[] {
+  return requiredAttachments(spec).filter(a => !isHolderAttachment(a.key));
+}
+
+/** ข้อความบอกคนเปิดใบว่ายังขาดไฟล์ไหน — null = ไฟล์ครบพอส่งได้ */
+export function missingAtCreate(spec: PettySpec | null | undefined, counts: Record<string, number>): string | null {
+  const missing = requiredAtCreate(spec).find(a => !((counts[a.key] ?? 0) > 0));
+  return missing ? `ยังไม่แนบ ${missing.label}` : null;
+}
+
 /** แถวเปล่าตาม spec — ช่อง `truck` แตกเป็น truck_code/truck_plate เพราะด่านซ้ำเข้มใช้ทั้งคู่เป็นคีย์ */
 export function blankItem(spec: PettySpec | null | undefined): PettyItemDraft & Record<string, unknown> {
   const row: Record<string, unknown> = { qty: 1 };

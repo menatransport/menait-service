@@ -32,6 +32,7 @@ export function DocumentPreset({ spec, counts = {}, typeName }: {
                 <span className={d.done ? 'text-ink-400 line-through' : ''}>
                   {d.label}
                   {!d.required && <span className="ml-1 text-xs text-ink-400">({d.condition ?? 'ไม่บังคับ'})</span>}
+                  {d.byHolder && !d.done && <span className="ml-1 text-xs text-ink-400">(เจ้าของเงินสดแนบตอนอนุมัติจ่าย)</span>}
                 </span>
               </li>
             ))}

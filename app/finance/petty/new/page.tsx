@@ -7,7 +7,9 @@ import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { claimTotal, periodOf, type PettyItemDraft } from '@/lib/finance/petty-items';
-import { blankHeader, blankItem, claimPayload, headerFields, isItemBased, itemsFrom } from '@/lib/finance/petty-spec';
+import {
+  blankHeader, blankItem, claimPayload, headerFields, isHolderAttachment, isItemBased, itemsFrom, missingAtCreate,
+} from '@/lib/finance/petty-spec';
 import { payeeBankProblem } from '@/lib/finance/petty-payee';
 import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
 import { fundsForExpenseType } from '@/lib/finance/petty-account-code';
@@ -131,9 +133,9 @@ export default function NewPettyClaimPage() {
     } else if (!String(header.rate ?? '').trim()) {
       return 'ยังไม่กรอกจำนวนเงิน';
     }
-    for (const a of (spec.attachments ?? [])) {
-      if (a.required && (files[a.key]?.length ?? 0) === 0) return `ยังไม่แนบ ${a.label}`;
-    }
+    // สลิปโอนเป็นของเจ้าของเงินสด แนบตอนอนุมัติจ่าย — ตอนเปิดใบไม่บังคับ
+    const fileProblem = missingAtCreate(spec, attachedCounts);
+    if (fileProblem) return fileProblem;
     const hard = dups.filter(d => d.level === 'hard');
     if (hard.length) return `แถวที่ ${hard[0].line_no} เบิกไปแล้ว — แก้หรือลบแถวนั้นก่อน`;
     return null;
@@ -280,11 +282,14 @@ export default function NewPettyClaimPage() {
             {(spec.attachments ?? []).map(a => (
               <div key={a.key}>
                 <p className="mb-1 text-sm">
-                  {a.label}{a.required && <span className="text-rose-500"> *</span>}
+                  {a.label}{a.required && !isHolderAttachment(a.key) && <span className="text-rose-500"> *</span>}
                   {a.max && <span className="ml-1 text-xs text-ink-400">ไม่เกิน {a.max} ไฟล์</span>}
                 </p>
                 <FilePicker files={files[a.key] ?? []}
                   onChange={list => setFiles({ ...files, [a.key]: a.max ? list.slice(0, a.max) : list })} />
+                {isHolderAttachment(a.key) && (
+                  <p className="mt-1 text-xs text-ink-400">เจ้าของเงินสดแนบตอนอนุมัติจ่าย ถ้ามีสลิปแล้วแนบมาได้เลย</p>
+                )}
                 {a.note && <p className="mt-1 text-xs text-ink-400">{a.note}</p>}
               </div>
             ))}

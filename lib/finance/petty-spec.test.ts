@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettySpec } from '@/app/finance/types-petty';
-import { blankHeader, blankItem, claimPayload, headerFields, isItemBased, itemFields, itemsFrom, printUnit, requiredAttachments, singleItemFrom } from './petty-spec';
+import {
+  blankHeader, blankItem, claimPayload, HOLDER_ATTACHMENTS, headerFields, isHolderAttachment, isItemBased, itemFields, itemsFrom,
+  missingAtCreate, printUnit, requiredAtCreate, requiredAttachments, singleItemFrom,
+} from './petty-spec';
 
 const WEIGH: PettySpec = {
   item_based: true,
@@ -33,6 +36,29 @@ describe('requiredAttachments', () => {
   test('only the required ones', () =>
     expect(requiredAttachments(WEIGH).map(a => a.key)).toEqual(['weigh_slip', 'transfer']));
   test('none when the spec has no attachments', () => expect(requiredAttachments({})).toEqual([]));
+});
+
+describe('holder-owned attachments (flow v2)', () => {
+  test('the transfer slip is the fund holder\'s file, attached at approval', () => {
+    expect(HOLDER_ATTACHMENTS).toEqual(['transfer']);
+    expect(isHolderAttachment('transfer')).toBe(true);
+    expect(isHolderAttachment('weigh_slip')).toBe(false);
+    expect(isHolderAttachment('')).toBe(false);
+  });
+  test('at creation the clerk owes every required file except the holder slip', () =>
+    expect(requiredAtCreate(WEIGH).map(a => a.key)).toEqual(['weigh_slip']));
+  test('no spec / no attachments = nothing owed', () => {
+    expect(requiredAtCreate(undefined)).toEqual([]);
+    expect(requiredAtCreate({})).toEqual([]);
+  });
+  test('missingAtCreate: weigh slip attached, no transfer slip = clerk can submit (the bug)', () =>
+    expect(missingAtCreate(WEIGH, { weigh_slip: 2 })).toBeNull());
+  test('missingAtCreate still names a clerk file that is missing', () => {
+    expect(missingAtCreate(WEIGH, {})).toBe('ยังไม่แนบ ใบชั่งน้ำหนัก (สำเนา)');
+    expect(missingAtCreate(WEIGH, { transfer: 1 })).toBe('ยังไม่แนบ ใบชั่งน้ำหนัก (สำเนา)');
+  });
+  test('a transfer slip the clerk already has is fine too', () =>
+    expect(missingAtCreate(WEIGH, { weigh_slip: 1, transfer: 1 })).toBeNull());
 });
 
 describe('blankItem', () => {

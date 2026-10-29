@@ -1,8 +1,11 @@
 import type { PettySpec } from '@/app/finance/types-petty';
+import { isHolderAttachment } from '@/lib/finance/petty-spec';
 
 export type PresetDoc = { key: string; label: string; required: boolean; done: boolean; max?: number;
   /** บังคับเฉพาะเมื่อเข้าเงื่อนไขของกฎ เช่น โอนเข้าชื่อบุคคล/ร้านเงินสด (REQUIREMENT §3.3) */
-  condition?: string };
+  condition?: string;
+  /** เจ้าของเงินสดแนบตอนอนุมัติจ่าย (สลิปโอน) ไม่ใช่คนเปิดใบ */
+  byHolder?: true };
 
 /** "payment_method == โอนเงิน && payee_type == บุคคล/ร้านเงินสด" → "บังคับเมื่อ วิธีจ่าย = โอนเงิน และ ผู้รับเงิน = บุคคล/ร้านเงินสด" */
 function conditionSentence(when: string, spec: PettySpec | null | undefined): string | null {
@@ -35,6 +38,7 @@ export function requiredDocs(
       done: (counts[a.key] ?? 0) > 0,
       max: a.max,
       ...(a.required !== true && conditional[a.key] ? { condition: conditional[a.key] } : {}),
+      ...(isHolderAttachment(a.key) ? { byHolder: true as const } : {}),
     }))
     .sort((a, b) => rank(a) - rank(b));
 }

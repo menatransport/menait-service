@@ -34,6 +34,12 @@ describe('requiredDocs', () => {
     expect(requiredDocs(WEIGH, { other: 1 }).find(d => d.key === 'other')?.done).toBe(true));
   test('a spec with no attachments gives an empty list, not a crash', () =>
     expect(requiredDocs({})).toEqual([]));
+  test('marks the transfer slip as the holder\'s file (attached at approval), nothing else', () => {
+    const docs = requiredDocs(WEIGH);
+    expect(docs.find(d => d.key === 'transfer')?.byHolder).toBe(true);
+    expect(docs.find(d => d.key === 'weigh_slip')?.byHolder).toBeUndefined();
+    expect(docs.find(d => d.key === 'other')?.byHolder).toBeUndefined();
+  });
 });
 
 describe('printableDocs', () => {
