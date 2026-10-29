@@ -3,11 +3,16 @@
 import Link from 'next/link';
 import { ExternalLink, Receipt } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { PettyClaimDetail } from './PettyClaimDetail';
+import { ClaimDetail } from './worklist/ClaimDetail';
 
-/** แผงข้างของใบเงินสดย่อย — แบบเดียวกับ AdvanceSheet: เปิดจากแถวในตาราง กดเปลี่ยนสถานะได้ในนี้ */
-export function PettySheet({ formId, isOpen, onClose, onChanged }: {
+/**
+ * แผงข้างของใบเงินสดย่อย — แบบเดียวกับ AdvanceSheet: เปิดจากแถวในตาราง กดเปลี่ยนสถานะได้ในนี้
+ * กว้างกว่า Advance หนึ่งขั้น (3xl) เพราะตารางรายการรถในใบกว้าง
+ */
+export function PettySheet({ formId, isOpen, onClose, onChanged, onOpenRound }: {
   formId: string | null; isOpen: boolean; onClose: () => void; onChanged?: () => void;
+  /** หน้างานเงินสดย่อย: กด "ดูรอบส่งเคลียร์" แล้วเปิดแผงรอบแทน · ไม่ส่ง = ลิงก์ไปหน้ารอบ */
+  onOpenRound?: (batchId: number) => void;
 }) {
   return (
     <Sheet open={isOpen} onOpenChange={v => { if (!v) onClose(); }}>
@@ -29,8 +34,8 @@ export function PettySheet({ formId, isOpen, onClose, onChanged }: {
             )}
           </div>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {formId && isOpen && <PettyClaimDetail formId={formId} onChanged={onChanged} compact />}
+        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+          {formId && isOpen && <ClaimDetail formId={formId} onChanged={onChanged} onOpenRound={onOpenRound} />}
         </div>
       </SheetContent>
     </Sheet>
