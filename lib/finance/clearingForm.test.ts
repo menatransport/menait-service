@@ -44,7 +44,7 @@ describe('expense claim form (Part 2)', () => {
     expect(d.document_no).toBe('ADV-2026-0001');
     expect(d.ref_no).toBe('CL-2609-0012');
     expect(d.clear_date).toBe('2026-09-10');
-    expect(d.centers).toEqual(['สระบุรี/ระยอง/บางปะกง']);
+    expect(d.centers).toEqual(['สระบุรี']);
     expect(d.employee).toEqual({ name: 'สุนิสา ทาระเวท', position: 'หัวหน้าแผนกค่าจ้างและสวัสดิการ', department: 'ทรัพยากรบุคคล',
       bank_account_no: '041-3-95456-8', bank_name: 'กสิกรไทย', account_name: 'สุนิสา ทาระเวท' });
     expect(d.amount_paid).toBe(2000);
@@ -94,8 +94,8 @@ describe('expense claim form (Part 2)', () => {
     expect([...CLAIM_SIGNERS]).toEqual(['ผู้ขอเบิก', 'หัวหน้าหน่วยงาน', 'ผู้จัดการ', 'ผู้มีอำนาจอนุมัติ', 'แผนกบัญชีและการเงิน']);
     for (const s of CLAIM_SIGNERS) expect(html).toContain(`<th>${s}</th>`);
     expect((html.match(/class="cb checked"/g) ?? []).length).toBe(1);
-    expect(html).toContain('<span class="cb checked"></span>สระบุรี/ระยอง/บางปะกง');
-    expect((html.match(/<span class="cbi">/g) ?? []).length).toBe(3); // 3 ศูนย์ options only
+    expect(html).toContain('<span class="cb checked"></span>สระบุรี');
+    expect((html.match(/<span class="cbi">/g) ?? []).length).toBe(6); // 6 ศูนย์ แยกกัน ไม่มี "/"
     for (const gone of ['MDD', 'อื่นๆ']) expect(html).not.toContain(gone);
     // landscape named page, page counter, no version box
     expect(html).toContain('@page claim { size: A4 landscape; }');

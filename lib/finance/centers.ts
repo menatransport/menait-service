@@ -1,16 +1,16 @@
 import { esc } from './printShared';
 
-/** ศูนย์ checkboxes printed on Part 1 and Part 2 (spec v3 §1): exactly these three; no MDD, no อื่นๆ. */
-export const CENTER_OPTIONS = ['กรุงเทพ', 'ลาดกระบัง/ขอนแก่น', 'สระบุรี/ระยอง/บางปะกง'] as const;
+/** ศูนย์ checkboxes printed on Part 1 and Part 2: one box per centre, no "/" groups (user 29/10/2026); no MDD, no อื่นๆ. */
+export const CENTER_OPTIONS = ['กรุงเทพ', 'ลาดกระบัง', 'ขอนแก่น', 'สระบุรี', 'ระยอง', 'บางปะกง'] as const;
 
 /** sites.site_code (without the trailing ".") → checkbox. */
 const SITE_TO_CENTER: Record<string, string> = {
   'สกท': 'กรุงเทพ',
-  'ศลบ': 'ลาดกระบัง/ขอนแก่น',
-  'ศขก': 'ลาดกระบัง/ขอนแก่น',
-  'สสบ': 'สระบุรี/ระยอง/บางปะกง',
-  'ศรย': 'สระบุรี/ระยอง/บางปะกง',
-  'ศบก': 'สระบุรี/ระยอง/บางปะกง',
+  'ศลบ': 'ลาดกระบัง',
+  'ศขก': 'ขอนแก่น',
+  'สสบ': 'สระบุรี',
+  'ศรย': 'ระยอง',
+  'ศบก': 'บางปะกง',
 };
 
 /** 'สกท.' → 'สกท' (trim + strip trailing dots). */
