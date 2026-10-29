@@ -15,7 +15,7 @@ export const PETTY_STATUS_LABELS: Record<PettyStatus, string> = {
   APPROVED: 'อนุมัติจ่ายแล้ว รอส่งเคลียร์',
   CLEAR_PENDING: 'รอหัวหน้าอนุมัติเคลียร์',
   AWAITING_REVIEW: 'รอบัญชีตรวจ',
-  SENT_BACK: 'บัญชีตีกลับ รอแก้ไข',
+  SENT_BACK: 'ส่งกลับแก้ไข',
   REVIEWED: 'บัญชีตรวจผ่าน รอตั้งเบิก',
   CLOSED: 'ปิดแล้ว',
   TRANSFERRED: 'โอนแล้ว (ขั้นตอนเดิม)',

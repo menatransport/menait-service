@@ -10,7 +10,7 @@ describe('labels — flow v2 (29/10/2026)', () => {
     expect(PETTY_STATUS_LABELS.PENDING_APPROVAL).toBe('รอเจ้าของเงินสดอนุมัติ');
     expect(PETTY_STATUS_LABELS.APPROVED).toBe('อนุมัติจ่ายแล้ว รอส่งเคลียร์');
     expect(PETTY_STATUS_LABELS.CLEAR_PENDING).toBe('รอหัวหน้าอนุมัติเคลียร์');
-    expect(PETTY_STATUS_LABELS.SENT_BACK).toBe('บัญชีตีกลับ รอแก้ไข');
+    expect(PETTY_STATUS_LABELS.SENT_BACK).toBe('ส่งกลับแก้ไข');
     expect(PETTY_STATUS_LABELS.REVIEWED).toBe('บัญชีตรวจผ่าน รอตั้งเบิก');
     expect(PETTY_STATUS_LABELS.CLOSED).toBe('ปิดแล้ว');
   });
