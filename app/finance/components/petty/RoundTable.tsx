@@ -3,17 +3,15 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import type { PettyRound } from '@/app/finance/types-petty';
-import { PETTY_ROUND_LABELS, PETTY_ROUND_STYLES, type PettyRoundStatus } from '@/lib/finance/petty-status';
+import type { PettyRoundStatus } from '@/lib/finance/petty-status';
 import { formatBaht } from '@/lib/finance/status';
+import { RoundBadge } from './worklist/StatusBadges';
 
 export type RoundTab = { key: string; label: string; statuses?: PettyRoundStatus[] };
 
+/** ป้ายสถานะรอบ — ชุดเดียวกับหน้างานเงินสดย่อย (ไอคอน + คำของ Advance ในขั้นที่เหมือนกัน) */
 export function RoundStatusBadge({ status }: { status: PettyRoundStatus }) {
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${PETTY_ROUND_STYLES[status]}`}>
-      {PETTY_ROUND_LABELS[status]}
-    </span>
-  );
+  return <RoundBadge status={status} />;
 }
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }) : '-');
