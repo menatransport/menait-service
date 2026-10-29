@@ -27,13 +27,14 @@ import { ItemGrid } from '../ItemGrid';
 import { PettyAttachments } from '../PettyAttachments';
 import { PettyPrintButton } from '../PettyPrintButton';
 import { runPettyAction } from '../petty-actions';
+import { docsState } from '../approvals/model';
 import { ClaimReviewPanel } from './ClaimReviewPanel';
 import { HistoryPanel } from './HistoryPanel';
 import { PRIMARY_BTN } from './RoundVoucherForm';
 import { ClaimBadge } from './StatusBadges';
 
 type FileRow = { key: string; fileName?: string; url: string; folder?: string };
-type Gate = { missing: GateItem[]; hard: GateDup[]; soft: GateDup[] };
+type Gate = { missing: GateItem[]; holderMissing: GateItem[]; hard: GateDup[]; soft: GateDup[] };
 
 const OUTLINE_BTN = 'h-11 rounded-xl';
 
@@ -81,14 +82,17 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
   const spec = type?.spec ?? {};
   const isHolder = canApprove(user, fund);
 
-  // ด่านล่วงหน้าเฉพาะใบที่รออนุมัติ: เอกสารที่ขาดตาม spec + ซ้ำรายแถวจาก BE (ด่านจริงคือตอนกด)
+  // ด่านล่วงหน้าเฉพาะใบที่รออนุมัติ: เอกสารที่ขาดตาม spec (แยกของคนเปิดใบ/สลิปโอนของเจ้าของเงินสด แบบการ์ดหน้าอนุมัติ)
+  // + ซ้ำรายแถวจาก BE (ด่านจริงคือตอนกด)
   useEffect(() => {
     if (!claim || !type || claim.status !== 'PENDING_APPROVAL' || !isHolder) { setGate(null); return; }
     let alive = true;
     (async () => {
       const counts: Record<string, number> = {};
       for (const f of files) counts[f.folder ?? 'request'] = (counts[f.folder ?? 'request'] ?? 0) + 1;
-      const missing: GateItem[] = (type.spec.attachments ?? []).filter(a => a.required && !counts[a.key]).map(a => ({ key: a.key, label: a.label }));
+      const docs = docsState(type.spec, counts, claim);
+      const missing: GateItem[] = docs.fromClerk.map(label => ({ label }));
+      const holderMissing: GateItem[] = docs.fromHolder.map(label => ({ label }));
       const hard: GateDup[] = []; const soft: GateDup[] = [];
       for (const [i, row] of claim.items.entries()) {
         if (!row.event_date) continue;
@@ -99,7 +103,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
           res.soft.forEach(d => soft.push({ ...d, line_no: i + 1 }));
         } catch { /* บอกล่วงหน้าไม่ได้ก็ไม่เป็นไร */ }
       }
-      if (alive) setGate({ missing, hard, soft });
+      if (alive) setGate({ missing, holderMissing, hard, soft });
     })();
     return () => { alive = false; };
   }, [claim, type, files, isHolder]);
@@ -136,7 +140,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
   const typeName = type?.name_th ?? claim.expense_type;
   const canUpload = canUploadPettyFile({ user: user ?? { employee_id: null }, claim, fund });
   const counts = files.reduce<Record<string, number>>((acc, f) => { const k = f.folder ?? 'request'; acc[k] = (acc[k] ?? 0) + 1; return acc; }, {});
-  const blocked = (gate?.missing.length ?? 0) > 0 || (gate?.hard.length ?? 0) > 0;
+  const blocked = (gate?.missing.length ?? 0) > 0 || (gate?.holderMissing.length ?? 0) > 0 || (gate?.hard.length ?? 0) > 0;
   const usesDd = (spec.prints ?? []).includes('DD');
   const isClerk = !!user?.employee_id && user.employee_id === claim.created_by;
   const calc = transferCalc(claim.amount, typeof claim.detail?.payee_type === 'string' ? claim.detail.payee_type : null);

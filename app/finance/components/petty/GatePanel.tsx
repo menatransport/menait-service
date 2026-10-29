@@ -15,13 +15,15 @@ export function dupRef(d: GateDup): string {
     .filter(Boolean).join(' · ');
 }
 
-/** แผงบอกว่าทำไมอนุมัติไม่ได้ — เอกสารขาด/ซ้ำเข้ม = บล็อก · ซ้ำอ่อน = เตือน ทับได้พร้อมเหตุผล */
-export function GatePanel({ missing = [], hard = [], soft = [] }: {
+/** แผงบอกว่าทำไมอนุมัติไม่ได้ — เอกสารขาด/ซ้ำเข้ม = บล็อก · ซ้ำอ่อน = เตือน ทับได้พร้อมเหตุผล
+ *  missing = ที่คนเปิดใบต้องแนบ · holderMissing = สลิปโอนที่เจ้าของเงินสดแนบเองตอนอนุมัติจ่าย (บล็อกเหมือนกัน แต่เป็นงานของคนกด) */
+export function GatePanel({ missing = [], holderMissing = [], hard = [], soft = [] }: {
   missing?: GateItem[];
+  holderMissing?: GateItem[];
   hard?: GateDup[];
   soft?: GateDup[];
 }) {
-  if (missing.length === 0 && hard.length === 0 && soft.length === 0) {
+  if (missing.length === 0 && holderMissing.length === 0 && hard.length === 0 && soft.length === 0) {
     return (
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
         <span className="inline-flex items-center gap-1.5">
@@ -38,6 +40,15 @@ export function GatePanel({ missing = [], hard = [], soft = [] }: {
           <ul className="mt-1 list-disc space-y-0.5 pl-5">
             {missing.map((m, i) => <li key={i}>{m.label ?? m.key}</li>)}
           </ul>
+        </Block>
+      )}
+
+      {holderMissing.length > 0 && (
+        <Block tone="amber" icon={<AlertTriangle className="h-4 w-4" />} title="รอสลิปโอนจากคุณ">
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">
+            {holderMissing.map((m, i) => <li key={i}>{m.label ?? m.key}</li>)}
+          </ul>
+          <p className="mt-1 text-xs">โอนเงินแล้วแนบสลิปที่กล่องไฟล์แนบด้านบน แล้วค่อยกดอนุมัติจ่าย</p>
         </Block>
       )}
 
