@@ -21,11 +21,6 @@ export type VoucherOpts = {
   logoUrl?: string | null;
 };
 
-/** ลำดับและชื่อตามฟอร์มกระดาษ ใบสำคัญจ่ายเงินสดย่อย — มีช่อง "พจส." ไม่มี PJS */
-export const DIVISIONS: [string, string][] = [
-  ['B01', 'ฝ่ายจัดส่ง'], ['พจส.', ''], ['B02', 'ฝ่ายยานยนต์'], ['B03', 'ฝ่ายจัดซื้อ'], ['B04', 'ฝ่ายจป.'],
-  ['A01', 'ฝ่ายบริหาร'], ['A02', 'ฝ่ายขายและพัฒนาธุรกิจ'], ['A03', 'ฝ่ายบุคคล'], ['A04', 'ฝ่ายบัญชี การเงิน'], ['A05', 'ฝ่ายไอที'],
-];
 export const BRANCHES: Record<string, string> = {
   '01': 'สกท', '02': 'สสบ', '03': 'สลบ', '04': 'ศรย', '05': 'สขก',
 };
@@ -53,6 +48,10 @@ function truckRemark(items: PettyClaim['items']): string {
 
 const approverName = (claim: PettyClaim) => claim.approved_by_name ?? claim.approved_by ?? '';
 const clerkName = (claim: PettyClaim) => claim.created_by_name ?? claim.created_by;
+
+function requesterEsign(claim: PettyClaim): ESign | null {
+  return claim.created_at ? { name: clerkName(claim), timestamp: claim.created_at, ref: claim.form_id } : null;
+}
 
 function approverEsign(claim: PettyClaim): ESign | null {
   return claim.approved_by && claim.approved_at
@@ -95,35 +94,29 @@ export function pettyVoucherHtml(opts: VoucherOpts): string {
   // ฟอร์มกระดาษมี 6 บรรทัดเสมอ — เติมแถวว่างให้ช่องเซ็นอยู่ที่เดิม
   for (let i = rows.length; i < 6; i += 1) rows.push(`<tr><td class="c">${i + 1}</td><td></td><td>&nbsp;</td><td></td><td class="a"></td><td></td></tr>`);
 
-  const divisionBoxes = DIVISIONS.map(([code, name]) =>
-    `<span class="cbi"><span class="cb${code === fund.division_code ? ' checked' : ''}"></span>${esc(name ? `${code} (${name})` : code)}</span>`).join('');
-  const branchBoxes = [...Object.entries(BRANCHES), ['อื่นๆ', '']].map(([code, name]) =>
-    `<span class="cbi"><span class="cb${code === fund.branch_code ? ' checked' : ''}"></span>${esc(name ? `${code} ${name}` : code)}</span>`).join('');
-
   const body = `<section class="doc-part">
 ${docHead({ title: 'ใบสำคัญจ่ายเงินสดย่อย', english: '(Petty Cash Voucher)', logoUrl: opts.logoUrl,
     meta: [['เลขที่', claim.form_id], ['วันที่', voucherDate(claim)]] })}
 <p class="t2" style="margin-top:4px">${esc(COMPANY)}</p>
 
 ${sec(1, 'ข้อมูลการจ่าย', 'Payment')}
-<div class="grid">${field('จ่ายให้', payeeLine(claim))}${field('รหัสค่าใช้จ่าย (บัญชี)', accountCodeLine(fund))}
+<div class="grid">${field('จ่ายให้', payeeLine(claim))}${field('รหัสค่าใช้จ่ายของผู้เบิก (บัญชี)', accountCodeLine(fund))}
 ${field('ประเภทการเบิก', typeName)}${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}</div>
-<div class="cbs"><span class="lbl">Division</span>${divisionBoxes}</div>
-<div class="cbs"><span class="lbl">สาขา</span>${branchBoxes}</div>
 
 ${sec(2, 'รายการ', 'Items')}
 <table class="items"><thead><tr><th class="c" style="width:9mm">ลำดับ</th><th style="width:22mm">Account Code</th><th>รายการ</th>
 <th class="c" style="width:22mm">จำนวน (หน่วย)</th><th class="a" style="width:24mm">จำนวนเงิน</th><th style="width:34mm">หมายเหตุ</th></tr></thead>
 <tbody>${rows.join('')}</tbody></table>
-<div class="sum"><div class="dates">${field('ผู้เปิดใบ', clerkName(claim))}${field('วันที่โอน', thaiDate(claim.transfer_date))}
+<div class="sum"><div class="dates">${field('วันที่โอน', thaiDate(claim.transfer_date))}
 ${field('ช่วงวันที่ค่าใช้จ่าย', periodText(claim))}${field('หมายเหตุ', claim.dup_override_reason ?? '')}</div>
 ${totalBox('รวมทั้งสิ้น', money(total), bahtText(total))}</div>
 
 ${signBlock(3, 'ลงนามและอนุมัติ', 'Signatures', [
-    { title: 'หัวหน้าแผนก', name: approverName(claim), esign: approverEsign(claim) },
-    { title: 'ผู้อนุมัติ', name: approverName(claim), esign: approverEsign(claim) },
-    { title: 'ผู้จ่ายเงิน', name: fund.holder_name ?? fund.holder_employee_id },
-    { title: 'ผู้รับเงิน', name: claim.payee_name },
+    { title: 'ผู้ขอเบิก', name: clerkName(claim), esign: requesterEsign(claim) },
+    // เจ้าของเงินสดอนุมัติและโอนเงินเองในขั้นเดียว — รวมเป็นช่องเดียว (ผู้ใช้สั่ง 29/10/2026)
+    { title: 'ผู้อนุมัติและผู้โอนเงิน', name: approverName(claim) || (fund.holder_name ?? fund.holder_employee_id), esign: approverEsign(claim) },
+    { title: 'ผู้รับเงิน', name: claim.payee_name,
+      received: claim.transfer_date ? { date: claim.transfer_date, ref: claim.form_id } : null },
   ])}
 </section>`;
 

@@ -19,7 +19,11 @@ table.items td.nw { white-space: nowrap; }
 .kv { display: grid; grid-template-columns: 1fr 1fr; column-gap: 22px; row-gap: 5px; }
 `;
 
-export type PettySignature = { title: string; name?: string | null; esign?: ESign | null };
+export type PettySignature = {
+  title: string; name?: string | null; esign?: ESign | null;
+  /** ตรา "รับเงินโอน" แทน e-Signature — ผู้รับเงินได้เงินทางโอน ไม่ได้เซ็นในระบบ · date = 'YYYY-MM-DD' */
+  received?: { date: string; ref: string } | null;
+};
 
 /** หัวเอกสาร: แถบสี + โลโก้ + ชื่อไทย/อังกฤษ + กล่อง meta (เลขที่/วันที่/…) */
 export function docHead(opts: {
@@ -52,19 +56,25 @@ export function totalBox(label: string, amount: string, words: string): string {
     `<div class="words">จำนวนเงิน (ตัวอักษร) : ${esc(words)}</div></div>`;
 }
 
+/** ตรา "✔ รับเงินโอน" หน้าตาเดียวกับตรา e-Signature แต่มีแค่วันที่โอน ไม่มีเวลา */
+function receivedStamp(name: string | null | undefined, r: { date: string; ref: string }): string {
+  return `<div class="esign"><div class="esign-title">✔ รับเงินโอน</div><div>${esc(name || '-')}</div>` +
+    `<div>${esc(thaiDate(r.date))}</div><div class="esign-ref">${esc(r.ref)}</div></div>`;
+}
+
 const validEsign = (e?: ESign | null) => (e && formatBkkDateTime(e.timestamp).date ? e : null);
 
 /** ตารางลงนาม: หัวช่องตามฟอร์มกระดาษ ช่องว่างสำหรับเซ็นหรือตรา e-Signature และบรรทัด ชื่อ/วันที่ */
 export function signatureTable(cols: PettySignature[]): string {
   const heads = cols.map(c => `<th>${esc(c.title)}</th>`).join('');
-  const stamps = cols.map(c => `<td class="space">${stampHtml(validEsign(c.esign))}</td>`).join('');
+  const stamps = cols.map(c => `<td class="space">${c.received?.date ? receivedStamp(c.name, c.received) : stampHtml(validEsign(c.esign))}</td>`).join('');
   const lines = cols.map(c => {
     const e = validEsign(c.esign);
-    const date = e ? dmy(e.timestamp) : '';
+    const date = c.received?.date ? thaiDate(c.received.date) : e ? dmy(e.timestamp) : '';
     return `<td><div class="row"><span class="k">ชื่อ</span><i>${esc(c.name ?? '')}</i></div>` +
       `<div class="row"><span class="k">วันที่</span><i>${esc(date)}</i></div></td>`;
   }).join('');
-  const any = cols.some(c => validEsign(c.esign));
+  const any = cols.some(c => validEsign(c.esign) || c.received?.date);
   return `<table class="sig"><thead><tr>${heads}</tr></thead><tbody><tr>${stamps}</tr><tr>${lines}</tr></tbody></table>` +
     (any ? '<div class="esign-note">ลงนามอิเล็กทรอนิกส์ผ่านระบบ menait-service · เวลาประเทศไทย (UTC+7)</div>' : '');
 }

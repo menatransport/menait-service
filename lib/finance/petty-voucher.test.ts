@@ -31,9 +31,9 @@ describe('pettyVoucherHtml', () => {
   test('no printer book/number fields any more', () => {
     expect(html).not.toContain('เล่มที่');
   });
-  test('shows the branch and division of the fund', () => {
-    expect(html).toContain('B02');
-    expect(html).toContain('03');
+  test('shows the division of the fund — branch is in the form id (สาขาแบบติ๊กเอาออก 29/10/2026)', () => {
+    expect(html).toContain('B02 ฝ่ายยานยนต์');
+    expect(html).toContain('LB-B02-2610-001');
   });
   test('groups rows by rate and truck type', () => {
     expect(html).toContain('ค่าชั่งน้ำหนักรถโม่ใหญ่ 100 บาท');
@@ -95,7 +95,7 @@ describe('หน่วยนับบนใบ มาจากประเภท
 describe('รหัสค่าใช้จ่ายของบัญชี บนใบสำคัญจ่าย (ตารางบัญชี 2026-10-14)', () => {
   const html = pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก' });
   test('พิมพ์รหัส + ชื่อแผนกตามบัญชี แทนช่อง Project Code เดิม', () => {
-    expect(html).toMatch(/<span class="l">รหัสค่าใช้จ่าย \(บัญชี\)<\/span><span class="v">B02 ฝ่ายยานยนต์<\/span>/);
+    expect(html).toMatch(/<span class="l">รหัสค่าใช้จ่ายของผู้เบิก \(บัญชี\)<\/span><span class="v">B02 ฝ่ายยานยนต์<\/span>/);
     expect(html).not.toContain('Project Code');
   });
   test('เลขที่ใบเป็นแบบตัวอักษรสาขา', () => expect(html).toContain('LB-B02-2610-001'));
@@ -151,20 +151,28 @@ describe('มาตรฐานเดียวกับใบ Advance (ผู้
     expect(html).toContain('<span class="n">2</span><h2>รายการ</h2>');
     expect(html).toContain('<span class="n">3</span><h2>ลงนามและอนุมัติ</h2>');
   });
-  test('Division เป็น checkbox แบบ Advance ติ๊ก B02', () => {
-    expect(html).toContain('<span class="cb checked"></span>B02');
-    expect(html).toContain('<span class="cb"></span>B01');
-    expect(html).not.toContain('[x]');
+  test('ไม่มีแถวติ๊ก Division และสาขาแล้ว (ผู้ใช้สั่ง 29/10/2026)', () => {
+    expect(html).not.toContain('<span class="lbl">Division</span>');
+    expect(html).not.toContain('<span class="lbl">สาขา</span>');
+    expect(html).not.toContain('class="cbs"');
   });
   test('กล่องยอดรวมสีเขียวพร้อมตัวอักษร', () => {
     expect(html).toContain('<div class="tot">');
     expect(html).toContain('จำนวนเงิน (ตัวอักษร) : สองร้อยแปดสิบบาทถ้วน');
   });
-  test('ตารางลงนาม 4 ช่องตามฟอร์มกระดาษ', () => {
+  test('ตารางลงนาม 3 ช่อง ผู้ขอเบิก → ผู้อนุมัติและผู้โอนเงิน → ผู้รับเงิน (ผู้ใช้สั่ง 29/10/2026)', () => {
     expect(html).toContain('<table class="sig">');
-    for (const t of ['ผู้จ่ายเงิน', 'ผู้รับเงิน', 'หัวหน้าแผนก', 'ผู้อนุมัติ']) expect(html).toContain(`<th>${t}</th>`);
+    const order = ['ผู้ขอเบิก', 'ผู้อนุมัติและผู้โอนเงิน', 'ผู้รับเงิน'].map(t => html.indexOf(`<th>${t}</th>`));
+    expect(order[0]).toBeGreaterThan(0);
+    expect(order[0]).toBeLessThan(order[1]);
+    expect(order[1]).toBeLessThan(order[2]);
+    const sigHead = html.split('<table class="sig">')[1]?.split('</thead>')[0] ?? '';
+    expect(sigHead.match(/<th>/g)?.length).toBe(3);
+    for (const old of ['หัวหน้าแผนก', 'ผู้จ่ายเงิน']) expect(html).not.toContain(`<th>${old}</th>`);
     expect(html).toContain('ลงนามอิเล็กทรอนิกส์ผ่านระบบ menait-service');
   });
+  test('ไม่มีช่องผู้เปิดใบในส่วนข้อมูลแล้ว ชื่อไปอยู่ช่องผู้ขอเบิก', () =>
+    expect(html).not.toContain('<span class="l">ผู้เปิดใบ</span>'));
   test('ชื่อเอกสารใน Document Control เป็นแบบ Advance', () =>
     expect(html).toContain('Petty Cash Voucher (PC)'));
   test('ไม่มีโครงกล่องเส้นดำแบบเก่าแล้ว', () => expect(html).not.toContain('class="box"'));
@@ -331,7 +339,7 @@ describe('บล็อกลงนามอยู่ด้านล่างข�
 describe('ชื่อพนักงานบนใบ แทนรหัส (ผู้ใช้สั่ง 2026-10-13)', () => {
   const named = { ...claim, created_by_name: 'กฤตบุญ ลายเงิน', approved_by_name: 'ณรงค์กรณ์ อัจฉริยญาติ' } as PettyClaim;
   const namedFund = { ...fund, holder_name: 'ณรงค์กรณ์ อัจฉริยญาติ' };
-  test('ใบสำคัญจ่าย: ผู้จ่ายเงิน/ผู้อนุมัติ/ผู้เปิดใบ เป็นชื่อ', () => {
+  test('ใบสำคัญจ่าย: ผู้ขอเบิก/ผู้อนุมัติ เป็นชื่อ', () => {
     const html = pettyVoucherHtml({ claim: named, fund: namedFund, typeName: 'x' });
     expect(html).toContain('<i>ณรงค์กรณ์ อัจฉริยญาติ</i>');
     expect(html).toContain('กฤตบุญ ลายเงิน');
@@ -351,27 +359,9 @@ describe('ชื่อพนักงานบนใบ แทนรหัส (�
 describe('ตรงกับฟอร์มกระดาษจริง (ดูตัวอย่างที่ผู้ใช้ส่ง 2026-10-13)', () => {
   const html = pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก' });
   test('ชื่อบริษัทมี (มหาชน)', () => expect(html).toContain('บริษัท มีนาทรานสปอร์ต จำกัด (มหาชน)'));
-  test('Division มีชื่อฝ่ายและช่อง พจส. ไม่มี PJS', () => {
-    expect(html).toContain('B01 (ฝ่ายจัดส่ง)');
-    expect(html).toContain('B02 (ฝ่ายยานยนต์)');
-    expect(html).toContain('A04 (ฝ่ายบัญชี การเงิน)');
-    expect(html).toContain('>พจส.</span>');
-    expect(html).not.toContain('PJS');
-  });
-  test('สาขาเป็นช่องติ๊ก 01–05 และ อื่นๆ ติ๊ก 03 สลบ', () => {
-    expect(html).toContain('<span class="cb checked"></span>03 สลบ');
-    expect(html).toContain('<span class="cb"></span>02 สสบ');
-    expect(html).toContain('อื่นๆ');
-  });
   test('ตารางมีคอลัมน์ ลำดับ / Account Code / รายการ / จำนวน (หน่วย) / จำนวนเงิน / หมายเหตุ', () => {
     for (const h of ['ลำดับ', 'Account Code', 'รายการ', 'จำนวน (หน่วย)', 'จำนวนเงิน', 'หมายเหตุ']) expect(html).toContain(`>${h}</th>`);
     expect(html).not.toContain('>ราคา/หน่วย</th>');
-  });
-  test('ลงนามเรียง หัวหน้าแผนก → ผู้อนุมัติ → ผู้จ่ายเงิน → ผู้รับเงิน', () => {
-    const order = ['ผู้จ่ายเงิน', 'ผู้รับเงิน', 'หัวหน้าแผนก', 'ผู้อนุมัติ'].map(t => html.indexOf(`<th>${t}</th>`));
-    expect(order[2]).toBeLessThan(order[3]);
-    expect(order[3]).toBeLessThan(order[0]);
-    expect(order[0]).toBeLessThan(order[1]);
   });
   test('ใบชั่งรวมตามราคา บอกจำนวนแยกประเภทรถในรายการ', () =>
     expect(html).toContain('100 บาท = 2 คัน'));
@@ -430,5 +420,40 @@ describe('แบบฟอร์มขอใช้บริการแกร็�
   test('ลงนาม ผู้อนุมัติ และ ผู้ขอเบิก', () => {
     expect(html).toContain('<th>ผู้ขอเบิก</th>');
     expect(html).toContain('<th>ผู้อนุมัติ</th>');
+  });
+});
+
+describe('ตราในช่องลงนามของใบสำคัญจ่าย (ผู้ใช้สั่ง 29/10/2026)', () => {
+  const named = { ...claim, created_by_name: 'กฤตบุญ ลายเงิน', created_at: '2026-09-24T02:10:00Z',
+    approved_by_name: 'ณรงค์กรณ์ อัจฉริยญาติ' } as PettyClaim;
+  const cell = (html: string, n: number) => html.split('<td class="space">')[n]?.split('</td>')[0] ?? '';
+  test('ผู้ขอเบิก: ตรา e-Signature ชื่อผู้เปิดใบ ตามเวลาเปิดใบ', () => {
+    const c = cell(pettyVoucherHtml({ claim: named, fund, typeName: 'x' }), 1);
+    expect(c).toContain('✔ e-Signature');
+    expect(c).toContain('กฤตบุญ ลายเงิน');
+    expect(c).toContain('24/09/2026');
+  });
+  test('ผู้อนุมัติและผู้โอนเงิน: ตราของเจ้าของเงินสดตอนอนุมัติจ่าย', () => {
+    const c = cell(pettyVoucherHtml({ claim: named, fund, typeName: 'x' }), 2);
+    expect(c).toContain('✔ e-Signature');
+    expect(c).toContain('ณรงค์กรณ์ อัจฉริยญาติ');
+  });
+  test('ผู้รับเงิน: ตราเขียน "รับเงินโอน" กับวันที่โอน', () => {
+    const html = pettyVoucherHtml({ claim: named, fund, typeName: 'x' });
+    const c = cell(html, 3);
+    expect(c).toContain('✔ รับเงินโอน');
+    expect(c).not.toContain('e-Signature');
+    expect(c).toContain('อัญชัญ น่วมมี');
+    expect(c).toContain('25/09/2026');
+    expect(c).toContain('LB-B02-2610-001');
+  });
+  test('ยังไม่โอน: ช่องผู้รับเงินว่าง ไม่มีตรา', () => {
+    const c = cell(pettyVoucherHtml({ claim: { ...named, transfer_date: null }, fund, typeName: 'x' }), 3);
+    expect(c).not.toContain('รับเงินโอน');
+  });
+  test('ใบเก่าที่ BE ไม่ส่งเวลาเปิดใบ: ช่องผู้ขอเบิกมีแค่ชื่อ ไม่มีตรา', () => {
+    const html = pettyVoucherHtml({ claim: { ...named, created_at: undefined }, fund, typeName: 'x' });
+    expect(cell(html, 1)).toBe('');
+    expect(html).toContain('<i>กฤตบุญ ลายเงิน</i>');
   });
 });
