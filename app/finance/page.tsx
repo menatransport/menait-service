@@ -15,11 +15,16 @@ import { fetchAllAdvances, type AdvancePage, type AdvanceSummary } from '@/lib/f
 const TABS: AdvanceListTab[] = [
   { key: 'voucher', label: 'รอตั้งเบิก', status: ['AWAITING_VOUCHER'] },
   { key: 'pay', label: 'รอจ่าย', status: ['AWAITING_PAYMENT'] },
-  // ตั้งแต่จ่ายแล้วจนถึงก่อนปิด รวมเป็นแท็บเดียว (ผู้ใช้สั่ง 29/10/2026) — ป้ายในแถวยังบอกขั้นจริง
-  // และช่องกรองสถานะใต้หัวตารางเลือกดูทีละขั้นได้ · ตีกลับผู้เบิกไม่รวม เพราะเกิดก่อนจ่ายเงิน
-  { key: 'clearing', label: 'จ่ายแล้วรอเคลียร์', status: ['AWAITING_CLEARING', 'SENT_BACK', 'CLEARING_APPROVAL', 'AWAITING_REVIEW'] },
+  // ยอดค้างเคลียร์ (ผู้ใช้สั่ง 29/10/2026): ทุกใบที่จ่ายแล้วยังไม่ปิด (ชุดเดียวกับที่การ์ดยอดค้างเคลียร์รวมเงิน
+  // — เกินกำหนดอยู่ในนี้แล้ว) + ตีกลับผู้เบิก ที่ผู้ใช้ขอให้รวม แม้ใบกลุ่มนั้นตีกลับก่อนจ่าย จึงไม่บวกเข้ายอดเงินของการ์ด
+  // แท็บรายสถานะข้างหลังยังแยกเหมือนเดิม
+  { key: 'outstanding', label: 'ยอดค้างเคลียร์', status: ['AWAITING_CLEARING', 'SENT_BACK', 'CLEARING_APPROVAL', 'AWAITING_REVIEW', 'RETURNED'] },
+  { key: 'clearing', label: 'จ่ายแล้วรอเคลียร์', status: ['AWAITING_CLEARING'] },
   { key: 'overdue', label: 'เกินกำหนด', overdue: true },
   { key: 'returned', label: 'ตีกลับผู้เบิก', status: ['RETURNED'] },
+  { key: 'clearapprove', label: 'รออนุมัติเคลียร์', status: ['CLEARING_APPROVAL'] },
+  { key: 'review', label: 'รอบัญชีตรวจ', status: ['AWAITING_REVIEW'] },
+  { key: 'sentback', label: 'ส่งกลับแก้ไข', status: ['SENT_BACK'] },
   { key: 'closed', label: 'ปิดแล้ว', status: ['CLOSED'] },
   { key: 'all', label: 'ทั้งหมด' },
 ];
@@ -53,7 +58,7 @@ export default function FinanceQueuePage() {
   const stats = useMemo(() => {
     const n = (status: string) => summary?.counts?.[status] ?? 0;
     return [
-      { label: 'ยอดค้างเคลียร์ (บาท)', value: formatBaht(summary?.outstanding_amount ?? 0) },
+      { label: 'ยอดค้างเคลียร์ (บาท)', value: formatBaht(summary?.outstanding_amount ?? 0), hint: 'กดดูรายการ', onClick: () => setTab('outstanding') },
       { label: 'รอตั้งเบิก', value: n('AWAITING_VOUCHER') },
       { label: 'รอจ่าย', value: n('AWAITING_PAYMENT') },
       { label: 'รออนุมัติเคลียร์', value: n('CLEARING_APPROVAL') },

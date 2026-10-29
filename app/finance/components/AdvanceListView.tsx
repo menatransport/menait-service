@@ -121,6 +121,14 @@ export function AdvanceListView({
   // ตัวกรองรายคอลัมน์ (กรองในเบราว์เซอร์) แผนก/ศูนย์ค่าใช้จ่ายยังใช้ ccFilter/deptFilter ที่ส่งให้ BE
   const [colFilters, setColFilters] = useState<ColumnFilters>({});
   const [debouncedCols, setDebouncedCols] = useState<ColumnFilters>({});
+  // เปลี่ยนแท็บ = เริ่มที่ไม่มีตัวกรองเสมอ (ผู้ใช้สั่ง 29/10/2026) ช่วงเดือนกับการเรียงคงไว้
+  // ปรับ state ระหว่าง render ไม่ใช่ useEffect: fetch แรกของแท็บใหม่ต้องไม่ติดตัวกรองของแท็บเก่า (ค่าที่หน่วงไว้ก็ล้างด้วย)
+  // ใช้กับทุกทางที่แท็บเปลี่ยน รวมถึงกดการ์ดยอดค้างเคลียร์จากหน้าแม่
+  const [filtersTab, setFiltersTab] = useState(activeTab);
+  if (filtersTab !== activeTab) {
+    setFiltersTab(activeTab);
+    setSearch(''); setDebouncedQ(''); setCcFilter('all'); setDeptFilter('all'); setColFilters({}); setDebouncedCols({});
+  }
   const [allRows, setAllRows] = useState<{ key: string; items: AdvanceItem[] } | null>(null);
   // page is keyed by the filter signature, so any tab/filter/sort change is page 1 in the same render (one fetch)
   const [pageState, setPageState] = useState<{ key: string; page: number }>({ key: '', page: 1 });

@@ -48,6 +48,8 @@ export interface SummaryStat {
   /** Highlight in rose when the value is non-zero (e.g. overdue). */
   alert?: boolean;
   hint?: string;
+  /** มีค่า = การ์ดกดได้ (เช่น ยอดค้างเคลียร์ → เปิดแท็บรายการ) */
+  onClick?: () => void;
 }
 
 /** Glass stat tiles — one swipeable row on phones, a grid from sm (same pattern as OPS status). */
@@ -57,7 +59,12 @@ export function SummaryTiles({ items }: { items: SummaryStat[] }) {
       {items.map(s => {
         const hot = s.alert && s.value !== 0 && s.value !== '0';
         return (
-          <div key={s.label} className="v2-glass rounded-2xl px-4 py-3 min-w-36 shrink-0 sm:min-w-0">
+          <div key={s.label}
+            {...(s.onClick ? {
+              role: 'button', tabIndex: 0, onClick: s.onClick,
+              onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); s.onClick?.(); } },
+            } : {})}
+            className={`v2-glass rounded-2xl px-4 py-3 min-w-36 shrink-0 sm:min-w-0${s.onClick ? ' cursor-pointer transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70' : ''}`}>
             <dt className="text-xs text-ink-500">{s.label}</dt>
             <dd className={`mt-0.5 font-display text-2xl font-semibold tabular-nums leading-tight ${hot ? 'text-rose-600' : 'text-ink-900'}`}>
               {s.value}
