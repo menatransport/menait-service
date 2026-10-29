@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { fundLabel, fundLabelWithHolder } from './petty-fund-label';
+import { fundLabel, fundLabelWithHolder, fundPlaceWithHolder } from './petty-fund-label';
 
 describe('fundLabel', () => {
   test('สาขาและแผนกที่รู้จัก อ่านเป็นภาษาคน', () =>
@@ -20,4 +20,12 @@ describe('fundLabelWithHolder', () => {
   test('ไม่มีชื่อใช้รหัสพนักงาน', () =>
     expect(fundLabelWithHolder({ branch_code: '03', division_code: 'A01', holder_name: null, holder_employee_id: '990099' }))
       .toBe('วงเงินสดย่อย - ลาดกระบัง - บริหาร · 990099'));
+});
+
+describe('fundPlaceWithHolder — ค่าในช่องที่ป้ายเขียนว่าวงเงินสดย่อยแล้ว (ผู้ใช้สั่ง 29/10/2026)', () => {
+  test('ไม่ขึ้นต้นด้วย "วงเงินสดย่อย - "', () =>
+    expect(fundPlaceWithHolder({ branch_code: '03', division_code: 'B02', holder_name: 'เสถียรพงษ์ ชะเอมจันทร์' }))
+      .toBe('ลาดกระบัง - ยานยนต์ · เสถียรพงษ์ ชะเอมจันทร์'));
+  test('ไม่มีผู้ถือเงิน = แค่สาขา - ฝ่าย', () =>
+    expect(fundPlaceWithHolder({ branch_code: '02', division_code: 'B02' })).toBe('สระบุรี - ยานยนต์'));
 });

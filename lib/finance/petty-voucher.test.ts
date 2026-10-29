@@ -474,9 +474,10 @@ describe('รหัสค่าใช้จ่ายของผู้เบิ�
 
 describe('ช่องวงเงินสดย่อยบน PDF แบบเดียวกับหน้าเปิดใบ (ผู้ใช้สั่ง 29/10/2026)', () => {
   const held = { ...fund, holder_name: 'สุทธิพงษ์ แจ่มฟ้า' };
-  const want = /<span class="l">วงเงินสดย่อย<\/span><span class="v">วงเงินสดย่อย - ลาดกระบัง - ยานยนต์ · สุทธิพงษ์ แจ่มฟ้า<\/span>/;
+  // ป้ายช่องบอกแล้วว่าวงเงินสดย่อย ค่าไม่ต้องขึ้นต้นซ้ำ (ผู้ใช้สั่ง 29/10/2026)
+  const want = /<span class="l">วงเงินสดย่อย<\/span><span class="v">ลาดกระบัง - ยานยนต์ · สุทธิพงษ์ แจ่มฟ้า<\/span>/;
   test('ใบสำคัญจ่าย', () => expect(pettyVoucherHtml({ claim, fund: held, typeName: 'x' })).toMatch(want));
   test('ใบสรุปรายการ', () => expect(itemSummaryHtml({ claim, fund: held, typeName: 'x', spec: null })).toMatch(want));
   test('ไม่มีชื่อผู้ถือเงิน ใช้รหัสพนักงานแทน', () =>
-    expect(pettyVoucherHtml({ claim, fund, typeName: 'x' })).toContain('วงเงินสดย่อย - ลาดกระบัง - ยานยนต์ · 12345'));
+    expect(pettyVoucherHtml({ claim, fund, typeName: 'x' })).toContain('<span class="v">ลาดกระบัง - ยานยนต์ · 12345</span>'));
 });
