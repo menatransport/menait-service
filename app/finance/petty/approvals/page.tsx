@@ -6,7 +6,7 @@ import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyBalance, PettyClaim, PettyExpenseType, PettyFund, PettyRound } from '@/app/finance/types-petty';
 import { ApiError } from '@/lib/finance/api-error';
-import { quickAction, type PettyTab } from '@/lib/finance/petty-list';
+import { paidInRange, quickAction, type PettyTab } from '@/lib/finance/petty-list';
 import { fundLabel } from '@/lib/finance/petty-fund-label';
 import { formatBaht } from '@/lib/finance/status';
 import { showAlert, showConfirm } from '../../api';
@@ -46,6 +46,9 @@ export default function PettyApprovalsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [ready, setReady] = useState<Record<string, boolean>>({});
   const [selected, setSelected] = useState<number[]>([]);
+  // รวมรอบตามช่วงวันที่จ่าย (ผู้ใช้สั่ง 29/10/2026) — เว้นว่าง = ทุกวัน
+  const [paidFrom, setPaidFrom] = useState('');
+  const [paidTo, setPaidTo] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -70,7 +73,7 @@ export default function PettyApprovalsPage() {
   }, [user?.employee_id]);
   useEffect(() => { if (user?.employee_id) void load(); }, [user?.employee_id, load]);
   useEffect(() => { if (fundId) getBalance(fundId).then(setBalance).catch(() => setBalance(null)); }, [fundId, claims]);
-  useEffect(() => { setSelected([]); }, [fundId, tab]);
+  useEffect(() => { setSelected([]); }, [fundId, tab, paidFrom, paidTo]);
 
   // ป้าย "เอกสารครบ" ในแถวรออนุมัติ — นับไฟล์แนบเทียบ spec (ด่านจริงอยู่ที่ BE ตอนกด)
   useEffect(() => {
@@ -98,20 +101,25 @@ export default function PettyApprovalsPage() {
   }
 
   const ofFund = (claims ?? []).filter(c => c.fund_id === fundId);
-  const pick = ofFund.filter(c => c.status === 'APPROVED' && selected.includes(c.id));
+  const toClear = ofFund.filter(c => c.status === 'APPROVED' && paidInRange(c, paidFrom, paidTo));
+  // แท็บรอส่งเคลียร์แสดงเฉพาะใบในช่วงวันที่เลือก แท็บอื่นแสดงครบ
+  const shown = tab === 'clear' ? ofFund.filter(c => c.status !== 'APPROVED' || paidInRange(c, paidFrom, paidTo)) : ofFund;
+  const pick = toClear.filter(c => selected.includes(c.id));
   const sum = pick.reduce((s, c) => s + c.amount, 0);
 
   async function sendRound() {
     if (!fundId || pick.length === 0) return;
+    const range = paidFrom || paidTo ? ` · จ่ายช่วง ${paidFrom || 'แรกสุด'} ถึง ${paidTo || 'ล่าสุด'}` : '';
     const res = await showConfirm({ title: 'ส่งเคลียร์เป็นรอบ',
-      text: `${pick.length} ใบ รวม ${formatBaht(sum)} บาท · ส่งให้ผู้จัดการตามสายงานอนุมัติเคลียร์ แล้วไปบัญชีตรวจ`,
+      text: `${pick.length} ใบ รวม ${formatBaht(sum)} บาท${range} · ส่งให้ผู้จัดการตามสายงานอนุมัติเคลียร์ แล้วไปบัญชีตรวจ`,
       confirmButtonText: 'ส่งเคลียร์' }) as { isConfirmed?: boolean };
     if (!res?.isConfirmed) return;
     setBusy('round');
     try {
       const attachments: Record<string, Record<string, number>> = {};
       for (const c of pick) attachments[c.form_id] = await countAttachments(c.form_id);
-      const round = await createRound({ fund_id: fundId, claim_ids: pick.map(c => c.id), attachments });
+      const remark = paidFrom || paidTo ? `จ่ายช่วง ${paidFrom || '-'} ถึง ${paidTo || '-'}` : undefined;
+      const round = await createRound({ fund_id: fundId, claim_ids: pick.map(c => c.id), attachments, remark });
       setSelected([]);
       await load();
       const again = await showConfirm({ icon: 'success', title: `ส่งรอบ ${round.batch_no} แล้ว`,
@@ -176,7 +184,30 @@ export default function PettyApprovalsPage() {
     <FinanceCanvas title={TITLE}>
       <FinanceHeading icon={BadgeCheck} title={TITLE} caption={CAPTION} />
       <SummaryTiles items={stats} />
-      <PettyListView claims={ofFund} types={types} funds={funds} tabs={TABS} activeTab={tab} onTabChange={setTab}
+      {tab === 'clear' && (
+        <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-ink-500">จ่ายตั้งแต่วันที่</span>
+            <input type="date" value={paidFrom} onChange={e => setPaidFrom(e.target.value)} max={paidTo || undefined}
+              className="rounded-lg border border-slate-200 px-2 py-1" />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-ink-500">ถึงวันที่</span>
+            <input type="date" value={paidTo} onChange={e => setPaidTo(e.target.value)} min={paidFrom || undefined}
+              className="rounded-lg border border-slate-200 px-2 py-1" />
+          </label>
+          <button type="button" onClick={() => setSelected(toClear.map(c => c.id))} disabled={toClear.length === 0}
+            className="rounded-lg bg-brand-600 px-3 py-1.5 font-medium text-white disabled:opacity-40">
+            เลือกทุกใบในช่วงนี้ ({toClear.length})
+          </button>
+          {(paidFrom || paidTo) && (
+            <button type="button" onClick={() => { setPaidFrom(''); setPaidTo(''); }}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-ink-700">ล้างช่วงวันที่</button>
+          )}
+          <span className="text-xs text-ink-500">รอบหนึ่งรวมได้เฉพาะวงเงินที่คุณถือ แยกตามเจ้าของเงินสดอยู่แล้ว</span>
+        </div>
+      )}
+      <PettyListView claims={shown} types={types} funds={funds} tabs={TABS} activeTab={tab} onTabChange={setTab}
         onOpen={c => { setOpenId(c.form_id); setSheetOpen(true); }} exportFileBase="เงินสดย่อย-อนุมัติ"
         rowAction={rowAction} rowNote={rowNote}
         selectable={tab === 'clear'} selected={selected} onSelect={setSelected}

@@ -2,9 +2,11 @@
 
 import type { PettyClaim, PettySpec } from '@/app/finance/types-petty';
 import { ApiError } from '@/lib/finance/api-error';
+import { needsDebtDoc } from '@/lib/finance/petty-debt';
 import { bangkokDate } from '@/lib/finance/petty-doc';
+import { transferCalc } from '@/lib/finance/petty-transfer';
 import { showAlert, showConfirm } from '../../api';
-import { countAttachments, postAction, type PettyAction } from '../../petty-api';
+import { countAttachments, getBalance, postAction, type PettyAction } from '../../petty-api';
 
 type Prompt = { isConfirmed?: boolean; value?: string };
 
@@ -23,8 +25,20 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
 
   if (action === 'approve') {
     // flow v2: อนุมัติ = จ่ายเงินในจังหวะเดียวกัน — ถามวันที่จ่าย (สลิปโอนอยู่ในด่านเอกสารอยู่แล้ว)
-    body.attachments = await countAttachments(claim.form_id);
-    const res = await showConfirm({ title: `อนุมัติจ่าย ${baht} บาท`, text: `ใบ ${claim.form_id} · ${claim.payee_name ?? ''}`,
+    const [counts, balance] = await Promise.all([
+      countAttachments(claim.form_id), getBalance(claim.fund_id).catch(() => null),
+    ]);
+    body.attachments = counts;
+    // มี พจร. ในใบ (ทุกประเภท) → ต้องมีเลขที่ใบรับสภาพหนี้ อ้างอิงเลขเอกสารอย่างเดียว
+    if (needsDebtDoc(claim) && !claim.debt_doc_no) {
+      const res = await showConfirm({ title: 'ใบนี้มี พจร.', text: `กรอกเลขที่ใบรับสภาพหนี้ก่อนอนุมัติจ่าย · ใบ ${claim.form_id}`,
+        input: 'text', inputLabel: 'เลขที่ใบรับสภาพหนี้', inputPlaceholder: 'เลขที่เอกสาร',
+        inputValidator: (v: string) => (!v || !v.trim()) ? 'ต้องกรอกเลขที่ใบรับสภาพหนี้' : null, confirmButtonText: 'ถัดไป' }) as Prompt;
+      if (!res?.isConfirmed) return false;
+      body.debt_doc_no = (res.value ?? '').trim();
+    }
+    const res = await showConfirm({ title: `อนุมัติจ่าย ใบ ${claim.form_id}`,
+      html: approveSummaryHtml(claim, balance, (body.debt_doc_no as string | undefined) ?? claim.debt_doc_no),
       input: 'date', inputLabel: 'วันที่จ่ายเงิน', inputValue: bangkokDate(new Date().toISOString()),
       inputValidator: (v: string) => (!v ? 'ต้องระบุวันที่จ่าย' : null), confirmButtonText: 'อนุมัติจ่าย' }) as Prompt;
     if (!res?.isConfirmed) return false;
@@ -87,4 +101,34 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
       text: lines.length ? lines.join('\n') : (err as Error).message });
     return false;
   }
+}
+
+const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+const money = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/**
+ * เนื้อหากล่องอนุมัติจ่าย: ยอดคงเหลือของเจ้าของเงินสดก่อน/หลังอนุมัติ และยอดที่ต้องโอนจริงตามผู้รับเงิน
+ * (ผู้ใช้สั่ง 29/10/2026) · ตัวเลขภาษีแสดงให้ดูเท่านั้น ไม่บันทึก
+ */
+export function approveSummaryHtml(claim: PettyClaim,
+  balance: { available: number } | null, debtDocNo?: string | null): string {
+  const payeeType = typeof claim.detail?.payee_type === 'string' ? claim.detail.payee_type : null;
+  const calc = transferCalc(claim.amount, payeeType);
+  const rows: string[] = [];
+  if (balance) {
+    const after = balance.available - claim.amount;
+    rows.push(`<div style="display:flex;justify-content:space-between"><span>ยอดคงเหลือของคุณ</span><b>${money(balance.available)} บาท</b></div>`);
+    rows.push(`<div style="display:flex;justify-content:space-between"><span>หลังอนุมัติใบนี้</span><b style="color:${after < 0 ? '#be123c' : '#065f46'}">${money(after)} บาท</b></div>`);
+    if (after < 0) rows.push('<div style="color:#be123c;font-size:12px">ติดลบ อนุมัติได้ แต่ควรเร่งส่งเคลียร์ให้การเงินทำจ่ายคืน</div>');
+  } else {
+    rows.push('<div style="color:#64748b;font-size:12px">โหลดยอดคงเหลือไม่ได้ตอนนี้</div>');
+  }
+  const transfer = `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe">
+<div style="display:flex;justify-content:space-between"><span>ยอดตามบิล</span><span>${money(calc.bill)} บาท</span></div>
+<div style="display:flex;justify-content:space-between;font-size:16px"><span>ยอดที่ต้องโอนจริง</span><b>${money(calc.transfer)} บาท</b></div>
+<div style="font-size:12px;color:#475569;margin-top:4px">${escapeHtml(calc.note)}</div></div>`;
+  const debt = debtDocNo || needsDebtDoc(claim)
+    ? `<div style="margin-top:8px;font-size:12px;color:#92400e">ใบนี้มี พจร. · ใบรับสภาพหนี้เลขที่ ${escapeHtml(debtDocNo || '-')}</div>` : '';
+  return `<div style="text-align:left;font-size:14px;line-height:1.7">${rows.join('')}${transfer}${debt}</div>`;
 }

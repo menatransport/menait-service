@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettyClaim } from '@/app/finance/types-petty';
 import {
-  FLOW_STEPS, flowPosition, matchesSearch, matchesTab, pageCount, paginate, quickAction, sortClaims, tabCounts,
+  FLOW_STEPS, flowPosition, matchesSearch, matchesTab, pageCount, paginate, paidInRange, quickAction, sortClaims, tabCounts,
   type PettyTab,
 } from './petty-list';
 
@@ -87,4 +87,21 @@ describe('flowPosition — แถบขั้นตอน', () => {
     expect(flowPosition('SENT_BACK')).toEqual({ index: 3, offTrack: true }));
   test('old transferred claims sit with the approved ones', () =>
     expect(flowPosition('TRANSFERRED')).toEqual({ index: 1, offTrack: false }));
+});
+
+describe('paidInRange — รวมรอบตามช่วงวันที่จ่าย (29/10/2026)', () => {
+  const paid = (d: string | null) => claim({ status: 'APPROVED', transfer_date: d });
+  test('inside the range, both ends included', () => {
+    expect(paidInRange(paid('2026-10-20'), '2026-10-20', '2026-10-26')).toBe(true);
+    expect(paidInRange(paid('2026-10-26'), '2026-10-20', '2026-10-26')).toBe(true);
+  });
+  test('outside', () => expect(paidInRange(paid('2026-10-27'), '2026-10-20', '2026-10-26')).toBe(false));
+  test('open ends take everything on that side', () => {
+    expect(paidInRange(paid('2026-01-01'), '', '2026-10-26')).toBe(true);
+    expect(paidInRange(paid('2026-12-31'), '2026-10-20', '')).toBe(true);
+  });
+  test('no payment date only matches an open range', () => {
+    expect(paidInRange(paid(null), '', '')).toBe(true);
+    expect(paidInRange(paid(null), '2026-10-20', '')).toBe(false);
+  });
 });

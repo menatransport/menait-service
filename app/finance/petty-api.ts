@@ -42,6 +42,7 @@ export function resubmitClaim(claim: PettyClaim) {
     event_date: i.event_date, truck_code: i.truck_code ?? null, truck_plate: i.truck_plate ?? null,
     truck_type: i.truck_type ?? null, ref_no: i.ref_no ?? null, qty: i.qty, rate: i.rate,
     remark: i.remark ?? null, driver_name: i.driver_name ?? null,
+    driver_role: i.driver_role ?? null, tire_position: i.tire_position ?? null,
   }));
   return updateClaim(claim.form_id, {
     fund_id: claim.fund_id, expense_type: claim.expense_type, expense_date: claim.expense_date,

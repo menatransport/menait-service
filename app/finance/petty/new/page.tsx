@@ -7,7 +7,7 @@ import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { claimTotal, periodOf, type PettyItemDraft } from '@/lib/finance/petty-items';
-import { blankItem, claimPayload, headerFields, isItemBased, itemsFrom } from '@/lib/finance/petty-spec';
+import { blankHeader, blankItem, claimPayload, headerFields, isItemBased, itemsFrom } from '@/lib/finance/petty-spec';
 import { payeeBankProblem } from '@/lib/finance/petty-payee';
 import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
 import { fundsForExpenseType } from '@/lib/finance/petty-account-code';
@@ -66,7 +66,11 @@ export default function NewPettyClaimPage() {
   }, []);
 
   // เปลี่ยนประเภท = เริ่มกรอกใหม่ เพราะช่องและหมวดไฟล์มาจาก spec ของประเภทนั้น — วันที่ขอเบิกกลับเป็นวันนี้เสมอ
-  useEffect(() => { setHeader({ expense_date: bangkokToday() }); setRows([]); setFiles({}); setDups([]); }, [typeCode]);
+  // ช่องที่ spec ตั้งค่าตั้งต้นไว้ (เช่น พจส./พจร. = พจส.) เติมให้ตั้งแต่แรก
+  useEffect(() => {
+    setHeader(blankHeader(types?.find(t => t.code === typeCode)?.spec, bangkokToday()));
+    setRows([]); setFiles({}); setDups([]);
+  }, [typeCode, types]);
   // เปลี่ยนประเภทแล้ววงเงินที่เลือกไว้ไม่อยู่ในแผนกที่เบิกได้ → ล้างให้เลือกใหม่
   useEffect(() => {
     setFundId(id => (id && funds && !fundsForExpenseType(typeCode, funds).some(f => String(f.id) === id) ? '' : id));

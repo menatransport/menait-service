@@ -10,6 +10,8 @@ import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { canApprove, canReview } from '@/lib/finance/petty-access';
 import { isItemBased } from '@/lib/finance/petty-spec';
+import { needsDebtDoc } from '@/lib/finance/petty-debt';
+import { transferCalc } from '@/lib/finance/petty-transfer';
 import { canUploadPettyFile } from '@/lib/finance/petty-upload';
 import { formatBaht, formatDate } from '@/lib/finance/status';
 import { showAlert, showConfirm } from '../../api';
@@ -220,6 +222,13 @@ export function PettyClaimDetail({ formId, onChanged, compact = false, headerRig
           <Field label="รหัสค่าใช้จ่าย (บัญชี)" value={accountCodeLine(fund) || '-'} />
           <Field label="เจ้าของเงินสด (ผู้อนุมัติจ่าย)" value={claim.approved_by_name ?? claim.approved_by ?? '-'} />
           <Field label="วันที่จ่าย" value={formatDate(claim.transfer_date) || '-'} />
+          <Field label="ยอดที่ต้องโอนจริง" value={(() => {
+            const calc = transferCalc(claim.amount, typeof claim.detail?.payee_type === 'string' ? claim.detail.payee_type : null);
+            return <span title={calc.note}>{formatBaht(calc.transfer)} บาท{calc.kind !== 'none' && <span className="ml-1 text-xs font-normal text-ink-500">({calc.kind === 'withhold' ? `หัก 3% ${formatBaht(calc.tax)}` : `บริษัทออกภาษีให้ ${formatBaht(calc.tax)}`})</span>}</span>;
+          })()} />
+          {(claim.debt_doc_no || needsDebtDoc(claim)) && (
+            <Field label="เลขที่ใบรับสภาพหนี้ (มี พจร.)" value={claim.debt_doc_no ?? 'กรอกตอนอนุมัติจ่าย'} />
+          )}
           <Field label="บัญชีตรวจเมื่อ" value={claim.reviewed_at ? new Date(claim.reviewed_at).toLocaleString('th-TH') : '-'} />
         </div>
       </Panel>

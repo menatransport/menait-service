@@ -1,6 +1,8 @@
 export type PettySpecField = {
   key: string; label: string; type: string; required?: boolean;
   options?: string[]; auto?: string; auto_from?: string; search?: string[];
+  /** ค่าตั้งต้นของช่องในแถว/หัวใบใหม่ เช่น พจส. */
+  default?: string;
 };
 export type PettySpecAttachment = { key: string; label: string; required?: boolean; max?: number; note?: string };
 export type PettySpec = {
@@ -33,6 +35,10 @@ export type PettyClaimItem = {
   ref_no?: string | null; qty: number; rate: number; amount: number; remark?: string | null;
   /** พจส. ต่อแถว (ค่าชั่ง/ยาง/ซ่อม) — ใช้ในใบสรุปรายการ */
   driver_name?: string | null;
+  /** "พจส." / "พจร." — มี พจร. ต้องมีเลขที่ใบรับสภาพหนี้ตอนอนุมัติ */
+  driver_role?: string | null;
+  /** ใบยาง: รหัสตำแหน่งแบบ WMS คั่นด้วย , */
+  tire_position?: string | null;
 };
 export type PettyClaim = {
   id: number; form_id: string; fund_id: number; expense_type: string;
@@ -50,6 +56,8 @@ export type PettyClaim = {
   transfer_date: string | null; review_remark: string | null; return_reason: string | null;
   reviewed_by: string | null; reviewed_at: string | null; submitted_to_acc_at: string | null;
   dup_override_reason: string | null; batch_id: number | null;
+  /** เลขที่ใบรับสภาพหนี้ (มีเมื่อใบมี พจร.) */
+  debt_doc_no?: string | null;
   items: PettyClaimItem[];
 };
 export type PettyBalance = {

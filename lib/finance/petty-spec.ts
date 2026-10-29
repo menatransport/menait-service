@@ -22,10 +22,17 @@ export function blankItem(spec: PettySpec | null | undefined): PettyItemDraft & 
   const row: Record<string, unknown> = { qty: 1 };
   for (const field of itemFields(spec)) {
     if (field.key === 'truck') { row.truck_code = ''; row.truck_plate = ''; continue; }
-    // ประเภทที่ให้กรอกจำนวนเอง (ยางนับเป็นเส้น) เริ่มที่ 1 ไม่ใช่ช่องว่าง
-    row[field.key] = field.key === 'qty' ? 1 : '';
+    // ประเภทที่ให้กรอกจำนวนเอง (ยางนับเป็นเส้น) เริ่มที่ 1 ไม่ใช่ช่องว่าง · ช่องที่ spec ตั้ง default (พจส./พจร.) เริ่มที่ค่านั้น
+    row[field.key] = field.key === 'qty' ? 1 : (field.default ?? '');
   }
   return row as PettyItemDraft & Record<string, unknown>;
+}
+
+/** หัวใบเปล่าตาม spec — วันที่ขอเบิก + ช่องที่ spec ตั้งค่าตั้งต้นไว้ */
+export function blankHeader(spec: PettySpec | null | undefined, today: string): Record<string, unknown> {
+  const header: Record<string, unknown> = { expense_date: today };
+  for (const field of headerFields(spec)) if (field.default !== undefined) header[field.key] = field.default;
+  return header;
 }
 
 /** payload ที่ส่งไป BFF — ไม่มี amount และไม่มี created_by (BE คำนวณ / BFF เติมจาก session) */

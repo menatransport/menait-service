@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettySpec } from '@/app/finance/types-petty';
-import { blankItem, claimPayload, headerFields, isItemBased, itemFields, itemsFrom, printUnit, requiredAttachments, singleItemFrom } from './petty-spec';
+import { blankHeader, blankItem, claimPayload, headerFields, isItemBased, itemFields, itemsFrom, printUnit, requiredAttachments, singleItemFrom } from './petty-spec';
 
 const WEIGH: PettySpec = {
   item_based: true,
@@ -149,5 +149,15 @@ describe('itemsFrom — ค่าเดินทางรวมค่าทา�
   test('ค่าทางด่วน 0 หรือว่าง ไม่เพิ่มแถว', () => {
     expect(itemsFrom({ ...base, toll_amount: 0 })).toHaveLength(1);
     expect(itemsFrom({ ...base, toll_amount: '' })).toHaveLength(1);
+  });
+});
+
+describe('ค่าตั้งต้นของช่อง (default) — พจส./พจร. เริ่มที่ พจส. (29/10/2026)', () => {
+  const role = { key: 'driver_role', label: 'พจส./พจร.', type: 'select', options: ['พจส.', 'พจร.'], required: true, default: 'พจส.' };
+  test('new rows start with the default', () =>
+    expect(blankItem({ item_based: true, item_fields: [role] }).driver_role).toBe('พจส.'));
+  test('header starts with defaults too, keeping the date', () => {
+    const h = blankHeader({ header_fields: [role, { key: 'payee_name', label: 'จ่ายให้', type: 'text' }] }, '2026-10-29');
+    expect(h).toEqual({ expense_date: '2026-10-29', driver_role: 'พจส.' });
   });
 });

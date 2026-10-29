@@ -74,3 +74,11 @@ export function flowPosition(status: PettyStatus): { index: number; offTrack: bo
 }
 
 export const statusLabel = (status: PettyStatus) => PETTY_STATUS_LABELS[status];
+
+/** ใบที่จ่ายในช่วงวันที่ (รวมปลายทั้งสองข้าง) — ใช้รวมรอบส่งเคลียร์ตามช่วงวัน · เว้นปลายไหน = ไม่จำกัดฝั่งนั้น */
+export function paidInRange(claim: PettyClaim, from: string, to: string): boolean {
+  if (!from && !to) return true;
+  const day = claim.transfer_date?.slice(0, 10);
+  if (!day) return false;
+  return (!from || day >= from) && (!to || day <= to);
+}

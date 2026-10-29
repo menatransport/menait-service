@@ -4,6 +4,7 @@ import { Plus, Trash2, Truck } from 'lucide-react';
 import type { PettySpec } from '@/app/finance/types-petty';
 import { claimTotal, lineAmount, type PettyItemDraft } from '@/lib/finance/petty-items';
 import { blankItem, itemFields } from '@/lib/finance/petty-spec';
+import { TirePositionPicker } from './TirePositionPicker';
 import { TruckPicker } from './TruckPicker';
 
 type Row = PettyItemDraft & Record<string, unknown>;
@@ -71,7 +72,11 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
                     const missing = !readOnly && f.required && value.trim() === '';
                     return (
                       <td key={f.key} className="py-1.5">
-                        {f.type === 'select' ? (
+                        {f.type === 'tire_positions' ? (
+                          <TirePositionPicker value={value} qty={row.qty as number | string | null | undefined}
+                            readOnly={readOnly} missing={missing} label={`${f.label} แถวที่ ${index + 1}`}
+                            onChange={next => setCell(index, f.key, next)} />
+                        ) : f.type === 'select' ? (
                           <select value={value} disabled={readOnly}
                             onChange={e => setCell(index, f.key, e.target.value)}
                             aria-label={`${f.label} แถวที่ ${index + 1}`}
