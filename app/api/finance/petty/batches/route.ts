@@ -4,7 +4,9 @@ import { beUrl, proxy, requireUser } from '@/lib/finance/server';
 
 /**
  * รอบส่งเคลียร์ (flow v2) — view=mine รอบของกองทุนที่ฉันถือ · view=clear รอบที่ฉันอนุมัติเคลียร์ได้
+ * · view=clear_history รอบที่ฉันอนุมัติ/ไม่อนุมัติไปแล้ว (แถบ อนุมัติ/ไม่อนุมัติแล้ว ของหัวหน้า)
  * · view=all ทุกรอบ (บัญชี/การเงิน/แอดมินเท่านั้น) · ไม่ระบุ = mine (แคบสุดเสมอ)
+ * ตัวตนมาจาก session เสมอ ไม่รับรหัสพนักงานจาก query
  */
 export async function GET(req: NextRequest) {
   const guard = await requireUser(req);
@@ -14,6 +16,7 @@ export async function GET(req: NextRequest) {
   const me = guard.user.employee_id;
   const scope =
     view === 'clear' ? { clear_approver: me }
+    : view === 'clear_history' ? { cleared_by: me }
     : view === 'all' && canSeeAllClaims(guard.user) ? {}
     : { holder: me };
   return proxy(beUrl('/finance/petty/batches', {

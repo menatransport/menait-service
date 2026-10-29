@@ -55,8 +55,9 @@ export function resubmitClaim(claim: PettyClaim) {
 
 // ---- รอบส่งเคลียร์ ----
 
-/** view: mine = รอบของกองทุนที่ฉันถือ · clear = รอบที่ฉันอนุมัติเคลียร์ได้ · all = ทุกรอบ (บัญชี/การเงิน) */
-export function listRounds(view: 'mine' | 'clear' | 'all', status?: string, limit?: number) {
+/** view: mine = รอบของกองทุนที่ฉันถือ · clear = รอบที่ฉันอนุมัติเคลียร์ได้ · clear_history = รอบที่ฉันตัดสินไปแล้ว
+ *  · all = ทุกรอบ (บัญชี/การเงิน) */
+export function listRounds(view: 'mine' | 'clear' | 'clear_history' | 'all', status?: string, limit?: number) {
   const qs = new URLSearchParams({ view });
   if (status) qs.set('status', status);
   if (limit) qs.set('limit', String(limit));
