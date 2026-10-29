@@ -35,8 +35,7 @@ function RoundClaims({ claims, typeName, onOpen }: {
       <table className="w-full">
         <thead className="bg-gray-100">
           <tr>
-            <th className={TH}>เลขที่ใบเบิก</th>
-            <th className={TH}>ประเภท</th>
+            <th className={TH}>เลขที่ใบเบิก · ประเภท</th>
             <th className={TH}>จ่ายให้</th>
             <th className={`${TH} text-right`}>ยอดเงิน</th>
             <th className={TH}>เลขที่ DD</th>
@@ -46,9 +45,11 @@ function RoundClaims({ claims, typeName, onOpen }: {
         <tbody className="divide-y divide-gray-100">
           {claims.map(c => (
             <tr key={c.id} onClick={() => onOpen(c)} className="cursor-pointer transition-colors hover:bg-gray-50">
-              <td className={`${TD} font-medium text-brand-800`}>{c.form_id}</td>
-              <td className={TD}>{typeName(c.expense_type)}</td>
-              <td className="px-3 py-2 align-top text-sm"><div className="max-w-44 truncate" title={c.payee_name ?? undefined}>{c.payee_name ?? '-'}</div></td>
+              <td className={TD}>
+                <p className="font-medium text-brand-800">{c.form_id}</p>
+                <p className="text-xs text-gray-500">{typeName(c.expense_type)}</p>
+              </td>
+              <td className="px-3 py-2 align-top text-sm"><div className="max-w-40 truncate" title={c.payee_name ?? undefined}>{c.payee_name ?? '-'}</div></td>
               <td className={`${TD} text-right tabular-nums`}>{formatBaht(c.amount)}</td>
               <td className={TD}>{c.dd_no ?? '-'}</td>
               <td className={TD}><ClaimBadge status={c.status} /></td>

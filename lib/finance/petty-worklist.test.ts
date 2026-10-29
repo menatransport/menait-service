@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettyClaim, PettyExpenseType, PettyFund, PettyRound } from '@/app/finance/types-petty';
 import {
-  CLAIM_COLUMNS, ROUND_COLUMNS, WORKLIST_TABS, claimHistory, defaultTab, inMonthRange, matchesWorklistFilters,
+  CLAIM_COLUMNS, CLAIM_STATUS_LABELS, ROUND_COLUMNS, WORKLIST_TABS, claimHistory, defaultTab, inMonthRange, matchesWorklistFilters,
   payFormError, payPayload, resolveTab, roundActionBody, roundDocChanges, roundDocError, roundDuplicateText,
   roundHistory, roundLogLabel, rowsForTab, searchWorklist, sortWorklist, tabKind, voucherFormError,
   voucherPayload, worklistCounts, worklistSheetRows, worklistStats, type WorklistCtx,
@@ -110,6 +110,13 @@ describe('columns', () => {
       'ลำดับ', 'เลขที่รอบ', 'เจ้าของเงินสด', 'สาขา', 'แผนก', 'สถานะ', 'เลขที่ตั้งเบิก', 'วันที่ตั้งเบิก', 'เลขที่ทำจ่าย',
       'จำนวนใบ', 'ยอดเงิน', 'วันที่ส่งเคลียร์', 'หัวหน้าที่อนุมัติเคลียร์', 'วันที่โอนเงิน', 'ปิดรอบเมื่อ',
     ]);
+  });
+  test('claim status words follow Advance where the step is the same, short enough for the round sheet', () => {
+    expect(CLAIM_STATUS_LABELS.SENT_BACK).toBe('ส่งกลับแก้ไข');
+    expect(CLAIM_STATUS_LABELS.AWAITING_REVIEW).toBe('รอบัญชีตรวจ');
+    expect(CLAIM_STATUS_LABELS.CLEAR_PENDING).toBe('รออนุมัติเคลียร์');
+    expect(CLAIM_STATUS_LABELS.REVIEWED).toBe('ตรวจผ่านแล้ว');
+    expect(CLAIM_STATUS_LABELS.CLOSED).toBe('ปิดแล้ว');
   });
   test('claim cell text', () => {
     const c = claim('SENT_BACK', { review_remark: 'ใบชั่งเบลอ', dd_no: 'LBDD26100012' });

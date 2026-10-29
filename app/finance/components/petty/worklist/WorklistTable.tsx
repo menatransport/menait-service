@@ -343,7 +343,8 @@ function ClaimCard({ claim, ctx, onOpen }: { claim: PettyClaim; ctx: WorklistCtx
           <p className="text-xs font-medium text-brand-600">{claim.form_id}</p>
           <p className="truncate text-sm font-semibold text-gray-800">{ctx.typeName(claim.expense_type)} · {claim.payee_name ?? '-'}</p>
           <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-500"><User size={11} /> {claim.created_by_name ?? claim.created_by}</p>
-          <p className="mt-0.5 text-xs text-gray-500">ช่วงวันที่: {period || '-'} · DD: {claim.dd_no ?? '-'}</p>
+          <p className="mt-0.5 text-xs text-gray-500">ช่วงวันที่: {period || '-'}</p>
+          {claim.dd_no && <p className="mt-0.5 text-xs text-gray-500">DD: {claim.dd_no}</p>}
           {claim.status === 'SENT_BACK' && claim.review_remark && (
             <p className="mt-0.5 truncate text-xs text-orange-700">เหตุผล: {claim.review_remark}</p>
           )}

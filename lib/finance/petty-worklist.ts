@@ -86,8 +86,13 @@ export const ROUND_STATUS_STYLES: Record<PettyRoundStatus, string> = {
   CLOSED: 'bg-emerald-50 text-mint-700 border-emerald-200',
 };
 
-/** ป้ายใบในหน้างาน — ส่งกลับแก้ไขใช้คำของ Advance */
-export const CLAIM_STATUS_LABELS: Record<PettyStatus, string> = { ...PETTY_STATUS_LABELS, SENT_BACK: 'ส่งกลับแก้ไข' };
+/** ป้ายใบในหน้างานและในรอบ — ขั้นที่เหมือน Advance ใช้คำของ Advance · สั้นพอให้ตารางในแผงรอบไม่ล้น */
+export const CLAIM_STATUS_LABELS: Record<PettyStatus, string> = {
+  ...PETTY_STATUS_LABELS,
+  CLEAR_PENDING: 'รออนุมัติเคลียร์',
+  SENT_BACK: 'ส่งกลับแก้ไข',
+  REVIEWED: 'ตรวจผ่านแล้ว',
+};
 
 // ---------------------------------------------------------------- ตัวเลขสรุป
 
