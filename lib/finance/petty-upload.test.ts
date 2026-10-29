@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { canUploadPettyFile, folderIsFull, isPettyFolder, PETTY_FOLDERS, PETTY_MAX_BYTES, pettyFileProblem, pettyKeyBelongsTo } from './petty-upload';
+import {
+  canUploadPettyFile, folderIsFull, isPettyFolder, PETTY_FOLDERS, PETTY_MAX_BYTES, pettyFileProblem, pettyKeyBelongsTo,
+  roundListProblem, roundUploadProblem,
+} from './petty-upload';
 
 const claim = { created_by: '55555', fund_id: 1, status: 'PENDING_APPROVAL' as const };
 const fund = { id: 1, holder_employee_id: '12345' };
@@ -88,4 +91,44 @@ describe('flow v2 — แนบไฟล์ได้ถึงตอนบัญ�
     expect(canUploadPettyFile({ user: { employee_id: '55555' }, claim: at('CLEAR_PENDING'), fund: holderFund })).toBe(true));
   test('not after accounting passed it', () =>
     expect(canUploadPettyFile({ user: { employee_id: '55555' }, claim: at('REVIEWED'), fund: holderFund })).toBe(false));
+});
+
+describe('สลิปโอนของรอบ (/api/uploads3 with a round number)', () => {
+  const tre = { employee_id: '610197', is_treasury: true };
+  const acc = { employee_id: '660548', is_accounting: true };
+  const round = { id: 7, batch_no: 'LB-B02-2610-B7', status: 'VOUCHERED', holder_employee_id: '12345', clear_approved_by: '600100' };
+  const ok = { user: tre, round, formId: 'LB-B02-2610-B7', folder: 'pay', roundId: '7' };
+
+  test('treasury may upload into the pay folder of a round at pay', () => expect(roundUploadProblem(ok)).toBeNull());
+  test('only the pay folder', () => {
+    expect(roundUploadProblem({ ...ok, folder: '' })?.status).toBe(400);
+    expect(roundUploadProblem({ ...ok, folder: 'receipt' })?.status).toBe(400);
+    expect(roundUploadProblem({ ...ok, folder: '../x' })?.status).toBe(400);
+  });
+  test('round_id must be a plain number', () => {
+    expect(roundUploadProblem({ ...ok, roundId: null })?.status).toBe(400);
+    expect(roundUploadProblem({ ...ok, roundId: '7/../../x' })?.status).toBe(400);
+    expect(roundUploadProblem({ ...ok, roundId: '' })?.status).toBe(400);
+  });
+  test('the round must exist and carry the same number (no writing under another round)', () => {
+    expect(roundUploadProblem({ ...ok, round: null })?.status).toBe(404);
+    expect(roundUploadProblem({ ...ok, formId: 'LB-B02-2610-B8' })?.status).toBe(400);
+  });
+  test('accounting or anyone else: 403', () => {
+    expect(roundUploadProblem({ ...ok, user: acc })?.status).toBe(403);
+    expect(roundUploadProblem({ ...ok, user: { employee_id: '12345' } })?.status).toBe(403);
+  });
+  test('a round not yet at pay: 409', () => {
+    expect(roundUploadProblem({ ...ok, round: { ...round, status: 'REVIEWED' } })?.status).toBe(409);
+  });
+
+  test('listing: anyone who may see the round', () => {
+    const list = { user: acc, round, formId: 'LB-B02-2610-B7', roundId: '7' };
+    expect(roundListProblem(list)).toBeNull();
+    expect(roundListProblem({ ...list, user: { employee_id: '12345' } })).toBeNull(); // holder
+    expect(roundListProblem({ ...list, user: { employee_id: '99999' } })?.status).toBe(403);
+    expect(roundListProblem({ ...list, roundId: null })?.status).toBe(400);
+    expect(roundListProblem({ ...list, round: null })?.status).toBe(404);
+    expect(roundListProblem({ ...list, formId: 'LB-B02-2610-B1' })?.status).toBe(400);
+  });
 });

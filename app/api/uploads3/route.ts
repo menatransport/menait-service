@@ -2,11 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DeleteObjectCommand, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 import { BASE_PATH, BUCKET_NAME, FORM_ID_PATTERN, isSafeUploadName, s3 } from '@/lib/s3';
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { denyUnlessAdvViewer, isAdvOwner, isRoundHeadOf, loadPettyClaimFor, requireUser } from '@/lib/finance/server';
+import { beJsonOrNull, beUrl, denyUnlessAdvViewer, isAdvOwner, isRoundHeadOf, loadPettyClaimFor, requireUser } from '@/lib/finance/server';
 import { isAdvTarget } from '@/lib/finance/formsubmit-guard';
 import { advUploadRole, isAdvUploadFolder } from '@/lib/finance/adv-access';
-import { canSeeClaim, isPettyFormId } from '@/lib/finance/petty-access';
-import { canUploadPettyFile, folderIsFull, isPettyFolder, pettyFileProblem, pettyKeyBelongsTo } from '@/lib/finance/petty-upload';
+import { canSeeClaim, isPettyFormId, isPettyRoundNo } from '@/lib/finance/petty-access';
+import {
+  canUploadPettyFile, folderIsFull, isPettyFolder, pettyFileProblem, pettyKeyBelongsTo, roundListProblem, roundUploadProblem,
+} from '@/lib/finance/petty-upload';
+
+const ROUND_ID = /^\d{1,9}$/;
+
+type RoundRow = { batch_no: string; status: string; holder_employee_id: string | null; clear_approved_by: string | null; can_clear?: boolean };
+
+/** รอบส่งเคลียร์จาก BE ด้วย id (เลขล้วนเท่านั้น ไม่ให้ค่าจากผู้ใช้พาไป path อื่น) · หาไม่เจอ/BE ล่ม = null */
+async function loadRound(roundId: string | null, employeeId?: string): Promise<RoundRow | null> {
+  if (!roundId || !ROUND_ID.test(roundId)) return null;
+  const round = await beJsonOrNull(beUrl(`/finance/petty/batches/${roundId}`, { employee_id: employeeId })) as RoundRow | null;
+  return round && typeof round.batch_no === 'string' ? round : null;
+}
 
 export async function POST(req: NextRequest) {
   const guard = await requireUser(req);
@@ -16,8 +29,11 @@ export async function POST(req: NextRequest) {
   const form_id = formData.get('form_id') as string;
   const folder = ((formData.get('folder') as string | null) ?? '').trim();
   // ใบเงินสดย่อยมีหมวดไฟล์ของตัวเองตาม spec ของประเภทการเบิก (lib/finance/petty-upload.ts)
-  const pettyTarget = isPettyFormId(form_id);
-  const folderOk = pettyTarget ? folder === '' || isPettyFolder(folder) : isAdvUploadFolder(folder);
+  // รอบส่งเคลียร์ (เลขรอบ เช่น LB-B02-2610-B7) มีแค่โฟลเดอร์ pay = สลิปโอนที่การเงินจ่ายทั้งรอบ
+  const roundTarget = isPettyRoundNo(form_id);
+  const pettyTarget = !roundTarget && isPettyFormId(form_id);
+  const folderOk = roundTarget ? folder === 'pay'
+    : pettyTarget ? folder === '' || isPettyFolder(folder) : isAdvUploadFolder(folder);
   if (!folderOk) {
     return NextResponse.json({ error: 'โฟลเดอร์ไม่ถูกต้อง' }, { status: 400 });
   }
@@ -34,8 +50,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'ไม่มีหมายเลขเอกสาร' }, { status: 400 });
   }
 
-  if (!FORM_ID_PATTERN.test(form_id)) {
+  if (!roundTarget && !FORM_ID_PATTERN.test(form_id)) {
     return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
+  }
+
+  // สลิปโอนของรอบ: การเงิน/แอดมินเท่านั้น และรอบต้องถึงขั้นจ่ายเงิน · round_id ต้องพาไปเจอรอบเลขเดียวกัน
+  if (roundTarget) {
+    const roundId = formData.get('round_id');
+    const id = typeof roundId === 'string' ? roundId : null;
+    const problem = roundUploadProblem({ user: guard.user, round: await loadRound(id), formId: form_id, folder, roundId: id });
+    if (problem) return NextResponse.json({ error: problem.error }, { status: problem.status });
+    const fileProblem = pettyFileProblem(file.name, file.size);
+    if (fileProblem) return NextResponse.json({ error: fileProblem }, { status: 400 });
   }
 
   // petty: แนบได้เฉพาะเจ้าหน้าที่ผู้เปิดใบ ผู้ถือกองทุนของใบนั้น และแอดมิน — ไม่ใช่ทุกคนที่ล็อกอิน
@@ -106,11 +132,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'ไม่มีหมายเลขเอกสาร' }, { status: 400 });
   }
 
-  if (!FORM_ID_PATTERN.test(form_id)) {
+  const roundTarget = isPettyRoundNo(form_id);
+  if (!roundTarget && !FORM_ID_PATTERN.test(form_id)) {
     return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
   }
 
-  if (isPettyFormId(form_id)) {
+  if (roundTarget) {
+    // ไฟล์ของรอบเห็นได้เท่าที่เห็นตัวรอบ (เจ้าของเงินสด หัวหน้า บัญชี การเงิน แอดมิน)
+    const roundId = searchParams.get('round_id');
+    const round = await loadRound(roundId, guard.user.employee_id);
+    const problem = roundListProblem({ user: guard.user, round, formId: form_id, roundId });
+    if (problem) return NextResponse.json({ error: problem.error }, { status: problem.status });
+  } else if (isPettyFormId(form_id)) {
     // ไฟล์แนบของใบเงินสดย่อยเห็นได้เท่าที่เห็นตัวใบ — ไม่ใช่ทุกคนที่ล็อกอิน
     const loaded = await loadPettyClaimFor(form_id);
     const allowed = !!loaded.claim && (canSeeClaim(

@@ -1,3 +1,4 @@
+import { canCloseBatch, canSeeRound, canUploadRoundSlip } from './petty-access';
 import type { PettyStatus } from '@/lib/finance/petty-status';
 
 /** หมวดไฟล์แนบที่ spec ของประเภทการเบิกใช้ได้ — คุมที่นี่เพราะ /api/uploads3 ไม่รู้จัก spec
@@ -59,4 +60,43 @@ export function pettyKeyBelongsTo(key: string, formId: string, basePath = 'menai
   const prefix = `${basePath}/${formId}/`;
   if (!key.startsWith(prefix) || key.endsWith('/')) return false;
   return !key.split('/').some(seg => seg === '' || seg === '.' || seg === '..');
+}
+
+// ---- สลิปโอนของรอบส่งเคลียร์ (การเงินจ่ายทั้งรอบ) — S3 menait-service/<เลขรอบ>/pay/
+// เลขรอบมาพร้อม round_id: route ถามรอบจาก BE ด้วย id แล้วต้องได้เลขรอบตรงกัน ไม่งั้นเขียนข้ามรอบได้
+
+type RoundUser = Parameters<typeof canSeeRound>[0];
+type RoundLike = {
+  batch_no: string; status: string; holder_employee_id: string | null; clear_approved_by: string | null; can_clear?: boolean | null;
+};
+export type UploadProblem = { status: number; error: string };
+
+const ROUND_ID = /^\d{1,9}$/;
+
+function roundMismatch(round: RoundLike | null, formId: string, roundId: string | null | undefined): UploadProblem | null {
+  if (!roundId || !ROUND_ID.test(roundId)) return { status: 400, error: 'เลขรอบไม่ถูกต้อง' };
+  if (!round) return { status: 404, error: 'ไม่พบรอบส่งเคลียร์' };
+  if (round.batch_no !== formId) return { status: 400, error: 'เลขรอบไม่ตรงกับรอบที่เลือก' };
+  return null;
+}
+
+/** แนบสลิปโอนเข้ารอบได้ไหม — null = ได้ */
+export function roundUploadProblem(opts: {
+  user: RoundUser; round: RoundLike | null; formId: string; folder: string; roundId: string | null | undefined;
+}): UploadProblem | null {
+  if (opts.folder !== 'pay') return { status: 400, error: 'โฟลเดอร์ไม่ถูกต้อง' };
+  const bad = roundMismatch(opts.round, opts.formId, opts.roundId);
+  if (bad) return bad;
+  if (!canCloseBatch(opts.user)) return { status: 403, error: 'แนบสลิปโอนของรอบได้เฉพาะฝ่ายการเงิน' };
+  if (!canUploadRoundSlip(opts.user, opts.round)) return { status: 409, error: 'รอบนี้ยังไม่ถึงขั้นจ่ายเงิน' };
+  return null;
+}
+
+/** ดูไฟล์ของรอบได้ไหม — คนที่เปิดดูรอบได้ (เจ้าของเงินสด หัวหน้า บัญชี การเงิน แอดมิน) */
+export function roundListProblem(opts: {
+  user: RoundUser; round: RoundLike | null; formId: string; roundId: string | null | undefined;
+}): UploadProblem | null {
+  const bad = roundMismatch(opts.round, opts.formId, opts.roundId);
+  if (bad) return bad;
+  return canSeeRound(opts.user, opts.round!) ? null : { status: 403, error: 'ไม่มีสิทธิ์ดูรอบนี้' };
 }
