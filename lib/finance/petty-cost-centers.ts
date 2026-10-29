@@ -92,11 +92,47 @@ export function costCenterLabel(code: string | null | undefined): string {
   return hit ? `${hit.code} ${hit.name}` : code;
 }
 
-/** ค่าตั้งต้นจากวงเงิน: สาขา '03' + แผนก 'B02' → '3B02' · ไม่มีในรายการ = '' ให้ผู้เปิดใบเลือกเอง */
-export function defaultCostCenter(fund: Pick<PettyFund, 'branch_code' | 'division_code'> | null | undefined): string {
-  if (!fund) return '';
-  const digit = String(Number(fund.branch_code));
-  const code = `${digit}${fund.division_code}`;
+/**
+ * ฝ่ายในระบบ HR (divisions.division_code ผ่าน departments.division_id) → รหัสฝ่ายของบัญชี
+ * ผู้ใช้อนุมัติ map นี้ 29/10/2026 (ค่าตั้งต้นเท่านั้น ผู้เบิกเปลี่ยนเองได้)
+ */
+const HR_DIVISION_TO_ACCOUNT: Record<string, string> = {
+  ACC: 'A04', FIN: 'A04',                                   // บัญชี · การเงิน
+  IT: 'A05',
+  HR: 'A03', HCB: 'A03', HOD: 'A03', HRC: 'A03', HTA: 'A03', HPR: 'A03',
+  VHC: 'B02',                                               // ยานยนต์
+  SPR: 'B03',                                               // จัดซื้อ รวมสโตร์
+  STY: 'B04', CPA: 'B04',                                   // ความปลอดภัย · Compliance (ตารางบัญชีเดิมรวมใน B04)
+  OPS: 'B06',                                               // Operation Support · Process Excellence · Freight Rate · Fuel Control
+  LKB: 'B01', SRB: 'B01', BPK: 'B01',                       // ฝ่ายจัดส่ง / ศูนย์ปฏิบัติการ
+  EX: 'A01',                                                // Chief-Level → ฝ่ายบริหาร
+  CSC: 'A06',                                               // Company Secretary & Compliance → CEO Office
+  BD: 'B07',
+};
+
+/** แผนกที่ไม่ได้ผูกฝ่ายในระบบ — departments.department_id → รหัสของบัญชี (ไม่รวมเลขศูนย์) */
+const DEPARTMENT_TO_ACCOUNT: Record<number, string> = {
+  9: '500', // Sales & Driver Partner (แผนกขายรถร่วม) → x500 รถร่วม
+};
+
+const DIGIT_OF_CENTER: Record<string, string> = { 'สกท': '1', 'สสบ': '2', 'ศลบ': '3' };
+
+export type CostCenterUser = {
+  site?: string | null;
+  department_id?: number | null;
+  division?: { division_code?: string | null } | null;
+};
+
+/** ค่าตั้งต้นจากผู้เบิก: เลขศูนย์จาก site + รหัสฝ่ายจากแผนก เช่น Process Excellence ที่ Bangkok HQ → 1B06
+ *  ไม่มีในรายการ / map ไม่ได้ = '' ให้ผู้เบิกเลือกเอง */
+export function defaultCostCenterForUser(user: CostCenterUser | null | undefined): string {
+  if (!user) return '';
+  const center = centerOfSite(user.site);
+  const digit = center ? DIGIT_OF_CENTER[center] : undefined;
+  const part = (user.department_id != null ? DEPARTMENT_TO_ACCOUNT[user.department_id] : undefined)
+    ?? HR_DIVISION_TO_ACCOUNT[user.division?.division_code ?? ''];
+  if (!digit || !part) return '';
+  const code = `${digit}${part}`;
   return BY_CODE.has(code) ? code : '';
 }
 

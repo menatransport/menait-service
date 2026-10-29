@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   COST_CENTERS, COST_CENTER_GROUPS, centerOfSite, claimCostCenterLine, costCenterGroupsForSite, costCenterLabel,
-  defaultCostCenter, isCostCenter,
+  defaultCostCenterForUser, isCostCenter,
 } from './petty-cost-centers';
 
 describe('รายการศูนย์และแผนก (จากผู้ใช้ 29/10/2026)', () => {
@@ -27,13 +27,34 @@ describe('รายการศูนย์และแผนก (จากผ�
   });
 });
 
-describe('ค่าตั้งต้นจากวงเงิน', () => {
-  test('สาขา 03 + B02 → 3B02', () => expect(defaultCostCenter({ branch_code: '03', division_code: 'B02' })).toBe('3B02'));
-  test('สาขา 01 + A04 → 1A04', () => expect(defaultCostCenter({ branch_code: '01', division_code: 'A04' })).toBe('1A04'));
-  test('ไม่มีในรายการ (สสบ ไม่มี A02) → ว่าง ให้เลือกเอง', () =>
-    expect(defaultCostCenter({ branch_code: '02', division_code: 'A02' })).toBe(''));
-  test('สาขาที่ยังไม่มีในรายการ → ว่าง', () => expect(defaultCostCenter({ branch_code: '04', division_code: 'B02' })).toBe(''));
-  test('ไม่มีวงเงิน → ว่าง', () => expect(defaultCostCenter(null)).toBe(''));
+describe('ค่าตั้งต้นจากแผนกของผู้เบิก (ผู้ใช้อนุมัติ map 29/10/2026 · เปลี่ยนเองได้)', () => {
+  const u = (site: string, division_code: string | null, department_id: number | null = null) =>
+    ({ site, department_id, division: division_code ? { division_code } : null });
+  const cases: [string, ReturnType<typeof u>, string][] = [
+    ['Process Excellence (OPS) HQ → 1B06', u('Bangkok HQ', 'OPS', 29), '1B06'],
+    ['Fuel Control (OPS) ลาดกระบัง → 3B06', u('Lat Krabang', 'OPS', 32), '3B06'],
+    ['บัญชี สระบุรี → 2A04', u('Saraburi', 'ACC', 6), '2A04'],
+    ['การเงิน HQ → 1A04', u('Bangkok HQ', 'FIN', 4), '1A04'],
+    ['IT HQ → 1A05', u('Bangkok HQ', 'IT', 21), '1A05'],
+    ['ค่าจ้างและสวัสดิการ HQ → 1A03', u('Bangkok HQ', 'HCB', 7), '1A03'],
+    ['สรรหา Mass ลาดกระบัง → 3A03', u('Lat Krabang', 'HRC', 22), '3A03'],
+    ['ยานยนต์ ลาดกระบัง → 3B02', u('Lat Krabang', 'VHC', 3), '3B02'],
+    ['สโตร์ สระบุรี → 2B03', u('Saraburi', 'SPR', 31), '2B03'],
+    ['MENA Academy → 3B04', u('Lat Krabang', 'STY', 16), '3B04'],
+    ['Compliance สระบุรี → 2B04', u('Saraburi', 'CPA', 17), '2B04'],
+    ['Delivery Service → 3B01', u('Lat Krabang', 'LKB', 15), '3B01'],
+    ['ศูนย์ปฏิบัติการสระบุรีทุกแผนก → 2B01', u('Saraburi', 'SRB', 27), '2B01'],
+    ['Chief-Level HQ → 1A01', u('Bangkok HQ', 'EX', 1), '1A01'],
+    ['Company Secretary & Compliance → 1A06', u('Bangkok HQ', 'CSC', 10), '1A06'],
+    ['Sales & Driver Partner (ไม่มีฝ่าย) ลาดกระบัง → 3500', u('Lat Krabang', null, 9), '3500'],
+  ];
+  for (const [name, user, code] of cases) test(name, () => expect(defaultCostCenterForUser(user)).toBe(code));
+
+  test('รหัสที่ไม่มีในรายการ (สกท ไม่มี B02) → ว่าง ให้เลือกเอง', () =>
+    expect(defaultCostCenterForUser(u('Bangkok HQ', 'VHC', 3))).toBe(''));
+  test('ศูนย์ที่ยังไม่มีรหัส (Rayong) → ว่าง', () => expect(defaultCostCenterForUser(u('Rayong', 'SRB', 19))).toBe(''));
+  test('แผนกที่ยังไม่ได้ map → ว่าง', () => expect(defaultCostCenterForUser(u('Bangkok HQ', null, 999))).toBe(''));
+  test('ยังไม่มีข้อมูลผู้ใช้ → ว่าง', () => expect(defaultCostCenterForUser(null)).toBe(''));
 });
 
 describe('บรรทัดรหัสค่าใช้จ่ายของผู้เบิก', () => {

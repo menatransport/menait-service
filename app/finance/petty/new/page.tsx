@@ -14,7 +14,7 @@ import { payeeBankProblem } from '@/lib/finance/petty-payee';
 import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
 import { fundsForExpenseType } from '@/lib/finance/petty-account-code';
 import { bangkokToday } from '@/lib/finance/petty-doc';
-import { COST_CENTER_GROUPS, centerOfSite, costCenterGroupsForSite, defaultCostCenter } from '@/lib/finance/petty-cost-centers';
+import { COST_CENTER_GROUPS, centerOfSite, costCenterGroupsForSite, defaultCostCenterForUser } from '@/lib/finance/petty-cost-centers';
 import { showAlert } from '../../api';
 import { checkDuplicate, createClaim, getExpenseTypes, getFunds, uploadPettyFiles } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, Panel } from '../../components/FinanceShell';
@@ -37,7 +37,7 @@ export default function NewPettyClaimPage() {
   const [funds, setFunds] = useState<PettyFund[] | null>(null);
   const [typeCode, setTypeCode] = useState('');
   const [fundId, setFundId] = useState('');
-  // ศูนย์และแผนกของผู้เบิก — เลือกตามวงเงินให้ก่อน ผู้เปิดใบเปลี่ยนเองได้ (ผู้ใช้สั่ง 29/10/2026)
+  // ศูนย์และแผนกของผู้เบิก — เลือกตามศูนย์+แผนกของผู้เบิกให้ก่อน ผู้เปิดใบเปลี่ยนเองได้ (ผู้ใช้สั่ง 29/10/2026)
   const [costCenter, setCostCenter] = useState('');
   const [costCenterPicked, setCostCenterPicked] = useState(false);
   // dropdown เห็นเฉพาะศูนย์ของผู้เบิก (เช่น Bangkok HQ → สกท) — กด "ดูทุกศูนย์" ถ้าต้องเบิกให้ศูนย์อื่น
@@ -89,13 +89,11 @@ export default function NewPettyClaimPage() {
     setFundId(id => (id && funds && !fundsForExpenseType(typeCode, funds).some(f => String(f.id) === id) ? '' : id));
   }, [typeCode, funds]);
 
-  // เปลี่ยนวงเงิน → เลือกศูนย์และแผนกตามวงเงินให้ใหม่ ถ้าผู้เปิดใบยังไม่ได้เลือกเอง
-  // ค่าที่ได้ต้องอยู่ในตัวเลือกที่เห็น ไม่งั้นช่องจะดูว่างแต่ส่งรหัสไป
+  // ค่าตั้งต้นจากแผนกของผู้เบิก (map ที่ผู้ใช้อนุมัติ) — อยู่ในศูนย์ของผู้เบิกเสมอ จึงอยู่ในตัวเลือกที่เห็น
   useEffect(() => {
     if (costCenterPicked) return;
-    const code = defaultCostCenter(funds?.find(f => String(f.id) === fundId));
-    setCostCenter(ccGroups.some(g => g.items.some(c => c.code === code)) ? code : '');
-  }, [fundId, funds, costCenterPicked, ccGroups]);
+    setCostCenter(defaultCostCenterForUser(user));
+  }, [user, costCenterPicked]);
 
   // เตือนซ้ำขณะกรอก — ด่านจริงอยู่ที่ BE ตอนอนุมัติ ตรงนี้ให้เห็นก่อนจะส่ง
   useEffect(() => {
