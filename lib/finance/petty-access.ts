@@ -77,3 +77,55 @@ export function canCloseBatch(user: U | null | undefined): boolean {
   if (user.role === 'a' || user.is_treasury === true) return true;
   return user.is_accounting === true ? false : user.is_finance === true;
 }
+
+// ---- งานเงินสดย่อย (/finance/petty/accounting) — บัญชีกับการเงินใช้หน้าเดียวกัน ซ่อนปุ่มตามแผนกแบบ Advance · ด่านจริงอยู่ที่ BE/proxy
+
+/** เปิดหน้างานเงินสดย่อยได้: บัญชี การเงิน แอดมิน */
+export function canSeePettyWorklist(user: U | null | undefined): boolean {
+  return canReview(user) || canCloseBatch(user);
+}
+
+/** ปุ่มที่คนนี้เห็นในหน้างาน: บัญชี = ตรวจ + ตั้งเบิก · การเงิน = จ่ายเงิน · แอดมิน = ทุกปุ่ม */
+export function worklistPerms(user: U | null | undefined): { review: boolean; voucher: boolean; pay: boolean } {
+  return { review: canReview(user), voucher: canVoucher(user), pay: canCloseBatch(user) };
+}
+
+/** เลขรอบส่งเคลียร์ เช่น LB-B02-2610-B7 / 04-A04-2610-B1 — ใช้เป็นชื่อโฟลเดอร์ S3 ของสลิปโอน จึงคุมเข้ม ไม่มี / หรือ .. */
+export const PETTY_ROUND_NO = /^[A-Z0-9]{2,4}-[A-Z0-9]{2,8}-\d{4}-B\d{1,6}$/;
+
+export function isPettyRoundNo(id: unknown): id is string {
+  return typeof id === 'string' && PETTY_ROUND_NO.test(id);
+}
+
+/** สลิปโอนของรอบ: การเงิน/แอดมิน เมื่อรอบถึงขั้นจ่ายเงินแล้ว (รอจ่าย หรือจ่ายแล้วปิดรอบ แนบเพิ่มทีหลังได้แบบ Advance) */
+export function canUploadRoundSlip(user: U | null | undefined, round: { status: string } | null | undefined): boolean {
+  return !!round && canCloseBatch(user) && (round.status === 'VOUCHERED' || round.status === 'CLOSED');
+}
+
+/** บัญชีรับเงินของเจ้าของเงินสด — เห็นเฉพาะคนที่ต้องโอน (การเงิน แอดมิน) และเจ้าของเอง */
+export function canSeeHolderPayee(user: U | null | undefined, round: { holder_employee_id: string | null }): boolean {
+  if (!user?.employee_id) return false;
+  if (canCloseBatch(user)) return true;
+  return !!round.holder_employee_id && round.holder_employee_id === user.employee_id;
+}
+
+type DocField = 'voucher_no' | 'voucher_date' | 'pay_doc_no';
+
+/** แก้เลขที่เอกสารของรอบ: บัญชีแก้ข้อมูลตั้งเบิก (รอจ่าย/ปิดแล้ว) · การเงินแก้เลขที่ทำจ่าย (ปิดแล้ว) */
+export function editableRoundDocFields(user: U | null | undefined, round: { status: string }): DocField[] {
+  const out: DocField[] = [];
+  if (canVoucher(user) && (round.status === 'VOUCHERED' || round.status === 'CLOSED')) out.push('voucher_no', 'voucher_date');
+  if (canCloseBatch(user) && round.status === 'CLOSED') out.push('pay_doc_no');
+  return out;
+}
+
+/** proxy: ส่งต่อคำสั่งแก้เลขที่เอกสารเมื่อทุกช่องที่ส่งมาเป็นของแผนกคนนี้ (สถานะรอบ BE ตัดสิน 409) */
+export function roundDocNumbersAllowed(user: U | null | undefined, body: unknown): boolean {
+  if (!body || typeof body !== 'object') return false;
+  const has = (k: string) => Object.prototype.hasOwnProperty.call(body, k);
+  const voucherFields = has('voucher_no') || has('voucher_date');
+  const payFields = has('pay_doc_no');
+  if (!voucherFields && !payFields) return false;
+  if (voucherFields && !canVoucher(user)) return false;
+  return !(payFields && !canCloseBatch(user));
+}

@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { FORM_ID_PATTERN } from '@/lib/s3';
-import { canApprove, canCloseBatch, canReview, canSeeAllClaims, canSeeClaim, canSeeRound, canVoucher, isPettyFormId } from './petty-access';
+import {
+  canApprove, canCloseBatch, canReview, canSeeAllClaims, canSeeClaim, canSeeHolderPayee, canSeePettyWorklist, canSeeRound,
+  canUploadRoundSlip, canVoucher, editableRoundDocFields, isPettyFormId, isPettyRoundNo, roundDocNumbersAllowed, worklistPerms,
+} from './petty-access';
 
 const fund = { id: 1, branch_code: '03', division_code: 'B02', holder_employee_id: '12345' };
 
@@ -113,4 +116,73 @@ describe('flow v2 (29/10/2026)', () => {
     expect(canSeeRound({ employee_id: '1', role: 'a' }, round)).toBe(true);
   });
   test('anyone else does not', () => expect(canSeeRound({ employee_id: '777' }, round)).toBe(false));
+});
+
+describe('งานเงินสดย่อย (worklist) permissions', () => {
+  const acc = { employee_id: '660548', is_accounting: true };
+  const tre = { employee_id: '610197', is_treasury: true };
+  const admin = { employee_id: '670108', role: 'a' };
+  const clerk = { employee_id: '55555' };
+
+  test('accounting and treasury both open the page; a clerk does not', () => {
+    expect(canSeePettyWorklist(acc)).toBe(true);
+    expect(canSeePettyWorklist(tre)).toBe(true);
+    expect(canSeePettyWorklist(admin)).toBe(true);
+    expect(canSeePettyWorklist(clerk)).toBe(false);
+    expect(canSeePettyWorklist(null)).toBe(false);
+  });
+  test('buttons by department like Advance: accounting = review + voucher, treasury = pay, admin = all', () => {
+    expect(worklistPerms(acc)).toEqual({ review: true, voucher: true, pay: false });
+    expect(worklistPerms(tre)).toEqual({ review: false, voucher: false, pay: true });
+    expect(worklistPerms(admin)).toEqual({ review: true, voucher: true, pay: true });
+    expect(worklistPerms(clerk)).toEqual({ review: false, voucher: false, pay: false });
+  });
+
+  test('isPettyRoundNo accepts real round numbers only', () => {
+    for (const ok of ['LB-B02-2610-B7', 'BK-A04-2610-B12', '04-A04-2610-B1']) expect(isPettyRoundNo(ok)).toBe(true);
+    for (const bad of ['LB-B02-2610-007', 'ADV-2610-003', 'LB-B02-2610-B', 'lb-b02-2610-b7', 'LB-B02-2610-B7/../x',
+      '../LB-B02-2610-B7', 'LB-B02-2610-B7 ', 'LB/B02-2610-B7', '', null, 7]) {
+      expect(isPettyRoundNo(bad)).toBe(false);
+    }
+  });
+  test('a round number is not a claim id (keeps upload rules apart)', () => {
+    expect(isPettyFormId('LB-B02-2610-B7')).toBe(false);
+  });
+
+  test('pay slips of a round: treasury/admin, only once the round is at pay or closed', () => {
+    expect(canUploadRoundSlip(tre, { status: 'VOUCHERED' })).toBe(true);
+    expect(canUploadRoundSlip(tre, { status: 'CLOSED' })).toBe(true);
+    expect(canUploadRoundSlip(admin, { status: 'CLOSED' })).toBe(true);
+    expect(canUploadRoundSlip(tre, { status: 'REVIEWED' })).toBe(false);
+    expect(canUploadRoundSlip(acc, { status: 'VOUCHERED' })).toBe(false);
+    expect(canUploadRoundSlip({ employee_id: '12345' }, { status: 'CLOSED' })).toBe(false);
+  });
+
+  test('the holder bank account is shown to treasury, admin and the holder only', () => {
+    const r = { holder_employee_id: '12345' };
+    expect(canSeeHolderPayee(tre, r)).toBe(true);
+    expect(canSeeHolderPayee(admin, r)).toBe(true);
+    expect(canSeeHolderPayee({ employee_id: '12345' }, r)).toBe(true);
+    expect(canSeeHolderPayee(acc, r)).toBe(false);
+    expect(canSeeHolderPayee({ employee_id: '600100' }, r)).toBe(false);
+  });
+
+  test('doc-number edit fields by role and round status', () => {
+    expect(editableRoundDocFields(acc, { status: 'VOUCHERED' })).toEqual(['voucher_no', 'voucher_date']);
+    expect(editableRoundDocFields(acc, { status: 'CLOSED' })).toEqual(['voucher_no', 'voucher_date']);
+    expect(editableRoundDocFields(acc, { status: 'REVIEWED' })).toEqual([]);
+    expect(editableRoundDocFields(tre, { status: 'VOUCHERED' })).toEqual([]);
+    expect(editableRoundDocFields(tre, { status: 'CLOSED' })).toEqual(['pay_doc_no']);
+    expect(editableRoundDocFields(admin, { status: 'CLOSED' })).toEqual(['voucher_no', 'voucher_date', 'pay_doc_no']);
+  });
+  test('the proxy lets a doc-number edit through only for fields the user owns', () => {
+    expect(roundDocNumbersAllowed(acc, { voucher_no: 'A' })).toBe(true);
+    expect(roundDocNumbersAllowed(acc, { voucher_date: '2026-10-29', remark: 'x' })).toBe(true);
+    expect(roundDocNumbersAllowed(acc, { pay_doc_no: 'P' })).toBe(false);
+    expect(roundDocNumbersAllowed(tre, { pay_doc_no: 'P' })).toBe(true);
+    expect(roundDocNumbersAllowed(tre, { voucher_no: 'A', pay_doc_no: 'P' })).toBe(false);
+    expect(roundDocNumbersAllowed(admin, { voucher_no: 'A', pay_doc_no: 'P' })).toBe(true);
+    expect(roundDocNumbersAllowed(acc, { remark: 'nothing to change' })).toBe(false);
+    expect(roundDocNumbersAllowed(acc, null)).toBe(false);
+  });
 });
