@@ -1,125 +1,119 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { Landmark } from 'lucide-react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { Landmark, Wallet } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyClaim, PettyExpenseType, PettyFund, PettyRound } from '@/app/finance/types-petty';
-import { canReview } from '@/lib/finance/petty-access';
-import { quickAction, type PettyTab } from '@/lib/finance/petty-list';
-import { formatBaht } from '@/lib/finance/status';
+import { canSeePettyWorklist, worklistPerms } from '@/lib/finance/petty-access';
+import { defaultTab, resolveTab, worklistStats, type WorklistCtx, type WorklistTabKey } from '@/lib/finance/petty-worklist';
 import { showAlert } from '../../api';
 import { getExpenseTypes, getFunds, listClaims, listRounds } from '../../petty-api';
-import { FinanceCanvas, FinanceHeading, NoAccess, Panel, SummaryTiles } from '../../components/FinanceShell';
-import { PettyListView, RowButton } from '../../components/petty/PettyListView';
+import { FinanceCanvas, FinanceHeading, NoAccess, SummaryTiles } from '../../components/FinanceShell';
 import { PettySheet } from '../../components/petty/PettySheet';
-import { runPettyAction } from '../../components/petty/petty-actions';
-import { RoundTable, type RoundTab } from '../../components/petty/RoundTable';
-import { runRoundAction } from '../../components/petty/round-actions';
+import { RoundSheet } from '../../components/petty/worklist/RoundSheet';
+import { WorklistTable } from '../../components/petty/worklist/WorklistTable';
 
-const TITLE = 'งานบัญชี เงินสดย่อย';
-const CAPTION = 'รอบที่หัวหน้าอนุมัติเคลียร์แล้ว — ตรวจทีละใบ ผ่านครบทั้งรอบแล้วตั้งเบิก ใบที่ตีกลับไปให้เจ้าหน้าที่แก้แล้วส่งกลับมาที่นี่';
+const TITLE = 'งานเงินสดย่อย';
 
-const ROUND_TABS: RoundTab[] = [
-  { key: 'review', label: 'รอตรวจ', statuses: ['AWAITING_REVIEW'] },
-  { key: 'voucher', label: 'รอตั้งเบิก', statuses: ['REVIEWED'] },
-  { key: 'paying', label: 'ตั้งเบิกแล้ว รอทำจ่าย', statuses: ['VOUCHERED'] },
-  { key: 'closed', label: 'ปิดแล้ว', statuses: ['CLOSED'] },
-  { key: 'all', label: 'ทั้งหมด' },
-];
+type Open = { kind: 'claim'; formId: string } | { kind: 'round'; id: number; batch_no: string } | null;
 
-const CLAIM_TABS: PettyTab[] = [
-  { key: 'review', label: 'รอตรวจ', statuses: ['AWAITING_REVIEW'] },
-  { key: 'sentback', label: 'ตีกลับ รอเจ้าหน้าที่แก้', statuses: ['SENT_BACK'] },
-  { key: 'passed', label: 'ตรวจผ่าน', statuses: ['REVIEWED'] },
-  { key: 'all', label: 'ทั้งหมด' },
-];
+/**
+ * งานเงินสดย่อย — หน้าเดียวของบัญชีและการเงิน แบบ "งานเบิกเงิน Advance" (/finance)
+ * ตัวเลขสรุป → แถบตามสถานะ → ตารางเดียว → คลิกแถวเปิดแผงด้านข้าง · ซ่อนปุ่มตามแผนก ด่านจริงอยู่ที่ BE
+ */
+export default function PettyWorkPage() {
+  return (
+    <Suspense fallback={<MascotLoader />}>
+      <PettyWork />
+    </Suspense>
+  );
+}
 
-export default function PettyAccountingPage() {
+function PettyWork() {
   const { user, loading } = useSessionContext();
-  const [rounds, setRounds] = useState<PettyRound[] | null>(null);
+  const searchParams = useSearchParams();
+  const allowed = canSeePettyWorklist(user);
+  const perms = worklistPerms(user);
+  const [tab, setTab] = useState<WorklistTabKey | null>(null);
   const [claims, setClaims] = useState<PettyClaim[]>([]);
+  const [rounds, setRounds] = useState<PettyRound[]>([]);
   const [types, setTypes] = useState<PettyExpenseType[]>([]);
   const [funds, setFunds] = useState<PettyFund[]>([]);
-  const [roundTab, setRoundTab] = useState('review');
-  const [claimTab, setClaimTab] = useState('review');
-  const [busy, setBusy] = useState<string | null>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(true);
+  const [open, setOpen] = useState<Open>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const allowed = canReview(user);
+
+  // แถบเริ่มต้น: ?tab= จากลิงก์ (เช่น /finance/petty/batches → รอจ่าย) ไม่มีก็ตามแผนก
+  useEffect(() => {
+    if (loading || tab !== null) return;
+    setTab(resolveTab(searchParams.get('tab'), defaultTab(perms)));
+  }, [loading, tab, searchParams, perms]);
 
   const load = useCallback(async () => {
+    setBusy(true);
     try {
-      const [r, a, b, c, t, f] = await Promise.all([
-        listRounds('all'),
+      const [a, b, r, t, f] = await Promise.all([
         listClaims({ view: 'all', status: 'AWAITING_REVIEW', limit: '200' }),
         listClaims({ view: 'all', status: 'SENT_BACK', limit: '200' }),
-        listClaims({ view: 'all', status: 'REVIEWED', limit: '200' }),
+        listRounds('all', undefined, 200),
         getExpenseTypes(), getFunds(true),
       ]);
-      // รอบที่ยังอยู่กับหัวหน้า / หัวหน้าไม่อนุมัติ ยังไม่ใช่งานบัญชี
-      setRounds(r.filter(x => x.status !== 'CLEAR_PENDING' && x.status !== 'CLEAR_REJECTED'));
-      setClaims([...a.items, ...b.items, ...c.items]); setTypes(t); setFunds(f);
+      setClaims([...a.items, ...b.items]); setRounds(r); setTypes(t); setFunds(f);
     } catch (err) {
-      setRounds([]);
-      showAlert({ icon: 'error', title: 'โหลดคิวไม่สำเร็จ', text: (err as Error).message });
+      showAlert({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ', text: (err as Error).message });
+    } finally {
+      setBusy(false);
     }
   }, []);
   useEffect(() => { if (allowed) void load(); }, [allowed, load]);
 
-  async function review(claim: PettyClaim, pass: boolean) {
-    setBusy(claim.form_id);
-    try { if (await runPettyAction(claim, 'review', { pass })) await load(); } finally { setBusy(null); }
-  }
+  const ctx = useMemo<WorklistCtx>(() => {
+    const roundNos = new Map(rounds.map(r => [r.id, r.batch_no]));
+    return {
+      typeName: code => types.find(t => t.code === code)?.name_th ?? code,
+      fundOf: id => funds.find(f => f.id === id),
+      roundNo: id => (id === null ? null : roundNos.get(id) ?? null),
+    };
+  }, [rounds, types, funds]);
 
-  async function voucher(round: PettyRound) {
-    setBusy(`r${round.id}`);
-    try { if (await runRoundAction(round, 'voucher')) await load(); } finally { setBusy(null); }
-  }
+  const stats = useMemo(() => worklistStats(claims, rounds, types), [claims, rounds, types]);
 
-  if (loading) return <MascotLoader />;
-  if (!allowed) return <NoAccess text="หน้านี้สำหรับฝ่ายบัญชีเท่านั้น" />;
-  if (rounds === null) return <MascotLoader />;
+  const openClaim = (formId: string) => { setOpen({ kind: 'claim', formId }); setSheetOpen(true); };
+  const openRound = (round: { id: number; batch_no: string }) => { setOpen({ kind: 'round', id: round.id, batch_no: round.batch_no }); setSheetOpen(true); };
+  const openRoundById = (id: number) => openRound({ id, batch_no: rounds.find(r => r.id === id)?.batch_no ?? '' });
 
-  const waiting = claims.filter(c => c.status === 'AWAITING_REVIEW');
-  const toVoucher = rounds.filter(r => r.status === 'REVIEWED');
-  const stats = [
-    { label: 'รอบรอตรวจ', value: rounds.filter(r => r.status === 'AWAITING_REVIEW').length },
-    { label: 'ใบรอตรวจ', value: waiting.length, hint: `${formatBaht(waiting.reduce((s, c) => s + c.amount, 0))} บาท` },
-    { label: 'รอบรอตั้งเบิก', value: toVoucher.length, hint: `${formatBaht(toVoucher.reduce((s, r) => s + r.total_amount, 0))} บาท` },
-    { label: 'ตีกลับ รอเจ้าหน้าที่แก้', value: claims.filter(c => c.status === 'SENT_BACK').length, alert: true },
-    { label: 'ยังไม่มีเลข DD', value: waiting.filter(c => !c.dd_no).length, alert: true, hint: 'ในใบรอตรวจ' },
-  ];
-
-  const claimAction = (c: PettyClaim) => {
-    if (!quickAction(c, 'accounting')) return null;
-    const isBusy = busy === c.form_id;
+  if (!loading && !allowed) {
     return (
-      <>
-        <RowButton onClick={() => void review(c, true)} disabled={isBusy}>{isBusy ? 'กำลังทำ…' : 'ผ่าน'}</RowButton>
-        <RowButton tone="ghost" onClick={() => void review(c, false)} disabled={isBusy}>ตีกลับ</RowButton>
-      </>
+      <FinanceCanvas title={TITLE} width="max-w-lg">
+        <NoAccess text="หน้านี้สำหรับฝ่ายบัญชีและการเงิน" />
+      </FinanceCanvas>
     );
-  };
+  }
 
   return (
     <FinanceCanvas title={TITLE}>
-      <FinanceHeading icon={Landmark} title={TITLE} caption={CAPTION} />
+      <FinanceHeading icon={Landmark} title={TITLE} caption="ตรวจใบ ตั้งเบิก และจ่ายเงินคืนเจ้าของเงินสด"
+        actions={(
+          <Link href="/finance/petty/funds" className="v2-glass inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-ink-900 transition-shadow hover:shadow-md">
+            <Wallet className="size-4" />
+            ยอดกองทุนเงินสดย่อย
+          </Link>
+        )}
+      />
       <SummaryTiles items={stats} />
-      <Panel title="รอบส่งเคลียร์">
-        <RoundTable rounds={rounds} tabs={ROUND_TABS} activeTab={roundTab} onTabChange={setRoundTab}
-          emptyText="ไม่มีรอบในแท็บนี้"
-          rowAction={r => (r.status === 'REVIEWED'
-            ? <RowButton onClick={() => void voucher(r)} disabled={busy === `r${r.id}`}>{busy === `r${r.id}` ? 'กำลังทำ…' : 'ตั้งเบิก'}</RowButton>
-            : null)} />
-      </Panel>
-      <div className="mt-6">
-        <PettyListView claims={claims} types={types} funds={funds} tabs={CLAIM_TABS} activeTab={claimTab} onTabChange={setClaimTab}
-          onOpen={c => { setOpenId(c.form_id); setSheetOpen(true); }} exportFileBase="เงินสดย่อย-บัญชี"
-          rowAction={claimAction}
-          rowNote={c => (c.status === 'AWAITING_REVIEW' && !c.dd_no ? 'ไม่มี DD' : null)} />
-      </div>
-      <PettySheet formId={openId} isOpen={sheetOpen} onClose={() => setSheetOpen(false)} onChanged={() => void load()} />
+      {tab !== null && (
+        <WorklistTable claims={claims} rounds={rounds} ctx={ctx} activeTab={tab} onTabChange={setTab} loading={busy || loading}
+          onOpenClaim={c => openClaim(c.form_id)} onOpenRound={openRound} />
+      )}
+
+      <PettySheet formId={open?.kind === 'claim' ? open.formId : null} isOpen={sheetOpen && open?.kind === 'claim'}
+        onClose={() => setSheetOpen(false)} onChanged={() => void load()} onOpenRound={openRoundById} />
+      <RoundSheet round={open?.kind === 'round' ? { id: open.id, batch_no: open.batch_no } : null}
+        isOpen={sheetOpen && open?.kind === 'round'} onClose={() => setSheetOpen(false)} onChanged={() => void load()}
+        onOpenClaim={c => openClaim(c.form_id)} />
     </FinanceCanvas>
   );
 }

@@ -44,3 +44,15 @@ describe('focusGroup (/home?group=…)', () => {
         expect(focusGroup(visible, 'admin')).toBeNull();
     });
 });
+
+describe('เมนูงานเงินสดย่อย', () => {
+    const finance = MENU_GROUPS.find(g => g.id === 'finance')!;
+    test('บัญชีกับการเงินใช้รายการเดียว "งานเงินสดย่อย" ไปหน้า /finance/petty/accounting', () => {
+        const items = finance.items.filter(i => i.href === '/finance/petty/accounting');
+        expect(items.map(i => i.title)).toEqual(['งานเงินสดย่อย']);
+        expect(items[0].financeOnly).toBe(true);
+    });
+    test('ไม่มีรายการไปหน้าทำจ่ายเดิมแล้ว (redirect มาหน้างานเงินสดย่อย)', () => {
+        expect(finance.items.some(i => i.href === '/finance/petty/batches')).toBe(false);
+    });
+});

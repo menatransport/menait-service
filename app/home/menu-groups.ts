@@ -1,4 +1,4 @@
-import { BadgeCheck, Building, Calculator, ChartNoAxesCombined, CircleAlert, CircleCheck, ClipboardCheck, ClipboardList, Database, FolderKanban, HandCoins, Landmark, Laptop, LayoutDashboard, Mail, Monitor, PackageCheck, Receipt, Route, Settings2, ShieldCheck, TriangleAlert, Truck, UserCheck, Wallet, type LucideIcon } from 'lucide-react';
+import { BadgeCheck, Building, Calculator, ChartNoAxesCombined, CircleAlert, CircleCheck, ClipboardCheck, ClipboardList, Database, FolderKanban, HandCoins, Landmark, Laptop, LayoutDashboard, Mail, Monitor, Receipt, Route, Settings2, ShieldCheck, TriangleAlert, Truck, UserCheck, Wallet, type LucideIcon } from 'lucide-react';
 
 export type MenuTone = 'blue' | 'sun' | 'mint' | 'ink';
 
@@ -132,8 +132,7 @@ export const MENU_GROUPS: MenuGroup[] = [
             { title: 'ติดตามใบเบิกเงินสดย่อย', description: 'ดูสถานะใบที่คุณเปิด และแก้ใบที่ถูกตีกลับ', icon: ClipboardCheck, href: '/finance/petty', section: PETTY },
             { title: 'อนุมัติเบิกเงินสดย่อย', description: 'อนุมัติจ่าย แล้วส่งเคลียร์เป็นรอบพร้อมใบปะหน้า (เจ้าของเงินสด)', icon: BadgeCheck, href: '/finance/petty/approvals', section: PETTY },
             { title: 'อนุมัติเคลียร์เงินสดย่อย', description: 'รอบที่เจ้าของเงินสดในสายงานส่งมา (หัวหน้า)', icon: UserCheck, href: '/finance/petty/clear', section: PETTY },
-            { title: 'งานเงินสดย่อย (บัญชี)', description: 'ตรวจใบในรอบที่หัวหน้าอนุมัติแล้ว และตั้งเบิกทั้งรอบ', icon: Landmark, href: '/finance/petty/accounting', financeOnly: true, section: PETTY },
-            { title: 'ทำจ่ายเงินสดย่อย (การเงิน)', description: 'ทำจ่ายรอบที่บัญชีตั้งเบิกแล้ว คืนยอดให้เจ้าของเงินสด', icon: PackageCheck, href: '/finance/petty/batches', financeOnly: true, section: PETTY },
+            { title: 'งานเงินสดย่อย', description: 'ตรวจใบ ตั้งเบิก และจ่ายเงินคืนเจ้าของเงินสด (บัญชี การเงิน)', icon: Landmark, href: '/finance/petty/accounting', financeOnly: true, section: PETTY },
             { title: 'ยอดกองทุนเงินสดย่อย', description: 'ทุกกองทุน: Advance คงเหลือ ใบที่ยังไม่คืนยอด พร้อมอนุมัติ', icon: Wallet, href: '/finance/petty/funds', financeOnly: true, section: PETTY },
             { title: 'ตั้งค่าเงินสดย่อย', description: 'กองทุน ผู้ถือเงิน วงเงิน และประเภทการเบิก', icon: Settings2, href: '/finance/petty/master', financeOnly: true, section: PETTY },
         ],
