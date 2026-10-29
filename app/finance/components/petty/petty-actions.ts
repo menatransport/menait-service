@@ -31,31 +31,33 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
     body.attachments = counts;
     // มี พจร. ในใบ (ทุกประเภท) → ต้องมีเลขที่ใบรับสภาพหนี้ อ้างอิงเลขเอกสารอย่างเดียว
     if (needsDebtDoc(claim) && !claim.debt_doc_no) {
-      const res = await showConfirm({ title: 'ใบนี้มี พจร.', text: `กรอกเลขที่ใบรับสภาพหนี้ก่อนอนุมัติจ่าย · ใบ ${claim.form_id}`,
+      const res = await showConfirm({ title: 'ใบนี้มี พจร.', text: `ฟอร์ม ${claim.form_id} · กรอกเลขที่ใบรับสภาพหนี้ก่อนอนุมัติจ่าย`,
         input: 'text', inputLabel: 'เลขที่ใบรับสภาพหนี้', inputPlaceholder: 'เลขที่เอกสาร',
-        inputValidator: (v: string) => (!v || !v.trim()) ? 'ต้องกรอกเลขที่ใบรับสภาพหนี้' : null, confirmButtonText: 'ถัดไป' }) as Prompt;
+        inputValidator: (v: string) => (!v || !v.trim()) ? 'กรุณากรอกเลขที่ใบรับสภาพหนี้' : null, confirmButtonText: 'ถัดไป' }) as Prompt;
       if (!res?.isConfirmed) return false;
       body.debt_doc_no = (res.value ?? '').trim();
     }
-    const res = await showConfirm({ title: `อนุมัติจ่าย ใบ ${claim.form_id}`,
-      html: approveSummaryHtml(claim, balance, (body.debt_doc_no as string | undefined) ?? claim.debt_doc_no),
+    // หน้าตาเดียวกับกล่อง "ยืนยันอนุมัติคำขอเบิกเงิน Advance" (หัวเรื่อง + ฟอร์ม + ยืนยัน/ยกเลิก) แล้วเติมตัวเลขของเงินสดย่อย
+    const res = await showConfirm({ title: 'ยืนยันอนุมัติจ่ายเงินสดย่อย',
+      html: approveDialogHtml(claim, balance, (body.debt_doc_no as string | undefined) ?? claim.debt_doc_no),
       input: 'date', inputLabel: 'วันที่จ่ายเงิน', inputValue: bangkokDate(new Date().toISOString()),
-      inputValidator: (v: string) => (!v ? 'ต้องระบุวันที่จ่าย' : null), confirmButtonText: 'อนุมัติจ่าย' }) as Prompt;
+      inputValidator: (v: string) => (!v ? 'กรุณาระบุวันที่จ่าย' : null) }) as Prompt;
     if (!res?.isConfirmed) return false;
     body.transfer_date = res.value;
   }
 
   if (action === 'return') {
-    const res = await showConfirm({ title: `ตีกลับใบ ${claim.form_id}`, input: 'textarea',
-      inputLabel: 'เหตุผล (เจ้าหน้าที่จะเห็นข้อความนี้)',
-      inputValidator: (v: string) => (!v || !v.trim()) ? 'ต้องระบุเหตุผล' : null, confirmButtonText: 'ตีกลับ' }) as Prompt;
+    // แบบกล่อง "ยืนยันไม่อนุมัติ" ของ Advance: บังคับหมายเหตุ ใบกลับไปให้คนเปิดใบแก้แล้วส่งใหม่
+    const res = await showConfirm({ title: 'ยืนยันตีกลับใบเบิกเงินสดย่อย', text: `ฟอร์ม ${claim.form_id}`, input: 'textarea',
+      inputLabel: 'หมายเหตุ (ระบุเหตุผล)', inputPlaceholder: 'คนเปิดใบจะเห็นข้อความนี้ เช่น ใบชั่งเบลอ อ่านเลขไม่ออก',
+      inputValidator: (v: string) => (!v || !v.trim()) ? 'กรุณาระบุหมายเหตุ' : null }) as Prompt;
     if (!res?.isConfirmed) return false;
     body.reason = res.value;
   }
   if (action === 'dd') {
-    const res = await showConfirm({ title: `เลข DD ของใบ ${claim.form_id}`, input: 'text',
-      inputLabel: 'เลขที่ใบรับสินค้า (DD) จาก ATMS', inputPlaceholder: 'LBDD26090931', inputValue: claim.dd_no ?? '',
-      inputValidator: (v: string) => (!v || !v.trim()) ? 'ต้องกรอกเลข DD' : null, confirmButtonText: 'บันทึก' }) as Prompt;
+    const res = await showConfirm({ title: claim.dd_no ? 'แก้เลข DD' : 'ใส่เลข DD', text: `ฟอร์ม ${claim.form_id}`, input: 'text',
+      inputLabel: 'เลขที่ใบรับสินค้า (DD) จาก ATMS', inputPlaceholder: 'เช่น LBDD26090931', inputValue: claim.dd_no ?? '',
+      inputValidator: (v: string) => (!v || !v.trim()) ? 'กรุณากรอกเลข DD' : null, confirmButtonText: 'บันทึก' }) as Prompt;
     if (!res?.isConfirmed) return false;
     body.dd_no = (res.value ?? '').trim().toUpperCase();
   }
@@ -106,6 +108,12 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
 const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const money = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** เนื้อหากล่องยืนยันอนุมัติจ่าย: บรรทัด "ฟอร์ม …" แบบ Advance แล้วตามด้วยตัวเลขของเงินสดย่อย */
+export function approveDialogHtml(claim: PettyClaim, balance: { available: number } | null, debtDocNo?: string | null): string {
+  return `<div style="margin:0 0 12px;font-size:16px;color:#334155">ฟอร์ม ${escapeHtml(claim.form_id)}</div>`
+    + approveSummaryHtml(claim, balance, debtDocNo);
+}
 
 /**
  * เนื้อหากล่องอนุมัติจ่าย: ยอดคงเหลือของเจ้าของเงินสดก่อน/หลังอนุมัติ และยอดที่ต้องโอนจริงตามผู้รับเงิน
