@@ -3,6 +3,7 @@
  * — ไม่มี React ไม่มี fetch · โครงแถบ/การ์ดลอกหน้าอนุมัติ Advance (app/finance/approvals/page.tsx)
  */
 import type { PettyClaim, PettyRound, PettySpec } from '@/app/finance/types-petty';
+import { needsDebtDoc } from '@/lib/finance/petty-debt';
 import { isHolderAttachment } from '@/lib/finance/petty-spec';
 import { formatDate } from '@/lib/finance/status';
 
@@ -147,9 +148,25 @@ export function ddRequired(claim: PettyClaim, spec: PettySpec | null | undefined
   return (spec?.rules ?? []).some(r => r.require_field === 'dd_no' && r.at === 'BEFORE_SUBMIT_TO_ACCOUNTING' && ruleApplies(r.when, claim));
 }
 
+/** ใบมี พจร. แต่ยังไม่มีเลขรับสภาพหนี้ — ใส่หลังโอนเงินได้ แต่ BE ไม่รับเข้ารอบถ้ายังว่าง (ผู้ใช้สั่ง 29/10/2026) */
+export function debtDocMissing(claim: PettyClaim): boolean {
+  return needsDebtDoc(claim) && !claim.debt_doc_no?.trim();
+}
+
+/** ปุ่ม ใส่/แก้เลขรับสภาพหนี้ — เฉพาะใบที่อนุมัติจ่ายแล้วและต้องมีเลข (BE รับเฉพาะ APPROVED) · null = ไม่มีปุ่ม */
+export function debtDocButton(claim: PettyClaim): string | null {
+  if (claim.status !== 'APPROVED' || !needsDebtDoc(claim)) return null;
+  return claim.debt_doc_no?.trim() ? 'แก้เลขรับสภาพหนี้' : 'ใส่เลขรับสภาพหนี้';
+}
+
 /** เหตุผลที่ติ๊กใบนี้เข้ารอบไม่ได้ — null = ติ๊กได้ */
 export function roundBlocker(claim: PettyClaim, spec: PettySpec | null | undefined): string | null {
-  return ddRequired(claim, spec) && !claim.dd_no?.trim() ? 'ต้องใส่ DD ก่อนส่งเคลียร์' : null;
+  const dd = ddRequired(claim, spec) && !claim.dd_no?.trim();
+  const debt = debtDocMissing(claim);
+  if (dd && debt) return 'ต้องใส่ DD และเลขรับสภาพหนี้ก่อนส่งเคลียร์';
+  if (dd) return 'ต้องใส่ DD ก่อนส่งเคลียร์';
+  if (debt) return 'ต้องใส่เลขรับสภาพหนี้ก่อนส่งเคลียร์';
+  return null;
 }
 
 export function pickSummary(shown: readonly PettyClaim[], selected: readonly number[]): { picked: PettyClaim[]; sum: number } {

@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettyClaim, PettyRound, PettySpec } from '@/app/finance/types-petty';
 import {
-  claimOutcome, claimPeriod, clearableClaims, clearedByMe, ddRequired, docsLabel, docsState, handledClaims, locateClaim,
+  claimOutcome, claimPeriod, clearableClaims, clearedByMe, ddRequired, debtDocButton, debtDocMissing, docsLabel, docsState,
+  handledClaims, locateClaim,
   locateRound, parseHeadView, parseHolderView, pendingClaims, pendingHint, pickSummary, roundBlocker, roundOutcome, ruleApplies,
   splitByPrimary, tabLabel, usesDd, type ClearRound,
 } from './model';
@@ -213,6 +214,39 @@ describe('DD rules', () => {
     expect(roundBlocker(claim({ amount: 900, dd_no: '  ' }), DD_SPEC)).toBe('ต้องใส่ DD ก่อนส่งเคลียร์');
     expect(roundBlocker(claim({ amount: 900, dd_no: 'LBDD26100012' }), DD_SPEC)).toBeNull();
     expect(roundBlocker(claim({ amount: 300 }), DD_SPEC)).toBeNull();
+  });
+});
+
+const PJR_ROW = { event_date: '2026-10-10', qty: 1, rate: 420, amount: 420, driver_role: 'พจร.' };
+const PJS_ROW = { ...PJR_ROW, driver_role: 'พจส.' };
+
+describe('debt doc (เลขรับสภาพหนี้) — ใส่หลังโอนเงิน ต้องมีก่อนติ๊กเข้ารอบ', () => {
+  test('debtDocMissing: needed (พจร. row, header, or BE flag) and empty', () => {
+    expect(debtDocMissing(claim({ status: 'APPROVED', items: [PJR_ROW] }))).toBe(true);
+    expect(debtDocMissing(claim({ status: 'APPROVED', items: [PJR_ROW], debt_doc_no: '  ' }))).toBe(true);
+    expect(debtDocMissing(claim({ status: 'APPROVED', items: [PJR_ROW], debt_doc_no: 'DA-001' }))).toBe(false);
+    expect(debtDocMissing(claim({ status: 'APPROVED', items: [PJS_ROW] }))).toBe(false);
+    expect(debtDocMissing(claim({ status: 'APPROVED', detail: { driver_role: 'พจร.' } }))).toBe(true);
+    expect(debtDocMissing(claim({ status: 'APPROVED', items: [PJS_ROW], needs_debt_doc: true }))).toBe(true);
+    expect(debtDocMissing(claim({ status: 'APPROVED', items: [PJR_ROW], needs_debt_doc: false }))).toBe(false);
+  });
+  test('roundBlocker: missing debt doc blocks the tick', () => {
+    expect(roundBlocker(claim({ status: 'APPROVED', items: [PJR_ROW] }), undefined)).toBe('ต้องใส่เลขรับสภาพหนี้ก่อนส่งเคลียร์');
+    expect(roundBlocker(claim({ status: 'APPROVED', items: [PJR_ROW], debt_doc_no: 'DA-001' }), undefined)).toBeNull();
+    expect(roundBlocker(claim({ status: 'APPROVED', items: [PJS_ROW] }), undefined)).toBeNull();
+  });
+  test('roundBlocker: DD and debt doc both missing = one line naming both', () => {
+    expect(roundBlocker(claim({ status: 'APPROVED', amount: 900, items: [PJR_ROW] }), DD_SPEC))
+      .toBe('ต้องใส่ DD และเลขรับสภาพหนี้ก่อนส่งเคลียร์');
+    expect(roundBlocker(claim({ status: 'APPROVED', amount: 900, items: [PJR_ROW], debt_doc_no: 'DA-001' }), DD_SPEC))
+      .toBe('ต้องใส่ DD ก่อนส่งเคลียร์');
+  });
+  test('debtDocButton: only on approved claims that need it · ใส่ when empty, แก้ when set', () => {
+    expect(debtDocButton(claim({ status: 'APPROVED', items: [PJR_ROW] }))).toBe('ใส่เลขรับสภาพหนี้');
+    expect(debtDocButton(claim({ status: 'APPROVED', items: [PJR_ROW], debt_doc_no: 'DA-001' }))).toBe('แก้เลขรับสภาพหนี้');
+    expect(debtDocButton(claim({ status: 'APPROVED', items: [PJS_ROW] }))).toBeNull();
+    expect(debtDocButton(claim({ status: 'PENDING_APPROVAL', items: [PJR_ROW] }))).toBeNull();
+    expect(debtDocButton(claim({ status: 'CLEAR_PENDING', items: [PJR_ROW], debt_doc_no: 'DA-001' }))).toBeNull();
   });
 });
 

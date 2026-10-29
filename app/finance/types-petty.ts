@@ -35,7 +35,7 @@ export type PettyClaimItem = {
   ref_no?: string | null; qty: number; rate: number; amount: number; remark?: string | null;
   /** พจส. ต่อแถว (ค่าชั่ง/ยาง/ซ่อม) — ใช้ในใบสรุปรายการ */
   driver_name?: string | null;
-  /** "พจส." / "พจร." — มี พจร. ต้องมีเลขที่ใบรับสภาพหนี้ตอนอนุมัติ */
+  /** "พจส." / "พจร." — มี พจร. ต้องมีเลขที่ใบรับสภาพหนี้ก่อนส่งเคลียร์ (ใส่หลังโอนเงิน) */
   driver_role?: string | null;
   /** ใบยาง: รหัสตำแหน่งแบบ WMS คั่นด้วย , */
   tire_position?: string | null;
@@ -56,8 +56,10 @@ export type PettyClaim = {
   transfer_date: string | null; review_remark: string | null; return_reason: string | null;
   reviewed_by: string | null; reviewed_at: string | null; submitted_to_acc_at: string | null;
   dup_override_reason: string | null; batch_id: number | null;
-  /** เลขที่ใบรับสภาพหนี้ (มีเมื่อใบมี พจร.) */
+  /** เลขที่ใบรับสภาพหนี้ (มีเมื่อใบมี พจร.) — เจ้าของเงินสดใส่หลังโอนเงิน ต้องมีก่อนส่งเคลียร์ */
   debt_doc_no?: string | null;
+  /** ใบนี้ต้องมีเลขรับสภาพหนี้ไหม (BE คิดให้) — BE เก่าไม่ส่ง หน้าจอคิดจาก พจร. เอง */
+  needs_debt_doc?: boolean;
   items: PettyClaimItem[];
   /** ประวัติใบ — BE ยังไม่ส่ง (หน้าจอประกอบจากวันที่ในใบแทน) ถ้าส่งมาเมื่อไรใช้อันนี้ */
   logs?: PettyRoundLog[];
