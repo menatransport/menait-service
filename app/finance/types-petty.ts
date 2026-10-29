@@ -59,6 +59,8 @@ export type PettyClaim = {
   /** เลขที่ใบรับสภาพหนี้ (มีเมื่อใบมี พจร.) */
   debt_doc_no?: string | null;
   items: PettyClaimItem[];
+  /** ประวัติใบ — BE ยังไม่ส่ง (หน้าจอประกอบจากวันที่ในใบแทน) ถ้าส่งมาเมื่อไรใช้อันนี้ */
+  logs?: PettyRoundLog[];
 };
 export type PettyBalance = {
   fund_id: number; holder_employee_id: string;
@@ -76,10 +78,28 @@ export type PettyRound = {
   clear_approved_by: string | null; clear_approved_by_name: string | null; clear_approved_at: string | null;
   clear_reject_reason: string | null;
   voucher_no: string | null; vouchered_by: string | null; vouchered_at: string | null;
+  /** วันที่ตั้งเบิก YYYY-MM-DD (29/10/2026) — BE เก่ายังไม่ส่งมา */
+  voucher_date?: string | null;
   pay_date: string | null; paid_by: string | null; paid_at: string | null;
+  /** เลขที่ทำจ่าย (29/10/2026) — BE เก่ายังไม่ส่งมา */
+  pay_doc_no?: string | null;
   closed_by: string | null; closed_at: string | null;
   /** มีเมื่อขอรายละเอียดรอบ */
   claims?: PettyClaim[];
   /** คนที่ขอดูรอบนี้กดอนุมัติเคลียร์ได้ไหม (สายงานรู้ที่ BE) */
   can_clear?: boolean;
+  /** หัวหน้าที่ระบบส่งอีเมลหา (รอฉันอนุมัติ) — false = อนุมัติแทนได้ */
+  is_primary?: boolean;
+  /** บัญชีรับเงินของเจ้าของเงินสด — มีเฉพาะรายละเอียดรอบ และเฉพาะคนที่ต้องโอนเงิน (การเงิน แอดมิน เจ้าของเอง) */
+  holder_payee?: PettyHolderPayee | null;
+  /** ประวัติรอบ เก่าไปใหม่ — มีเฉพาะรายละเอียดรอบ */
+  logs?: PettyRoundLog[];
+};
+
+export type PettyHolderPayee = {
+  payee_account_type: string | null; bank: string | null; account_no: string | null; account_name: string | null;
+};
+
+export type PettyRoundLog = {
+  action: string; actor: string | null; actor_name: string | null; at: string | null; remark: string | null;
 };
