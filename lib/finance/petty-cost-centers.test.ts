@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  COST_CENTERS, COST_CENTER_GROUPS, claimCostCenterLine, costCenterLabel, defaultCostCenter, isCostCenter,
+  COST_CENTERS, COST_CENTER_GROUPS, centerOfSite, claimCostCenterLine, costCenterGroupsForSite, costCenterLabel,
+  defaultCostCenter, isCostCenter,
 } from './petty-cost-centers';
 
 describe('รายการศูนย์และแผนก (จากผู้ใช้ 29/10/2026)', () => {
@@ -41,4 +42,26 @@ describe('บรรทัดรหัสค่าใช้จ่ายของ�
     expect(claimCostCenterLine({ cost_center: '3B04' }, fund)).toBe('3B04 ศลบ - ความปลอดภัย'));
   test('ใบเก่าที่ไม่มี → รหัสแผนกของวงเงินแบบเดิม', () =>
     expect(claimCostCenterLine({ cost_center: null }, fund)).toBe('B02 ฝ่ายยานยนต์'));
+});
+
+describe('กรองตามศูนย์ของผู้เบิก (ผู้ใช้สั่ง 29/10/2026: Bangkok HQ มาช่วยกรอง)', () => {
+  test('ชื่อศูนย์จาก session (site_name_en) → ศูนย์ในรายการ', () => {
+    expect(centerOfSite('Bangkok HQ')).toBe('สกท');
+    expect(centerOfSite('Saraburi')).toBe('สสบ');
+    expect(centerOfSite('Lat Krabang')).toBe('ศลบ');
+  });
+  test('รหัสศูนย์ภาษาไทยก็ได้ มีจุดหรือไม่มีก็ได้', () => {
+    expect(centerOfSite('สกท.')).toBe('สกท');
+    expect(centerOfSite(' ศลบ ')).toBe('ศลบ');
+  });
+  test('ศูนย์ที่ยังไม่มีรหัสในรายการ / ว่าง → ไม่รู้', () => {
+    for (const s of ['Rayong', 'Bang Pakong', 'Khon Kaen', '', null, undefined]) expect(centerOfSite(s)).toBeNull();
+  });
+  test('Bangkok HQ เห็นแค่กลุ่ม สกท 11 รหัส', () => {
+    const groups = costCenterGroupsForSite('Bangkok HQ');
+    expect(groups.map(g => g.center)).toEqual(['สกท']);
+    expect(groups[0].items).toHaveLength(11);
+  });
+  test('ศูนย์ที่ไม่รู้ เห็นทุกกลุ่ม', () =>
+    expect(costCenterGroupsForSite('Rayong').map(g => g.center)).toEqual(['สกท', 'สสบ', 'ศลบ']));
 });

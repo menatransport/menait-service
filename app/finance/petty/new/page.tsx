@@ -14,7 +14,7 @@ import { payeeBankProblem } from '@/lib/finance/petty-payee';
 import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
 import { fundsForExpenseType } from '@/lib/finance/petty-account-code';
 import { bangkokToday } from '@/lib/finance/petty-doc';
-import { COST_CENTER_GROUPS, defaultCostCenter } from '@/lib/finance/petty-cost-centers';
+import { COST_CENTER_GROUPS, centerOfSite, costCenterGroupsForSite, defaultCostCenter } from '@/lib/finance/petty-cost-centers';
 import { showAlert } from '../../api';
 import { checkDuplicate, createClaim, getExpenseTypes, getFunds, uploadPettyFiles } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, Panel } from '../../components/FinanceShell';
@@ -40,6 +40,13 @@ export default function NewPettyClaimPage() {
   // ศูนย์และแผนกของผู้เบิก — เลือกตามวงเงินให้ก่อน ผู้เปิดใบเปลี่ยนเองได้ (ผู้ใช้สั่ง 29/10/2026)
   const [costCenter, setCostCenter] = useState('');
   const [costCenterPicked, setCostCenterPicked] = useState(false);
+  // dropdown เห็นเฉพาะศูนย์ของผู้เบิก (เช่น Bangkok HQ → สกท) — กด "ดูทุกศูนย์" ถ้าต้องเบิกให้ศูนย์อื่น
+  const [showAllCenters, setShowAllCenters] = useState(false);
+  const myCenter = centerOfSite(user?.site);
+  const ccGroups = useMemo(
+    () => (showAllCenters ? COST_CENTER_GROUPS : costCenterGroupsForSite(user?.site)),
+    [showAllCenters, user?.site],
+  );
   const [header, setHeader] = useState<Record<string, unknown>>(() => ({ expense_date: bangkokToday() }));
   const [rows, setRows] = useState<Row[]>([]);
   const [files, setFiles] = useState<Record<string, File[]>>({});
@@ -83,10 +90,12 @@ export default function NewPettyClaimPage() {
   }, [typeCode, funds]);
 
   // เปลี่ยนวงเงิน → เลือกศูนย์และแผนกตามวงเงินให้ใหม่ ถ้าผู้เปิดใบยังไม่ได้เลือกเอง
+  // ค่าที่ได้ต้องอยู่ในตัวเลือกที่เห็น ไม่งั้นช่องจะดูว่างแต่ส่งรหัสไป
   useEffect(() => {
     if (costCenterPicked) return;
-    setCostCenter(defaultCostCenter(funds?.find(f => String(f.id) === fundId)));
-  }, [fundId, funds, costCenterPicked]);
+    const code = defaultCostCenter(funds?.find(f => String(f.id) === fundId));
+    setCostCenter(ccGroups.some(g => g.items.some(c => c.code === code)) ? code : '');
+  }, [fundId, funds, costCenterPicked, ccGroups]);
 
   // เตือนซ้ำขณะกรอก — ด่านจริงอยู่ที่ BE ตอนอนุมัติ ตรงนี้ให้เห็นก่อนจะส่ง
   useEffect(() => {
@@ -253,12 +262,18 @@ export default function NewPettyClaimPage() {
             <select value={costCenter} onChange={e => { setCostCenter(e.target.value); setCostCenterPicked(true); }}
               className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5">
               <option value="">เลือกศูนย์และแผนก</option>
-              {COST_CENTER_GROUPS.map(g => (
+              {ccGroups.map(g => (
                 <optgroup key={g.center} label={g.center}>
                   {g.items.map(c => <option key={c.code} value={c.code}>{c.code} {c.name}</option>)}
                 </optgroup>
               ))}
             </select>
+            {myCenter && !showAllCenters && (
+              <span className="mt-1 block text-xs text-ink-400">
+                แสดงเฉพาะ {myCenter} ตามศูนย์ของคุณ ·{' '}
+                <button type="button" onClick={() => setShowAllCenters(true)} className="text-brand-600 underline">ดูทุกศูนย์</button>
+              </span>
+            )}
           </label>
           <label className="text-sm">วันที่ขอเบิก
             <input type="date" value={String(header.expense_date ?? '')}

@@ -63,6 +63,24 @@ export const COST_CENTER_GROUPS: readonly { center: string; items: readonly Cost
     center, items: COST_CENTERS.filter(c => c.code.startsWith(digit)),
   }));
 
+/** ชื่อศูนย์ใน session (sites.site_name_en) หรือรหัสไทย → ศูนย์ในรายการ · ศูนย์ที่ยังไม่มีรหัส = null */
+const SITE_TO_CENTER: Record<string, string> = {
+  'bangkok hq': 'สกท', 'สกท': 'สกท',
+  'saraburi': 'สสบ', 'สสบ': 'สสบ',
+  'lat krabang': 'ศลบ', 'ศลบ': 'ศลบ',
+};
+
+export function centerOfSite(site: string | null | undefined): string | null {
+  const key = (site ?? '').trim().replace(/\.+$/, '').trim().toLowerCase();
+  return SITE_TO_CENTER[key] ?? null;
+}
+
+/** กลุ่มที่ผู้เบิกเห็นใน dropdown: เฉพาะศูนย์ของตัวเอง · ศูนย์ที่ไม่รู้ = ทุกกลุ่ม */
+export function costCenterGroupsForSite(site: string | null | undefined): typeof COST_CENTER_GROUPS {
+  const center = centerOfSite(site);
+  return center ? COST_CENTER_GROUPS.filter(g => g.center === center) : COST_CENTER_GROUPS;
+}
+
 export function isCostCenter(code: string | null | undefined): boolean {
   return !!code && BY_CODE.has(code);
 }
