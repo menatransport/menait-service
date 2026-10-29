@@ -36,18 +36,18 @@ describe('cash advance form', () => {
     const html = buildCashAdvanceHtml(sample as any, { logoUrl: '' });
     for (const s of ['ใบคำขอเบิกเงินล่วงหน้า', '(Cash Advance Request form)', 'วันที่', '13-ส.ค.-26',
       'ข้อมูลพนักงานผู้เบิกเงิน', 'ประเภทและวัตถุประสงค์ในการเบิกเงินล่วงหน้า', 'เงื่อนไขและข้อตกลง', 'ลงนามและอนุมัติ', 'นางสาวตัวอย่าง ทดสอบ', '000000', 'ผู้ช่วยหัวหน้าแผนกบัญชี',
-      '000-0-00000-0', 'กสิกรไทย', '5,000.00', 'ห้าพันบาทถ้วน', '18/8/2026', 'กรุงเทพ', 'ลาดกระบัง/ขอนแก่น',
-      'สระบุรี/ระยอง/บางปะกง', 'ผู้ขอเบิก', 'หัวหน้าหน่วยงาน', 'ผู้จัดการ', 'ผู้มีอำนาจอนุมัติ', 'counter(page)', 'Document Control &amp; Revision History',
+      '000-0-00000-0', 'กสิกรไทย', '5,000.00', 'ห้าพันบาทถ้วน', '18/8/2026', 'กรุงเทพ', 'ลาดกระบัง',
+      'ขอนแก่น', 'สระบุรี', 'ระยอง', 'บางปะกง', 'ผู้ขอเบิก', 'หัวหน้าหน่วยงาน', 'ผู้จัดการ', 'ผู้มีอำนาจอนุมัติ', 'counter(page)', 'Document Control &amp; Revision History',
       'ภายใน 7 วันหลังจากได้รับเงิน', 'กรุณาส่งเอกสารที่ได้รับอนุมัติตาม TOA ภายในวันอังคาร',
       '<li>กรณีมีการจ่ายเงินค่าบริการ รบกวนติดต่อทางบัญชี accountbkk@menatransport.co.th</li>']) {
       expect(html).toContain(s);
     }
     for (const gone of ['MDD', 'อื่นๆ']) expect(html).not.toContain(gone);
-    expect((html.match(/<span class="cbi">/g) ?? []).length).toBe(3);
+    expect((html.match(/<span class="cbi">/g) ?? []).length).toBe(6); // 6 ศูนย์ แยกกัน ไม่มี "/"
     expect((html.match(/<li>/g) ?? []).length).toBe(6); // clauses 1–6
     expect(html).not.toContain('เริ่มใช้');
     expect(html).not.toContain('1 Nov 22');
-    expect((html.match(/class="cb checked"/g) ?? []).length).toBe(1); // ลาดกระบัง/ขอนแก่น
+    expect((html.match(/class="cb checked"/g) ?? []).length).toBe(1); // ลาดกระบัง
   });
   test('amount box is a plain outline, no colour fill (ผู้ใช้ 26/10/2026: เปลืองหมึกตอนพิมพ์)', () => {
     const html = buildCashAdvanceHtml(sample as unknown as CashAdvanceFormData, {});
@@ -81,7 +81,7 @@ describe('cash advance form', () => {
       approval_logs: [{ level_no: 2, action: 'APPROVED', action_at: '2026-08-14T05:00:00+00:00', actor_name: 'ผู้จัดการ หนึ่ง', remark: null }],
     };
     const d = toCashAdvanceData(detail);
-    expect(d.centers).toEqual(['ลาดกระบัง/ขอนแก่น']);
+    expect(d.centers).toEqual(['ขอนแก่น']);
     expect(d.employee.bank_name).toBe('กสิกรไทย');
     expect(d.employee.bank_account_no).toBe('123-4-56789-0');
     expect(d.employee.position).toBe('เจ้าหน้าที่');
@@ -91,17 +91,17 @@ describe('cash advance form', () => {
     expect(d.signatures.approver.name).toBe('ผู้จัดการ หนึ่ง');
     expect(d.signatures.approver.date).toBe('14/8/2026');
     const o = toCashAdvanceData({ ...detail, requester: { ...detail.requester, site: 'ศูนย์บางปะกง', site_code: 'ศบก.' }, fin: { voucher_date: '2026-08-14', transfer_date: null } });
-    expect(o.centers).toEqual(['สระบุรี/ระยอง/บางปะกง']);
+    expect(o.centers).toEqual(['บางปะกง']);
     const u = toCashAdvanceData({ ...detail, requester: { ...detail.requester, site: 'สำนักงานใหม่', site_code: null } });
     expect(u.centers).toEqual([]); // unmapped site → no box
   });
   test.each([
     ['สกท.', ['กรุงเทพ'], ''],
-    ['ศลบ.', ['ลาดกระบัง/ขอนแก่น'], ''],
-    ['ศขก', ['ลาดกระบัง/ขอนแก่น'], ''],
-    ['สสบ.', ['สระบุรี/ระยอง/บางปะกง'], ''],
-    ['ศรย', ['สระบุรี/ระยอง/บางปะกง'], ''],
-    ['ศบก.', ['สระบุรี/ระยอง/บางปะกง'], ''],
+    ['ศลบ.', ['ลาดกระบัง'], ''],
+    ['ศขก', ['ขอนแก่น'], ''],
+    ['สสบ.', ['สระบุรี'], ''],
+    ['ศรย', ['ระยอง'], ''],
+    ['ศบก.', ['บางปะกง'], ''],
     ['สขข.', [], ''],
     [null, [], ''],
   ])('requester site %s maps to centers (cost_center is ignored)', (code, centers) => {
@@ -163,7 +163,8 @@ describe('cash advance form', () => {
     };
     const d = toCashAdvanceData(detail);
     expect(d.signatures.requester.esign).toEqual({ name: 'ผู้ขอ', timestamp: '2026-09-15T02:12:45+00:00', ref: 'ADV-2026-0001' });
-    expect(d.signatures.approver.esign).toEqual({ name: 'อธิวัฒน์', timestamp: '2026-09-16T07:03:10+00:00', ref: 'ข้อ 6.6' });
+    // Ref บนตราลงนามทุกช่อง = เลขที่ใบคำขอเบิก (ผู้ใช้สั่ง 29/10/2026)
+    expect(d.signatures.approver.esign).toEqual({ name: 'อธิวัฒน์', timestamp: '2026-09-16T07:03:10+00:00', ref: 'ADV-2026-0001' });
     expect(d.signatures.unit_head.esign).toBeUndefined();
     expect(d.signatures.manager.esign).toBeUndefined();
     expect(toCashAdvanceData({ ...detail, approval_logs: [] }).signatures.approver.esign).toBeUndefined();
@@ -189,6 +190,7 @@ describe('cash advance form', () => {
     expect(d.signatures.unit_head.esign?.name).toBe('พุทธชาติ');
     expect(d.signatures.manager.esign?.name).toBe('เจษฎา');
     expect(d.signatures.approver.esign?.name).toBe('สุวรรณา');
+    expect([d.signatures.unit_head, d.signatures.manager, d.signatures.approver].map(s => s.esign?.ref)).toEqual(Array(3).fill('ADV-2610-002'));
     const pend = toCashAdvanceData({ ...detail, status: 'PENDING_APPROVAL',
       approval: { ...detail.approval, current_step: 3, step_approvals: detail.approval.step_approvals.slice(0, 2) } });
     expect(pend.signatures.unit_head.esign?.name).toBe('พุทธชาติ');
@@ -210,8 +212,8 @@ describe('cash advance form', () => {
       approval_logs: [{ level_no: 2, action: 'APPROVED', action_at: '2026-09-17T02:00:00+00:00', actor_name: 'ผู้อำนวยการ', remark: null }],
     };
     const d = toCashAdvanceData(detail);
-    expect(d.signatures.unit_head.esign).toEqual({ name: 'หัวหน้า', timestamp: '2026-09-16T01:00:00+00:00', ref: 'ข้อ 6.5' });
-    expect(d.signatures.approver.esign).toEqual({ name: 'ผู้อำนวยการ', timestamp: '2026-09-17T02:00:00+00:00', ref: 'ข้อ 6.5' });
+    expect(d.signatures.unit_head.esign).toEqual({ name: 'หัวหน้า', timestamp: '2026-09-16T01:00:00+00:00', ref: 'ADV-2610-001' });
+    expect(d.signatures.approver.esign).toEqual({ name: 'ผู้อำนวยการ', timestamp: '2026-09-17T02:00:00+00:00', ref: 'ADV-2610-001' });
     expect(d.signatures.manager.esign).toBeUndefined();
     // step 2 pending: approver blank, unit head stamped
     const pend = toCashAdvanceData({ ...detail, status: 'PENDING_APPROVAL', approval: { ...detail.approval, current_step: 2, step_approvals: [detail.approval.step_approvals[0]] }, approval_logs: [] });

@@ -44,7 +44,7 @@ describe('expense claim form (Part 2)', () => {
     expect(d.document_no).toBe('ADV-2026-0001');
     expect(d.ref_no).toBe('CL-2609-0012');
     expect(d.clear_date).toBe('2026-09-10');
-    expect(d.centers).toEqual(['สระบุรี/ระยอง/บางปะกง']);
+    expect(d.centers).toEqual(['สระบุรี']);
     expect(d.employee).toEqual({ name: 'สุนิสา ทาระเวท', position: 'หัวหน้าแผนกค่าจ้างและสวัสดิการ', department: 'ทรัพยากรบุคคล',
       bank_account_no: '041-3-95456-8', bank_name: 'กสิกรไทย', account_name: 'สุนิสา ทาระเวท' });
     expect(d.amount_paid).toBe(2000);
@@ -64,12 +64,13 @@ describe('expense claim form (Part 2)', () => {
     expect(open.signatures.requester.date).toBe('10/9/2026');
     expect(open.signatures.accounting).toEqual({ name: '', date: '' });
     const closed = toClearingData(detail({ status: 'CLOSED' }));
-    expect(closed.signatures.accounting.esign).toEqual({ name: 'นายบัญชี ตรวจ', timestamp: '2026-09-11T08:30:00+00:00', ref: 'ปิดรายการ' });
+    // Ref บนตราลงนามทุกช่อง = เลขที่ใบคำขอเบิก (ผู้ใช้สั่ง 29/10/2026)
+    expect(closed.signatures.accounting.esign).toEqual({ name: 'นายบัญชี ตรวจ', timestamp: '2026-09-11T08:30:00+00:00', ref: 'ADV-2026-0001' });
     expect(toClearingData(detail({ status: 'CLOSED' }, { closed_at: null })).signatures.accounting.esign).toBeUndefined();
     expect((buildClearingHtml(open, {}).match(/class="esign"/g) ?? []).length).toBe(1);
     const html = buildClearingHtml(closed, {});
     expect((html.match(/class="esign"/g) ?? []).length).toBe(2);
-    expect(html).toContain('ปิดรายการ');
+    expect(html).not.toContain('<div class="esign-ref">ปิดรายการ');
     expect(html).toContain('ลงนามอิเล็กทรอนิกส์ผ่านระบบ');
   });
   test('html has the title, header, every column header, clause, summary label and signature title (verbatim)', () => {
@@ -94,8 +95,8 @@ describe('expense claim form (Part 2)', () => {
     expect([...CLAIM_SIGNERS]).toEqual(['ผู้ขอเบิก', 'หัวหน้าหน่วยงาน', 'ผู้จัดการ', 'ผู้มีอำนาจอนุมัติ', 'แผนกบัญชีและการเงิน']);
     for (const s of CLAIM_SIGNERS) expect(html).toContain(`<th>${s}</th>`);
     expect((html.match(/class="cb checked"/g) ?? []).length).toBe(1);
-    expect(html).toContain('<span class="cb checked"></span>สระบุรี/ระยอง/บางปะกง');
-    expect((html.match(/<span class="cbi">/g) ?? []).length).toBe(3); // 3 ศูนย์ options only
+    expect(html).toContain('<span class="cb checked"></span>สระบุรี');
+    expect((html.match(/<span class="cbi">/g) ?? []).length).toBe(6); // 6 ศูนย์ แยกกัน ไม่มี "/"
     for (const gone of ['MDD', 'อื่นๆ']) expect(html).not.toContain(gone);
     // landscape named page, page counter, no version box
     expect(html).toContain('@page claim { size: A4 landscape; }');
@@ -259,6 +260,7 @@ describe('Part 2 — ลายเซ็นผู้อนุมัติกา�
   test('อนุมัติขั้นเดียว ลงช่องผู้มีอำนาจอนุมัติ', () => {
     const d = toClearingData(detail({ status: 'AWAITING_REVIEW', clear_logs: [log(1, 'SUBMITTED', '2026-10-20T02:00:00Z'), log(1, 'APPROVED', '2026-10-20T03:00:00Z', 'ศิวพร ม่วงสวย')] }));
     expect(d.signatures.approver?.name).toBe('ศิวพร ม่วงสวย');
+    expect(d.signatures.approver?.esign?.ref).toBe('ADV-2026-0001');
     expect(d.signatures.unit_head?.name ?? '').toBe('');
     expect(buildClearingHtml(d, {})).toContain('ศิวพร ม่วงสวย');
   });
