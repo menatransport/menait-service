@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatAccountNo, normalizeAccountNo } from '@/lib/finance/bank';
 import { checkPayeeFiles, kbankAccountError, PAYEE_MAX_FILES, type PayeeRequest } from '@/lib/finance/payee';
-import { fetchJson, showAlert, uploadPayeeFiles } from '../api';
+import { confirmReview, fetchJson, showAlert, uploadPayeeFiles, showSuccess } from '../api';
 import { FilePicker } from './FilePicker';
 
 /** Dialog: request a new (or changed) K-Bank own-account payee. Calls onDone after the request is created. */
-export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone }: {
+export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone, isChange = false }: {
   open: boolean; onOpenChange: (open: boolean) => void; defaultName: string; onDone: () => void | Promise<void>;
+  /** มีบัญชีใน Master อยู่แล้ว = ขอเปลี่ยน ไม่ใช่ขอเพิ่ม */
+  isChange?: boolean;
 }) {
   const [accountNo, setAccountNo] = useState('');
   const [accountName, setAccountName] = useState(defaultName);
@@ -44,6 +46,19 @@ export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone }: 
     if (Object.keys(next).length) return;
 
     submittingRef.current = true;
+    const ok = await confirmReview({
+      title: isChange ? 'ยืนยันขอเปลี่ยนบัญชีรับเงิน' : 'ยืนยันขอเพิ่มบัญชีรับเงิน',
+      rows: [
+        ['ธนาคาร', 'ธนาคารกสิกรไทย'],
+        ['เลขที่บัญชี', formatAccountNo(normalizeAccountNo(accountNo))],
+        ['ชื่อบัญชี', accountName.trim()],
+        ['หมายเหตุ', remark.trim()],
+        ['bookbank ที่แนบ', files.map(f => f.name).join('\n')],
+      ],
+      note: 'ส่งให้บัญชีตรวจสอบก่อนใช้งาน',
+      confirmButtonText: 'ยืนยันส่งคำขอ',
+    });
+    if (!ok) { submittingRef.current = false; return; }
     setBusy(true);
     let created: PayeeRequest;
     try {
@@ -65,7 +80,7 @@ export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone }: 
     if (failed.length) {
       await showAlert({ icon: 'warning', title: 'อัปโหลดไฟล์ไม่สำเร็จ กรุณาแนบไฟล์เพิ่มจากกล่องคำขอ', text: failed.join(', ') });
     } else {
-      await showAlert({ icon: 'success', title: 'ส่งคำขอแล้ว รอบัญชีตรวจสอบ' });
+      await showSuccess('ส่งคำขอแล้ว รอบัญชีตรวจสอบ');
     }
   };
 
@@ -73,7 +88,7 @@ export function RequestPayeeDialog({ open, onOpenChange, defaultName, onDone }: 
     <Dialog open={open} onOpenChange={(o) => { if (!busy) onOpenChange(o); }}>
       <DialogContent className="max-h-[92vh] overflow-y-auto rounded-2xl sm:max-w-lg">
         <DialogHeader className="text-left">
-          <DialogTitle className="text-lg font-semibold text-brand-800">ขอเพิ่มบัญชีรับเงิน</DialogTitle>
+          <DialogTitle className="text-lg font-semibold text-brand-800">{isChange ? 'ขอเปลี่ยนบัญชีรับเงิน' : 'ขอเพิ่มบัญชีรับเงิน'}</DialogTitle>
           <DialogDescription className="text-xs text-gray-500">บัญชีกสิกรไทยของตัวเอง — ส่งให้บัญชีตรวจสอบก่อนใช้งาน</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">

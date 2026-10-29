@@ -91,8 +91,9 @@ export function validateSingleItem(
   row: ClearItemRow,
   parse: (s: string) => number | null,
 ): string[] {
+  const blank = raw.a.trim() === '' ? ['กรุณาระบุยอดเงิน'] : [];
   const numErrs = invalidNumberErrors([raw], parse);
   const rowErrs = validateItems([row]);
   // an unparseable number parses to null (treated as 0), so the net check may also fire; both messages are shown
-  return [...numErrs, ...rowErrs].map(m => m.replace(ROW_PREFIX, ''));
+  return [...blank, ...numErrs, ...rowErrs].map(m => m.replace(ROW_PREFIX, ''));
 }

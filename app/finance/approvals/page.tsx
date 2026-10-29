@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { BadgeCheck, Check, CheckCircle2, Clock, Info, X, XCircle } from 'lucide-react';
+import { BadgeCheck, Check, CheckCircle2, Clock, FileText, Info, X, XCircle } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
 import { PaginationControls } from '@/components/pagination-controls';
 import { Mascot } from '@/components/mascot';
@@ -12,10 +12,13 @@ import { formatBaht, formatDate } from '@/lib/finance/status';
 import { stepBadge } from '@/lib/finance/approvalSteps';
 import { fetchJson, showAlert, showConfirm } from '../api';
 import type { PendingApprovalItem } from '../types';
+import { AdvanceSheet } from '../components/AdvanceSheet';
 import { AttachmentPanel } from '../components/AttachmentPanel';
+import { ClearApprovalQueue } from '../components/ClearApprovalQueue';
+import { useClearPendingItems } from '../useClearApprovals';
 import { Field, FinanceHeading, FinanceShell, Panel } from '../components/FinanceShell';
 
-type ApvView = 'pending' | 'history';
+type ApvView = 'pending' | 'clear' | 'history';
 const HISTORY_PAGE_SIZE = 20;
 
 type ApprovalListItem = {
@@ -59,6 +62,7 @@ const getUseDate = (values?: FormValue[]) =>
 
 const BTN_REJECT = 'inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50';
 const BTN_APPROVE = 'inline-flex items-center gap-1.5 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 px-5 py-2 text-sm font-semibold text-white shadow-md transition-all hover:from-brand-700 hover:to-brand-600 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50';
+const BTN_VIEW = 'inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50';
 const CARD = 'rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5';
 
 /** The requested amount is what the approver decides on — give it the most weight on the card. */
@@ -159,9 +163,10 @@ function ApprovalCard({
 }
 
 function PendingCard({
-  item, processing, highlight = false, onApprove, onReject,
+  item, processing, highlight = false, onApprove, onReject, onView,
 }: {
   item: PendingApprovalItem; processing: boolean; highlight?: boolean; onApprove: () => void; onReject: () => void;
+  onView: () => void;
 }) {
   const { requester, request, tier } = item;
   const badge = stepBadge(item.step, item.total_steps);
@@ -184,8 +189,8 @@ function PendingCard({
         <Field label="วันที่ใช้เงิน" value={formatDate(request.use_date)} />
         <Field label="วันที่ยื่นคำขอ" value={formatDate(item.created_at)} />
         <Field label="ค่าใช้จ่ายรายศูนย์" value={request.cost_center ?? '-'} />
-        <div className="col-span-2"><Field label="ขั้นอนุมัติ" value={`ข้อ ${tier.clause} · ${tier.approver_label} — ผู้อนุมัติระดับ ${tier.required_level} ขึ้นไป`} /></div>
-        <div className="col-span-2 sm:col-span-3"><Field label={PURPOSE_LABEL} value={request.purpose} /></div>
+        <div className="col-span-2"><Field label="ขั้นอนุมัติ" value={item.step_label ? `ข้อ ${tier.clause} · ${item.step_label}` : `ข้อ ${tier.clause} · ${tier.approver_label} — ผู้อนุมัติระดับ ${tier.required_level} ขึ้นไป`} /></div>
+        <div className="col-span-2 sm:col-span-3"><Field label={PURPOSE_LABEL} value={request.purpose} copyText={request.purpose} /></div>
       </div>
 
       <div className="mt-4">
@@ -196,7 +201,11 @@ function PendingCard({
         {item.tab === 'delegable' && (
           <p className="mb-2 flex items-center gap-1.5 text-xs text-gray-500"><Info className="h-3.5 w-3.5 text-brand-600" /> อนุมัติแทนได้ — มีผู้มีสิทธิ์ระดับ {item.step_required_level ?? tier.required_level}+ ที่ใกล้กว่า</p>
         )}
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          {/* ดูใบเต็ม ๆ ในแผงข้าง: ข้อมูลผู้รับเงิน ไฟล์แนบ ประวัติ (ผู้ใช้สั่ง 26/10/2026) */}
+          <button type="button" onClick={onView} className={`${BTN_VIEW} mr-auto`}>
+            <FileText className="h-4 w-4" /> ดูรายละเอียดทั้งหมด
+          </button>
           <button
             type="button"
             disabled={processing}
@@ -221,7 +230,9 @@ function PendingCard({
 
 function FinanceApprovals() {
   const { user } = useSessionContext();
-  const doc = useSearchParams().get('doc');
+  const params = useSearchParams();
+  const doc = params.get('doc');
+  const tabParam = params.get('tab');
   const [notice, setNotice] = useState('');
   const handledDoc = useRef<string | null>(null);
   const activeDoc = useRef<string | null>(null);
@@ -235,13 +246,18 @@ function FinanceApprovals() {
       if (scrollTimer.current) clearTimeout(scrollTimer.current);
     };
   }, [doc]);
-  const [apvView, setApvView] = useState<ApvView>('pending');
+  // ลิงก์จากอีเมลรอท่านอนุมัติการเคลียร์มาพร้อม ?tab=clear
+  const [apvView, setApvView] = useState<ApvView>(tabParam === 'clear' ? 'clear' : 'pending');
+  const [clearKey, setClearKey] = useState(0);
+  const clearItems = useClearPendingItems(clearKey);
+  const refreshClear = useCallback(() => setClearKey(k => k + 1), []);
   const [items, setItems] = useState<ApprovalItem[]>([]);
   const [pending, setPending] = useState<PendingApprovalItem[]>([]);
   const [pendingTab, setPendingTab] = useState<'mine' | 'delegable'>('mine');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyTotal, setHistoryTotal] = useState(0);
   const loadSeq = useRef(0);
@@ -249,6 +265,7 @@ function FinanceApprovals() {
   const load = useCallback(async () => {
     if (!user?.employee_id) return;
     const seq = ++loadSeq.current; // a slow older page must not overwrite a newer one
+    if (apvView === 'clear') { setLoading(false); return; } // แท็บเคลียร์โหลดเอง (useClearPendingItems)
     setLoading(true);
     setError('');
     try {
@@ -350,6 +367,7 @@ function FinanceApprovals() {
           title: action === 'approve' ? 'อนุมัติไม่สำเร็จ' : 'ไม่อนุมัติไม่สำเร็จ',
           text: errData?.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่',
         });
+        await load(); // ใบอาจถูกคนอื่นอนุมัติไปแล้ว ดึงคิวใหม่ให้การ์ดที่ค้างหายไป
         return;
       }
       await showAlert({
@@ -374,12 +392,9 @@ function FinanceApprovals() {
     const result: any = await showConfirm({
       title: 'ยืนยันอนุมัติคำขอเบิกเงิน Advance',
       text: `ฟอร์ม ${item.form_id}`,
-      input: 'textarea',
-      inputLabel: 'หมายเหตุ (ถ้ามี)',
-      inputPlaceholder: 'ระบุหมายเหตุ...',
     });
     if (!result?.isConfirmed) return;
-    await submitAction(item, (result.value ?? '').trim(), 'approve');
+    await submitAction(item, '', 'approve');
   }, [submitAction]);
 
   const handleReject = useCallback(async (item: { form_id: string }) => {
@@ -402,15 +417,15 @@ function FinanceApprovals() {
         title="อนุมัติเบิกเงิน Advance"
         caption="อนุมัติตามวงเงินในตารางอำนาจอนุมัติ ข้อ 6"
         actions={
-          <div role="tablist" aria-label="มุมมองรายการ" className="v2-glass inline-flex rounded-full p-1">
-            {([['pending', 'รออนุมัติ'], ['history', 'อนุมัติ/ไม่อนุมัติแล้ว']] as const).map(([value, label]) => (
+          <div role="tablist" aria-label="มุมมองรายการ" className="v2-glass inline-flex max-w-full overflow-x-auto rounded-full p-1">
+            {([['pending', 'รออนุมัติเบิก'], ['clear', `รออนุมัติเคลียร์${clearItems?.length ? ` (${clearItems.length})` : ''}`], ['history', 'อนุมัติ/ไม่อนุมัติแล้ว']] as const).map(([value, label]) => (
               <button
                 key={value}
                 type="button"
                 role="tab"
                 aria-selected={apvView === value}
                 onClick={() => { setApvView(value); setHistoryPage(1); }}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all cursor-pointer ${apvView === value ? 'bg-linear-to-r from-brand-600 to-brand-500 text-white shadow-md' : 'text-ink-700 hover:text-brand-600'}`}
+                className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition-all cursor-pointer sm:px-4 sm:text-sm ${apvView === value ? 'bg-linear-to-r from-brand-600 to-brand-500 text-white shadow-md' : 'text-ink-700 hover:text-brand-600'}`}
               >
                 {label}
               </button>
@@ -426,8 +441,10 @@ function FinanceApprovals() {
           </button>
         </div>
       )}
-      <Panel title={apvView === 'pending' ? 'รายการรออนุมัติ' : 'รายการอนุมัติ/ไม่อนุมัติแล้ว'}>
-        {loading ? (
+      <Panel title={apvView === 'pending' ? 'รายการรออนุมัติ' : apvView === 'clear' ? 'ใบเคลียร์รออนุมัติ' : 'รายการอนุมัติ/ไม่อนุมัติแล้ว'}>
+        {apvView === 'clear' ? (
+          <ClearApprovalQueue items={clearItems} doc={tabParam === 'clear' ? doc : null} onChanged={refreshClear} onNotice={setNotice} />
+        ) : loading ? (
           <div className="py-8"><MascotLoader text="กำลังโหลดรายการ" size={80} /></div>
         ) : error ? (
           <p className="text-sm text-rose-600">{error}</p>
@@ -461,6 +478,7 @@ function FinanceApprovals() {
                         highlight={!!doc && item.form_id === doc}
                         onApprove={() => handleApprove(item)}
                         onReject={() => handleReject(item)}
+                        onView={() => setViewId(item.form_id)}
                       />
                     ))}
                   </div>
@@ -492,6 +510,8 @@ function FinanceApprovals() {
           </div>
         )}
       </Panel>
+      <AdvanceSheet mode="mine" formId={viewId} isOpen={viewId !== null} hideFullPage showRequesterOutstanding
+        onClose={() => setViewId(null)} />
     </FinanceShell>
   );
 }

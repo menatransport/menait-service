@@ -84,7 +84,7 @@ export async function loadPayeeRequestFor(
 type AdvUser = Pick<UserInfo, 'employee_id' | 'is_finance'>;
 
 /** GET a BE JSON resource; null on any non-2xx, network or parse error (callers fail closed). */
-async function beJsonOrNull(url: string): Promise<unknown | null> {
+export async function beJsonOrNull(url: string): Promise<unknown | null> {
   try {
     const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
     if (!res.ok) return null;
@@ -117,7 +117,7 @@ function cachedList(url: string): Promise<unknown | null> {
 
 /**
  * Who may see an ADV (its values, logs and attachments): Finance; the requester; an approver of the current
- * round (approval.step_approvals); anyone whose ADV approval queue holds it now; and anyone who approved or
+ * round (approval.step_approvals); anyone whose ADV approval queue or clearing-approval queue holds it now; and anyone who approved or
  * rejected it before (the detail's approval_logs carry only actor_name, so past actors are matched by id
  * through /forms/approval-history instead). Fails closed on any BE error.
  */
@@ -129,6 +129,9 @@ export async function canViewAdv(user: AdvUser, formId: string): Promise<boolean
   if (advDetailGrantsView(detail, user.employee_id)) return true;
   const pending = await cachedList(beUrl('/finance/approvals/pending', { employee_id: user.employee_id }));
   if (listHasForm(pending, formId)) return true;
+  // หัวหน้าที่ต้องอนุมัติการเคลียร์ไม่ได้อยู่ฝ่ายการเงิน ต้องเปิดใบดูรายการและไฟล์ได้
+  const clearQueue = await cachedList(beUrl('/finance/clear-approvals/pending', { employee_id: user.employee_id }));
+  if (listHasForm(clearQueue, formId)) return true;
   const history = await cachedList(beUrl('/forms/approval-history', { employee_id: user.employee_id }));
   return listHasForm(history, formId);
 }

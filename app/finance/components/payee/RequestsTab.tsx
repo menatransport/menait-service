@@ -6,12 +6,16 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Textarea } from '@/components/ui/textarea';
 import { MascotLoader } from '@/components/loading';
 import { formatAccountNo } from '@/lib/finance/bank';
-import { formatDate } from '@/lib/finance/status';
+import { displayFileName, formatDate } from '@/lib/finance/status';
 import type { PayeeRequest } from '@/lib/finance/payee';
-import { fetchJson, showAlert, showConfirm } from '../../api';
+import { fetchJson, showAlert, showConfirm, showSuccess } from '../../api';
 import { Field } from '../FinanceShell';
 
 type PayeeFile = { key: string; fileName: string; url: string };
+
+const PAYEE_REQUEST_STATUS: Record<string, string> = {
+  PENDING: 'รอตรวจ', APPROVED: 'อนุมัติแล้ว', REJECTED: 'ไม่อนุมัติ', CANCELLED: 'ผู้ขอยกเลิกแล้ว',
+};
 
 const BTN_REJECT = 'inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50';
 const BTN_APPROVE = 'inline-flex items-center gap-1.5 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 px-5 py-2 text-sm font-semibold text-white shadow-md transition-all hover:from-brand-700 hover:to-brand-600 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50';
@@ -19,8 +23,8 @@ const BTN_APPROVE = 'inline-flex items-center gap-1.5 rounded-xl bg-linear-to-r 
 const currentText = (r: PayeeRequest) =>
   r.current_account ? `เปลี่ยนจาก ${formatAccountNo(r.current_account.account_no)} (${r.current_account.account_name})` : null;
 
-export function RequestsTab({ requests, loading, onOpen }: {
-  requests: PayeeRequest[] | null; loading: boolean; onOpen: (id: number) => void;
+export function RequestsTab({ requests, loading, onOpen, canReview = true }: {
+  requests: PayeeRequest[] | null; loading: boolean; onOpen: (id: number) => void; canReview?: boolean;
 }) {
   if (loading) return <div className="py-12"><MascotLoader text="กำลังโหลดคำขอ" size={80} /></div>;
   if (!requests?.length) {
@@ -31,11 +35,17 @@ export function RequestsTab({ requests, loading, onOpen }: {
       </div>
     );
   }
+  // ไม่มีสิทธิ์ตรวจ: แสดงรายการให้ดูอย่างเดียว ไม่ทำเป็นปุ่มที่กดแล้วไม่เกิดอะไร
+  const rowClass = 'grid w-full gap-2 px-4 py-3 text-left sm:grid-cols-[1.2fr_1.5fr_auto] sm:items-center lg:px-5';
   return (
+    <>
+    {!canReview && (
+      <p className="border-b border-gray-100 bg-gray-50 px-4 py-2 text-xs text-gray-500 lg:px-5">ดูรายการได้อย่างเดียว คนที่มีสิทธิ์ตรวจบัญชีรับเงินเท่านั้นที่เปิดคำขอเพื่ออนุมัติได้</p>
+    )}
     <ul className="divide-y divide-gray-100">
       {requests.map(r => (
         <li key={r.id}>
-          <button type="button" onClick={() => onOpen(r.id)} className="grid w-full gap-2 px-4 py-3 text-left transition-colors hover:bg-gray-50 sm:grid-cols-[1.2fr_1.5fr_auto] sm:items-center lg:px-5">
+          {(() => { const body = (<>
             <div className="min-w-0">
               <p className="font-medium text-gray-800">{r.employee_name ?? r.employee_id}</p>
               <p className="text-xs text-gray-500">{r.employee_id}{r.department ? ` · ${r.department}` : ''}</p>
@@ -46,10 +56,14 @@ export function RequestsTab({ requests, loading, onOpen }: {
               {currentText(r) && <p className="text-xs text-amber-700">{currentText(r)}</p>}
             </div>
             <p className="text-xs text-gray-500 sm:text-right">ส่งเมื่อ {formatDate(r.created_at)}</p>
-          </button>
+          </>);
+          return canReview
+            ? <button type="button" onClick={() => onOpen(r.id)} className={`${rowClass} transition-colors hover:bg-gray-50`}>{body}</button>
+            : <div className={rowClass}>{body}</div>; })()}
         </li>
       ))}
     </ul>
+    </>
   );
 }
 
@@ -94,9 +108,12 @@ export function RequestReviewDialog({ requestId, onClose, onChanged }: {
       });
       onClose();
       try { await onChanged(); } catch { /* lists show their own error state */ }
-      await showAlert({ icon: 'success', title: kind === 'approve' ? 'อนุมัติแล้ว' : 'ไม่อนุมัติคำขอแล้ว' });
+      await showSuccess(kind === 'approve' ? 'อนุมัติแล้ว' : 'ไม่อนุมัติคำขอแล้ว');
     } catch (err) {
       await showAlert({ icon: 'error', title: 'ดำเนินการไม่สำเร็จ', text: (err as Error).message });
+      // คำขออาจถูกยกเลิกหรือมีคนตรวจไปแล้ว ดึงสถานะล่าสุดมาแสดง ไม่ให้ปุ่มอนุมัติค้าง
+      try { setReq(await fetchJson<PayeeRequest>(`/api/finance/payee-requests/${req.id}`)); } catch { /* keep what we have */ }
+      try { await onChanged(); } catch { /* lists show their own error state */ }
     } finally {
       setBusy(false);
     }
@@ -128,7 +145,7 @@ export function RequestReviewDialog({ requestId, onClose, onChanged }: {
             )}
             {!pending && (
               <p className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                คำขอนี้ไม่อยู่ในสถานะรอตรวจแล้ว ({req.status}){req.review_remark ? ` · ${req.review_remark}` : ''}
+                คำขอนี้ไม่อยู่ในสถานะรอตรวจแล้ว ({PAYEE_REQUEST_STATUS[req.status] ?? req.status}){req.review_remark ? ` · ${req.review_remark}` : ''}
               </p>
             )}
 
@@ -141,7 +158,7 @@ export function RequestReviewDialog({ requestId, onClose, onChanged }: {
                     {files.map(f => (
                       <li key={f.key}>
                         <a href={f.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-brand-700 underline-offset-2 hover:underline">
-                          <ExternalLink className="size-3.5" />{f.fileName}
+                          <ExternalLink className="size-3.5" />{displayFileName(f.fileName)}
                         </a>
                       </li>
                     ))}

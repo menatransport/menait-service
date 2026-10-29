@@ -4,11 +4,9 @@ import { BASE_PATH, BUCKET_NAME, FORM_ID_PATTERN, isSafeUploadName, s3 } from '@
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { denyUnlessAdvViewer, isAdvOwner, loadPettyClaimFor, requireUser } from '@/lib/finance/server';
 import { isAdvTarget } from '@/lib/finance/formsubmit-guard';
-import { advUploadRole } from '@/lib/finance/adv-access';
+import { advUploadRole, isAdvUploadFolder } from '@/lib/finance/adv-access';
 import { canSeeClaim, isPettyFormId } from '@/lib/finance/petty-access';
 import { canUploadPettyFile, folderIsFull, isPettyFolder, pettyFileProblem, pettyKeyBelongsTo } from '@/lib/finance/petty-upload';
-
-const ALLOWED_FOLDERS = ['pay', 'clear', 'check'];
 
 export async function POST(req: NextRequest) {
   const guard = await requireUser(req);
@@ -19,8 +17,7 @@ export async function POST(req: NextRequest) {
   const folder = ((formData.get('folder') as string | null) ?? '').trim();
   // ใบเงินสดย่อยมีหมวดไฟล์ของตัวเองตาม spec ของประเภทการเบิก (lib/finance/petty-upload.ts)
   const pettyTarget = isPettyFormId(form_id);
-  const folderOk = folder === ''
-    || (pettyTarget ? isPettyFolder(folder) : ALLOWED_FOLDERS.includes(folder));
+  const folderOk = pettyTarget ? folder === '' || isPettyFolder(folder) : isAdvUploadFolder(folder);
   if (!folderOk) {
     return NextResponse.json({ error: 'โฟลเดอร์ไม่ถูกต้อง' }, { status: 400 });
   }
@@ -61,7 +58,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ADV: pay/check are Finance's evidence; request (no folder) and clear belong to the requester
+  // ADV: pay/check are Finance's evidence; request (no folder), clear and related belong to the requester
   if (isAdvTarget({ formId: form_id })) {
     const allowed = advUploadRole(folder) === 'finance'
       ? guard.user.is_finance === true

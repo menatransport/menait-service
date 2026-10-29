@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { spawnSync } from 'child_process';
 import sample from './cash-advance-sample.json';
 import { buildCashAdvanceHtml, dmy, formatBkkDateTime, thaiShortDate, validateCashAdvance, toCashAdvanceData, PRINTABLE_STATUSES } from './cashAdvanceForm';
+import type { CashAdvanceFormData } from './cashAdvanceForm';
 
 describe('cash advance form', () => {
   test('PRINTABLE_STATUSES includes correct statuses and excludes others', () => {
@@ -11,6 +12,7 @@ describe('cash advance form', () => {
     expect(PRINTABLE_STATUSES).toContain('AWAITING_CLEARING');
     expect(PRINTABLE_STATUSES).toContain('SENT_BACK');
     expect(PRINTABLE_STATUSES).toContain('AWAITING_REVIEW');
+    expect(PRINTABLE_STATUSES).toContain('CLEARING_APPROVAL');
     expect(PRINTABLE_STATUSES).toContain('CLOSED');
     expect(PRINTABLE_STATUSES).not.toContain('PENDING_APPROVAL');
     expect(PRINTABLE_STATUSES).not.toContain('REJECTED');
@@ -46,6 +48,14 @@ describe('cash advance form', () => {
     expect(html).not.toContain('เริ่มใช้');
     expect(html).not.toContain('1 Nov 22');
     expect((html.match(/class="cb checked"/g) ?? []).length).toBe(1); // ลาดกระบัง/ขอนแก่น
+  });
+  test('amount box is a plain outline, no colour fill (ผู้ใช้ 26/10/2026: เปลืองหมึกตอนพิมพ์)', () => {
+    const html = buildCashAdvanceHtml(sample as unknown as CashAdvanceFormData, {});
+    const rule = (sel: string) => html.match(new RegExp(`\\n${sel.replace(/\./g, '\\.')} \\{[^}]*\\}`))?.[0] ?? '';
+    expect(rule('.tot')).toContain('border: 1.5px solid var(--teal)');
+    expect(rule('.tot')).not.toContain('background');
+    expect(rule('.tot')).not.toContain('color: #fff');
+    expect(rule('.tot .words')).not.toContain('rgba(255,255,255');
   });
   test('document_no shows in the meta box and the footer; toCashAdvanceData sets it from form_id', () => {
     const html = buildCashAdvanceHtml({ ...sample, document_no: 'ADV-2026-0007' } as any, {});
@@ -157,6 +167,33 @@ describe('cash advance form', () => {
     expect(d.signatures.unit_head.esign).toBeUndefined();
     expect(d.signatures.manager.esign).toBeUndefined();
     expect(toCashAdvanceData({ ...detail, approval_logs: [] }).signatures.approver.esign).toBeUndefined();
+  });
+  test('toCashAdvanceData four-step mapping (ไล่ทุกขั้นตาม TOA 26/10/2026)', () => {
+    const at = (h: number) => `2026-10-2${h}T01:00:00+00:00`;
+    const detail: any = {
+      form_id: 'ADV-2610-002', status: 'AWAITING_VOUCHER', created_at: at(0),
+      requester: { employee_id: '610055', name: 'วรรษชล' }, request: { purpose: 'p', amount: 300000 }, fin: null,
+      approval: {
+        clause: '6.3', approver_label: 'x', required_level: 9, current_step: 4,
+        steps: [3, 5, 8, 9].map((lv, i) => ({ step: i + 1, required_level: lv, label: `L${lv}` })),
+        step_approvals: [
+          { step: 1, employee_id: '690261', name: 'พุทธชาติ', action_at: at(1) },
+          { step: 2, employee_id: '690604', name: 'เจษฎา', action_at: at(2) },
+          { step: 3, employee_id: '660057', name: 'กอบชัย', action_at: at(3) },
+          { step: 4, employee_id: '900001', name: 'สุวรรณา', action_at: at(4) },
+        ],
+      },
+      approval_logs: [],
+    };
+    const d = toCashAdvanceData(detail);
+    expect(d.signatures.unit_head.esign?.name).toBe('พุทธชาติ');
+    expect(d.signatures.manager.esign?.name).toBe('เจษฎา');
+    expect(d.signatures.approver.esign?.name).toBe('สุวรรณา');
+    const pend = toCashAdvanceData({ ...detail, status: 'PENDING_APPROVAL',
+      approval: { ...detail.approval, current_step: 3, step_approvals: detail.approval.step_approvals.slice(0, 2) } });
+    expect(pend.signatures.unit_head.esign?.name).toBe('พุทธชาติ');
+    expect(pend.signatures.manager.esign?.name).toBe('เจษฎา');
+    expect(pend.signatures.approver.esign).toBeUndefined();
   });
   test('toCashAdvanceData two-step signature mapping', () => {
     const detail: any = {

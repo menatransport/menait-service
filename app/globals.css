@@ -470,3 +470,6 @@
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
+
+/* SweetAlert เปิดทับ Radix Dialog: Radix ตั้ง pointer-events:none ที่ body ทำให้กดปุ่มยืนยันไม่ได้ (20/10/2026) */
+.swal2-container { pointer-events: auto; }

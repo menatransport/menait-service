@@ -43,10 +43,13 @@ export const MonthRangeFilter = ({
     startMonth,
     endMonth,
     onChange,
+    compact = false,
 }: {
     startMonth?: string;
     endMonth?: string;
     onChange?: (startMonth: string, endMonth: string) => void;
+    /** วางในแถวเดียวกับแท็บ: ไม่เว้นขอบล่าง และไม่ตัดคำขึ้นบรรทัดใหม่ */
+    compact?: boolean;
 }) => {
     const [open, setOpen] = useState(false);
     const [draftStart, setDraftStart] = useState<string | undefined>(startMonth);
@@ -110,7 +113,7 @@ export const MonthRangeFilter = ({
             <PopoverTrigger asChild>
                 <button
                     type="button"
-                    className="inline-flex items-center gap-2 bg-brand-800/10 hover:bg-brand-500/20 text-white text-xs sm:text-sm font-medium rounded-full px-3 sm:px-4 py-2 ring-1 ring-white/20 transition-all cursor-pointer mb-6"
+                    className={`inline-flex items-center gap-2 bg-brand-800/10 hover:bg-brand-500/20 text-white text-xs sm:text-sm font-medium rounded-full px-3 sm:px-4 py-2 ring-1 ring-white/20 transition-all cursor-pointer ${compact ? 'whitespace-nowrap' : 'mb-6'}`}
                 >
                     <CalendarIcon className="w-4 h-4 opacity-90" />
                     <span>{buttonLabel}</span>

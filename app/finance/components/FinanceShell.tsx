@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Navbar } from '@/components/navbar';
 import { WaveBackground } from '@/components/wave-background';
 import { Mascot } from '@/components/mascot';
+import { CopyTextButton } from './CopyTextButton';
 
 /** Shared V.2 canvas for every finance page: brand-blue sheet + wave, content above it. */
 export function FinanceCanvas({ title, width = 'max-w-screen-2xl', children }: { title: string; width?: string; children: React.ReactNode }) {
@@ -84,10 +85,11 @@ export function Panel({ title, children, actions }: { title: string; children: R
   );
 }
 
-export function Field({ label, value }: { label: string; value: React.ReactNode }) {
+/** `copyText` = โชว์ปุ่มคัดลอกข้างหัวข้อ (เช่น ข้อความเบิกเงิน Advance สำหรับ) */
+export function Field({ label, value, copyText }: { label: string; value: React.ReactNode; copyText?: string | null }) {
   return (
     <div className="min-w-0">
-      <p className="text-xs text-gray-500">{label}</p>
+      <p className="flex items-center gap-2 text-xs text-gray-500">{label}{copyText ? <CopyTextButton text={copyText} /> : null}</p>
       <p className="text-sm font-medium text-gray-800 break-words">{value ?? '-'}</p>
     </div>
   );

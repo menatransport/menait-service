@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FileText, History, Pencil, Plus, Power, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { bankLabel, formatAccountNo, normalizeAccountNo } from '@/lib/finance/ba
 import { formatDate } from '@/lib/finance/status';
 import { kbankAccountError, type PayeeAccount } from '@/lib/finance/payee';
 import { formatPayeeChanges, PAYEE_LOG_ACTION_LABELS } from '@/lib/finance/payee-log';
-import { fetchJson, showAlert, showConfirm } from '../../api';
+import { confirmReview, fetchJson, showAlert, showConfirm, showSuccess } from '../../api';
 
 type PersonInfo = { employee_id: string; name: string | null; department: string | null; position: string | null };
 type PayeeLog = { action: string; changes: unknown; remark: string | null; action_by: string | null; action_by_name: string | null; created_at: string | null };
@@ -30,18 +30,18 @@ function StatusPill({ status }: { status: PayeeAccount['status'] }) {
   );
 }
 
-function RowActions({ a, onEdit, onToggle, onLogs }: { a: PayeeAccount; onEdit: () => void; onToggle: () => void; onLogs: () => void }) {
+function RowActions({ a, onEdit, onToggle, onLogs, canEdit = true }: { a: PayeeAccount; onEdit: () => void; onToggle: () => void; onLogs: () => void; canEdit?: boolean }) {
   return (
     <div className="flex items-center gap-1">
-      <button type="button" className={ICON_BTN} title="แก้ไข" aria-label="แก้ไข" onClick={onEdit}><Pencil className="size-4" /></button>
-      <button type="button" className={ICON_BTN} title={a.status === 'ACTIVE' ? 'ปิดใช้งาน' : 'เปิดใช้งาน'} aria-label={a.status === 'ACTIVE' ? 'ปิดใช้งาน' : 'เปิดใช้งาน'} onClick={onToggle}><Power className="size-4" /></button>
+      {canEdit && <button type="button" className={ICON_BTN} title="แก้ไข" aria-label="แก้ไข" onClick={onEdit}><Pencil className="size-4" /></button>}
+      {canEdit && <button type="button" className={ICON_BTN} title={a.status === 'ACTIVE' ? 'ปิดใช้งาน' : 'เปิดใช้งาน'} aria-label={a.status === 'ACTIVE' ? 'ปิดใช้งาน' : 'เปิดใช้งาน'} onClick={onToggle}><Power className="size-4" /></button>}
       <button type="button" className={ICON_BTN} title="ประวัติ" aria-label="ประวัติ" onClick={onLogs}><History className="size-4" /></button>
     </div>
   );
 }
 
-export function MasterTab({ accounts, loading, query, onQueryChange, onChanged }: {
-  accounts: PayeeAccount[] | null; loading: boolean; query: string; onQueryChange: (q: string) => void; onChanged: () => void | Promise<void>;
+export function MasterTab({ accounts, loading, query, onQueryChange, onChanged, canManage = true }: {
+  accounts: PayeeAccount[] | null; loading: boolean; query: string; onQueryChange: (q: string) => void; onChanged: () => void | Promise<void>; canManage?: boolean;
 }) {
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<PayeeAccount | null>(null);
@@ -50,8 +50,10 @@ export function MasterTab({ accounts, loading, query, onQueryChange, onChanged }
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return accounts ?? [];
+    const digits = q.replace(/[\s-]/g, '');
     return (accounts ?? []).filter(a => [a.employee_id, a.employee_name, a.department, a.account_no, a.account_name]
-      .some(v => (v ?? '').toLowerCase().includes(q)));
+      .some(v => (v ?? '').toLowerCase().includes(q))
+      || (/^\d+$/.test(digits) && (a.account_no ?? '').includes(digits)));
   }, [accounts, query]);
 
   const [toggling, setToggling] = useState(false);
@@ -82,7 +84,7 @@ export function MasterTab({ accounts, loading, query, onQueryChange, onChanged }
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
           <Input value={query} onChange={e => onQueryChange(e.target.value)} placeholder="ค้นหาชื่อ / รหัสพนักงาน / เลขที่บัญชี" className="pl-9" aria-label="ค้นหา" />
         </div>
-        <button type="button" className={BTN_PRIMARY} onClick={() => setAddOpen(true)}><Plus className="size-4" />เพิ่มบัญชี</button>
+        {canManage && <button type="button" className={BTN_PRIMARY} onClick={() => setAddOpen(true)}><Plus className="size-4" />เพิ่มบัญชี</button>}
       </div>
 
       {loading ? (
@@ -108,7 +110,7 @@ export function MasterTab({ accounts, loading, query, onQueryChange, onChanged }
                 <p className="text-xs text-gray-600">{a.account_name}</p>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-gray-500">แก้ไขล่าสุด {formatDate(a.updated_at)}{a.updated_by_name ? ` · ${a.updated_by_name}` : ''}</p>
-                  <RowActions a={a} onEdit={() => setEditing(a)} onToggle={() => toggle(a)} onLogs={() => setLogsFor(a)} />
+                  <RowActions a={a} onEdit={() => setEditing(a)} onToggle={() => toggle(a)} onLogs={() => setLogsFor(a)} canEdit={canManage} />
                 </div>
               </div>
             ))}
@@ -133,7 +135,7 @@ export function MasterTab({ accounts, loading, query, onQueryChange, onChanged }
                     <td className="px-3 py-2.5 text-sm align-top">{a.account_name}</td>
                     <td className="px-3 py-2.5 align-top"><StatusPill status={a.status} /></td>
                     <td className="px-3 py-2.5 text-xs align-top text-gray-600">{formatDate(a.updated_at)}{a.updated_by_name ? <><br />{a.updated_by_name}</> : null}</td>
-                    <td className="px-3 py-2.5 align-top"><RowActions a={a} onEdit={() => setEditing(a)} onToggle={() => toggle(a)} onLogs={() => setLogsFor(a)} /></td>
+                    <td className="px-3 py-2.5 align-top"><RowActions a={a} onEdit={() => setEditing(a)} onToggle={() => toggle(a)} onLogs={() => setLogsFor(a)} canEdit={canManage} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -158,48 +160,74 @@ function AddAccountDialog({ open, onOpenChange, onDone }: { open: boolean; onOpe
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [lookupError, setLookupError] = useState('');
   const [busy, setBusy] = useState(false);
+  // ค้นชื่อตอนออกจากช่องรหัส ถ้ากดบันทึกทันที คลิกนั้นจะไปเริ่มค้นพอดี เก็บงานค้นไว้ให้ submit รอผลแทนการทิ้งคลิก
+  const lookupRef = useRef<{ id: string; run: Promise<PersonInfo | null> } | null>(null);
 
   useEffect(() => {
-    if (open) { setEmpId(''); setPerson(null); setLookup('idle'); setAccountNo(''); setAccountName(''); setErrors({}); }
+    if (open) { setEmpId(''); setPerson(null); setLookup('idle'); setAccountNo(''); setAccountName(''); setErrors({}); lookupRef.current = null; }
   }, [open]);
 
-  const doLookup = async () => {
-    const id = empId.trim();
+  const runLookup = async (id: string): Promise<PersonInfo | null> => {
     setPerson(null);
-    if (!id) { setLookup('idle'); return; }
+    if (!id) { setLookup('idle'); return null; }
     setLookup('loading');
     try {
       const res = await fetch(`/api/finance/people/${encodeURIComponent(id)}`, { cache: 'no-store' });
       const data = await res.json().catch(() => null);
-      if (res.status === 404) { setLookup('notfound'); return; }
+      if (res.status === 404) { setLookup('notfound'); return null; }
       if (!res.ok) throw new Error(data?.error ?? `เกิดข้อผิดพลาด (${res.status})`);
       const p = data as PersonInfo;
       setPerson(p); setLookup('idle');
       setAccountName(prev => prev.trim() ? prev : (p.name ?? ''));
+      setErrors(prev => { const rest = { ...prev }; delete rest.employee_id; delete rest.account_name; return rest; });
+      return p;
     } catch (err) {
       setLookupError((err as Error).message);
       setLookup('error');
+      return null;
     }
   };
 
+  const doLookup = () => {
+    const id = empId.trim();
+    const run = runLookup(id);
+    lookupRef.current = { id, run };
+    return run;
+  };
+
   const submit = async () => {
-    if (lookup === 'loading') return;
+    const id = empId.trim();
+    let found = person;
+    if (lookupRef.current?.id === id) found = await lookupRef.current.run;
+    else if (id && !found) found = await doLookup();
     const next: Record<string, string> = {};
-    if (!person) next.employee_id = 'กรุณาระบุรหัสพนักงานที่มีอยู่ในระบบ';
+    if (!found) next.employee_id = 'กรุณาระบุรหัสพนักงานที่มีอยู่ในระบบ';
     const accErr = kbankAccountError(accountNo);
     if (accErr) next.account_no = accErr;
-    if (!accountName.trim()) next.account_name = 'กรุณาระบุชื่อบัญชี';
+    // ชื่อบัญชีที่เพิ่งเติมจากผลค้นยังไม่อยู่ใน state รอบนี้ ใช้ชื่อพนักงานแทน
+    const name = accountName.trim() || (found?.name ?? '').trim();
+    if (!name) next.account_name = 'กรุณาระบุชื่อบัญชี';
     setErrors(next);
     if (Object.keys(next).length) return;
+    if (!(await confirmReview({
+      title: 'ยืนยันเพิ่มบัญชีรับเงิน',
+      rows: [
+        ['พนักงาน', `${found!.employee_id} ${found!.name ?? ''}`],
+        ['ธนาคาร', bankLabel('KBANK')],
+        ['เลขที่บัญชี', formatAccountNo(normalizeAccountNo(accountNo))],
+        ['ชื่อบัญชี', name],
+      ],
+      note: 'เพิ่มเข้า Master โดยตรง ใช้รับเงินได้ทันที',
+    }))) return;
     setBusy(true);
     try {
       await fetchJson('/api/finance/payee-accounts', {
         method: 'POST',
-        body: JSON.stringify({ employee_id: person!.employee_id, account_no: normalizeAccountNo(accountNo), account_name: accountName.trim() }),
+        body: JSON.stringify({ employee_id: found!.employee_id, account_no: normalizeAccountNo(accountNo), account_name: name }),
       });
       onOpenChange(false);
       try { await onDone(); } catch { /* list shows its own error */ }
-      await showAlert({ icon: 'success', title: 'เพิ่มบัญชีแล้ว' });
+      await showSuccess('เพิ่มบัญชีแล้ว');
     } catch (err) {
       await showAlert({ icon: 'error', title: 'เพิ่มบัญชีไม่สำเร็จ', text: (err as Error).message });
     } finally {
@@ -266,6 +294,17 @@ function EditAccountDialog({ account, onClose, onDone }: { account: PayeeAccount
     if (!accountName.trim()) next.account_name = 'กรุณาระบุชื่อบัญชี';
     setErrors(next);
     if (Object.keys(next).length) return;
+    const newNo = normalizeAccountNo(accountNo);
+    if (!(await confirmReview({
+      title: 'ยืนยันแก้ไขบัญชีรับเงิน',
+      rows: [
+        ['พนักงาน', `${account.employee_id} ${account.employee_name ?? ''}`],
+        ['เลขที่บัญชี', newNo === normalizeAccountNo(account.account_no)
+          ? formatAccountNo(newNo) : `${formatAccountNo(account.account_no)} → ${formatAccountNo(newNo)}`],
+        ['ชื่อบัญชี', accountName.trim() === account.account_name
+          ? accountName.trim() : `${account.account_name} → ${accountName.trim()}`],
+      ],
+    }))) return;
     setBusy(true);
     try {
       await fetchJson(`/api/finance/payee-accounts/${account.id}`, {
@@ -274,7 +313,7 @@ function EditAccountDialog({ account, onClose, onDone }: { account: PayeeAccount
       });
       onClose();
       try { await onDone(); } catch { /* list shows its own error */ }
-      await showAlert({ icon: 'success', title: 'บันทึกแล้ว' });
+      await showSuccess('บันทึกแล้ว');
     } catch (err) {
       await showAlert({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: (err as Error).message });
     } finally {

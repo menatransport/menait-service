@@ -10,12 +10,12 @@ import { Mascot } from '@/components/mascot';
 import { buildSubmitValues, prefillFormValues, renderFormField } from '@/components/renderForm';
 import type { Question } from '@/app/service/[[...slug]]/page';
 import { useSessionContext } from '@/app/context/SessionContext';
-import { accountNoError, normalizeAccountNo } from '@/lib/finance/bank';
+import { accountNoError, bankLabel, formatAccountNo, normalizeAccountNo } from '@/lib/finance/bank';
 import { isBeforeToday } from '@/lib/finance/dates';
-import { parseAmount, todayBkk } from '@/lib/finance/status';
+import { amountError, formatBaht, formatDate, parseAmount, TEST_MAX_AMOUNT, TEST_MAX_AMOUNT_TEXT, todayBkk } from '@/lib/finance/status';
 import { stepChainText } from '@/lib/finance/approvalSteps';
 import type { AdvanceDetail, ApprovalTierInfo, AttachmentFile } from '../../types';
-import { fetchJson, putAction, showAlert, uploadFiles } from '../../api';
+import { confirmReview, fetchJson, putAction, showAlert, showSuccess, uploadFiles, type ReviewRow } from '../../api';
 import { AttachmentPanel } from '../../components/AttachmentPanel';
 import { FilePicker } from '../../components/FilePicker';
 import { PayeeAccountSection, type PayeeSectionStatus } from '../../components/PayeeAccountSection';
@@ -28,6 +28,20 @@ interface AdvForm { form_code: string; form_name: string; form_status: string; q
 const payeeNames = ['adv_payee_type', 'adv_bank', 'adv_account_no', 'adv_account_name'];
 
 const isBlank = (v: unknown) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
+
+/** ค่าที่ผู้ใช้กรอก แปลงเป็นข้อความอ่านง่ายสำหรับป๊อปอัปทบทวนก่อนส่ง */
+function reviewValue(q: Question, value: any): string {
+  if (q.name === 'adv_payee_type') return value === PAYEE_SUPPLIER ? 'บัญชี Supplier' : value === PAYEE_SELF ? 'บัญชีตัวเอง' : String(value);
+  if (q.name === 'adv_bank') return bankLabel(value);
+  if (q.name === 'adv_account_no') return formatAccountNo(String(value));
+  if (q.name === 'adv_amount' || (q.type === 'number' && /เงิน|บาท/.test(q.label ?? ''))) return `${formatBaht(parseAmount(value))} บาท`;
+  const label = (v: unknown) => q.options?.find(o => o.value === String(v))?.label ?? String(v);
+  if (Array.isArray(value)) return value.map(label).join(', ');
+  if (typeof value === 'boolean') return value ? 'ใช่' : 'ไม่ใช่';
+  if (value instanceof Date) return formatDate(value.toISOString());
+  if (q.type === 'date' || q.type === 'datetime') return formatDate(String(value));
+  return label(value);
+}
 
 // The "adv_use_date" question by name, falling back to the first datetime/date question.
 const findUseDateQuestion = (questions: Question[]): Question | undefined =>
@@ -67,6 +81,7 @@ function NewAdvance() {
     const amount = parseAmount(amountValue);
     setHint(null);
     if (amount === null || amount <= 0) return;
+    if (amount > TEST_MAX_AMOUNT) { setHint({ text: TEST_MAX_AMOUNT_TEXT, error: true }); return; }
     let cancelled = false;
     const timer = setTimeout(() => {
       fetchJson<ApprovalTierInfo>(
@@ -144,10 +159,13 @@ function NewAdvance() {
     const next: Record<string, string> = {};
     for (const q of form.questions) {
       if (hasPayeeType && payeeNames.includes(q.name)) continue;
-      if (q.required && isBlank(values[q.name])) next[q.name] = `กรุณาระบุ${q.label}`;
+      // ป้ายคำถามบางข้อเป็นวลีค้าง เช่น "เบิกเงิน Advance สำหรับ" ต่อหน้า "กรุณาระบุ" แล้วอ่านไม่รู้เรื่อง
+      if (q.required && isBlank(values[q.name])) {
+        next[q.name] = /สำหรับ\s*$/.test(q.label ?? '') ? 'กรุณาระบุว่าเบิกเงินไปใช้ทำอะไร' : `กรุณาระบุ${q.label}`;
+      }
       if (q.type === 'number' && !isBlank(values[q.name])) {
-        const amount = parseAmount(values[q.name]);
-        if (amount === null || amount <= 0) next[q.name] = 'จำนวนเงินต้องมากกว่า 0';
+        const err = amountError(values[q.name] as string);
+        if (err) next[q.name] = err;
       }
       if (useDateQuestion && q.id === useDateQuestion.id && !isBlank(values[q.name]) &&
         isBeforeToday(values[q.name], todayBkk())) {
@@ -170,11 +188,26 @@ function NewAdvance() {
       if (!canSubmitPayee(isSupplier ? PAYEE_SUPPLIER : PAYEE_SELF, payeeStatus.loaded ? payeeStatus.state : 'none', files.length + existingCount)) {
         setErrors(next);
         return showAlert(isSupplier
-          ? { icon: 'warning', title: 'กรุณาแนบ bookbank หรือใบแจ้งหนี้ที่มีเลขบัญชี' }
+          ? { icon: 'warning', title: 'กรุณาแนบ bookbank หรือใบแจ้งหนี้ที่มีเลขบัญชี',
+              // ช่องบัญชี Supplier ที่ยังขาด บอกพร้อมกันในป๊อปอัปเดียว ไม่ให้กดส่งแล้วเจอทีละเรื่อง
+              ...(['adv_bank', 'adv_account_no', 'adv_account_name'].some(k => next[k])
+                ? { text: 'และกรอกธนาคาร เลขที่บัญชี ชื่อบัญชีของ Supplier ให้ครบ' } : {}) }
           : { icon: 'warning', title: 'ยังไม่มีบัญชีรับเงินที่บัญชีอนุมัติ — กรุณาขอเพิ่มบัญชีรับเงิน หรือเลือกบัญชี Supplier' });
       }
     }
     if (Object.keys(next).length) { setErrors(next); return; }
+
+    const rows: ReviewRow[] = form.questions
+      .filter(q => !isBlank(values[q.name]))
+      .map(q => [q.label.replace(/\s*สำหรับ\s*$/, ''), reviewValue(q, values[q.name])]);
+    if (files.length) rows.push(['ไฟล์แนบ', files.map(f => f.name).join('\n')]);
+    if (hint && !hint.error) rows.push(['ผู้อนุมัติ', hint.text]);
+    if (!(await confirmReview({
+      title: isEdit ? 'ยืนยันบันทึกและส่งใหม่' : 'ยืนยันส่งคำขอเบิกเงิน',
+      rows,
+      note: 'ส่งแล้วจะแก้ไขไม่ได้ จนกว่าบัญชีจะตีกลับให้แก้ไข',
+      confirmButtonText: isEdit ? 'ยืนยันส่งใหม่' : 'ยืนยันส่งคำขอ',
+    }))) return;
 
     setSubmitting(true);
     try {
@@ -204,11 +237,9 @@ function NewAdvance() {
           const now = await fetchJson<{ status?: string }>(`/api/finance/advances/${encodeURIComponent(editId)}`).catch(() => null);
           if (now?.status !== 'PENDING_APPROVAL') throw err;
         }
-        await showAlert({
-          icon: failedEdit.length ? 'warning' : 'success',
-          title: 'ส่งคำขอใหม่แล้ว รออนุมัติ',
-          text: failedEdit.length ? `อัปโหลดไม่สำเร็จ: ${failedEdit.join(', ')} (แนบเพิ่มได้ในหน้ารายการ)` : undefined,
-        });
+        if (failedEdit.length) {
+          await showAlert({ icon: 'warning', title: 'ส่งคำขอใหม่แล้ว รออนุมัติ', text: `อัปโหลดไม่สำเร็จ: ${failedEdit.join(', ')} (แนบเพิ่มได้ในหน้ารายการ)` });
+        } else await showSuccess('ส่งคำขอใหม่แล้ว รออนุมัติ');
         router.push(`/finance/advance/${encodeURIComponent(editId)}`);
         return;
       }
@@ -220,11 +251,9 @@ function NewAdvance() {
       };
       const res = await fetchJson<{ form_id: string }>('/api/formsubmit', { method: 'POST', body: JSON.stringify(payload) });
       const failed = await uploadFiles(res.form_id, files);
-      await showAlert({
-        icon: failed.length ? 'warning' : 'success',
-        title: 'ส่งคำขอเบิกเงินแล้ว',
-        text: failed.length ? `อัปโหลดไม่สำเร็จ: ${failed.join(', ')} (แนบเพิ่มได้ในหน้ารายการ)` : `เลขที่เอกสาร ${res.form_id}`,
-      });
+      if (failed.length) {
+        await showAlert({ icon: 'warning', title: 'ส่งคำขอเบิกเงินแล้ว', text: `อัปโหลดไม่สำเร็จ: ${failed.join(', ')} (แนบเพิ่มได้ในหน้ารายการ)` });
+      } else await showSuccess('ส่งคำขอเบิกเงินแล้ว', `เลขที่คำขอเบิกเงิน ${res.form_id}`);
       router.push(`/finance/advance/${encodeURIComponent(res.form_id)}`);
     } catch (err) {
       showAlert({ icon: 'error', title: isEdit ? 'บันทึกและส่งใหม่ไม่สำเร็จ' : 'ส่งคำขอไม่สำเร็จ', text: (err as Error).message });

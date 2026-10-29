@@ -37,6 +37,8 @@ export interface FinInfo {
   clear_date: string | null;
   amount_actual: number | null;
   clear_doc_no: string | null;
+  /** วันที่รับเอกสารตัวจริง (ติ๊กตอนปิดรายการ) */
+  original_received_date?: string | null;
   clear_items?: ClearItem[];
   settle_amount: number | null;
   settle_date: string | null;
@@ -76,16 +78,29 @@ export interface FinLog {
   changes: Record<string, unknown> | null; // usually [before, after]; tolerate scalars
   remark: string | null;
   action_by: string | null;
+  /** ชื่อคนทำ (BE ใหม่ส่งมา) — ไม่มีก็ใช้รหัสพนักงาน */
+  action_by_name?: string | null;
   created_at: string | null;
+}
+
+/** ด่านอนุมัติการเคลียร์ (19/10/2026) — มีค่าเฉพาะตอนสถานะ CLEARING_APPROVAL */
+export interface ClearApprovalInfo {
+  step: number;
+  total_steps: number;
+  clause?: string | null;
+  required_level?: number | null;
+  can_approve?: boolean;
 }
 
 export interface AdvanceDetail extends AdvanceItem {
   approval?: ApprovalTierInfo | null;
+  clear_approval?: ClearApprovalInfo | null;
   approval_logs: ApprovalLog[];
   fin_logs: FinLog[];
+  clear_logs?: import('@/lib/finance/historyLog').ClearLog[];
 }
 
-export type AttachmentFolder = 'request' | 'pay' | 'clear' | 'check';
+export type AttachmentFolder = 'request' | 'pay' | 'clear' | 'related' | 'check';
 
 export interface AttachmentFile {
   key: string;
@@ -155,4 +170,22 @@ export interface SuggestedApprovers {
   step_required_level?: number | null;
   step_label?: string | null;
   approvers: SuggestedApprover[];
+}
+
+/** ใบที่รอผู้ใช้คนนี้อนุมัติการเคลียร์ (BE /finance/clear-approvals/pending) */
+export interface ClearPendingItem {
+  form_id: string;
+  amount_actual: number | null;
+  amount_paid?: number | null;
+  settle_amount?: number | null;
+  step: number;
+  total_steps: number;
+  /** ระดับของขั้นที่รออยู่ และแท็บย่อยแบบคิวขอเบิก (ไม่มีใน BE เก่า → นับเป็นรอฉันอนุมัติ) */
+  step_required_level?: number;
+  tab?: 'mine' | 'delegable';
+  clause: string | null;
+  requester_employee_id: string;
+  requester_name?: string | null;
+  requester_department?: string | null;
+  clear_submitted_at?: string | null;
 }

@@ -14,21 +14,29 @@ import {
 import {
     BadgeCheck, Monitor, Package, Mail, Building, MapPin,
     Briefcase, Shield, Pencil, X, Save, Loader2, CheckCircle2,
-    AlertCircle, User, IdCard, ChevronsUpDown, Check, type LucideIcon,
+    AlertCircle, User, IdCard, ChevronsUpDown, Check, Route, Network,
+    ArrowRight, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { UserData } from '@/components/profile-form';
 import type { MasterLookups } from './types';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { useSessionContext } from '@/app/context/SessionContext';
+import { OrgPicker } from './org-picker';
+import {
+    placeDepartment, divisionLabel, departmentLabel,
+    type OrgIndex, type OrgDepartment, type OrgPlacement,
+} from './org-structure';
 
 interface UserDetailSheetProps {
     user: UserData | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onUpdate?: (data: UserData) => Promise<boolean>;
-    /** Lookup options (id -> label) for ฝ่าย / สถานที่ / ตำแหน่ง */
+    /** Lookup options (id -> label) for สถานที่ / ตำแหน่ง */
     lookups?: MasterLookups;
+    org: OrgIndex;
+    onDepartmentCreated?: (department: OrgDepartment) => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -48,7 +56,7 @@ const MENU_ITEMS: { key: MenuTab; label: string; icon: React.ElementType; descri
 ];
 
 // ── Sidebar info fields config ──
-type OptionKey = 'employee_status' | 'departments' | 'sites' | 'positions';
+type OptionKey = 'employee_status' | 'sites' | 'positions';
 
 interface InfoField {
     label: string;
@@ -57,8 +65,9 @@ interface InfoField {
     /** Field actually written on save — defaults to `field`. e.g. `department_id` */
     editField?: keyof UserData;
     icon: LucideIcon;
-    /** 'dropdown' uses Popover/Command; 'input' uses text input; 'readonly' is never editable */
-    editType: 'input' | 'dropdown' | 'readonly';
+    /** 'dropdown' uses Popover/Command; 'input' uses text input; 'readonly' is never editable;
+     *  'org' is the สายงาน → ฝ่าย → แผนก picker writing department_id */
+    editType: 'input' | 'dropdown' | 'readonly' | 'org';
     optionKey?: OptionKey;
 }
 
@@ -74,7 +83,7 @@ const INFO_FIELDS: InfoField[] = [
     { label: 'นามสกุล', field: 'lastname', icon: User, editType: 'input' },
     { label: 'สถานะ', field: 'employee_status', icon: BadgeCheck, editType: 'dropdown', optionKey: 'employee_status' },
     { label: 'อีเมล', field: 'email', icon: Mail, editType: 'input' },
-    { label: 'ฝ่าย', field: 'department', editField: 'department_id', icon: Building, editType: 'dropdown', optionKey: 'departments' },
+    { label: 'สังกัด', field: 'department', editField: 'department_id', icon: Building, editType: 'org' },
     { label: 'สถานที่', field: 'site', editField: 'site_id', icon: MapPin, editType: 'dropdown', optionKey: 'sites' },
     { label: 'ตำแหน่ง', field: 'position', editField: 'position_id', icon: Briefcase, editType: 'dropdown', optionKey: 'positions' },
     // ระดับ is derived from the selected ตำแหน่ง on the backend
@@ -167,7 +176,44 @@ const DropdownEditRow = memo(({ icon: Icon, label, value, options, onChange }: {
 });
 DropdownEditRow.displayName = 'DropdownEditRow';
 
-export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, lookups }: UserDetailSheetProps) => {
+// ── สายงาน / ฝ่าย / แผนก rows (view mode) ──
+const OrgInfoRows = memo(({ user, org }: { user: UserData; org: OrgIndex }) => {
+    const placed = placeDepartment(org, user.department_id);
+    // Fall back to the joined labels on the user row while the tree is still loading
+    const path = placed ? placed.path?.path_th : user.path?.path_th;
+    const division = placed ? divisionLabel(placed.division) : (user.division?.division_th || user.division?.division_eng);
+    const department = placed ? departmentLabel(placed.department) : user.department;
+    return (
+        <>
+            <InfoRow icon={Route} label="สายงาน" value={path || ''} />
+            <InfoRow icon={Network} label="ฝ่าย" value={division || ''} />
+            <InfoRow icon={Building} label="แผนก" value={department || ''} />
+        </>
+    );
+});
+OrgInfoRows.displayName = 'OrgInfoRows';
+
+// ── Heads-up when the แผนก changes: department_id drives approvers and finance access ──
+const MoveNotice = memo(({ from, to }: { from: OrgPlacement | null; to: OrgPlacement | null }) => {
+    if (!to || from?.department.department_id === to.department.department_id) return null;
+    const crossDivision = from?.division?.division_id !== to.division?.division_id;
+    return (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-800 space-y-1">
+            <p className="font-semibold">{crossDivision ? 'ย้ายฝ่าย' : 'ย้ายแผนก'}</p>
+            <p className="flex flex-wrap items-center gap-1">
+                <span>{from ? departmentLabel(from.department) : 'ไม่ระบุแผนก'}</span>
+                <ArrowRight className="w-3 h-3 shrink-0" />
+                <span className="font-medium">{departmentLabel(to.department)}</span>
+            </p>
+            <p className="text-amber-700/80">
+                มีผลกับผู้อนุมัติฟอร์ม/ADV และสิทธิ์ตามแผนก (เช่น การเงิน) พนักงานจะเห็นสังกัดใหม่ตอนเปิดแอปครั้งถัดไป
+            </p>
+        </div>
+    );
+});
+MoveNotice.displayName = 'MoveNotice';
+
+export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, lookups, org, onDepartmentCreated }: UserDetailSheetProps) => {
     const { user: sessionUser } = useSessionContext();
     const employeeId = sessionUser?.employee_id ?? null;
     const role = sessionUser?.role ?? null;
@@ -181,7 +227,6 @@ export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, looku
     // Dropdown options come from the org lookup endpoints so we edit real ids, not labels
     const dropdownOptions: Record<OptionKey, { option_value: string; option_label: string }[]> = useMemo(() => ({
         employee_status: STATUS_OPTIONS,
-        departments: lookups?.departments ?? [],
         sites: lookups?.sites ?? [],
         positions: lookups?.positions ?? [],
     }), [lookups]);
@@ -236,6 +281,7 @@ export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, looku
     if (!user) return null;
 
     const isDirty = Object.keys(editData).length > 0;
+    const missingDepartment = 'department_id' in editData && editData.department_id == null;
 
     return (
         <Dialog open={open} onOpenChange={(v) => { if (!v) { setIsEditing(false); setEditData({}); setSaveStatus('idle'); } onOpenChange(v); }}>
@@ -290,6 +336,26 @@ export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, looku
                             <div>
                                 {INFO_FIELDS.map(({ label, field, editField, icon, editType, optionKey }) => {
                                     const target = editField ?? field;
+                                    if (editType === 'org') {
+                                        return isEditing ? (
+                                            <div key={field} className="py-1.5 space-y-2">
+                                                <OrgPicker
+                                                    org={org}
+                                                    size="sm"
+                                                    value={getValue(target)}
+                                                    onChange={(v) => handleFieldChange(target, v)}
+                                                    onDepartmentCreated={onDepartmentCreated}
+                                                    error={getValue(target) === ''}
+                                                />
+                                                <MoveNotice
+                                                    from={placeDepartment(org, user.department_id)}
+                                                    to={placeDepartment(org, getValue(target))}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <OrgInfoRows key={field} user={user} org={org} />
+                                        );
+                                    }
                                     if (!isEditing || editType === 'readonly') {
                                         return (
                                             <InfoRow
@@ -354,7 +420,7 @@ export const UserDetailSheet = memo(({ user, open, onOpenChange, onUpdate, looku
                                         <Button
                                             size="sm"
                                             onClick={handleSave}
-                                            disabled={isSaving || !isDirty}
+                                            disabled={isSaving || !isDirty || missingDepartment}
                                             className="flex-1 h-8 text-xs bg-brand-600 hover:bg-brand-700 text-white cursor-pointer"
                                         >
                                             {isSaving ? (

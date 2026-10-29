@@ -100,6 +100,8 @@ export async function fetchAllAdvances(
   scope: ScopeFilter,
   tab: TabFilter,
   pageSize = ADVANCE_EXPORT_PAGE_SIZE,
+  /** called with page 1 (summary + filter options) */
+  onFirstPage?: (res: AdvancePage) => void,
 ): Promise<AdvanceItem[]> {
   // offset paging over a live list can repeat rows: dedupe by form_id
   const byId = new Map<string, AdvanceItem>();
@@ -107,6 +109,7 @@ export async function fetchAllAdvances(
   let pages = 1;
   do {
     const res = await getPage(buildAdvanceQuery(scope, tab, page, pageSize));
+    if (page === 1) onFirstPage?.(res);
     for (const it of res.items) if (!byId.has(it.form_id)) byId.set(it.form_id, it);
     pages = totalPages(res.total, pageSize);
     if (res.items.length === 0) break;

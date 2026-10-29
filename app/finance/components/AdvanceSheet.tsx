@@ -12,12 +12,18 @@ export function AdvanceSheet({
   isOpen,
   onClose,
   onChanged,
+  hideFullPage = false,
+  showRequesterOutstanding = false,
 }: {
   mode: 'finance' | 'mine';
   formId: string | null;
   isOpen: boolean;
   onClose: () => void;
   onChanged?: () => void;
+  /** หัวหน้าที่ไม่ได้อยู่ฝ่ายการเงินเปิดหน้าเต็มไม่ได้ — ซ่อนลิงก์ไปเลย */
+  hideFullPage?: boolean;
+  /** หน้าอนุมัติเท่านั้น: โชว์ยอดค้างเคลียร์ของผู้ขอเบิก */
+  showRequesterOutstanding?: boolean;
 }) {
   const fullPageHref = formId
     ? (mode === 'finance' ? `/finance/${encodeURIComponent(formId)}` : `/finance/advance/${encodeURIComponent(formId)}`)
@@ -37,7 +43,7 @@ export function AdvanceSheet({
                 <SheetTitle className="font-display text-brand-800 truncate">{formId ?? ''}</SheetTitle>
               </div>
             </div>
-            {formId && (
+            {formId && !hideFullPage && (
               <Link
                 href={fullPageHref}
                 target="_blank"
@@ -52,7 +58,7 @@ export function AdvanceSheet({
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {formId && (mode === 'finance'
             ? <FinanceAdvanceDetail formId={formId} onChanged={onChanged} />
-            : <MyAdvanceDetail formId={formId} onChanged={onChanged} />)}
+            : <MyAdvanceDetail formId={formId} onChanged={onChanged} showRequesterOutstanding={showRequesterOutstanding} />)}
         </div>
       </SheetContent>
     </Sheet>

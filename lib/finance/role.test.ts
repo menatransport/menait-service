@@ -8,6 +8,13 @@ describe('role', () => {
   test('not finance', () => expect(isFinanceUser({ department_id: 21, employee_id: '1' }, ['4', '6'], [])).toBe(false));
   test('missing data', () => expect(isFinanceUser({}, ['4', '6'], [])).toBe(false));
   test('config default', () => expect(financeConfig({}).deptIds).toEqual(['4', '6']));
+  test('คุณป้อง (660057) เข้าหน้าการเงินได้เสมอ ไม่ต้องตั้ง env', () => expect(financeConfig({}).employeeIds).toContain('660057'));
+  test('narongkorn.a (670108) superadmin เข้าหน้าการเงินได้เสมอ', () => expect(financeConfig({}).employeeIds).toContain('670108'));
+  test('env ยังเพิ่มคนได้ และไม่ซ้ำ', () => expect(financeConfig({ FINANCE_EMPLOYEE_IDS: '680043,660057' }).employeeIds).toEqual(['660057', '670108', '680043']));
+  test('แผนก 4 (การเงิน) เข้าหน้าการเงินได้เสมอ แม้ env ตั้งแผนกไว้ไม่ครบ', () => {
+    expect(financeConfig({ FINANCE_DEPARTMENT_IDS: '6' }).deptIds).toEqual(['4', '6']);
+    expect(financeConfig({ FINANCE_DEPARTMENT_IDS: '' }).deptIds).toEqual(['4']);
+  });
 });
 
 describe('บัญชี vs การเงิน แยกกัน', () => {

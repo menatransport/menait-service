@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
 import { toBkkDate } from '@/lib/finance/dates';
-import { CLEAR_DUE_DAYS, addDays, parseAmount } from '@/lib/finance/status';
-import { putAction, showAlert, uploadFiles } from '../api';
+import { CLEAR_DUE_DAYS, addDays, formatBaht, formatDate, parseAmount } from '@/lib/finance/status';
+import { confirmReview, duplicateDocNoWarning, putAction, showAlert, showSuccess, uploadFiles } from '../api';
 import type { AdvanceDetail } from '../types';
 import { DateField } from './DateField';
 import { FilePicker } from './FilePicker';
@@ -40,6 +40,22 @@ export function PayForm({ detail, onSaved }: {
     if (amountNum === null || amountNum < 0) return showAlert({ icon: 'warning', title: 'กรุณาระบุยอดเงิน (ไม่ติดลบ)' });
     if (!transferDate) return showAlert({ icon: 'warning', title: 'กรุณาระบุวันที่โอนเงิน' });
     if (dueDate && dueDate < transferDate) return showAlert({ icon: 'warning', title: 'กำหนดการเคลียร์ต้องไม่ก่อนวันที่โอนเงิน' });
+    const warning = await duplicateDocNoWarning('payment_doc_no', paymentDocNo, detail.form_id);
+    const account = detail.request.account_no
+      ? `${bankLabel(detail.request.bank)} ${formatAccountNo(detail.request.account_no)}\n${detail.request.account_name ?? ''}` : null;
+    if (!(await confirmReview({
+      warning,
+      title: isEdit ? 'ยืนยันแก้ไขข้อมูลการจ่ายเงิน' : 'ยืนยันบันทึกการจ่ายเงิน',
+      rows: [
+        ['เลขที่คำขอ', detail.form_id],
+        ['โอนเข้าบัญชี', account],
+        ['เลขที่ทำจ่าย', paymentDocNo.trim()],
+        ['ยอดเงิน (บาท)', formatBaht(amountNum)],
+        ['วันที่โอนเงิน', formatDate(transferDate)],
+        ['กำหนดการเคลียร์', formatDate(dueDate)],
+        ['สลิปโอนที่แนบ', files.length ? `${files.length} ไฟล์` : 'ไม่มี'],
+      ],
+    }))) return;
     setSaving(true);
     try {
       const saved = await putAction(detail.form_id, 'pay', {
@@ -49,11 +65,9 @@ export function PayForm({ detail, onSaved }: {
       });
       const failed = await uploadFiles(detail.form_id, files, 'pay');
       setFiles([]);
-      await showAlert({
-        icon: failed.length ? 'warning' : 'success',
-        title: isEdit ? 'แก้ไขข้อมูลการจ่ายแล้ว' : 'บันทึกการจ่ายเงินแล้ว',
-        text: failed.length ? `อัปโหลดไม่สำเร็จ: ${failed.join(', ')}` : undefined,
-      });
+      const title = isEdit ? 'แก้ไขข้อมูลการจ่ายแล้ว' : 'บันทึกการจ่ายเงินแล้ว';
+      if (failed.length) await showAlert({ icon: 'warning', title, text: `อัปโหลดไม่สำเร็จ: ${failed.join(', ')}` });
+      else await showSuccess(title);
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: (err as Error).message });
@@ -81,7 +95,7 @@ export function PayForm({ detail, onSaved }: {
             {detail.request.cost_center && <p className="text-gray-600">ศูนย์ค่าใช้จ่าย: {detail.request.cost_center}</p>}
           </div>
         )}
-        <label className="space-y-1 text-sm">เลขที่เอกสารจ่าย
+        <label className="space-y-1 text-sm">เลขที่ทำจ่าย
           <Input value={paymentDocNo} onChange={e => setPaymentDocNo(e.target.value)} disabled={saving} />
         </label>
         <label className="space-y-1 text-sm">ยอดเงิน (บาท) *

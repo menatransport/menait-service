@@ -360,6 +360,9 @@ export const FormField = memo(({
                         type="number"
                         value={currentValue as string || ''}
                         min={minNumber}
+                        // ช่องจำนวนเงิน (มี minNumber): รับสตางค์ได้ และเลื่อนล้อเมาส์ไม่ให้ตัวเลขเปลี่ยนเอง
+                        step={minNumber !== undefined ? 'any' : undefined}
+                        onWheel={minNumber !== undefined ? (e) => e.currentTarget.blur() : undefined}
                         onKeyDown={minNumber !== undefined && minNumber >= 0 ? (e) => { if (e.key === '-' || e.key === 'e' || e.key === 'E') e.preventDefault(); } : undefined}
                         onChange={minNumber !== undefined
                             ? (e) => { const n = Number(e.target.value); if (e.target.value !== '' && Number.isFinite(n) && n < minNumber) return; handleTextChange(e); }

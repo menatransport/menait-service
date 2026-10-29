@@ -2,18 +2,23 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { fetchJson, putAction, sendOverdueReminders, showAlert, showConfirm } from '../api';
+import { fetchJson, putAction, sendOverdueReminders, showAlert, showConfirm, showSuccess } from '../api';
 import type { AdvanceDetail } from '../types';
 import { AdvanceSummary } from './AdvanceSummary';
 import { PrintDocumentButton } from './PrintDocumentButton';
 import { AttachmentPanel } from './AttachmentPanel';
 import { NoAccess, Panel } from './FinanceShell';
 import { MascotLoader } from '@/components/loading';
+import { ClearApprovalPanel } from './ClearApprovalPanel';
+import { useClearApprovals } from '../useClearApprovals';
 import { LogList } from './LogList';
 import { PayForm } from './PayForm';
 import { ReviewPanel } from './ReviewPanel';
 import { VoucherForm } from './VoucherForm';
 import { latestReturnRemark } from '@/lib/finance/returnInfo';
+import { PERM, can, canEditDocNumbers, canSendVoucherBack } from '@/lib/finance/permissions';
+import { EditDocNumbersButton } from './EditDocNumbersButton';
+import { useFinancePermissions } from '../usePermissions';
 
 export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; onChanged?: () => void }) {
   const [detail, setDetail] = useState<AdvanceDetail | null>(null);
@@ -30,6 +35,8 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
 
   const onSaved = (d: AdvanceDetail) => { setDetail(d); setRefreshKey(k => k + 1); onChanged?.(); };
 
+  const perms = useFinancePermissions();
+  const clearQueue = useClearApprovals(refreshKey);
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
 
@@ -45,10 +52,32 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
     setBusy(true);
     try {
       const saved = await putAction(formId, 'return', { remark: String(res.value).trim() });
-      await showAlert({ icon: 'success', title: 'ตีกลับให้ผู้เบิกแก้ไขแล้ว' });
+      await showSuccess('ตีกลับให้ผู้เบิกแก้ไขแล้ว');
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ตีกลับไม่สำเร็จ', text: (err as Error).message });
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  };
+
+  const sendBackToVoucher = async () => {
+    if (inFlight.current) return;
+    const res = await showConfirm({
+      title: 'ส่งกลับให้บัญชีแก้ตั้งเบิก?', text: `${detail?.form_id ?? ''} · เลขที่ตั้งเบิกตอนนี้ ${detail?.fin?.voucher_no || '-'}`,
+      input: 'textarea', inputPlaceholder: 'แก้อะไร เช่น เลขที่ตั้งเบิกผิด', inputAttributes: { maxlength: '1000' },
+      inputValidator: (v: string) => (v?.trim() ? undefined : 'กรุณาบอกว่าต้องแก้อะไร'),
+    });
+    if (!res.isConfirmed) return;
+    inFlight.current = true;
+    setBusy(true);
+    try {
+      const saved = await putAction(formId, 'reject-voucher', { remark: String(res.value).trim() });
+      await showSuccess('ส่งกลับให้บัญชีแก้แล้ว');
+      onSaved(saved);
+    } catch (err) {
+      showAlert({ icon: 'error', title: 'ส่งกลับไม่สำเร็จ', text: (err as Error).message });
     } finally {
       inFlight.current = false;
       setBusy(false);
@@ -64,7 +93,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
     try {
       const r = await sendOverdueReminders([formId]);
       if (r.disabled) await showAlert({ icon: 'warning', title: 'อีเมลยังปิดอยู่ — ยังไม่ได้ส่ง' });
-      else if (r.sent > 0) await showAlert({ icon: 'success', title: 'ส่งแจ้งเตือนแล้ว' });
+      else if (r.sent > 0) await showSuccess('ส่งแจ้งเตือนแล้ว');
       else await showAlert({ icon: 'info', title: 'ไม่ได้ส่งแจ้งเตือน', text: r.skipped.map(s => s.reason).join(', ') || undefined });
       load();
       setRefreshKey(k => k + 1);
@@ -80,8 +109,14 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
   if (error) return <NoAccess text={error} />;
   if (!detail) return <Panel title="รายละเอียดคำขอ"><div className="py-8"><MascotLoader text="กำลังโหลดรายละเอียด" size={80} /></div></Panel>;
 
-  const canVoucher = detail.status === 'AWAITING_VOUCHER';
-  const canPay = ['AWAITING_PAYMENT', 'AWAITING_CLEARING'].includes(detail.status);
+  const atVoucher = detail.status === 'AWAITING_VOUCHER';
+  const atPay = ['AWAITING_PAYMENT', 'AWAITING_CLEARING'].includes(detail.status);
+  const canVoucher = atVoucher && can(perms, PERM.voucher);
+  const canPay = atPay && can(perms, PERM.pay);
+  const canReturn = (atVoucher || detail.status === 'AWAITING_PAYMENT') && can(perms, PERM.return);
+  const canRemind = can(perms, PERM.overdueRemind);
+  const canVoucherBack = canSendVoucherBack(detail.status, perms);
+  const canEditDocs = canEditDocNumbers(detail.status, perms);
 
   return (
     <>
@@ -90,9 +125,10 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
       <Panel title="ไฟล์แนบทุกขั้นตอน">
         <div className="grid gap-5 sm:grid-cols-2">
           <AttachmentPanel formId={formId} folder="request" refreshKey={refreshKey} />
-          <AttachmentPanel formId={formId} folder="pay" canUpload={Boolean(canPay)} refreshKey={refreshKey} />
+          <AttachmentPanel formId={formId} folder="pay" canUpload={canPay} refreshKey={refreshKey} />
           <AttachmentPanel formId={formId} folder="clear" refreshKey={refreshKey} />
-          <AttachmentPanel formId={formId} folder="check" canUpload={detail.status === 'AWAITING_REVIEW'} refreshKey={refreshKey} />
+          <AttachmentPanel formId={formId} folder="related" refreshKey={refreshKey} />
+          <AttachmentPanel formId={formId} folder="check" canUpload={detail.status === 'AWAITING_REVIEW' && can(perms, PERM.close)} refreshKey={refreshKey} />
         </div>
       </Panel>
       {detail.status === 'RETURNED' && (
@@ -100,23 +136,44 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
           ตีกลับให้ผู้เบิกแก้ไข — รอผู้เบิกแก้ไขและส่งใหม่: {latestReturnRemark(detail.fin_logs) || '-'}
         </p>
       )}
-      {(canVoucher || detail.status === 'AWAITING_PAYMENT') && (
-        <div className="mb-4">
-          <Button type="button" variant="outline" onClick={returnToRequester} disabled={busy}
-            className="border-rose-400 text-rose-600 hover:bg-rose-50 hover:text-rose-700">
-            ตีกลับให้ผู้เบิกแก้ไข
-          </Button>
+      {(canReturn || canVoucherBack || canEditDocs) && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {canEditDocs && <EditDocNumbersButton detail={detail} onSaved={onSaved} />}
+          {canVoucherBack && (
+            <Button type="button" variant="outline" onClick={sendBackToVoucher} disabled={busy}
+              className="border-amber-400 text-amber-700 hover:bg-amber-50 hover:text-amber-800">
+              ส่งกลับให้บัญชีแก้ตั้งเบิก
+            </Button>
+          )}
+          {canReturn && (
+            <Button type="button" variant="outline" onClick={returnToRequester} disabled={busy}
+              className="border-rose-400 text-rose-600 hover:bg-rose-50 hover:text-rose-700">
+              ตีกลับให้ผู้เบิกแก้ไข
+            </Button>
+          )}
         </div>
       )}
-      {detail.overdue && (
+      {detail.overdue && canRemind && (
         <div className="mb-4">
           <Button type="button" variant="outline" onClick={sendReminder} disabled={busy}>ส่งแจ้งเตือน</Button>
         </div>
       )}
       {canVoucher && <VoucherForm key={`v-${refreshKey}`} detail={detail} onSaved={onSaved} />}
       {canPay && <PayForm key={`pay-${refreshKey}`} detail={detail} onSaved={onSaved} />}
-      {detail.status === 'AWAITING_REVIEW' && <ReviewPanel key={`rev-${refreshKey}`} detail={detail} onSaved={onSaved} />}
-      <LogList approvalLogs={detail.approval_logs} finLogs={detail.fin_logs} />
+      {detail.status === 'CLEARING_APPROVAL' && clearQueue?.includes(detail.form_id) && (
+        <ClearApprovalPanel key={`ca-${refreshKey}`} detail={detail} onSaved={onSaved} />
+      )}
+      {detail.status === 'CLEARING_APPROVAL' && clearQueue && !clearQueue.includes(detail.form_id) && (
+        <p className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          รออนุมัติการเคลียร์จากหัวหน้า — ยังไม่ถึงคิวบัญชีตรวจ
+        </p>
+      )}
+      {/* คนที่ไม่มีสิทธิ์ตรวจหรือปิดรายการ เห็นแผงนี้แล้วกดอะไรไม่ได้ ไฟล์ที่เลือกก็ไม่ถูกส่ง ซ่อนไปเลย */}
+      {detail.status === 'AWAITING_REVIEW' && (can(perms, PERM.clearingReview) || can(perms, PERM.close)) && (
+        <ReviewPanel key={`rev-${refreshKey}`} detail={detail} onSaved={onSaved}
+          canSendBack={can(perms, PERM.clearingReview)} canClose={can(perms, PERM.close)} />
+      )}
+      <LogList approvalLogs={detail.approval_logs} finLogs={detail.fin_logs} clearLogs={detail.clear_logs} />
     </>
   );
 }

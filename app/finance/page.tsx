@@ -18,6 +18,7 @@ const TABS: AdvanceListTab[] = [
   { key: 'clearing', label: 'จ่ายแล้วรอเคลียร์', status: ['AWAITING_CLEARING'] },
   { key: 'overdue', label: 'เกินกำหนด', overdue: true },
   { key: 'returned', label: 'ตีกลับผู้เบิก', status: ['RETURNED'] },
+  { key: 'clearapprove', label: 'รออนุมัติเคลียร์', status: ['CLEARING_APPROVAL'] },
   { key: 'review', label: 'รอบัญชีตรวจ', status: ['AWAITING_REVIEW'] },
   { key: 'sentback', label: 'ส่งกลับแก้ไข', status: ['SENT_BACK'] },
   { key: 'closed', label: 'ปิดแล้ว', status: ['CLOSED'] },
@@ -56,6 +57,7 @@ export default function FinanceQueuePage() {
       { label: 'ยอดค้างเคลียร์ (บาท)', value: formatBaht(summary?.outstanding_amount ?? 0) },
       { label: 'รอตั้งเบิก', value: n('AWAITING_VOUCHER') },
       { label: 'รอจ่าย', value: n('AWAITING_PAYMENT') },
+      { label: 'รออนุมัติเคลียร์', value: n('CLEARING_APPROVAL') },
       { label: 'รอบัญชีตรวจ', value: n('AWAITING_REVIEW') },
       { label: 'เกินกำหนดเคลียร์', value: summary?.overdue ?? 0, alert: true },
     ];

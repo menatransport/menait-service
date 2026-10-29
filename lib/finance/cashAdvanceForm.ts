@@ -1,4 +1,5 @@
 import type { AdvanceDetail } from '@/app/finance/types';
+import { signatureSlots } from './approvalSteps';
 import { bahtText } from './bahtText';
 import { bankLabel, formatAccountNo } from './bank';
 import { centerCheckboxesHtml, centerFromSite } from './centers';
@@ -7,7 +8,7 @@ import { documentControlFooter, esc, formatBkkDateTime, money, printedNow, stamp
 
 export { formatBkkDateTime };
 
-export const PRINTABLE_STATUSES = ['AWAITING_VOUCHER', 'AWAITING_PAYMENT', 'AWAITING_CLEARING', 'SENT_BACK', 'AWAITING_REVIEW', 'CLOSED'];
+export const PRINTABLE_STATUSES = ['AWAITING_VOUCHER', 'AWAITING_PAYMENT', 'AWAITING_CLEARING', 'SENT_BACK', 'CLEARING_APPROVAL', 'AWAITING_REVIEW', 'CLOSED'];
 
 export { CENTER_OPTIONS } from './centers';
 
@@ -101,11 +102,11 @@ table.items td.no { width: 9mm; color: var(--muted); }
 table.items td.a { font-weight: 600; }
 .sum { display: grid; grid-template-columns: 1fr auto; gap: 16px; margin-top: 8px; align-items: stretch; }
 .dates { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px; row-gap: 5px; align-content: start; }
-.tot { background: var(--teal); color: #fff; border-radius: 3px; padding: 7px 12px; min-width: 68mm; }
-.tot .k { font-size: 10px; opacity: 0.85; }
-.tot .amt { font-size: 22px; font-weight: 700; line-height: 1.15; text-align: right; }
-.tot .amt span { font-size: 11px; font-weight: 500; margin-left: 4px; }
-.tot .words { font-size: 11px; font-style: italic; text-align: right; border-top: 1px solid rgba(255,255,255,.35); margin-top: 4px; padding-top: 3px; }
+.tot { border: 1.5px solid var(--teal); border-radius: 3px; padding: 7px 12px; min-width: 68mm; }
+.tot .k { font-size: 10px; color: var(--muted); }
+.tot .amt { font-size: 22px; font-weight: 700; line-height: 1.15; text-align: right; color: var(--teal); }
+.tot .amt span { font-size: 11px; font-weight: 500; margin-left: 4px; color: var(--ink); }
+.tot .words { font-size: 11px; font-style: italic; text-align: right; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 3px; }
 .more { grid-column: 1 / -1; margin-top: 2px; }
 .more .l { font-size: 9.5px; color: var(--muted); }
 .more .ln { border-bottom: 1px solid var(--line); min-height: 19px; font-size: 12px; }
@@ -187,7 +188,7 @@ ${anyEsign ? '<div class="esign-note">ลงนามอิเล็กทรอ
 export function buildCashAdvanceHtml(data: CashAdvanceFormData, opts: CashAdvanceOpts = {}): string {
   const body = cashAdvanceBody(data, opts) + (opts.attachmentsHtml ?? '');
   return wrapDocument({
-    title: `${data.document_no ? `${data.document_no} — ` : ''}ใบคำขอเบิกเงินล่วงหน้า`,
+    title: `${data.document_no ? `${data.document_no} - ` : ''}Part 1 : Cash Advance Request`,
     body, extraCss: PART_CSS, fontCss: opts.fontCss,
     footerHtml: documentControlFooter(cashAdvanceFooter(data, opts.printed)),
   });
@@ -211,10 +212,10 @@ export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
   const r = detail.request;
   const center = centerFromSite(detail.requester.site_code);
   const approved = [...(detail.approval_logs ?? [])].reverse().find(l => l.action === 'APPROVED');
-  // Two-step chain: step-1 stamp -> unit head, step-2 stamp -> approver. One step (or old BE): stamp -> approver.
+  // ไล่ขั้นตาม TOA (2+ ขั้น): คนแรก -> หัวหน้าหน่วยงาน, คนถัดไป -> ผู้จัดการ, คนสุดท้ายเมื่ออนุมัติครบ -> ผู้มีอำนาจอนุมัติ
+  // คนเดียวกดหลายขั้นติดกัน (ข้ามขั้น) ลงชื่อช่องเดียว · ขั้นเดียว (หรือ BE เก่า): ใช้ log อนุมัติล่าสุด -> ผู้มีอำนาจอนุมัติ
   const stepApprovals = detail.approval?.step_approvals ?? [];
-  const stepOf = (n: number) => stepApprovals.find(a => a.step === n && a.action_at);
-  const twoSteps = (detail.approval?.steps?.length ?? 0) >= 2;
+  const multiStep = (detail.approval?.steps?.length ?? 0) >= 2;
   const mkStamp = (name: string | null | undefined, at: string | null | undefined): Signature => ({
     name: name ?? '', date: dmy(at),
     ...(at ? { esign: {
@@ -222,16 +223,14 @@ export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
       ref: detail.approval ? `ข้อ ${detail.approval.clause}` : detail.form_id,
     } } : {}),
   });
-  let s1 = twoSteps ? stepOf(1) : undefined;
-  let s2 = twoSteps ? stepOf(2) : undefined;
-  const mapped = twoSteps && stepApprovals.length > 0;
-  // Dynamic skip: completed at step 1 and no separate step-2 approver -> one stamp, in the approver column.
-  // Also when the same employee approved both (BE logs step 2 for the skipped step).
-  const sameApprover = !!(s1 && s2 && s1.employee_id && s1.employee_id === s2.employee_id);
+  const mapped = multiStep && stepApprovals.length > 0;
   // BE keeps current_step numeric after completion, so "complete" comes from the document status
   const approvalDone = detail.status !== 'PENDING_APPROVAL' && detail.status !== 'REJECTED';
-  if (mapped && s1 && ((!s2 && approvalDone) || sameApprover)) { s2 = s1; s1 = undefined; }
-  const finalStep = mapped ? s2 : undefined;
+  const slots = mapped
+    ? signatureSlots(stepApprovals.filter(a => a.action_at).map(a => ({ step: a.step, who: a.employee_id ?? a.name, item: a })),
+      approvalDone)
+    : {};
+  const stampOf = (a?: (typeof stepApprovals)[number]): Signature => (a ? mkStamp(a.name, a.action_at) : { name: '', date: '' });
   const payee = payeeFields(r);
   const name = detail.requester.name ?? '';
   return {
@@ -253,11 +252,9 @@ export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
         name, date: dmy(detail.created_at),
         ...(detail.created_at ? { esign: { name, timestamp: detail.created_at, ref: detail.form_id } } : {}),
       },
-      unit_head: s1 ? mkStamp(s1.name, s1.action_at) : { name: '', date: '' },
-      manager: { name: '', date: '' },
-      approver: mapped
-        ? (finalStep ? mkStamp(finalStep.name, finalStep.action_at) : { name: '', date: '' })
-        : mkStamp(approved?.actor_name, approved?.action_at),
+      unit_head: stampOf(slots.unit_head),
+      manager: stampOf(slots.manager),
+      approver: mapped ? stampOf(slots.approver) : mkStamp(approved?.actor_name, approved?.action_at),
     },
   };
 }

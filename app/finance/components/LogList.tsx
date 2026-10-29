@@ -1,10 +1,22 @@
 import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
-import { formatDate } from '@/lib/finance/status';
-import { FIELD_LABELS, LOG_ACTION_LABELS, logRemarkLabel } from '../labels';
+import { formatBaht, formatDate } from '@/lib/finance/status';
+import { formatBkkDateTime } from '@/lib/finance/printShared';
+import { FIELD_LABELS, logRemarkLabel } from '../labels';
 import type { ApprovalLog, FinLog } from '../types';
+import { fullHistory, type ClearLog } from '@/lib/finance/historyLog';
 import { Panel } from './FinanceShell';
 
 const show = (v: unknown) => (v === null || v === undefined || v === '' ? '-' : String(v));
+
+const DATE_FIELDS = new Set(['voucher_date', 'transfer_date', 'clear_due_date', 'clear_date', 'settle_date', 'use_date']);
+const MONEY_FIELDS = new Set(['amount', 'amount_paid', 'amount_actual', 'settle_amount', 'items_total']);
+
+/** วันที่และเวลา ให้เห็นลำดับขั้นที่เกิดในวันเดียวกัน */
+function when(at: string | null): string {
+  if (!at) return '-';
+  const t = formatBkkDateTime(at);
+  return t.date ? `${formatDate(at)} ${t.time.slice(0, 5)} น.` : formatDate(at);
+}
 
 const PAYEE_TYPE_LABELS: Record<string, string> = { SELF: 'บัญชีตัวเอง', SUPPLIER: 'บัญชี Supplier' };
 
@@ -22,24 +34,22 @@ function showValue(field: string, v: unknown): string {
   if (base === 'payee_type') return PAYEE_TYPE_LABELS[String(v)] ?? String(v);
   if (base === 'bank') return bankLabel(String(v)) || String(v);
   if (base === 'account_no') return formatAccountNo(String(v));
+  // BE ส่งวันที่เป็น YYYY-MM-DD และยอดเงินเป็นตัวเลขดิบ แปลงให้อ่านแบบเดียวกับหน้าจอ
+  if (DATE_FIELDS.has(base)) return formatDate(String(v));
+  if (MONEY_FIELDS.has(base) && Number.isFinite(Number(v))) return formatBaht(Number(v));
   return show(v);
 }
 
-export function LogList({ approvalLogs, finLogs }: { approvalLogs: ApprovalLog[]; finLogs: FinLog[] }) {
-  if (approvalLogs.length === 0 && finLogs.length === 0) return null;
+export function LogList({ approvalLogs, finLogs, clearLogs }: { approvalLogs: ApprovalLog[]; finLogs: FinLog[]; clearLogs?: ClearLog[] }) {
+  const rows = fullHistory(approvalLogs, finLogs, clearLogs);
+  if (rows.length === 0) return null;
   return (
     <Panel title="ประวัติ">
       <ol className="space-y-3 text-sm">
-        {approvalLogs.map((log, i) => (
-          <li key={`a-${i}`} className="border-l-2 border-mint-400 pl-3">
-            <p className="font-medium">{LOG_ACTION_LABELS[log.action] ?? log.action} · {log.actor_name ?? '-'}</p>
-            <p className="text-xs text-gray-500">{formatDate(log.action_at)}{log.remark ? ` · ${log.remark}` : ''}</p>
-          </li>
-        ))}
-        {finLogs.map((log, i) => (
-          <li key={`f-${i}`} className="border-l-2 border-brand-600 pl-3">
-            <p className="font-medium">{LOG_ACTION_LABELS[log.action] ?? log.action} · {log.action_by ?? '-'}</p>
-            <p className="text-xs text-gray-500">{formatDate(log.created_at)}{logRemarkLabel(log.action, log.remark) ? ` · ${logRemarkLabel(log.action, log.remark)}` : ''}</p>
+        {rows.map(log => (
+          <li key={log.key} className={`border-l-2 pl-3 ${log.key.startsWith('a-') || log.action === 'CLEAR_APPROVE' ? 'border-mint-400' : 'border-brand-600'}`}>
+            <p className="font-medium">{log.label} · {log.actor ?? '-'}</p>
+            <p className="text-xs text-gray-500">{when(log.at)}{logRemarkLabel(log.action, log.remark) ? ` · ${logRemarkLabel(log.action, log.remark)}` : ''}</p>
             {log.changes && Object.keys(log.changes).length > 0 && (
               <ul className="mt-1 text-xs text-gray-600">
                 {Object.entries(log.changes).map(([field, v]) => {

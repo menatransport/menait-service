@@ -39,7 +39,7 @@ export default function PrintDialog({ open, onOpenChange, onConfirm, documentNo,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="sm:max-w-sm gap-0 overflow-hidden rounded-md border border-slate-300 bg-white p-0 shadow-2xl">
+      <DialogContent className="sm:max-w-sm gap-0 overflow-hidden rounded-md border border-slate-300 bg-white p-0 shadow-2xl">
         <DialogHeader className="border-b border-slate-200 bg-slate-50 px-5 py-3.5">
           <DialogTitle className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-slate-800">
             <Printer className="h-4 w-4 text-slate-500" />
@@ -76,9 +76,10 @@ export default function PrintDialog({ open, onOpenChange, onConfirm, documentNo,
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3">
-          <span className="text-[11px] text-slate-500">แนบหน้ารูปภาพให้อัตโนมัติ</span>
+          <span className="text-[11px] text-slate-500">{selected === 'part1' ? 'พิมพ์หน้าเดียว ไม่แนบไฟล์' : 'Part 2 แนบหน้ารูปภาพให้อัตโนมัติ'}</span>
           <div className="flex gap-2">
-            <button type="button" onClick={() => onOpenChange(false)} disabled={isPreparing}
+            {/* กดยกเลิกได้ตลอด แม้กำลังเตรียมเอกสาร (โหลดไฟล์แนบช้า) — ผู้เรียกยกเลิกงานพิมพ์ที่ค้างให้ */}
+            <button type="button" onClick={() => onOpenChange(false)}
               className="cursor-pointer rounded border border-slate-300 bg-white px-4 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-50">
               ยกเลิก
             </button>

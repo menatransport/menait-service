@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,146 +9,214 @@ import {
     DialogDescription, DialogFooter
 } from '@/components/ui/dialog';
 import {
-    User, Mail, Building, MapPin, Briefcase,
-    IdCard, Loader2, UserPlus, Plus
+    User, Mail, MapPin, Briefcase, AtSign, KeyRound,
+    IdCard, Loader2, UserPlus, Plus, type LucideIcon,
 } from 'lucide-react';
-import { DropdownSearch } from '@/components/ui/dropdown/issue';
+import { cn } from '@/lib/utils';
 import { AddPositionDialog } from './add-position-dialog';
-import type { UserData } from './types';
-import { UserCreate } from '@/components/profile-form';
+import { OrgPicker, OrgSelect } from './org-picker';
+import type { OrgIndex, OrgDepartment } from './org-structure';
+import type { LookupOption, MasterLookups, UserData } from './types';
+import type { UserCreate } from '@/components/profile-form';
 
 interface AddUserDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onAdd: (user: Omit<UserCreate, 'id'>) => Promise<boolean>;
+    /** Resolves true on success, or an error message to show */
+    onAdd: (user: Omit<UserCreate, 'id'>) => Promise<true | string>;
+    org: OrgIndex;
+    lookups?: MasterLookups;
+    /** Active users — used to catch a duplicate รหัสพนักงาน/อีเมล before the round trip */
+    existingUsers: UserData[];
+    onDepartmentCreated?: (department: OrgDepartment) => void;
 }
 
-const INITIAL_FORM = {
-    username: '',
-    email: '',
+type FormKey = 'employee_id' | 'firstname' | 'lastname' | 'email' | 'username' | 'department_id' | 'site_id' | 'position_id';
+type FormState = Record<FormKey, string>;
+
+const INITIAL_FORM: FormState = {
     employee_id: '',
     firstname: '',
     lastname: '',
-    department_id: 0,
-    site_id: 0,
-    position_id: 0,
-    employee_status: 'Active',
-    password: '',
+    email: '',
+    username: '',
+    department_id: '',
+    site_id: '',
+    position_id: '',
 };
 
-interface Option {
-    option_value: string
-    option_label: string;
-}
+const REQUIRED: { key: FormKey; label: string }[] = [
+    { key: 'employee_id', label: 'รหัสพนักงาน' },
+    { key: 'firstname', label: 'ชื่อ' },
+    { key: 'lastname', label: 'นามสกุล' },
+    { key: 'email', label: 'อีเมล' },
+    { key: 'username', label: 'ชื่อผู้ใช้' },
+    { key: 'department_id', label: 'แผนก' },
+    { key: 'position_id', label: 'ตำแหน่ง' },
+    { key: 'site_id', label: 'สถานที่ปฏิบัติงาน' },
+];
 
-export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogProps) => {
-    const [form, setForm] = useState(INITIAL_FORM);
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Must match the password page.tsx sets on create */
+const defaultPassword = (employeeId: string) => 'Mnt@' + employeeId.slice(-4);
+
+const INPUT_CLS = 'h-10 text-sm rounded-lg bg-white border-gray-200 focus:ring-brand-600 focus:border-brand-600';
+
+const Section = ({ step, title, children }: { step: number; title: string; children: React.ReactNode }) => (
+    <section className="space-y-3">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-brand-600/10 text-brand-700 text-[11px] font-bold">{step}</span>
+            {title}
+        </h3>
+        {children}
+    </section>
+);
+
+const Field = ({ icon: Icon, label, required, error, hint, action, children }: {
+    icon: LucideIcon; label: string; required?: boolean; error?: string | null; hint?: React.ReactNode;
+    action?: React.ReactNode; children: React.ReactNode;
+}) => (
+    <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2 min-h-5">
+            <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
+                <Icon className="w-3.5 h-3.5 text-brand-600" />
+                {label} {required && <span className="text-red-400">*</span>}
+            </Label>
+            {action}
+        </div>
+        {children}
+        {error ? <p className="text-[11px] text-red-500">{error}</p> : hint && <p className="text-[11px] text-gray-400">{hint}</p>}
+    </div>
+);
+
+export const AddUserDialog = memo(({
+    open, onOpenChange, onAdd, org, lookups, existingUsers, onDepartmentCreated,
+}: AddUserDialogProps) => {
+    const [form, setForm] = useState<FormState>(INITIAL_FORM);
+    // username follows the email's local part until it is typed by hand
+    const [usernameTouched, setUsernameTouched] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showAddPosition, setShowAddPosition] = useState(false);
-    const [dropdownOptions, setDropdownOptions] = useState<{
-        department: Option[];
-        site: Option[];
-        position: Option[];
-    }>({
-        department: [],
-        site: [],
-        position: [],
-    });
+    const [extraPositions, setExtraPositions] = useState<LookupOption[]>([]);
 
-    useEffect(() => {
-        const fetchDropdownOptions = async () => {
-            try {
-                const [deptRes, siteRes, posRes] = await Promise.all([
-                    fetch('/api/organization/departments'),
-                    fetch('/api/organization/sites'),
-                    fetch('/api/organization/positions'),
-                ]);
-                const [departments, sites, positions] = await Promise.all([
-                    deptRes.json(),
-                    siteRes.json(),
-                    posRes.json(),
-                ]);
-                setDropdownOptions({
-                    department: Array.isArray(departments) ? departments : [],
-                    site: Array.isArray(sites) ? sites : [],
-                    position: Array.isArray(positions) ? positions : [],
-                });
-            }
-            catch (err) {
-                console.error('Error fetching dropdown options:', err);
-            }
-        };
-        fetchDropdownOptions();
-    }, []);
+    const positionOptions = useMemo(() => {
+        const base = lookups?.positions ?? [];
+        const known = new Set(base.map(p => p.option_value));
+        return [...base, ...extraPositions.filter(p => !known.has(p.option_value))]
+            .sort((a, b) => a.option_label.localeCompare(b.option_label, 'th'))
+            .map(p => ({ value: p.option_value, label: p.option_label }));
+    }, [lookups?.positions, extraPositions]);
 
+    const siteOptions = useMemo(
+        () => (lookups?.sites ?? []).map(s => ({ value: s.option_value, label: s.option_label })),
+        [lookups?.sites]
+    );
 
-    const handleChange = useCallback((key: string, value: string) => {
+    const taken = useMemo(() => {
+        const ids = new Set<string>(), emails = new Set<string>(), usernames = new Set<string>();
+        for (const u of existingUsers) {
+            if (u.employee_id) ids.add(u.employee_id.trim());
+            if (u.email) emails.add(u.email.trim().toLowerCase());
+            if (u.username) usernames.add(u.username.trim().toLowerCase());
+        }
+        return { ids, emails, usernames };
+    }, [existingUsers]);
+
+    const fieldErrors = useMemo(() => {
+        const e: Partial<Record<FormKey, string>> = {};
+        const id = form.employee_id.trim();
+        const email = form.email.trim().toLowerCase();
+        const username = form.username.trim().toLowerCase();
+        if (id && !/^\d+$/.test(id)) e.employee_id = 'ใช้ตัวเลขเท่านั้น';
+        else if (taken.ids.has(id)) e.employee_id = 'รหัสพนักงานนี้มีในระบบแล้ว';
+        if (email && !EMAIL_RE.test(email)) e.email = 'รูปแบบอีเมลไม่ถูกต้อง';
+        else if (taken.emails.has(email)) e.email = 'อีเมลนี้มีในระบบแล้ว';
+        if (username && taken.usernames.has(username)) e.username = 'ชื่อผู้ใช้นี้มีในระบบแล้ว';
+        if (submitted) {
+            for (const f of REQUIRED) if (!form[f.key].trim() && !e[f.key]) e[f.key] = `กรุณาระบุ${f.label}`;
+        }
+        return e;
+    }, [form, taken, submitted]);
+
+    const set = useCallback((key: FormKey, value: string) => {
         setForm(prev => ({ ...prev, [key]: value }));
         setError(null);
     }, []);
 
-    const handlePositionAdded = useCallback((option: Option) => {
-        setDropdownOptions(prev => ({
+    const handleEmail = useCallback((value: string) => {
+        setForm(prev => ({
             ...prev,
-            position: [...prev.position, option].sort((a, b) => a.option_label.localeCompare(b.option_label, 'th')),
+            email: value,
+            username: usernameTouched ? prev.username : value.split('@')[0].trim(),
         }));
-        handleChange('position_id', option.option_value);
-    }, [handleChange]);
+        setError(null);
+    }, [usernameTouched]);
+
+    const handleUsername = useCallback((value: string) => {
+        setUsernameTouched(value !== '');
+        set('username', value);
+    }, [set]);
+
+    const handlePositionAdded = useCallback((option: LookupOption) => {
+        setExtraPositions(prev => [...prev, option]);
+        set('position_id', option.option_value);
+    }, [set]);
+
+    const reset = useCallback(() => {
+        setForm(INITIAL_FORM);
+        setUsernameTouched(false);
+        setSubmitted(false);
+        setError(null);
+    }, []);
 
     const handleClose = useCallback((isOpen: boolean) => {
-        if (!isOpen) {
-            setForm(INITIAL_FORM);
-            setError(null);
-        }
-        onOpenChange(isOpen);
-    }, [onOpenChange]);
+        if (!isOpen && !saving) reset();
+        if (!saving) onOpenChange(isOpen);
+    }, [onOpenChange, reset, saving]);
 
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
-
-        const requiredFields = [
-            { key: 'employee_id', label: 'รหัสพนักงาน' },
-            { key: 'firstname', label: 'ชื่อ' },
-            { key: 'lastname', label: 'นามสกุล' },
-            { key: 'username', label: 'ชื่อผู้ใช้' },
-            { key: 'email', label: 'อีเมล' },
-            { key: 'department_id', label: 'ฝ่าย' },
-            { key: 'site_id', label: 'สถานที่' },
-            { key: 'position_id', label: 'ตำแหน่ง' },
-        ] as const;
-
-        const missing = requiredFields.filter(f => {
-            const value = form[f.key];
-            return value === '' || value === 0;
-        });
-        if (missing.length > 0) {
-            setError(`กรุณากรอก: ${missing.map(f => f.label).join(', ')}`);
+        setSubmitted(true);
+        const missing = REQUIRED.filter(f => !form[f.key].trim());
+        if (missing.length > 0 || Object.keys(fieldErrors).length > 0) {
+            setError(missing.length > 0
+                ? `กรุณากรอก: ${missing.map(f => f.label).join(', ')}`
+                : 'กรุณาแก้ไขช่องที่มีข้อผิดพลาด');
             return;
         }
 
         setSaving(true);
         setError(null);
         try {
-            const payload = {
-                ...form,
+            const result = await onAdd({
+                employee_id: form.employee_id.trim(),
+                firstname: form.firstname.trim(),
+                lastname: form.lastname.trim(),
+                email: form.email.trim().toLowerCase(),
+                username: form.username.trim(),
                 department_id: Number(form.department_id),
                 site_id: Number(form.site_id),
                 position_id: Number(form.position_id),
-            };
-            const success = await onAdd(payload);
-            if (success) {
-                setForm(INITIAL_FORM);
+                employee_status: 'Active',
+                password: defaultPassword(form.employee_id.trim()),
+            });
+            if (result === true) {
+                reset();
                 onOpenChange(false);
             } else {
-                setError('ไม่สามารถเพิ่มผู้ใช้ได้ กรุณาลองใหม่');
+                setError(result);
             }
         } catch {
             setError('เกิดข้อผิดพลาด กรุณาลองใหม่');
         } finally {
             setSaving(false);
         }
-    }, [form, onAdd, onOpenChange]);
+    }, [form, fieldErrors, onAdd, onOpenChange, reset]);
+
+    const employeeId = form.employee_id.trim();
 
     return (
         <Dialog open={open} onOpenChange={handleClose}>
@@ -156,142 +224,126 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-brand-600">
                         <UserPlus className="w-5 h-5" />
-                        เพิ่มผู้ใช้ใหม่
+                        เพิ่มพนักงานใหม่
                     </DialogTitle>
                     <DialogDescription>
-                        กรอกข้อมูลพนักงานเพื่อเพิ่มเข้าสู่ระบบ
+                        กรอกข้อมูลพนักงาน สังกัด และตำแหน่ง — ฝ่ายกับสายงานผูกตามแผนกที่เลือก
                     </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-5 mt-2">
-                    {/* Row 1: รหัสพนักงาน */}
-                    <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                            <IdCard className="w-3.5 h-3.5 text-brand-600" />
-                            รหัสพนักงาน <span className="text-red-400">*</span>
-                        </Label>
-                        <Input
-                            value={form.employee_id}
-                            onChange={e => handleChange('employee_id', e.target.value)}
-                            className="h-10 text-sm rounded-lg border-gray-200 focus:ring-brand-600 focus:border-brand-600"
-                        />
-                    </div>
+                <form onSubmit={handleSubmit} className="space-y-6 mt-2" noValidate>
+                    <Section step={1} title="ข้อมูลพนักงาน">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <Field icon={IdCard} label="รหัสพนักงาน" required error={fieldErrors.employee_id}>
+                                <Input
+                                    value={form.employee_id}
+                                    onChange={e => set('employee_id', e.target.value)}
+                                    inputMode="numeric"
+                                    placeholder="เช่น 690338"
+                                    className={cn(INPUT_CLS, fieldErrors.employee_id && 'border-red-300')}
+                                    autoFocus
+                                />
+                            </Field>
+                            <Field icon={User} label="ชื่อ" required error={fieldErrors.firstname}>
+                                <Input
+                                    value={form.firstname}
+                                    onChange={e => set('firstname', e.target.value)}
+                                    className={cn(INPUT_CLS, fieldErrors.firstname && 'border-red-300')}
+                                />
+                            </Field>
+                            <Field icon={User} label="นามสกุล" required error={fieldErrors.lastname}>
+                                <Input
+                                    value={form.lastname}
+                                    onChange={e => set('lastname', e.target.value)}
+                                    className={cn(INPUT_CLS, fieldErrors.lastname && 'border-red-300')}
+                                />
+                            </Field>
+                        </div>
+                    </Section>
 
-                    {/* Row 2: ชื่อ + นามสกุล (same row) */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <User className="w-3.5 h-3.5 text-brand-600" />
-                                ชื่อ <span className="text-red-400">*</span>
-                            </Label>
-                            <Input
-                                value={form.firstname}
-                                onChange={e => handleChange('firstname', e.target.value)}
-                                className="h-10 text-sm rounded-lg border-gray-200 focus:ring-brand-600 focus:border-brand-600"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <User className="w-3.5 h-3.5 text-brand-600" />
-                                นามสกุล <span className="text-red-400">*</span>
-                            </Label>
-                            <Input
-                                value={form.lastname}
-                                onChange={e => handleChange('lastname', e.target.value)}
-                                className="h-10 text-sm rounded-lg border-gray-200 focus:ring-brand-600 focus:border-brand-600"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Row 3: ชื่อผู้ใช้ + อีเมล */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <User className="w-3.5 h-3.5 text-brand-600" />
-                                ชื่อผู้ใช้ <span className="text-red-400">*</span>
-                            </Label>
-                            <Input
-                                value={form.username}
-                                onChange={e => handleChange('username', e.target.value)}
-                                className="h-10 text-sm rounded-lg border-gray-200 focus:ring-brand-600 focus:border-brand-600"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <Mail className="w-3.5 h-3.5 text-brand-600" />
-                                อีเมล <span className="text-red-400">*</span>
-                            </Label>
-                            <Input
-                                value={form.email}
-                                onChange={e => handleChange('email', e.target.value)}
-                                className="h-10 text-sm rounded-lg border-gray-200 focus:ring-brand-600 focus:border-brand-600"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="border-t border-gray-100" />
-
-                    {/* Row 4: ฝ่าย + สถานที่ปฏิบัติงาน (Dropdowns) */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <Building className="w-3.5 h-3.5 text-brand-600" />
-                                ฝ่าย
-                            </Label>
-                            <DropdownSearch
-                                value={form.department_id}
-                                onChange={v => handleChange('department_id', v)}
-                                options={dropdownOptions.department}
-                                placeholder="-- เลือกฝ่าย --"
-                                searchPlaceholder="ค้นหาฝ่าย..."
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <MapPin className="w-3.5 h-3.5 text-brand-600" />
-                                สถานที่ปฏิบัติงาน
-                            </Label>
-                            <DropdownSearch
-                                value={form.site_id}
-                                onChange={v => handleChange('site_id', v)}
-                                options={dropdownOptions.site}
-                                placeholder="-- เลือกสถานที่ --"
-                                searchPlaceholder="ค้นหาสถานที่..."
-                            />
-                        </div>
-                    </div>
-
-                    {/* Row 5: ตำแหน่ง (Dropdown) */}
-                    <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                            <Label className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <Briefcase className="w-3.5 h-3.5 text-brand-600" />
-                                ตำแหน่ง
-                            </Label>
-                            <button
-                                type="button"
-                                onClick={() => setShowAddPosition(true)}
-                                className="flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-800 cursor-pointer"
+                    <Section step={2} title="บัญชีเข้าระบบ">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Field icon={Mail} label="อีเมล" required error={fieldErrors.email}>
+                                <Input
+                                    type="email"
+                                    value={form.email}
+                                    onChange={e => handleEmail(e.target.value)}
+                                    placeholder="name.x@menatransport.co.th"
+                                    className={cn(INPUT_CLS, fieldErrors.email && 'border-red-300')}
+                                />
+                            </Field>
+                            <Field
+                                icon={AtSign}
+                                label="ชื่อผู้ใช้"
+                                required
+                                error={fieldErrors.username}
+                                hint={!usernameTouched && form.username ? 'เติมจากอีเมลให้อัตโนมัติ แก้ได้' : undefined}
                             >
-                                <Plus className="w-3.5 h-3.5" />
-                                เพิ่มตำแหน่งใหม่
-                            </button>
+                                <Input
+                                    value={form.username}
+                                    onChange={e => handleUsername(e.target.value)}
+                                    className={cn(INPUT_CLS, fieldErrors.username && 'border-red-300')}
+                                />
+                            </Field>
                         </div>
-                        <DropdownSearch
-                            value={form.position_id}
-                            onChange={v => handleChange('position_id', v)}
-                            options={dropdownOptions.position}
-                            placeholder="-- เลือกตำแหน่ง --"
-                            searchPlaceholder="ค้นหาตำแหน่ง..."
-                        />
-                    </div>
+                        <p className="flex items-center gap-1.5 text-[11px] text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+                            <KeyRound className="w-3.5 h-3.5 text-brand-600 shrink-0" />
+                            รหัสผ่านเริ่มต้น:
+                            <code className="font-mono text-gray-700">{employeeId.length >= 4 ? defaultPassword(employeeId) : 'Mnt@ + 4 ตัวท้ายรหัสพนักงาน'}</code>
+                        </p>
+                    </Section>
 
-                    <AddPositionDialog
-                        open={showAddPosition}
-                        onOpenChange={setShowAddPosition}
-                        onAdded={handlePositionAdded}
-                    />
+                    <Section step={3} title="สังกัด">
+                        <OrgPicker
+                            org={org}
+                            value={form.department_id}
+                            onChange={v => set('department_id', v)}
+                            onDepartmentCreated={onDepartmentCreated}
+                            error={!!fieldErrors.department_id}
+                        />
+                        {fieldErrors.department_id && <p className="text-[11px] text-red-500">{fieldErrors.department_id}</p>}
+                    </Section>
+
+                    <Section step={4} title="ตำแหน่งและสถานที่">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Field
+                                icon={Briefcase}
+                                label="ตำแหน่ง"
+                                required
+                                error={fieldErrors.position_id}
+                                hint="ระดับ (level) มาจากตำแหน่ง"
+                                action={
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAddPosition(true)}
+                                        className="flex items-center gap-0.5 text-[11px] font-medium text-brand-600 hover:text-brand-800 cursor-pointer"
+                                    >
+                                        <Plus className="w-3 h-3" />
+                                        เพิ่มตำแหน่ง
+                                    </button>
+                                }
+                            >
+                                <OrgSelect
+                                    value={form.position_id}
+                                    onChange={v => set('position_id', v)}
+                                    options={positionOptions}
+                                    placeholder="-- เลือกตำแหน่ง --"
+                                    size="md"
+                                    error={!!fieldErrors.position_id}
+                                />
+                            </Field>
+                            <Field icon={MapPin} label="สถานที่ปฏิบัติงาน" required error={fieldErrors.site_id}>
+                                <OrgSelect
+                                    value={form.site_id}
+                                    onChange={v => set('site_id', v)}
+                                    options={siteOptions}
+                                    placeholder="-- เลือกสถานที่ --"
+                                    size="md"
+                                    error={!!fieldErrors.site_id}
+                                />
+                            </Field>
+                        </div>
+                    </Section>
 
                     {error && (
                         <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">
@@ -322,12 +374,19 @@ export const AddUserDialog = memo(({ open, onOpenChange, onAdd }: AddUserDialogP
                             ) : (
                                 <>
                                     <UserPlus className="w-4 h-4 mr-1.5" />
-                                    เพิ่มผู้ใช้
+                                    เพิ่มพนักงาน
                                 </>
                             )}
                         </Button>
                     </DialogFooter>
                 </form>
+
+                {/* Kept outside <form>: a portalled form's submit still bubbles through the React tree */}
+                <AddPositionDialog
+                    open={showAddPosition}
+                    onOpenChange={setShowAddPosition}
+                    onAdded={handlePositionAdded}
+                />
             </DialogContent>
         </Dialog>
     );

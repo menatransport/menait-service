@@ -25,6 +25,15 @@ export interface UserData {
     site: string;
     position: string;
     position_level: string;
+    /** ฝ่าย — joined via department.division_id; null = แผนกยังไม่ผูกฝ่าย, missing = backend เก่า */
+    division?: {
+        division_id: number;
+        division_th: string | null;
+        division_eng: string | null;
+        division_code: string | null;
+    } | null;
+    /** สายงาน — joined via division.path_id */
+    path?: { path_id: number; path_th?: string | null; path_code?: string | null } | null;
     image_url?: string | null;
     created_at?: string | null;
     updated_at?: string | null;

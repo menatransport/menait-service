@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/ui/loading';
 import {
     FileSpreadsheet, Users, ChevronDown, ChevronRight,
-    Building2, MapPin, Briefcase, Eye, ExternalLink, UserPlus, UserX
+    Building2, Layers, MapPin, Briefcase, Eye, ExternalLink, UserPlus, UserX
 } from 'lucide-react';
 import { UserDetailSheet } from './user-detail-sheet';
 import { AddUserDialog } from './add-user-dialog';
@@ -19,10 +19,11 @@ import {
 } from './constants';
 import {
     StatusBadge, UserEmptyState, FormEmptyState, ErrorState,
-    TableHeader, TableWrapper, TableHead, ExcelButton
+    TableHeader, TableWrapper, TableHead, ExcelButton, ManagerTag
 } from './shared-components';
+import { groupWithManagers, managersByDivision, type ManagedDivision } from './division-managers';
 import type {
-    UserData, FormData, DepartmentGroup,
+    UserData, FormData, DivisionGroup,
     MasterTableProps, TableFormProps
 } from './types';
 
@@ -31,31 +32,85 @@ export type { UserData, FormData } from './types';
 
 // ===================== USER TABLE SUB-COMPONENTS =====================
 
+const Chevron = ({ open, className = '' }: { open: boolean; className?: string }) => open
+    ? <ChevronDown className={`w-4 h-4 shrink-0 ${className}`} />
+    : <ChevronRight className={`w-4 h-4 shrink-0 ${className}`} />;
+
+const CountChip = ({ children, strong }: { children: React.ReactNode; strong?: boolean }) => (
+    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${strong ? 'bg-brand-600 text-white' : 'bg-brand-600/10 text-brand-600'}`}>
+        {children}
+    </span>
+);
+
+/** ฝ่าย summary: "3 แผนก · 12 คน", or just "12 คน" when the ฝ่าย has one แผนก */
+const divisionCount = (group: DivisionGroup) =>
+    group.departments.length > 1
+        ? `${group.departments.length} แผนก · ${group.total} คน`
+        : `${group.total} คน`;
+
+const fullName = (u: UserData) => `${u.firstname ?? ''} ${u.lastname ?? ''}`.trim();
+
+const DivisionHeaderRow = memo(({
+    group, isOpen, onToggle
+}: {
+    group: ManagedDivision;
+    isOpen: boolean;
+    onToggle: () => void;
+}) => (
+    <tr
+        className="bg-brand-600/10 border-t border-brand-600/15 cursor-pointer hover:bg-brand-600/15 transition-colors select-none"
+        onClick={onToggle}
+    >
+        <td colSpan={USER_COLUMNS.length} className="px-4 py-3">
+            <div className="flex items-center gap-2.5">
+                <Chevron open={isOpen} className="text-brand-700" />
+                <span className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center shrink-0">
+                    <Building2 className="w-4 h-4" />
+                </span>
+                <span className="text-sm font-bold text-brand-800">{group.division}</span>
+                {group.code && (
+                    <span className="font-mono text-[10px] font-bold text-brand-700 border border-brand-600/30 px-1.5 py-0.5 rounded">
+                        {group.code}
+                    </span>
+                )}
+                {group.divisionEn && group.divisionEn !== group.division && (
+                    <span className="text-xs text-brand-700/50 truncate">{group.divisionEn}</span>
+                )}
+                {/* ผู้จัดการฝ่าย stays visible when the ฝ่าย is collapsed */}
+                {!isOpen && group.managers.length > 0 && (
+                    <span className="text-xs text-gray-500 truncate">
+                        · ผู้จัดการฝ่าย: <span className="text-gray-700 font-medium">{group.managers.map(fullName).join(', ')}</span>
+                    </span>
+                )}
+                <span className="ml-auto"><CountChip strong>{divisionCount(group)}</CountChip></span>
+            </div>
+        </td>
+    </tr>
+));
+DivisionHeaderRow.displayName = 'DivisionHeaderRow';
+
 const DepartmentHeaderRow = memo(({
-    department, count, isOpen, onToggle
+    department, departmentEn, count, isOpen, onToggle
 }: {
     department: string;
+    departmentEn: string;
     count: number;
     isOpen: boolean;
     onToggle: () => void;
 }) => (
     <tr
-        className="bg-brand-600/5 cursor-pointer hover:bg-brand-600/10 transition-colors select-none"
+        className="bg-brand-600/[0.03] border-t border-gray-100 cursor-pointer hover:bg-brand-600/[0.07] transition-colors select-none"
         onClick={onToggle}
     >
-        <td colSpan={USER_COLUMNS.length} className="px-4 py-2.5">
-            <div className="flex items-center gap-2.5">
-                {isOpen
-                    ? <ChevronDown className="w-4 h-4 text-brand-600 shrink-0" />
-                    : <ChevronRight className="w-4 h-4 text-brand-600 shrink-0" />
-                }
-                <Building2 className="w-4 h-4 text-brand-600 shrink-0" />
-                <span className="text-sm font-semibold text-brand-600">
-                    {department || 'ไม่ระบุฝ่าย'}
-                </span>
-                <span className="text-[11px] text-brand-600/60 font-medium bg-brand-600/10 px-2 py-0.5 rounded-full">
-                    {count} คน
-                </span>
+        <td colSpan={USER_COLUMNS.length} className="py-2 pl-11 pr-4">
+            <div className="flex items-center gap-2 border-l-2 border-brand-600/30 pl-3">
+                <Chevron open={isOpen} className="text-brand-600/70" />
+                <Layers className="w-3.5 h-3.5 text-brand-600/70 shrink-0" />
+                <span className="text-sm font-semibold text-gray-700">{department}</span>
+                {departmentEn && departmentEn !== department && (
+                    <span className="text-[11px] text-gray-400 truncate">{departmentEn}</span>
+                )}
+                <CountChip>{count} คน</CountChip>
             </div>
         </td>
     </tr>
@@ -63,13 +118,17 @@ const DepartmentHeaderRow = memo(({
 DepartmentHeaderRow.displayName = 'DepartmentHeaderRow';
 
 const UserRow = memo(({
-    user, onView
+    user, onView, nested, manager
 }: {
     user: UserData;
-    onView: (u: UserData) => void
+    onView: (u: UserData) => void;
+    /** sits under a แผนก sub-header → one more indent step */
+    nested?: boolean;
+    /** ผู้จัดการฝ่าย — listed first in the ฝ่าย */
+    manager?: boolean;
 }) => (
-    <tr className="transition-colors hover:bg-gray-50/80 even:bg-gray-50/40">
-        <td className="whitespace-nowrap px-4 py-2.5 pl-11">
+    <tr className={`transition-colors hover:bg-gray-50/80 ${manager ? 'bg-brand-600/[0.04]' : 'even:bg-gray-50/40'}`}>
+        <td className={`whitespace-nowrap px-4 py-2.5 ${nested ? 'pl-[4.5rem]' : 'pl-11'}`}>
             <span className="font-mono text-xs font-semibold text-brand-600">
                 {user.employee_id}
             </span>
@@ -86,8 +145,9 @@ const UserRow = memo(({
                     textClassName="text-[10px] font-bold"
                 />
                 <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">
-                        {user.firstname} {user.lastname}
+                    <p className="flex items-center gap-1.5 text-sm font-medium text-gray-800">
+                        <span className="truncate">{user.firstname} {user.lastname}</span>
+                        {manager && <ManagerTag />}
                     </p>
                     <p className="text-[11px] text-gray-400 truncate">{user.email}</p>
                 </div>
@@ -126,12 +186,13 @@ const UserRow = memo(({
 UserRow.displayName = 'UserRow';
 
 const UserMobileCard = memo(({
-    user, onView
+    user, onView, manager
 }: {
     user: UserData;
-    onView: (u: UserData) => void
+    onView: (u: UserData) => void;
+    manager?: boolean;
 }) => (
-    <div className="bg-white border border-gray-100 rounded-xl p-3.5 space-y-2">
+    <div className={`bg-white border rounded-xl p-3.5 space-y-2 ${manager ? 'border-brand-600/30' : 'border-gray-100'}`}>
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
                 <UserAvatar
@@ -150,7 +211,10 @@ const UserMobileCard = memo(({
                     <p className="text-[11px] text-gray-400 font-mono">{user.employee_id}</p>
                 </div>
             </div>
-            <StatusBadge status={user.employee_status} />
+            <div className="flex items-center gap-1.5 shrink-0">
+                {manager && <ManagerTag />}
+                <StatusBadge status={user.employee_status} />
+            </div>
         </div>
         <div className="grid grid-cols-2 gap-1.5 text-xs text-gray-500">
             <div className="flex items-center gap-1.5">
@@ -173,47 +237,87 @@ const UserMobileCard = memo(({
 ));
 UserMobileCard.displayName = 'UserMobileCard';
 
-const MobileDepartmentGroup = memo(({
-    group, isOpen, onToggle, onViewUser
+const MobileDivisionGroup = memo(({
+    group, isOpen, isDeptOpen, onToggle, onToggleDept, onViewUser
 }: {
-    group: DepartmentGroup;
+    group: ManagedDivision;
     isOpen: boolean;
-    onToggle: () => void;
+    isDeptOpen: (key: string) => boolean;
+    onToggle: (key: string) => void;
+    onToggleDept: (key: string) => void;
     onViewUser: (u: UserData) => void;
-}) => (
-    <div className="border border-gray-100 rounded-xl overflow-hidden">
-        <button
-            onClick={onToggle}
-            className="w-full flex items-center gap-2.5 px-3.5 py-3 bg-brand-600/5 hover:bg-brand-600/10 transition-colors"
-        >
-            {isOpen
-                ? <ChevronDown className="w-4 h-4 text-brand-600 shrink-0" />
-                : <ChevronRight className="w-4 h-4 text-brand-600 shrink-0" />
-            }
-            <Building2 className="w-4 h-4 text-brand-600 shrink-0" />
-            <span className="text-sm font-semibold text-brand-600 flex-1 text-left truncate">
-                {group.department || 'ไม่ระบุฝ่าย'}
-            </span>
-            <span className="text-[11px] text-brand-600/60 font-medium bg-brand-600/10 px-2 py-0.5 rounded-full shrink-0">
-                {group.users.length} คน
-            </span>
-        </button>
-        {isOpen && (
-            <div className="p-2.5 space-y-2 bg-gray-50/50">
-                {group.users.map(user => (
-                    <UserMobileCard key={user.id} user={user} onView={onViewUser} />
-                ))}
-            </div>
-        )}
-    </div>
-));
-MobileDepartmentGroup.displayName = 'MobileDepartmentGroup';
+}) => {
+    const single = group.departments.length === 1;
+    return (
+        <div className="border border-brand-600/15 rounded-xl overflow-hidden">
+            <button
+                onClick={() => onToggle(group.key)}
+                className="w-full flex items-center gap-2.5 px-3.5 py-3 bg-brand-600/10 hover:bg-brand-600/15 transition-colors"
+            >
+                <Chevron open={isOpen} className="text-brand-700" />
+                <span className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center shrink-0">
+                    <Building2 className="w-4 h-4" />
+                </span>
+                <span className="flex-1 min-w-0 text-left">
+                    <span className="block text-sm font-bold text-brand-800 truncate">{group.division}</span>
+                    {!isOpen && group.managers.length > 0 ? (
+                        <span className="block text-[11px] text-gray-500 truncate">ผู้จัดการฝ่าย: {group.managers.map(fullName).join(', ')}</span>
+                    ) : group.code ? (
+                        <span className="block font-mono text-[10px] text-brand-700/60">{group.code}</span>
+                    ) : null}
+                </span>
+                <CountChip strong>{divisionCount(group)}</CountChip>
+            </button>
+            {isOpen && group.managers.length > 0 && (
+                <div className="p-2.5 space-y-2 bg-gray-50/50">
+                    {group.managers.map(user => (
+                        <UserMobileCard key={user.id} user={user} onView={onViewUser} manager />
+                    ))}
+                </div>
+            )}
+            {isOpen && (single ? (
+                <div className="p-2.5 space-y-2 bg-gray-50/50">
+                    {group.departments[0].users.map(user => (
+                        <UserMobileCard key={user.id} user={user} onView={onViewUser} />
+                    ))}
+                </div>
+            ) : (
+                <div className="divide-y divide-gray-100 bg-gray-50/50">
+                    {group.departments.map(dept => {
+                        const open = isDeptOpen(dept.key);
+                        return (
+                            <div key={dept.key}>
+                                <button
+                                    onClick={() => onToggleDept(dept.key)}
+                                    className="w-full flex items-center gap-2 pl-5 pr-3.5 py-2.5 hover:bg-brand-600/5 transition-colors"
+                                >
+                                    <Chevron open={open} className="text-brand-600/70" />
+                                    <Layers className="w-3.5 h-3.5 text-brand-600/70 shrink-0" />
+                                    <span className="text-sm font-semibold text-gray-700 flex-1 text-left truncate">{dept.department}</span>
+                                    <CountChip>{dept.users.length} คน</CountChip>
+                                </button>
+                                {open && (
+                                    <div className="pl-5 pr-2.5 pb-2.5 space-y-2">
+                                        {dept.users.map(user => (
+                                            <UserMobileCard key={user.id} user={user} onView={onViewUser} />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            ))}
+        </div>
+    );
+});
+MobileDivisionGroup.displayName = 'MobileDivisionGroup';
 
 // ===================== MASTER TABLE (USER) =====================
 
-export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, onAdd, lookups }: MasterTableProps) => {
+export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, onAdd, lookups, org, onDepartmentCreated }: MasterTableProps) => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [collapsedDeps, setCollapsedDeps] = useState<Set<string>>(new Set());
+    const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
     const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -239,62 +343,42 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
 
     const handleClearSearch = useCallback(() => setSearchTerm(''), []);
 
-    const toggleDepartment = useCallback((dept: string) => {
-        setCollapsedDeps(prev => {
+    // Collapsed ฝ่าย and แผนก keys share one set (keys are `div:..` / `div:../dep:..`)
+    const toggleGroup = useCallback((key: string) => {
+        setCollapsed(prev => {
             const next = new Set(prev);
-            next.has(dept) ? next.delete(dept) : next.add(dept);
+            next.has(key) ? next.delete(key) : next.add(key);
             return next;
         });
     }, []);
 
-    const expandAll = useCallback(() => setCollapsedDeps(new Set()), []);
+    // แผนก names in Thai come from the lookup — the user row only carries the English name
+    const deptLabels = useMemo(
+        () => new Map((lookups?.departments ?? []).map(d => [d.option_value, d.option_label])),
+        [lookups?.departments]
+    );
 
-    const collapseAll = useCallback(() => {
-        const allDeps = new Set(data.map(u => u.department || ''));
-        setCollapsedDeps(allDeps);
-    }, [data]);
+    // ผู้จัดการฝ่าย come from the unfiltered list, so they stay listed next to any search hit in their ฝ่าย
+    const managers = useMemo(() => managersByDivision(data, deptLabels), [data, deptLabels]);
 
     // js-combine-iterations: Single pass for filter + group
-    const { groups, totalFiltered } = useMemo(() => {
-        const term = searchTerm.trim().toLowerCase();
-        const groupMap = new Map<string, UserData[]>();
-        let count = 0;
+    const { groups, totalFiltered, departmentCount, hasDivisions } = useMemo(
+        () => groupWithManagers(data, searchTerm, deptLabels, managers),
+        [data, searchTerm, deptLabels, managers]
+    );
 
-        for (const user of data) {
-            // Filter
-            if (term) {
-                const matches =
-                    user.employee_id?.toLowerCase().includes(term) ||
-                    user.firstname?.toLowerCase().includes(term) ||
-                    user.lastname?.toLowerCase().includes(term) ||
-                    user.department?.toLowerCase().includes(term) ||
-                    user.site?.toLowerCase().includes(term) ||
-                    user.position?.toLowerCase().includes(term) ||
-                    user.email?.toLowerCase().includes(term);
-                if (!matches) continue;
-            }
+    const expandAll = useCallback(() => setCollapsed(new Set()), []);
 
-            // Group
-            const dept = user.department || '';
-            const arr = groupMap.get(dept);
-            if (arr) {
-                arr.push(user);
-            } else {
-                groupMap.set(dept, [user]);
-            }
-            count++;
-        }
+    const collapseAll = useCallback(() => {
+        setCollapsed(new Set(groups.map(g => g.key)));
+    }, [groups]);
 
-        // Sort and build result
-        const result: DepartmentGroup[] = [];
-        for (const [dept, users] of groupMap) {
-            users.sort((a, b) => parseLevelNum(b.position_level) - parseLevelNum(a.position_level));
-            result.push({ department: dept, users });
-        }
-        result.sort((a, b) => a.department.localeCompare(b.department, 'th'));
-
-        return { groups: result, totalFiltered: count };
-    }, [data, searchTerm]);
+    // While searching, show every match instead of hiding hits inside collapsed groups
+    const searching = searchTerm.trim() !== '';
+    const isOpen = useCallback(
+        (key: string) => searching || !collapsed.has(key),
+        [searching, collapsed]
+    );
 
     // js-early-exit: Handle error state first
     if (error) {
@@ -306,7 +390,7 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
             <TableHeader
                 icon={<Users className="w-5 h-5" />}
                 title="ข้อมูลองค์กร"
-                subtitle={`${groups.length} ฝ่าย · ${totalFiltered.toLocaleString()} คน (จาก ${data.length.toLocaleString()} รายการ)`}
+                subtitle={`${hasDivisions ? `${groups.length} ฝ่าย · ` : ''}${departmentCount} แผนก · ${totalFiltered.toLocaleString()} คน (จาก ${data.length.toLocaleString()} รายการ)`}
                 actions={
                     <>
                         <button
@@ -332,14 +416,14 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
                 searchValue={searchTerm}
                 onSearchChange={handleSearchChange}
                 onSearchClear={handleClearSearch}
-                searchPlaceholder="ค้นหาชื่อ, รหัส, ฝ่าย, สาขา..."
+                searchPlaceholder="ค้นหาชื่อ, รหัส, ฝ่าย, แผนก, สาขา..."
             />
 
             {/* Toolbar */}
             {!isLoading && groups.length > 0 && (
                 <div className="px-4 sm:px-6 py-2.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                     <p className="text-[11px] text-gray-400">
-                        จัดกลุ่มตามฝ่าย · เรียงตามระดับตำแหน่ง (มาก → น้อย)
+                        จัดกลุ่มตามฝ่าย → แผนก · ผู้จัดการฝ่ายอยู่ลำดับแรก · เรียงตามระดับตำแหน่ง (มาก → น้อย)
                     </p>
                     <div className="flex items-center gap-1.5">
                         <button onClick={expandAll} className="text-[11px] text-brand-600 hover:underline cursor-pointer px-1.5 py-0.5">
@@ -366,18 +450,40 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
                             <TableHead columns={USER_COLUMNS} />
                             <tbody>
                                 {groups.map(group => {
-                                    const isOpen = !collapsedDeps.has(group.department);
+                                    const divOpen = isOpen(group.key);
+                                    const single = group.departments.length === 1;
                                     return (
-                                        <React.Fragment key={group.department}>
-                                            <DepartmentHeaderRow
-                                                department={group.department}
-                                                count={group.users.length}
-                                                isOpen={isOpen}
-                                                onToggle={() => toggleDepartment(group.department)}
+                                        <React.Fragment key={group.key}>
+                                            <DivisionHeaderRow
+                                                group={group}
+                                                isOpen={divOpen}
+                                                onToggle={() => toggleGroup(group.key)}
                                             />
-                                            {isOpen && group.users.map(user => (
-                                                <UserRow key={user.id} user={user} onView={handleViewUser} />
+                                            {divOpen && group.managers.map(user => (
+                                                <UserRow key={user.id} user={user} onView={handleViewUser} manager />
                                             ))}
+                                            {divOpen && (single
+                                                ? group.departments[0].users.map(user => (
+                                                    <UserRow key={user.id} user={user} onView={handleViewUser} />
+                                                ))
+                                                : group.departments.map(dept => {
+                                                    const deptOpen = isOpen(dept.key);
+                                                    return (
+                                                        <React.Fragment key={dept.key}>
+                                                            <DepartmentHeaderRow
+                                                                department={dept.department}
+                                                                departmentEn={dept.departmentEn}
+                                                                count={dept.users.length}
+                                                                isOpen={deptOpen}
+                                                                onToggle={() => toggleGroup(dept.key)}
+                                                            />
+                                                            {deptOpen && dept.users.map(user => (
+                                                                <UserRow key={user.id} user={user} onView={handleViewUser} nested />
+                                                            ))}
+                                                        </React.Fragment>
+                                                    );
+                                                })
+                                            )}
                                         </React.Fragment>
                                     );
                                 })}
@@ -388,11 +494,13 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
                     {/* Mobile Cards */}
                     <div className="lg:hidden p-3 space-y-2.5">
                         {groups.map(group => (
-                            <MobileDepartmentGroup
-                                key={group.department}
+                            <MobileDivisionGroup
+                                key={group.key}
                                 group={group}
-                                isOpen={!collapsedDeps.has(group.department)}
-                                onToggle={() => toggleDepartment(group.department)}
+                                isOpen={isOpen(group.key)}
+                                isDeptOpen={isOpen}
+                                onToggle={toggleGroup}
+                                onToggleDept={toggleGroup}
                                 onViewUser={handleViewUser}
                             />
                         ))}
@@ -406,6 +514,8 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
                 onOpenChange={setSheetOpen}
                 onUpdate={onUpdate}
                 lookups={lookups}
+                org={org}
+                onDepartmentCreated={onDepartmentCreated}
             />
 
             {onAdd && (
@@ -413,6 +523,10 @@ export const MasterTable = memo(({ data, isLoading, error, onRetry, onUpdate, on
                     open={addDialogOpen}
                     onOpenChange={setAddDialogOpen}
                     onAdd={onAdd}
+                    org={org}
+                    lookups={lookups}
+                    existingUsers={data}
+                    onDepartmentCreated={onDepartmentCreated}
                 />
             )}
 

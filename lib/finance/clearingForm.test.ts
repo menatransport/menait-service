@@ -7,6 +7,7 @@ import {
 } from './clearingForm';
 import { toCashAdvanceData } from './cashAdvanceForm';
 import { attachmentPagesHtml } from './printShared';
+import { buildPrintHtml, printNeedsFiles } from './printDocument';
 
 /** Reference example (ADV/20260930095247.pdf page 2): 6 receipts, advance 2,000.00. */
 const REF_ITEMS: [number, number][] = [[398.13, 27.87], [403.74, 28.26], [251.40, 17.60], [398.13, 27.87], [357.94, 25.06], [66.00, 0]];
@@ -165,7 +166,7 @@ describe('expense claim form (Part 2)', () => {
   });
   test('window title and Document Control use the new Part 2 name', () => {
     const html = buildClearingHtml(toClearingData(detail()), {});
-    expect(html).toContain('<title>ADV-2026-0001 — ใบขอเบิกค่าใช้จ่าย/เคลียร์เบิกล่วงหน้า</title>');
+    expect(html).toContain('<title>ADV-2026-0001 - Part 2 : Expense Claim Form</title>');
     expect(html).toContain('Expense Claim Form (ADV)');
     expect(html).not.toContain(['ใบเคลียร์', 'เงิน'].join('')); // old Part 2 name (split so the repo grep stays clean)
   });
@@ -182,7 +183,7 @@ describe('expense claim form (Part 2)', () => {
     expect((html.match(/class="seg-footer"/g) ?? []).length).toBe(2);
     expect(html.indexOf('(Cash Advance Request form)')).toBeLessThan(html.indexOf('(Expense Claim Form)'));
     expect(html.indexOf('<table class="print-wrap seg fill">')).toBeLessThan(html.indexOf('<table class="print-wrap seg claim fill">'));
-    expect(html).toContain('<title>ADV-2026-0001 — ใบคำขอเบิกเงินล่วงหน้า + ใบขอเบิกค่าใช้จ่าย/เคลียร์เบิกล่วงหน้า</title>');
+    expect(html).toContain('<title>ADV-2026-0001</title>');
     const att = buildCombinedHtml(toCashAdvanceData(detail()), toClearingData(detail()), { part1AttachmentsHtml: '<section class="att">a</section>', part2AttachmentsHtml: '<section class="att">b</section>' });
     expect(att).toContain('<table class="print-wrap seg">');
     expect(att).toContain('<table class="print-wrap seg claim">');
@@ -208,5 +209,89 @@ describe('expense claim form (Part 2)', () => {
     expect(render('both-sample', buildCombinedHtml(toCashAdvanceData(d), toClearingData(d),
       { logoUrl: logo, part1AttachmentsHtml: att(['request', 'request']), part2AttachmentsHtml: att(['clear', 'clear']) }))).toBe('PPLL');
     expect(render('both-noatt-sample', buildCombinedHtml(toCashAdvanceData(d), toClearingData(d), { logoUrl: logo }))).toBe('PL');
+    const files = ['request', 'pay'].map((folder, i) => ({ folder, fileName: `f${i}.png`, url: logo }));
+    expect(render('part1-sample', buildPrintHtml(d, 'part1', files, { logoUrl: logo, labels: {} }))).toBe('P');
   }, 180000);
+});
+
+describe('พิมพ์ — Part 1 หน้าเดียว ไม่แนบหลักฐาน (ผู้ใช้ 26/10/2026)', () => {
+  const files = ['request', 'pay', 'clear', 'check'].map(folder => ({ folder, fileName: `${folder}.png`, url: `https://s3/${folder}.png` }));
+  const labels = { request: 'เอกสารประกอบการขอเบิก', pay: 'หลักฐานการจ่าย', clear: 'เอกสารเคลียร์', check: 'หลักฐานการเงิน' };
+  const build = (parts: 'part1' | 'part2' | 'both') => buildPrintHtml(detail({ status: 'CLOSED' }), parts, files, { logoUrl: '', labels });
+
+  test('Part 1 prints the form only, even when request / pay files exist', () => {
+    const html = build('part1');
+    expect(html).toContain('ใบคำขอเบิกเงินล่วงหน้า');
+    expect(html).not.toContain('class="att"');
+    for (const f of files) expect(html).not.toContain(f.url);
+  });
+  test('Part 2 still attaches its receipts', () => {
+    const html = build('part2');
+    expect(html).toContain('https://s3/clear.png');
+    expect(html).toContain('https://s3/check.png');
+    expect(html).not.toContain('https://s3/request.png');
+  });
+  test('ทั้งหมด: Part 1 without attachments, Part 2 with its receipts', () => {
+    const html = build('both');
+    expect(html).not.toContain('https://s3/request.png');
+    expect(html).not.toContain('https://s3/pay.png');
+    expect(html).toContain('https://s3/clear.png');
+    expect(html).toContain('<table class="print-wrap seg fill">');
+  });
+  test('Part 2 attaches the optional related documents after the slip (ผู้ใช้ 27/10/2026)', () => {
+    const withRelated = [...files, { folder: 'related', fileName: 'related.png', url: 'https://s3/related.png' }];
+    const html = buildPrintHtml(detail({ status: 'CLOSED' }), 'part2', withRelated, { logoUrl: '', labels: { ...labels, related: 'เอกสารที่เกี่ยวข้อง' } });
+    expect(html).toContain('https://s3/related.png');
+    expect(html).toContain('เอกสารที่เกี่ยวข้อง');
+    expect(html.indexOf('https://s3/clear.png')).toBeLessThan(html.indexOf('https://s3/related.png'));
+    expect(buildPrintHtml(detail({ status: 'CLOSED' }), 'part1', withRelated, { logoUrl: '', labels })).not.toContain('https://s3/related.png');
+  });
+  test('Part 1 alone needs no file list', () => {
+    expect(printNeedsFiles('part1')).toBe(false);
+    expect(printNeedsFiles('part2')).toBe(true);
+    expect(printNeedsFiles('both')).toBe(true);
+  });
+});
+
+describe('Part 2 — ลายเซ็นผู้อนุมัติการเคลียร์', () => {
+  const log = (step: number, action: string, at: string, name: string | null = null) =>
+    ({ step, action, remark: null, action_by: `E${step}`, action_by_name: name, created_at: at });
+  test('อนุมัติขั้นเดียว ลงช่องผู้มีอำนาจอนุมัติ', () => {
+    const d = toClearingData(detail({ status: 'AWAITING_REVIEW', clear_logs: [log(1, 'SUBMITTED', '2026-10-20T02:00:00Z'), log(1, 'APPROVED', '2026-10-20T03:00:00Z', 'ศิวพร ม่วงสวย')] }));
+    expect(d.signatures.approver?.name).toBe('ศิวพร ม่วงสวย');
+    expect(d.signatures.unit_head?.name ?? '').toBe('');
+    expect(buildClearingHtml(d, {})).toContain('ศิวพร ม่วงสวย');
+  });
+  test('สองขั้น: ขั้น 1 หัวหน้าหน่วยงาน ขั้น 2 ผู้มีอำนาจอนุมัติ และนับเฉพาะรอบล่าสุด', () => {
+    const d = toClearingData(detail({ status: 'AWAITING_REVIEW', clear_logs: [
+      log(1, 'SUBMITTED', '2026-10-19T02:00:00Z'), log(1, 'APPROVED', '2026-10-19T03:00:00Z', 'คนรอบเก่า'), log(2, 'REJECTED', '2026-10-19T04:00:00Z'),
+      log(1, 'SUBMITTED', '2026-10-20T02:00:00Z'), log(1, 'APPROVED', '2026-10-20T03:00:00Z', 'ศิวพร ม่วงสวย'), log(2, 'APPROVED', '2026-10-20T04:00:00Z', 'ชยพล บุญมา'),
+    ] }));
+    expect(d.signatures.unit_head?.name).toBe('ศิวพร ม่วงสวย');
+    expect(d.signatures.approver?.name).toBe('ชยพล บุญมา');
+    expect(buildClearingHtml(d, {})).not.toContain('คนรอบเก่า');
+  });
+  test('สามขั้นขึ้นไป (ไล่ทุกขั้นตาม TOA): คนที่สองลงช่องผู้จัดการ', () => {
+    const d = toClearingData(detail({ status: 'AWAITING_REVIEW', clear_logs: [
+      log(1, 'SUBMITTED', '2026-10-20T02:00:00Z'), log(1, 'APPROVED', '2026-10-20T03:00:00Z', 'พุทธชาติ นุเคราะห์'),
+      log(2, 'APPROVED', '2026-10-20T04:00:00Z', 'เจษฎา รองศักดิ์'), log(3, 'APPROVED', '2026-10-20T05:00:00Z', 'กอบชัย ชิดเชื้อสกุลชน'),
+    ] }));
+    expect(d.signatures.unit_head?.name).toBe('พุทธชาติ นุเคราะห์');
+    expect(d.signatures.manager?.name).toBe('เจษฎา รองศักดิ์');
+    expect(d.signatures.approver?.name).toBe('กอบชัย ชิดเชื้อสกุลชน');
+    expect(buildClearingHtml(d, {})).toContain('เจษฎา รองศักดิ์');
+  });
+  test('ยังรอขั้น 2 อยู่: ขั้น 1 ลงช่องหัวหน้าหน่วยงาน ช่องผู้มีอำนาจยังว่าง', () => {
+    const d = toClearingData(detail({ status: 'CLEARING_APPROVAL', clear_logs: [log(1, 'SUBMITTED', '2026-10-20T02:00:00Z'), log(1, 'APPROVED', '2026-10-20T03:00:00Z', 'ศิวพร ม่วงสวย')] }));
+    expect(d.signatures.unit_head?.name).toBe('ศิวพร ม่วงสวย');
+    expect(d.signatures.approver?.name ?? '').toBe('');
+  });
+});
+
+test('Part 2 — คนเดียวผ่านทั้งสองขั้น ลงชื่อช่องผู้มีอำนาจอนุมัติช่องเดียว', () => {
+  const l = (step: number, at: string) => ({ step, action: step === 0 ? 'SUBMITTED' : 'APPROVED', remark: null, action_by: 'M5', action_by_name: 'ชยพล บุญมา', created_at: at });
+  const d = toClearingData(detail({ status: 'AWAITING_REVIEW', clear_logs: [
+    { ...l(0, '2026-10-20T02:00:00Z'), step: 1 }, l(1, '2026-10-20T03:00:00Z'), l(2, '2026-10-20T03:00:00Z')] }));
+  expect(d.signatures.approver?.name).toBe('ชยพล บุญมา');
+  expect(d.signatures.unit_head?.name ?? '').toBe('');
 });

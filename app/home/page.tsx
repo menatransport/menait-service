@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Mascot } from "@/components/mascot";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { canUseFinance } from "@/lib/finance/role";
 import { MENU_GROUPS, QUICK_LINKS, isMenuItemReady, sectionHeadingAt, type MenuGroup, type MenuItem, type MenuTone } from "./menu-groups";
 
 const TONE = {
@@ -34,11 +33,7 @@ export default function HomePage() {
         () => MENU_GROUPS
             .filter(g => !g.adminOnly || (isClient && user?.role === 'a'))
             .map(g => ({ ...g, items: g.items.filter(i => !i.financeOnly
-                || (isClient && (user?.is_finance || user?.is_accounting || user?.is_treasury))) }))
-            // not open to this user yet: same items, but without a link → rendered as "เร็ว ๆ นี้"
-            .map(g => (g.financeAccess && !(isClient && canUseFinance(user))
-                ? { ...g, items: g.items.map(i => (i.openToAll ? i : { ...i, href: undefined, children: undefined })) }
-                : g)),
+                || (isClient && (user?.is_finance || user?.is_accounting || user?.is_treasury))) })),
         [isClient, user]
     );
 
@@ -94,6 +89,12 @@ function DesktopHome({ firstName, groups, onNavigate }: LayoutProps) {
                 </div>
 
                 <NavbarHeader isHome className="z-40 sm:pt-[clamp(6px,1.6vh,24px)] pb-0" />
+
+                {/* Sits under the user menu, so it stays below the menu's z-40 dropdown */}
+                <OrganizationShortcut
+                    onNavigate={onNavigate}
+                    className="absolute z-30 right-[clamp(72px,5.2vw,104px)] top-[clamp(76px,11vh,108px)]"
+                />
 
                 <div className="relative flex flex-col items-center gap-[clamp(4px,1vh,10px)] px-6 text-center animate-fade-in-up motion-reduce:animate-none">
                     <Mascot size={150} className="-mt-[clamp(8px,3vh,28px)] [&>svg]:w-[clamp(64px,12vh,150px)] [&>svg]:h-[clamp(64px,12vh,150px)]" />
@@ -162,6 +163,30 @@ function DesktopHome({ firstName, groups, onNavigate }: LayoutProps) {
                 </footer>
             )}
         </div>
+    );
+}
+
+/** Glass app-icon shortcut to /organization (staff directory) — desktop hero under the user menu, and the mobile greeting row */
+function OrganizationShortcut({ onNavigate, className }: { onNavigate: (href?: string) => void; className?: string }) {
+    return (
+        <button
+            type="button"
+            onClick={() => onNavigate('/organization')}
+            aria-label="ข้อมูลพนักงาน"
+            className={cn('group flex flex-col items-center gap-1.5 cursor-pointer', className)}
+        >
+            {/* Fluent 3D icon in a ringed tile, no fill (same icon family as the QUICK_LINKS pills) */}
+            <span className="w-[clamp(52px,7.4vh,72px)] h-[clamp(52px,7.4vh,72px)] rounded-[22px] ring-1 ring-white/70 shadow-[0_12px_24px_-12px_rgba(15,39,72,0.5)] grid place-items-center transition-all duration-300 group-hover:-translate-y-0.5 group-hover:shadow-[0_16px_28px_-12px_rgba(15,39,72,0.55)] group-focus-visible:ring-4 group-focus-visible:ring-white/60">
+                <img
+                    src="/icons3d/organization.png"
+                    alt=""
+                    width={44}
+                    height={44}
+                    className="w-[62%] h-[62%] drop-shadow-[0_4px_6px_rgba(15,39,72,0.25)] transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6"
+                />
+            </span>
+            <span className="text-white text-[13px] font-medium">ข้อมูลพนักงาน</span>
+        </button>
     );
 }
 
@@ -371,6 +396,7 @@ function MobileHome({ firstName, groups, onNavigate }: LayoutProps) {
                 <div className="v2-bubble text-sm max-w-[220px]" style={{ borderRadius: '18px 18px 18px 4px' }}>
                     สวัสดีค่ะ <strong className="font-semibold text-brand-600">คุณ{firstName}</strong><br />เลือกแอปที่ต้องการได้เลย
                 </div>
+                <OrganizationShortcut onNavigate={onNavigate} className="ml-auto shrink-0 [&>span:first-child]:w-14 [&>span:first-child]:h-14 [&>span:first-child]:rounded-[18px] [&>span:last-child]:text-xs" />
             </div>
 
             <main className="relative flex-1 min-h-0 rounded-t-[34px] v2-canvas px-4 pt-5 pb-[max(16px,env(safe-area-inset-bottom))] flex flex-col gap-3.5">

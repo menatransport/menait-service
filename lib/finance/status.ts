@@ -1,6 +1,6 @@
 export type AdvanceStatus =
   | 'PENDING_APPROVAL' | 'REJECTED' | 'AWAITING_VOUCHER' | 'AWAITING_PAYMENT' | 'AWAITING_CLEARING'
-  | 'RETURNED' | 'SENT_BACK' | 'AWAITING_REVIEW' | 'CLOSED';
+  | 'RETURNED' | 'SENT_BACK' | 'CLEARING_APPROVAL' | 'AWAITING_REVIEW' | 'CLOSED';
 
 export const STATUS_LABELS: Record<AdvanceStatus, string> = {
   PENDING_APPROVAL: 'รออนุมัติ',
@@ -10,6 +10,7 @@ export const STATUS_LABELS: Record<AdvanceStatus, string> = {
   AWAITING_CLEARING: 'จ่ายแล้วรอเคลียร์',
   RETURNED: 'ตีกลับให้ผู้เบิกแก้ไข',
   SENT_BACK: 'ส่งกลับแก้ไข',
+  CLEARING_APPROVAL: 'รออนุมัติเคลียร์',
   AWAITING_REVIEW: 'รอบัญชีตรวจ',
   CLOSED: 'ปิดแล้ว',
 };
@@ -24,6 +25,7 @@ export const STATUS_STYLES: Record<AdvanceStatus, string> = {
   AWAITING_CLEARING: 'bg-slate-50 text-ink-700 border-slate-200',
   RETURNED: 'bg-amber-50 text-amber-700 border-amber-200',
   SENT_BACK: 'bg-orange-50 text-sun-700 border-orange-200',
+  CLEARING_APPROVAL: 'bg-amber-50 text-amber-700 border-amber-200',
   AWAITING_REVIEW: 'bg-violet-50 text-violet-700 border-violet-200',
   CLOSED: 'bg-emerald-50 text-mint-700 border-emerald-200',
 };
@@ -49,6 +51,8 @@ export function parseAmount(raw: string | number | null | undefined): number | n
   if (typeof raw === 'number') return Number.isFinite(raw) ? round2(raw) : null;
   const cleaned = raw.replace(/,/g, '').trim();
   if (cleaned === '') return null;
+  // ตัวเลขธรรมดาเท่านั้น Number() รับ 1e3 / 0x10 / Infinity ด้วย ซึ่งไม่ใช่ยอดเงินที่คนพิมพ์
+  if (!/^-?(\d+\.?\d*|\.\d+)$/.test(cleaned)) return null;
   const n = Number(cleaned);
   return Number.isFinite(n) ? round2(n) : null;
 }
@@ -56,6 +60,40 @@ export function parseAmount(raw: string | number | null | undefined): number | n
 /** รับคืน (+) / เบิกเพิ่ม (−) = paid − actual */
 export function computeSettle(amountPaid: number, amountActual: number): number {
   return round2(amountPaid - amountActual);
+}
+
+/** ต้องแนบสลิปโอนเงินเฉพาะกรณีคืนเงินบริษัท เบิกเพิ่มหรือยอดพอดีไม่ต้องแนบ */
+export function clearNeedsSlip(settle: number | null | undefined): boolean {
+  return typeof settle === 'number' && settle > 0;
+}
+
+/**
+ * คืนเงินบริษัทแล้วยังไม่มีสลิปไหม — ไฟล์เดิมในโฟลเดอร์เคลียร์นับเป็นสลิปได้เฉพาะเมื่อรอบก่อนก็เป็นการคืนเงิน
+ * (รอบก่อนเบิกเพิ่ม ไฟล์เดิมคือใบเสร็จ) หรือเป็นไฟล์ที่อัปโหลดไปในรอบนี้แล้ว
+ */
+export function clearSlipMissing(o: { settle: number | null; newFiles: number; existingFiles: number;
+  priorSettle: number | null | undefined; uploadedNow: number }): boolean {
+  if (!clearNeedsSlip(o.settle)) return false;
+  if (o.newFiles > 0 || o.uploadedNow > 0) return false;
+  return !(o.existingFiles > 0 && (o.priorSettle ?? 0) > 0);
+}
+
+/** ยอดเงินสูงสุดที่คอลัมน์ Numeric(12,2) ของ BE เก็บได้ */
+export const MAX_AMOUNT = 9_999_999_999.99;
+
+/** ช่วงทดสอบระบบ (27/10/2026): เบิกได้ไม่เกินใบละ 100,000 บาท เปิดใช้เต็มเมื่อไหร่ ลบสองค่านี้กับบรรทัดที่ใช้ใน amountError และหน้าขอเบิก */
+export const TEST_MAX_AMOUNT = 100_000;
+export const TEST_MAX_AMOUNT_TEXT = 'ช่วงทดสอบระบบ เบิกได้ไม่เกินใบละ 100,000 บาท';
+
+/** ตรวจช่องจำนวนเงินที่ขอเบิก คืนข้อความภาษาไทย หรือ null ถ้าใช้ได้ */
+export function amountError(raw: string | number | null | undefined): string | null {
+  const text = typeof raw === 'number' ? String(raw) : (raw ?? '').replace(/,/g, '').trim();
+  const n = parseAmount(text);
+  if (n === null || n <= 0) return 'จำนวนเงินต้องมากกว่า 0';
+  if (/\.\d{3,}$/.test(text)) return 'ใส่ทศนิยมได้ไม่เกิน 2 ตำแหน่ง';
+  if (n > TEST_MAX_AMOUNT) return TEST_MAX_AMOUNT_TEXT;
+  if (n > MAX_AMOUNT) return 'จำนวนเงินมากเกินไป ใส่ได้ไม่เกิน 9,999,999,999.99 บาท';
+  return null;
 }
 
 export function settleLabel(settle: number | null | undefined): string {
@@ -76,12 +114,12 @@ export function formatDate(value: string | null | undefined): string {
   if (!value) return '-';
   if (ISO_DATE.test(value)) {
     const [y, m, d] = value.split('-');
-    return `${d}/${m}/${y.slice(2)}`;
+    return `${d}/${m}/${y}`;
   }
   const dt = new Date(value);
   if (Number.isNaN(dt.getTime())) return '-';
   const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Bangkok', day: '2-digit', month: '2-digit', year: '2-digit',
+    timeZone: 'Asia/Bangkok', day: '2-digit', month: '2-digit', year: 'numeric',
   }).formatToParts(dt);
   const part = (t: string) => parts.find(p => p.type === t)?.value ?? '';
   return `${part('day')}/${part('month')}/${part('year')}`;

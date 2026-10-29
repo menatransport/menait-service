@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle, RefreshCw, User } from 'lucide-react';
 import Loading from '@/components/loading';
 import { ProfileForm } from '@/components/profile-form';
+import { useSessionContext } from '@/app/context/SessionContext';
 export type { UserData } from '@/components/profile-form';
 import type { UserData } from '@/components/profile-form';
 
@@ -21,6 +22,7 @@ export const SettingComponent: React.FC<SettingComponentProps> = ({
     formData, role, isLoading, error, onRetry
 }) => {
     const isAdmin = role === 'a';
+    const { refreshSession } = useSessionContext();
 
     const handleSave = useCallback(async (merged: UserData): Promise<boolean> => {
         try {
@@ -29,12 +31,14 @@ export const SettingComponent: React.FC<SettingComponentProps> = ({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(merged),
             });
+            // pick up your own edit in the session without the "data changed" dialog
+            if (res.ok) await refreshSession({ silent: true });
             return res.ok;
         } catch (err) {
             console.error('Save failed:', err);
             return false;
         }
-    }, []);
+    }, [refreshSession]);
 
     return (
         <main className="flex-1 min-h-0 v2-canvas rounded-t-[1.5rem] sm:rounded-t-[2rem] lg:rounded-t-[3rem] shadow-2xl overflow-y-auto">

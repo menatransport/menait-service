@@ -1,13 +1,14 @@
 'use client';
 
+import { clearSubmittedTitle } from '@/lib/finance/historyLog';
 import { useEffect, useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { MAX_CLEAR_ITEMS, carryOverDefaults, invalidNumberErrors, rowTotals, savedAmount, sumItems, validateItems } from '@/lib/finance/clearItems';
 import { formatDateThaiShort } from '@/lib/finance/dates';
-import { computeSettle, formatBaht, parseAmount, settleLabel } from '@/lib/finance/status';
-import { fetchJson, putAction, showAlert, showConfirm, uploadFiles } from '../api';
+import { clearNeedsSlip, clearSlipMissing, computeSettle, formatBaht, parseAmount, settleLabel } from '@/lib/finance/status';
+import { fetchJson, putAction, showAlert, showConfirm, uploadFiles, showSuccess } from '../api';
 import { CLEAR_ATTACHMENT_REQUIRED } from '../labels';
 import type { AdvanceDetail, AttachmentFile } from '../types';
 import { ClearItemDialog, toRow, type DraftRow } from './ClearItemDialog';
@@ -35,15 +36,19 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
   const [settleDate, setSettleDate] = useState(fin.settle_date ?? '');
   const [remark, setRemark] = useState(fin.remark ?? '');
   const [files, setFiles] = useState<File[]>([]);
+  const [relatedFiles, setRelatedFiles] = useState<File[]>([]);
+  const [existingRelated, setExistingRelated] = useState(0);
   const [saving, setSaving] = useState(false);
   const [existingClear, setExistingClear] = useState(0);
+  const [uploadedNow, setUploadedNow] = useState(0);
   useEffect(() => {
     fetchJson<{ files?: AttachmentFile[] } | AttachmentFile[]>(`/api/uploads3?form_id=${encodeURIComponent(detail.form_id)}`)
       .then(data => {
         const list = Array.isArray(data) ? data : data.files ?? [];
         setExistingClear(list.filter(f => f.folder === 'clear').length);
+        setExistingRelated(list.filter(f => f.folder === 'related').length);
       })
-      .catch(() => setExistingClear(0));
+      .catch(() => { setExistingClear(0); setExistingRelated(0); });
   }, [detail.form_id]);
 
   /** popup state: a NEW item (appended on save) or an existing one being edited */
@@ -61,6 +66,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
   const totals = sumItems(itemRows);
   const actualNum = totals.e;
   const settle = computeSettle(fin.amount_paid ?? 0, actualNum);
+  const needsSlip = clearNeedsSlip(settle);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +76,9 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
     if (settle !== null && settle > 0 && !settleDate) {
       return showAlert({ icon: 'warning', title: 'มียอดต้องคืนบริษัท', text: 'กรุณาระบุวันที่โอนเงินคืนบริษัท' });
     }
-    if (files.length === 0 && existingClear === 0) return showAlert({ icon: 'warning', title: CLEAR_ATTACHMENT_REQUIRED });
+    if (clearSlipMissing({ settle, newFiles: files.length, existingFiles: existingClear, priorSettle: fin.settle_amount, uploadedNow })) {
+      return showAlert({ icon: 'warning', title: CLEAR_ATTACHMENT_REQUIRED });
+    }
     const ok: any = await showConfirm({
       icon: 'question', title: 'ยืนยันส่งเคลียร์เงิน',
       text: `ยอดใช้จริง ${formatBaht(totals.e)} บาท (${rows.length} รายการ) — ส่งแล้วแก้ไขไม่ได้ จนกว่าบัญชีจะส่งกลับแก้ไข`,
@@ -86,7 +94,16 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
       }
       // Uploaded files now exist server-side: count them so a retry after a failed save does not re-upload duplicates.
       setExistingClear(n => n + files.length);
+      setUploadedNow(n => n + files.length);
       setFiles([]);
+      // เอกสารที่เกี่ยวข้อง (optional): keep only the files that failed, so a retry uploads just those
+      const failedRelated = await uploadFiles(detail.form_id, relatedFiles, 'related');
+      setExistingRelated(n => n + relatedFiles.length - failedRelated.length);
+      setRelatedFiles(fs => fs.filter(f => failedRelated.includes(f.name)));
+      if (failedRelated.length) {
+        await showAlert({ icon: 'error', title: 'อัปโหลดเอกสารที่เกี่ยวข้องไม่สำเร็จ ยังไม่ได้ส่งเคลียร์', text: failedRelated.join(', ') });
+        return;
+      }
       const saved = await putAction(detail.form_id, 'clear', {
         clear_date: clearDate,
         items: itemRows.map(r => ({
@@ -101,7 +118,7 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
         settle_date: settle !== null && settle > 0 ? settleDate : null,
         remark,
       });
-      await showAlert({ icon: 'success', title: 'ส่งเคลียร์เงินแล้ว รอบัญชีตรวจ' });
+      await showSuccess(clearSubmittedTitle(saved?.status));
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: (err as Error).message });
@@ -178,9 +195,14 @@ export function ClearForm({ detail, onSaved }: { detail: AdvanceDetail; onSaved:
           <Textarea value={remark} onChange={e => setRemark(e.target.value)} disabled={saving} />
         </label>
         <div className="sm:col-span-2">
-          <p className="mb-1 text-sm">แนบใบเสร็จ / สลิปคืนเงิน *</p>
+          <p className="mb-1 text-sm">แนบสลิปโอนเงิน {needsSlip ? '*' : <span className="text-gray-500">(ไม่บังคับ ต้องแนบเฉพาะกรณีคืนเงินบริษัท)</span>}</p>
           {existingClear > 0 && <p className="text-xs text-gray-500">มีไฟล์แนบแล้ว {existingClear} ไฟล์ (แนบเพิ่มได้)</p>}
           <FilePicker files={files} onChange={setFiles} disabled={saving} />
+        </div>
+        <div className="sm:col-span-2">
+          <p className="mb-1 text-sm">แนบเอกสารที่เกี่ยวข้อง <span className="text-gray-500">(ไม่บังคับ)</span></p>
+          {existingRelated > 0 && <p className="text-xs text-gray-500">มีไฟล์แนบแล้ว {existingRelated} ไฟล์ (แนบเพิ่มได้)</p>}
+          <FilePicker files={relatedFiles} onChange={setRelatedFiles} disabled={saving} />
         </div>
         <div className="sm:col-span-2">
           <Button type="submit" disabled={saving} className="w-full h-11 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-60">
