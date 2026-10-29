@@ -1,4 +1,5 @@
 import type { PettyBalance, PettyClaim, PettyExpenseType, PettyFund, PettyRound } from './types-petty';
+import { roundDuplicateText, type RoundDocField, type RoundDupField } from '@/lib/finance/petty-worklist';
 import { uniqueFileName } from '@/lib/finance/status';
 import { fetchJson } from './api';
 
@@ -55,9 +56,10 @@ export function resubmitClaim(claim: PettyClaim) {
 // ---- รอบส่งเคลียร์ ----
 
 /** view: mine = รอบของกองทุนที่ฉันถือ · clear = รอบที่ฉันอนุมัติเคลียร์ได้ · all = ทุกรอบ (บัญชี/การเงิน) */
-export function listRounds(view: 'mine' | 'clear' | 'all', status?: string) {
+export function listRounds(view: 'mine' | 'clear' | 'all', status?: string, limit?: number) {
   const qs = new URLSearchParams({ view });
   if (status) qs.set('status', status);
+  if (limit) qs.set('limit', String(limit));
   return fetchJson<PettyRound[]>(`/api/finance/petty/batches?${qs.toString()}`);
 }
 
@@ -67,10 +69,71 @@ export const createRound = (body: {
   fund_id: number; claim_ids: number[]; remark?: string; attachments: Record<string, Record<string, number>>;
 }) => fetchJson<PettyRound>('/api/finance/petty/batches', { method: 'POST', body: JSON.stringify(body) });
 
-export type RoundAction = 'clear-approve' | 'clear-reject' | 'voucher' | 'pay';
+export type RoundAction = 'clear-approve' | 'clear-reject' | 'voucher' | 'pay' | 'doc-numbers';
 
 export const postRoundAction = (id: number, action: RoundAction, body: Record<string, unknown> = {}) =>
   fetchJson<PettyRound>(`/api/finance/petty/batches/${id}/${action}`, { method: 'POST', body: JSON.stringify(body) });
+
+/** บัญชีตั้งเบิกทั้งรอบ — เลขที่ตั้งเบิกไม่บังคับ วันที่ตั้งเบิกบังคับ (แบบ Advance) */
+export const voucherRound = (id: number, body: { voucher_no: string | null; voucher_date: string }) =>
+  postRoundAction(id, 'voucher', body);
+
+/** การเงินจ่ายเงินคืนเจ้าของเงินสดทั้งรอบ → รอบกับทุกใบปิด */
+export const payRound = (id: number, body: { pay_date: string; pay_doc_no: string | null }) =>
+  postRoundAction(id, 'pay', body);
+
+/** แก้เลขที่เอกสารที่กรอกผิด — ส่งเฉพาะช่องที่เปลี่ยน (เลขว่าง = ล้างเลข) */
+export const editRoundDocNumbers = (id: number, body: Partial<Record<RoundDocField, string | null>> & { remark?: string }) =>
+  postRoundAction(id, 'doc-numbers', body);
+
+/** บัญชีตรวจทีละใบ: ผ่าน หรือส่งกลับแก้ไข (ต้องมีเหตุผล) */
+export const reviewClaim = (formId: string, pass: boolean, remark?: string) =>
+  postAction(formId, 'review', { action: pass ? 'PASS' : 'SEND_BACK', ...(remark ? { remark } : {}) });
+
+/**
+ * เลขนี้ซ้ำกับรอบอื่นไหม (แบบ duplicateDocNoWarning ของ Advance) — คืนข้อความเตือนใส่ใน confirmReview ป๊อปอัปเดียว
+ * null = ไม่ซ้ำ หรือเช็กไม่ได้ (ไม่บล็อกงาน)
+ */
+export async function roundDuplicateWarning(field: RoundDupField, value: string | null | undefined, roundId: number): Promise<string | null> {
+  const text = (value ?? '').trim();
+  if (!text) return null;
+  try {
+    const qs = new URLSearchParams({ field, value: text, exclude_id: String(roundId) });
+    const data = await fetchJson<{ batch_nos?: string[] }>(`/api/finance/petty/batches/duplicate-doc-no?${qs}`);
+    const nos = data.batch_nos ?? [];
+    return nos.length ? `เลขนี้ซ้ำกับรอบอื่น: ${roundDuplicateText(field, text, nos)} ตรวจให้แน่ใจก่อนยืนยัน` : null;
+  } catch {
+    return null;
+  }
+}
+
+export type RoundFile = { key: string; fileName?: string; url: string; folder?: string };
+
+/** ไฟล์ของรอบ (สลิปโอน) — ส่ง round_id ไปด้วยให้ route หาเจอว่าเป็นรอบไหน */
+export async function listRoundFiles(round: Pick<PettyRound, 'id' | 'batch_no'>): Promise<RoundFile[]> {
+  const qs = new URLSearchParams({ form_id: round.batch_no, round_id: String(round.id) });
+  const res = await fetch(`/api/uploads3?${qs}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`โหลดรายการไฟล์ไม่สำเร็จ (${res.status})`);
+  const data = await res.json().catch(() => ({ files: [] })) as { files?: RoundFile[] };
+  return data.files ?? [];
+}
+
+/** แนบสลิปโอนเข้ารอบ ทีละไฟล์ — คืนชื่อไฟล์ที่ไม่สำเร็จ (เหมือน uploadFiles ของ Advance) */
+export async function uploadRoundSlips(round: Pick<PettyRound, 'id' | 'batch_no'>, files: File[]): Promise<string[]> {
+  const failed: string[] = [];
+  for (const file of files) {
+    const fd = new FormData();
+    fd.append('form_id', round.batch_no);
+    fd.append('round_id', String(round.id));
+    fd.append('folder', 'pay');
+    fd.append('file', new File([file], uniqueFileName(file.name, Date.now()), { type: file.type }));
+    try {
+      const res = await fetch('/api/uploads3', { method: 'POST', body: fd });
+      if (!res.ok) failed.push(file.name);
+    } catch { failed.push(file.name); }
+  }
+  return failed;
+}
 
 /** อัปโหลดไฟล์แนบของใบเงินสดย่อย โฟลเดอร์ = key ของหมวดใน spec (ดู lib/finance/petty-upload.ts) */
 export async function uploadPettyFiles(formId: string, folder: string, files: File[]): Promise<string[]> {
