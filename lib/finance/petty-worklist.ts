@@ -355,7 +355,8 @@ const ACTION_FIELDS: Record<RoundActionName, readonly string[]> = {
   'clear-reject': ['reason'],
   voucher: ['voucher_no', 'voucher_date'],
   pay: ['pay_date', 'pay_doc_no'],
-  'doc-numbers': ['voucher_no', 'voucher_date', 'pay_doc_no', 'remark'],
+  // BE ไม่รับเหตุผล — ประวัติเขียน "ค่าเดิม → ค่าใหม่" ให้เอง
+  'doc-numbers': ['voucher_no', 'voucher_date', 'pay_doc_no'],
 };
 
 export function roundActionBody(action: RoundActionName, body: unknown): Record<string, unknown> {
@@ -380,7 +381,7 @@ export const CLAIM_LOG_LABELS: Record<string, string> = {
   CREATE: 'เปิดใบ', UPDATE: 'แก้ไขใบ', RESUBMIT: 'ส่งให้เจ้าของเงินสดอีกครั้ง', RESUBMIT_ACC: 'ส่งกลับให้บัญชี',
   APPROVE: 'อนุมัติจ่าย', RETURN: 'ตีกลับผู้เบิก', SET_DD: 'ใส่เลข DD', SUBMIT_ROUND: 'ส่งเคลียร์',
   CLEAR_APPROVE: 'หัวหน้าอนุมัติเคลียร์', CLEAR_REJECT: 'หัวหน้าไม่อนุมัติเคลียร์', ACC_PASS: 'บัญชีตรวจผ่าน',
-  SEND_BACK: 'ส่งกลับแก้ไข', PAY_CLOSE: 'จ่ายเงิน ปิดใบ',
+  SEND_BACK: 'ส่งกลับแก้ไข', PAY_CLOSE: 'จ่ายเงิน ปิดใบ', EDIT_DOC_NUMBERS: 'แก้ไขเลขที่เอกสารของรอบ',
 };
 
 export const roundLogLabel = (action: string) => ROUND_LOG_LABELS[action] ?? action;
@@ -395,7 +396,7 @@ function byTime(rows: HistoryEntry[]): HistoryEntry[] {
 
 function fromLogs(logs: readonly PettyRoundLog[], labels: Record<string, string>, prefix: string): HistoryEntry[] {
   return byTime(logs.map((l, i) => ({
-    key: `${prefix}-${i}`, action: l.action, label: labels[l.action] ?? l.action,
+    key: `${prefix}-${i}`, action: l.action, label: labels[l.action] ?? l.action_label ?? l.action,
     actor: l.actor_name ?? l.actor ?? null, at: l.at ?? null, remark: l.remark ?? null,
   })));
 }

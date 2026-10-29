@@ -101,5 +101,8 @@ export type PettyHolderPayee = {
 };
 
 export type PettyRoundLog = {
-  action: string; actor: string | null; actor_name: string | null; at: string | null; remark: string | null;
+  action: string;
+  /** ชื่อขั้นภาษาไทยจาก BE — หน้าเว็บใช้คำของ Advance ก่อน ไม่รู้จักรหัสค่อยใช้อันนี้ */
+  action_label?: string | null;
+  actor: string | null; actor_name: string | null; at: string | null; remark: string | null;
 };

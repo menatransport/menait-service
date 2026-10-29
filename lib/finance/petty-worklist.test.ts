@@ -241,7 +241,8 @@ describe('roundActionBody (proxy whitelist)', () => {
     expect(roundActionBody('pay', { pay_date: '2026-10-29', pay_doc_no: null, amount: 9 })).toEqual({ pay_date: '2026-10-29', pay_doc_no: null });
     expect(roundActionBody('clear-reject', { reason: 'ไม่ครบ', x: 1 })).toEqual({ reason: 'ไม่ครบ' });
     expect(roundActionBody('clear-approve', { anything: 1 })).toEqual({});
-    expect(roundActionBody('doc-numbers', { voucher_no: 'A', remark: 'พิมพ์ผิด', batch_no: 'X' })).toEqual({ voucher_no: 'A', remark: 'พิมพ์ผิด' });
+    // BE ไม่เก็บเหตุผลของการแก้เลข (ประวัติเขียนค่าเดิม → ค่าใหม่ให้เอง) จึงไม่ส่งต่อ
+    expect(roundActionBody('doc-numbers', { voucher_no: 'A', remark: 'พิมพ์ผิด', batch_no: 'X' })).toEqual({ voucher_no: 'A' });
   });
   test('a non-object body becomes empty', () => expect(roundActionBody('pay', null)).toEqual({}));
 });
@@ -265,6 +266,10 @@ describe('history', () => {
     expect(rows.map(r => [r.label, r.actor])).toEqual([['ส่งเคลียร์', 'สมพร ถือเงิน'], ['ตั้งเบิกทำจ่าย', '660548']]);
   });
   test('roundHistory of an older BE without logs is empty', () => expect(roundHistory(undefined)).toEqual([]));
+  test('a code this page does not know uses the BE action_label', () => {
+    const rows = roundHistory([{ action: 'NEW_STEP', action_label: 'ขั้นใหม่', actor: '1', actor_name: null, at: null, remark: null }]);
+    expect(rows[0].label).toBe('ขั้นใหม่');
+  });
   test('claimHistory is pieced together from the dates on the claim when the BE sends no logs', () => {
     const c = claim('SENT_BACK', { submitted_to_acc_at: '2026-10-27T08:00:00Z', reviewed_at: '2026-10-28T02:00:00Z', reviewed_by: '660548', review_remark: 'ใบชั่งเบลอ' });
     expect(claimHistory(c).map(r => [r.label, r.remark])).toEqual([

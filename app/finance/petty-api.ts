@@ -83,7 +83,7 @@ export const payRound = (id: number, body: { pay_date: string; pay_doc_no: strin
   postRoundAction(id, 'pay', body);
 
 /** แก้เลขที่เอกสารที่กรอกผิด — ส่งเฉพาะช่องที่เปลี่ยน (เลขว่าง = ล้างเลข) */
-export const editRoundDocNumbers = (id: number, body: Partial<Record<RoundDocField, string | null>> & { remark?: string }) =>
+export const editRoundDocNumbers = (id: number, body: Partial<Record<RoundDocField, string | null>>) =>
   postRoundAction(id, 'doc-numbers', body);
 
 /** บัญชีตรวจทีละใบ: ผ่าน หรือส่งกลับแก้ไข (ต้องมีเหตุผล) */
