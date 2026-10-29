@@ -19,8 +19,6 @@ export type VoucherOpts = {
   unit?: string;
   /** โลโก้บริษัท (origin + /mena.png) แบบเดียวกับใบ Advance */
   logoUrl?: string | null;
-  /** หน้าแนบไฟล์ต่อท้าย (printShared.attachmentPagesHtml) */
-  attachmentsHtml?: string;
 };
 
 /** ลำดับและชื่อตามฟอร์มกระดาษ ใบสำคัญจ่ายเงินสดย่อย — มีช่อง "พจส." ไม่มี PJS */
@@ -127,7 +125,7 @@ ${signBlock(3, 'ลงนามและอนุมัติ', 'Signatures', [
     { title: 'ผู้จ่ายเงิน', name: fund.holder_name ?? fund.holder_employee_id },
     { title: 'ผู้รับเงิน', name: claim.payee_name },
   ])}
-</section>${opts.attachmentsHtml ?? ''}`;
+</section>`;
 
   return wrapDocument({
     title: `${claim.form_id} — ใบสำคัญจ่ายเงินสดย่อย`,
@@ -174,7 +172,7 @@ ${signBlock(3, 'ลงชื่อ', 'Signatures', [
     { title: 'ผู้เบิกจ่าย', name: claim.payee_name },
     { title: 'ผู้อนุมัติ', name: approverName(claim), esign: approverEsign(claim) },
   ])}
-</section>${opts.attachmentsHtml ?? ''}`;
+</section>`;
 
   return wrapDocument({
     title: `${claim.form_id} — ใบรับรองแทนใบเสร็จรับเงิน`,
@@ -252,7 +250,11 @@ function columnsFromSpec(fields: PettySpecField[], unit: string): Column[] {
  * ใบสรุปรายการประกอบ — หนึ่งแถวต่อรายการ คอลัมน์ตามประเภท (ค่าชั่ง: วันที่ เบอร์รถ ทะเบียน ประเภทรถ พจส. เลขที่บัตรชั่ง)
  * สรุปย่อยรายวันแล้วรวมทั้งสิ้น · ประเภทที่ไม่ใช่รายการรถพิมพ์เป็นตารางหัวใบ
  */
-export function itemSummaryHtml(opts: VoucherOpts & { spec: PettySpec | null | undefined }): string {
+export function itemSummaryHtml(opts: VoucherOpts & {
+  spec: PettySpec | null | undefined;
+  /** หน้าแนบไฟล์ต่อท้าย (printShared.attachmentPagesHtml) — มีแค่ใบนี้ ใบอื่นไม่แนบ (ผู้ใช้สั่ง 29/10/2026) */
+  attachmentsHtml?: string;
+}): string {
   const { claim, fund, typeName, spec } = opts;
   const itemBased = spec?.item_based !== false && (spec?.item_fields?.length ?? 0) > 0;
   let content: string;

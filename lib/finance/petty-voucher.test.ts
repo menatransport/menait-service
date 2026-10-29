@@ -168,9 +168,10 @@ describe('มาตรฐานเดียวกับใบ Advance (ผู้
   test('ชื่อเอกสารใน Document Control เป็นแบบ Advance', () =>
     expect(html).toContain('Petty Cash Voucher (PC)'));
   test('ไม่มีโครงกล่องเส้นดำแบบเก่าแล้ว', () => expect(html).not.toContain('class="box"'));
-  test('หน้าแนบไฟล์ต่อท้ายได้', () =>
-    expect(pettyVoucherHtml({ claim, fund, typeName: 'x', attachmentsHtml: '<section class="att">ATT</section>' }))
-      .toContain('<section class="att">ATT</section>'));
+  test('ไม่มีหน้าแนบไฟล์ — เอกสารแนบอยู่ในใบสรุปรายการเท่านั้น (ผู้ใช้สั่ง 29/10/2026)', () => {
+    const withAtt = { claim, fund, typeName: 'x', attachmentsHtml: '<section class="att">ATT</section>' };
+    expect(pettyVoucherHtml(withAtt)).not.toContain('class="att"');
+  });
   test('ไม่มีโลโก้ก็ยังพิมพ์ได้', () => expect(pettyVoucherHtml({ claim, fund, typeName: 'x' })).not.toContain('<img class="logo"'));
 });
 
@@ -313,10 +314,17 @@ describe('บล็อกลงนามอยู่ด้านล่างข�
       expect(html).toContain('.doc-part { display: flex; flex-direction: column; min-height:');
     });
   }
-  test('ลงนามเป็นส่วนสุดท้ายของหน้า ก่อนหน้าแนบไฟล์', () => {
-    const html = pettyVoucherHtml({ claim, fund, typeName: 'x', attachmentsHtml: '<section class="att">A</section>' });
+  test('ลงนามเป็นส่วนสุดท้ายของหน้า ก่อนหน้าแนบไฟล์ (ใบสรุปรายการ)', () => {
+    const html = itemSummaryHtml({ claim, fund, typeName: 'x', attachmentsHtml: '<section class="att">A</section>',
+      spec: { item_based: true, item_fields: [{ key: 'ref_no', label: 'เลข', type: 'text' }] } });
+    expect(html.indexOf('<div class="sign-block">')).toBeGreaterThan(0);
     expect(html.indexOf('<div class="sign-block">')).toBeLessThan(html.indexOf('<section class="att">'));
-    expect(html.indexOf('<div class="sign-block">')).toBeGreaterThan(html.indexOf('<div class="tot">'));
+  });
+  test('ใบสรุปรายการเป็นใบเดียวที่ต่อหน้าแนบไฟล์', () => {
+    const withAtt = { claim, fund, typeName: 'x', attachmentsHtml: '<section class="att">A</section>' };
+    expect(itemSummaryHtml({ ...withAtt, spec: null })).toContain('<section class="att">A</section>');
+    expect(receiptSubstituteHtml(withAtt)).not.toContain('class="att"');
+    expect(travelRequestFormHtml(withAtt)).not.toContain('class="att"');
   });
 });
 

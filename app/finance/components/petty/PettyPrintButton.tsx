@@ -22,7 +22,7 @@ export function PettyPrintButton({ claim, fund, spec, typeName, payeePosition }:
   const [busy, setBusy] = useState(false);
   const prints = spec.prints ?? ['PETTY_VOUCHER'];
 
-  // หน้าแนบไฟล์ต่อท้ายเอกสาร แบบเดียวกับใบ Advance — โหลดไม่ได้ก็พิมพ์ตัวเอกสารไปก่อน
+  // หน้าแนบไฟล์ต่อท้ายใบสรุปรายการเท่านั้น ใบอื่นไม่แนบ — โหลดไม่ได้ก็พิมพ์ตัวเอกสารไปก่อน
   async function attachments(): Promise<string> {
     try {
       const res = await fetch(`/api/uploads3?form_id=${encodeURIComponent(claim.form_id)}`, { cache: 'no-store' });
@@ -46,12 +46,11 @@ export function PettyPrintButton({ claim, fund, spec, typeName, payeePosition }:
       const opts = {
         claim, fund, typeName, payeePosition, unit: printUnit(spec),
         logoUrl: `${window.location.origin}/mena.png`,
-        attachmentsHtml: await attachments(),
       };
       const html = kind === 'PETTY_VOUCHER' ? pettyVoucherHtml(opts)
         : kind === 'RECEIPT_SUBSTITUTE' ? receiptSubstituteHtml(opts)
         : kind === 'REQUEST_FORM' ? travelRequestFormHtml(opts)
-        : itemSummaryHtml({ ...opts, spec });
+        : itemSummaryHtml({ ...opts, spec, attachmentsHtml: await attachments() });
       if (!openPrintWindow(html)) {
         showAlert({ icon: 'warning', title: 'เบราว์เซอร์บล็อกหน้าต่างพิมพ์',
           text: 'อนุญาต pop-up ของเว็บนี้แล้วลองอีกครั้ง' });
