@@ -60,9 +60,19 @@ export function claimPeriod(claim: Pick<PettyClaim, 'period_from' | 'period_to' 
   return formatDate(claim.expense_date);
 }
 
-/** เอกสารครบไหม — นับไฟล์ต่อหมวดเทียบ spec (ด่านจริงอยู่ที่ BE ตอนกด) */
-export function docsState(spec: PettySpec | null | undefined, counts: Record<string, number>): { ready: boolean; missing: string[] } {
-  const missing = (spec?.attachments ?? []).filter(a => a.required && !(counts[a.key] > 0)).map(a => a.label);
+/**
+ * เอกสารครบไหม — นับไฟล์ต่อหมวดเทียบ spec: หมวดที่ติ๊กบังคับ + กฎ require_attachment ก่อนอนุมัติที่เข้าเงื่อนไขของใบ
+ * (เช่น จ่ายร้านเงินสดต้องมีสำเนาบัตร) · ด่านจริงอยู่ที่ BE ตอนกด
+ */
+export function docsState(spec: PettySpec | null | undefined, counts: Record<string, number>, claim?: PettyClaim): { ready: boolean; missing: string[] } {
+  const keys = new Set((spec?.attachments ?? []).filter(a => a.required).map(a => a.key));
+  if (claim) {
+    for (const r of spec?.rules ?? []) {
+      if (r.require_attachment && r.at === 'BEFORE_APPROVE' && ruleApplies(r.when, claim)) keys.add(r.require_attachment);
+    }
+  }
+  const label = (key: string) => spec?.attachments?.find(a => a.key === key)?.label ?? key;
+  const missing = [...keys].filter(k => !(counts[k] > 0)).map(label);
   return { ready: missing.length === 0, missing };
 }
 

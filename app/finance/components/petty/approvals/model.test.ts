@@ -113,6 +113,20 @@ describe('docsState', () => {
     expect(docsState(DD_SPEC, { receipt: 1, photo: 3 })).toEqual({ ready: false, missing: ['สลิปโอน'] });
   });
   test('no spec = nothing required', () => expect(docsState(undefined, {})).toEqual({ ready: true, missing: [] }));
+  test('conditional attachment rules before approve count when the claim matches (same as the BE gate)', () => {
+    const spec: PettySpec = {
+      attachments: [{ key: 'receipt', label: 'ใบเสร็จ', required: true }, { key: 'id_card', label: 'สำเนาบัตรประชาชน' }],
+      rules: [
+        { when: 'payment_method == โอนเงิน && payee_type == บุคคล/ร้านเงินสด', require_attachment: 'id_card', at: 'BEFORE_APPROVE' },
+        { when: 'always', require_attachment: 'receipt', at: 'BEFORE_APPROVE' },
+      ],
+    };
+    const cash = claim({ detail: { payment_method: 'โอนเงิน', payee_type: 'บุคคล/ร้านเงินสด' } });
+    const company = claim({ detail: { payment_method: 'โอนเงิน', payee_type: 'นิติบุคคล' } });
+    expect(docsState(spec, { receipt: 1 }, cash)).toEqual({ ready: false, missing: ['สำเนาบัตรประชาชน'] });
+    expect(docsState(spec, { receipt: 1 }, company)).toEqual({ ready: true, missing: [] });
+    expect(docsState(spec, {}, company)).toEqual({ ready: false, missing: ['ใบเสร็จ'] });
+  });
 });
 
 describe('DD rules', () => {
