@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   COST_CENTERS, COST_CENTER_GROUPS, centerOfSite, claimCostCenterLine, costCenterGroupsForSite, costCenterLabel,
-  defaultCostCenterForUser, isCostCenter,
+  defaultCostCenterForUser, fundForCostCenter, fundsInCenter, isCostCenter,
 } from './petty-cost-centers';
 
 describe('รายการศูนย์และแผนก (จากผู้ใช้ 29/10/2026)', () => {
@@ -85,4 +85,19 @@ describe('กรองตามศูนย์ของผู้เบิก (�
   });
   test('ศูนย์ที่ไม่รู้ เห็นทุกกลุ่ม', () =>
     expect(costCenterGroupsForSite('Rayong').map(g => g.center)).toEqual(['สกท', 'สสบ', 'ศลบ']));
+});
+
+describe('วงเงินสดย่อยกรองตามศูนย์ของศูนย์และแผนก (ผู้ใช้: วงเงินโชว์หมด 29/10/2026)', () => {
+  const f = (id: number, branch_code: string, division_code: string) => ({ id, branch_code, division_code });
+  const funds = [f(1, '03', 'B02'), f(10, '01', 'A04'), f(11, '02', 'A04'), f(12, '03', 'A04'), f(14, '03', 'B04')];
+  const ids = (list: { id: number }[]) => list.map(x => x.id);
+  test('3B02 → เห็นเฉพาะวงเงินลาดกระบัง (สาขา 03)', () => expect(ids(fundsInCenter(funds, '3B02', null))).toEqual([1, 12, 14]));
+  test('1B06 → เห็นเฉพาะวงเงินกรุงเทพ (สาขา 01)', () => expect(ids(fundsInCenter(funds, '1B06', null))).toEqual([10]));
+  test('ยังไม่เลือกศูนย์และแผนก → ใช้ศูนย์ของผู้เบิก', () =>
+    expect(ids(fundsInCenter(funds, '', 'Saraburi'))).toEqual([11]));
+  test('ไม่รู้ทั้งคู่ → เห็นทั้งหมด', () => expect(ids(fundsInCenter(funds, '', 'Rayong'))).toEqual([1, 10, 11, 12, 14]));
+  test('เลือกวงเงินให้เมื่อแผนกตรงกัน 3B02 → วงเงิน 1', () => expect(fundForCostCenter(funds, '3B02')).toBe('1'));
+  test('3A04 → วงเงินบัญชีลาดกระบัง (12)', () => expect(fundForCostCenter(funds, '3A04')).toBe('12'));
+  test('ไม่มีวงเงินของแผนกนั้น (1B06) → ว่าง ให้เลือกเอง', () => expect(fundForCostCenter(funds, '1B06')).toBe(''));
+  test('รหัสแบบไม่มีฝ่าย (3500) → ว่าง', () => expect(fundForCostCenter(funds, '3500')).toBe(''));
 });

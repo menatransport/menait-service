@@ -14,7 +14,9 @@ import { payeeBankProblem } from '@/lib/finance/petty-payee';
 import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
 import { fundsForExpenseType } from '@/lib/finance/petty-account-code';
 import { bangkokToday } from '@/lib/finance/petty-doc';
-import { COST_CENTER_GROUPS, centerOfSite, costCenterGroupsForSite, defaultCostCenterForUser } from '@/lib/finance/petty-cost-centers';
+import {
+  COST_CENTER_GROUPS, centerOfSite, costCenterGroupsForSite, defaultCostCenterForUser, fundForCostCenter, fundsInCenter,
+} from '@/lib/finance/petty-cost-centers';
 import { showAlert } from '../../api';
 import { checkDuplicate, createClaim, getExpenseTypes, getFunds, uploadPettyFiles } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, Panel } from '../../components/FinanceShell';
@@ -37,6 +39,9 @@ export default function NewPettyClaimPage() {
   const [funds, setFunds] = useState<PettyFund[] | null>(null);
   const [typeCode, setTypeCode] = useState('');
   const [fundId, setFundId] = useState('');
+  // วงเงินเห็นเฉพาะสาขาของศูนย์และแผนกที่เลือก และเลือกวงเงินของแผนกนั้นให้ — "ดูทุกวงเงิน" ถ้าต้องใช้วงอื่น (ผู้ใช้สั่ง 29/10/2026)
+  const [fundPicked, setFundPicked] = useState(false);
+  const [showAllFunds, setShowAllFunds] = useState(false);
   // ศูนย์และแผนกของผู้เบิก — เลือกตามศูนย์+แผนกของผู้เบิกให้ก่อน ผู้เปิดใบเปลี่ยนเองได้ (ผู้ใช้สั่ง 29/10/2026)
   const [costCenter, setCostCenter] = useState('');
   const [costCenterPicked, setCostCenterPicked] = useState(false);
@@ -70,7 +75,6 @@ export default function NewPettyClaimPage() {
         const [t, f] = await Promise.all([getExpenseTypes(), getFunds()]);
         setTypes(t); setFunds(f);
         if (t.length === 1) setTypeCode(t[0].code);
-        if (f.length === 1) setFundId(String(f[0].id));
       } catch (err) {
         setTypes([]); setFunds([]);
         showAlert({ icon: 'error', title: 'โหลดข้อมูลตั้งต้นไม่สำเร็จ', text: (err as Error).message });
@@ -84,16 +88,27 @@ export default function NewPettyClaimPage() {
     setHeader(blankHeader(types?.find(t => t.code === typeCode)?.spec, bangkokToday()));
     setRows([]); setFiles({}); setDups([]);
   }, [typeCode, types]);
-  // เปลี่ยนประเภทแล้ววงเงินที่เลือกไว้ไม่อยู่ในแผนกที่เบิกได้ → ล้างให้เลือกใหม่
-  useEffect(() => {
-    setFundId(id => (id && funds && !fundsForExpenseType(typeCode, funds).some(f => String(f.id) === id) ? '' : id));
-  }, [typeCode, funds]);
 
   // ค่าตั้งต้นจากแผนกของผู้เบิก (map ที่ผู้ใช้อนุมัติ) — อยู่ในศูนย์ของผู้เบิกเสมอ จึงอยู่ในตัวเลือกที่เห็น
   useEffect(() => {
     if (costCenterPicked) return;
     setCostCenter(defaultCostCenterForUser(user));
   }, [user, costCenterPicked]);
+
+  // วงเงินที่เลือกได้: สาขาของศูนย์และแผนก (หรือทั้งหมดถ้ากดดูทุกวงเงิน) และแผนกที่บัญชีให้เบิกประเภทนี้
+  const shownFunds = useMemo(() => {
+    const base = !funds ? [] : showAllFunds ? funds : fundsInCenter(funds, costCenter, user?.site);
+    return fundsForExpenseType(typeCode, base);
+  }, [funds, showAllFunds, costCenter, user?.site, typeCode]);
+  const fundsFiltered = !showAllFunds && !!funds && fundsInCenter(funds, costCenter, user?.site).length < funds.length;
+
+  // ที่เลือกเองแล้วและยังอยู่ในรายการ = คงไว้ · ไม่งั้นเลือกวงเงินของแผนกนั้น หรือวงเดียวที่มี · ไม่มี = ว่าง
+  useEffect(() => {
+    setFundId(id => {
+      if (fundPicked && shownFunds.some(f => String(f.id) === id)) return id;
+      return fundForCostCenter(shownFunds, costCenter) || (shownFunds.length === 1 ? String(shownFunds[0].id) : '');
+    });
+  }, [shownFunds, costCenter, fundPicked]);
 
   // เตือนซ้ำขณะกรอก — ด่านจริงอยู่ที่ BE ตอนอนุมัติ ตรงนี้ให้เห็นก่อนจะส่ง
   useEffect(() => {
@@ -244,18 +259,6 @@ export default function NewPettyClaimPage() {
               {types.map(t => <option key={t.code} value={t.code}>{t.name_th}</option>)}
             </select>
           </label>
-          <label className="text-sm">วงเงินสดย่อย
-            <select value={fundId} onChange={e => setFundId(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5">
-              <option value="">เลือกวงเงินสดย่อย</option>
-              {fundsForExpenseType(typeCode, funds).map(f => (
-                <option key={f.id} value={f.id}>{fundLabelWithHolder(f)}</option>
-              ))}
-            </select>
-            {typeCode && fundsForExpenseType(typeCode, funds).length === 0 && (
-              <span className="mt-1 block text-xs text-amber-700">ประเภทนี้ยังไม่มีวงเงินของแผนกที่บัญชีให้เบิกได้</span>
-            )}
-          </label>
           <label className="text-sm">ศูนย์และแผนก
             <select value={costCenter} onChange={e => { setCostCenter(e.target.value); setCostCenterPicked(true); }}
               className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5">
@@ -270,6 +273,26 @@ export default function NewPettyClaimPage() {
               <span className="mt-1 block text-xs text-ink-400">
                 แสดงเฉพาะ {myCenter} ตามศูนย์ของคุณ ·{' '}
                 <button type="button" onClick={() => setShowAllCenters(true)} className="text-brand-600 underline">ดูทุกศูนย์</button>
+              </span>
+            )}
+          </label>
+          <label className="text-sm">วงเงินสดย่อย
+            <select value={fundId} onChange={e => { setFundId(e.target.value); setFundPicked(true); }}
+              className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5">
+              <option value="">เลือกวงเงินสดย่อย</option>
+              {shownFunds.map(f => (
+                <option key={f.id} value={f.id}>{fundLabelWithHolder(f)}</option>
+              ))}
+            </select>
+            {typeCode && shownFunds.length === 0 && (
+              <span className="mt-1 block text-xs text-amber-700">
+                {fundsFiltered ? 'ศูนย์นี้ยังไม่มีวงเงินที่เบิกประเภทนี้ได้' : 'ประเภทนี้ยังไม่มีวงเงินของแผนกที่บัญชีให้เบิกได้'}
+              </span>
+            )}
+            {fundsFiltered && (
+              <span className="mt-1 block text-xs text-ink-400">
+                แสดงเฉพาะวงเงินของศูนย์ที่เลือก ·{' '}
+                <button type="button" onClick={() => setShowAllFunds(true)} className="text-brand-600 underline">ดูทุกวงเงิน</button>
               </span>
             )}
           </label>

@@ -143,3 +143,27 @@ export function claimCostCenterLine(
 ): string {
   return costCenterLabel(claim.cost_center) || accountCodeLine(fund);
 }
+
+/** เลขศูนย์ตัวแรกของรหัส → สาขาของวงเงิน: '3B02' → '03' */
+function branchOfCostCenter(code: string | null | undefined): string | null {
+  return code && BY_CODE.has(code) ? `0${code[0]}` : null;
+}
+
+/** วงเงินที่ผู้เบิกเห็น: สาขาเดียวกับศูนย์และแผนกที่เลือก · ยังไม่เลือก = ศูนย์ของผู้เบิก · ไม่รู้ทั้งคู่ = ทั้งหมด */
+export function fundsInCenter<T extends Pick<PettyFund, 'branch_code'>>(
+  funds: readonly T[], costCenter: string | null | undefined, site: string | null | undefined,
+): T[] {
+  const fromSite = centerOfSite(site);
+  const branch = branchOfCostCenter(costCenter) ?? (fromSite ? `0${DIGIT_OF_CENTER[fromSite]}` : null);
+  return branch ? funds.filter(f => f.branch_code === branch) : [...funds];
+}
+
+/** วงเงินที่สาขาและแผนกตรงกับศูนย์และแผนก: '3B02' → วงเงินลาดกระบัง B02 · ไม่มี/มีหลายวง = '' */
+export function fundForCostCenter(
+  funds: readonly Pick<PettyFund, 'id' | 'branch_code' | 'division_code'>[], costCenter: string | null | undefined,
+): string {
+  const branch = branchOfCostCenter(costCenter);
+  if (!branch || !costCenter) return '';
+  const hits = funds.filter(f => f.branch_code === branch && f.division_code === costCenter.slice(1));
+  return hits.length === 1 ? String(hits[0].id) : '';
+}
