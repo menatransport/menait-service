@@ -80,3 +80,12 @@ describe('pettyKeyBelongsTo — กุญแจ S3 ที่ลบได้ต�
   test('dot segments are not', () =>
     expect(pettyKeyBelongsTo('menait-service/LB-B02-2610-023/../other/x.jpg', 'LB-B02-2610-023')).toBe(false));
 });
+
+describe('flow v2 — แนบไฟล์ได้ถึงตอนบัญชีตรวจผ่าน', () => {
+  const holderFund = { id: 1, holder_employee_id: '12345' };
+  const at = (status: string) => ({ created_by: '55555', fund_id: 1, status }) as never;
+  test('while the head reviews the round', () =>
+    expect(canUploadPettyFile({ user: { employee_id: '55555' }, claim: at('CLEAR_PENDING'), fund: holderFund })).toBe(true));
+  test('not after accounting passed it', () =>
+    expect(canUploadPettyFile({ user: { employee_id: '55555' }, claim: at('REVIEWED'), fund: holderFund })).toBe(false));
+});

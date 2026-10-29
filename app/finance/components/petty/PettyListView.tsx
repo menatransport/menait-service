@@ -213,7 +213,7 @@ export function PettyListView({
                   <td className="px-3 py-2.5 align-top text-xs">
                     {c.status === 'RETURNED' && c.return_reason && <p className="max-w-56 text-amber-700" title={c.return_reason}>ตีกลับ: {c.return_reason}</p>}
                     {c.status === 'SENT_BACK' && c.review_remark && <p className="max-w-56 text-orange-700" title={c.review_remark}>บัญชี: {c.review_remark}</p>}
-                    {c.transfer_date && c.status !== 'RETURNED' && <p className="text-gray-500">โอน {formatDate(c.transfer_date)}</p>}
+                    {c.transfer_date && c.status !== 'RETURNED' && <p className="text-gray-500">จ่าย {formatDate(c.transfer_date)}</p>}
                     {c.reviewed_at && c.status === 'AWAITING_REVIEW' && <p className="text-emerald-700">บัญชีผ่านแล้ว รอปิดรอบ</p>}
                   </td>
                   {rowAction && (

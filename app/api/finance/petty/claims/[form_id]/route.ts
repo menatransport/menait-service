@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { canSeeClaim, isPettyFormId } from '@/lib/finance/petty-access';
-import { beUrl, loadPettyClaimFor, loadPettyFundsHeldBy, proxy, requireUser } from '@/lib/finance/server';
+import { beUrl, isRoundHeadOf, loadPettyClaimFor, loadPettyFundsHeldBy, proxy, requireUser } from '@/lib/finance/server';
 
 const bad = () => NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
 
@@ -13,7 +13,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ form
   const loaded = await loadPettyClaimFor(form_id);
   if (!loaded.claim) return NextResponse.json({ error: 'ไม่พบใบเบิก' }, { status: 404 });
   const held = await loadPettyFundsHeldBy(guard.user.employee_id);
-  if (!canSeeClaim(guard.user, loaded.claim, held)) {
+  // + หัวหน้าตามสายงานของรอบที่ใบอยู่ (flow v2: อนุมัติเคลียร์ต้องเปิดดูใบได้)
+  if (!canSeeClaim(guard.user, loaded.claim, held) && !(await isRoundHeadOf(guard.user.employee_id, loaded.claim.batch_id))) {
     return NextResponse.json({ error: 'ไม่มีสิทธิ์ดูรายการนี้' }, { status: 403 });
   }
   return proxy(beUrl(`/finance/petty/claims/${encodeURIComponent(form_id)}`));

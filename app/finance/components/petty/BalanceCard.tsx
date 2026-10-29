@@ -15,7 +15,7 @@ export function BalanceCard({ balance }: { balance: PettyBalance }) {
       </div>
       {negative && (
         <p className="mt-3 text-sm text-rose-700">
-          ติดลบอยู่ อนุมัติต่อได้ แต่ควรเร่งส่งบัญชีให้การเงินปิดรอบคืนยอด
+          ติดลบอยู่ อนุมัติต่อได้ แต่ควรเร่งส่งเคลียร์เป็นรอบ ให้การเงินทำจ่ายคืน
         </p>
       )}
       {balance.fund_limit !== null && (

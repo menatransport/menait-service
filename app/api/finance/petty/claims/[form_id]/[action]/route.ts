@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { canReview, isPettyFormId } from '@/lib/finance/petty-access';
 import { beUrl, proxy, requireUser } from '@/lib/finance/server';
 
-const ACTIONS = new Set(['approve', 'return', 'transfer', 'submit-accounting', 'review']);
+// flow v2: อนุมัติ = จ่าย · ไม่มี transfer/submit-accounting แล้ว (ส่งเคลียร์เป็นรอบที่ /batches) · dd = ใส่เลข DD ก่อนรวมรอบ
+const ACTIONS = new Set(['approve', 'return', 'review', 'dd']);
 
 export async function POST(
   req: NextRequest,

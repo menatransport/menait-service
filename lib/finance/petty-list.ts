@@ -11,15 +11,10 @@ export type PettyTab = {
   label: string;
   /** ไม่ระบุ = ทุกสถานะ */
   statuses?: PettyStatus[];
-  /** เฉพาะคิวบัญชี: true = ตรวจผ่านแล้ว (มี reviewed_at) · false = ยังไม่ตรวจ */
-  reviewed?: boolean;
 };
 
 export function matchesTab(claim: PettyClaim, tab: PettyTab): boolean {
-  if (tab.statuses && !tab.statuses.includes(claim.status)) return false;
-  if (tab.reviewed === true && !claim.reviewed_at) return false;
-  if (tab.reviewed === false && claim.reviewed_at) return false;
-  return true;
+  return !tab.statuses || tab.statuses.includes(claim.status);
 }
 
 export function tabCounts(claims: readonly PettyClaim[], tabs: readonly PettyTab[]): Record<string, number> {
@@ -53,33 +48,28 @@ export function paginate<T>(rows: readonly T[], page: number, size: number): T[]
 export type PettyRole = 'holder' | 'accounting' | 'mine';
 export type QuickAction = { action: PettyAction; label: string };
 
-/** ปุ่มลัดในแถว: ขั้นถัดไปของใบนี้สำหรับคนบทบาทนั้น — null = ไม่มีอะไรให้กดตอนนี้ */
+/** ปุ่มลัดในแถว: ขั้นถัดไปของใบนี้สำหรับคนบทบาทนั้น — null = ไม่มีอะไรให้กดตอนนี้
+ * ใบที่อนุมัติจ่ายแล้วไม่มีปุ่มรายใบ เพราะส่งเคลียร์เป็นรอบ (ติ๊กหลายใบแล้วกดส่ง) */
 export function quickAction(claim: PettyClaim, role: PettyRole): QuickAction | null {
-  if (role === 'holder') {
-    if (claim.status === 'PENDING_APPROVAL') return { action: 'approve', label: 'อนุมัติ' };
-    if (claim.status === 'APPROVED') return { action: 'transfer', label: 'บันทึกการโอน' };
-    if (claim.status === 'TRANSFERRED' || claim.status === 'SENT_BACK') return { action: 'submit-accounting', label: 'ส่งบัญชี' };
-    return null;
-  }
-  if (role === 'accounting') {
-    if (claim.status === 'AWAITING_REVIEW' && !claim.reviewed_at) return { action: 'review', label: 'ผ่าน' };
-    return null;
-  }
+  if (role === 'holder' && claim.status === 'PENDING_APPROVAL') return { action: 'approve', label: 'อนุมัติจ่าย' };
+  if (role === 'accounting' && claim.status === 'AWAITING_REVIEW') return { action: 'review', label: 'ผ่าน' };
   return null;
 }
 
-/** ขั้นตอนหลักของใบ ซ้าย→ขวา — ตีกลับ/ส่งกลับคือ "หลุดราง" อยู่ที่ขั้นที่ต้องทำซ้ำ */
+/** ขั้นตอนหลักของใบ ซ้าย→ขวา (flow v2) — ตีกลับคือ "หลุดราง" อยู่ที่ขั้นที่ต้องทำซ้ำ */
 export const FLOW_STEPS: { status: PettyStatus; label: string }[] = [
-  { status: 'PENDING_APPROVAL', label: 'รออนุมัติ' },
-  { status: 'APPROVED', label: 'อนุมัติแล้ว' },
-  { status: 'TRANSFERRED', label: 'โอนแล้ว' },
+  { status: 'PENDING_APPROVAL', label: 'ขออนุมัติ' },
+  { status: 'APPROVED', label: 'เจ้าของเงินสดอนุมัติ' },
+  { status: 'CLEAR_PENDING', label: 'หัวหน้าอนุมัติเคลียร์' },
   { status: 'AWAITING_REVIEW', label: 'บัญชีตรวจ' },
-  { status: 'CLOSED', label: 'คืนยอดแล้ว' },
+  { status: 'REVIEWED', label: 'ตั้งเบิก/ทำจ่าย' },
+  { status: 'CLOSED', label: 'ปิด' },
 ];
 
 export function flowPosition(status: PettyStatus): { index: number; offTrack: boolean } {
   if (status === 'RETURNED') return { index: 0, offTrack: true };
-  if (status === 'SENT_BACK') return { index: 2, offTrack: true };
+  if (status === 'SENT_BACK') return { index: 3, offTrack: true };
+  if (status === 'TRANSFERRED') return { index: 1, offTrack: false };
   return { index: Math.max(0, FLOW_STEPS.findIndex(s => s.status === status)), offTrack: false };
 }
 

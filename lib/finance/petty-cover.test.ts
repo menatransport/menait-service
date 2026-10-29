@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { clerkNameOf, coverRows, coverSheetHtml, groupByClerk } from './petty-cover';
+import { clerkNameOf, coverRows, coverSheetHtml, groupByClerk, roundGroup } from './petty-cover';
 import type { PettyClaim } from '@/app/finance/types-petty';
 
 const CLAIMS = [
@@ -133,4 +133,31 @@ describe('ใบปะหน้ามี checklist รวบรวมเอก�
   });
   test('หมวดที่ไม่บังคับไม่ขึ้นใน checklist', () => expect(html).not.toContain('<span class="cb"></span>อื่นๆ'));
   test('checklist ระบุเลขที่ใบที่เป็นเจ้าของ', () => expect(html).toContain('03-B02-2610-001'));
+});
+
+describe('ใบปะหน้าของรอบส่งเคลียร์ (flow v2 29/10/2026 — แยกตามเจ้าของเงินสด)', () => {
+  const round = { batch_no: 'LB-B02-2610-B1', holder_employee_id: '12345', holder_name: 'ณรงค์กรณ์ อัจฉริยญาติ',
+    clear_approved_by_name: null, claims: CLAIMS };
+  const group = roundGroup(round);
+  test('one group = the whole round under the holder', () => {
+    expect(group.clerk).toBe('12345');
+    expect(group.claims).toHaveLength(3);
+    expect(group.total).toBe(3340);
+  });
+  const html = coverSheetHtml({ group, types: TYPES, clerkName: round.holder_name, branchCode: '03',
+    divisionCode: 'B02', batchNo: round.batch_no, mode: 'round', clearApproverName: 'สมศักดิ์ ผู้จัดการ' });
+  test('says who sends it and which round', () => {
+    expect(html).toContain('เจ้าของเงินสด');
+    expect(html).toContain('รอบส่งเคลียร์');
+    expect(html).toContain('LB-B02-2610-B1');
+  });
+  test('has a line for the head who approves the clearing', () => {
+    expect(html).toContain('หัวหน้าอนุมัติเคลียร์');
+    expect(html).toContain('สมศักดิ์ ผู้จัดการ');
+  });
+  test('the clerk cover sheet stays as it was', () => {
+    const clerk = coverSheetHtml({ group: groupByClerk(CLAIMS)[0], types: TYPES, clerkName: 'x', branchCode: '03', divisionCode: 'B02' });
+    expect(clerk).toContain('เจ้าหน้าที่ผู้เปิดใบ');
+    expect(clerk).not.toContain('หัวหน้าอนุมัติเคลียร์');
+  });
 });

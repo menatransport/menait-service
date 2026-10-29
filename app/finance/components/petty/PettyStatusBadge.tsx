@@ -1,4 +1,4 @@
-import { Banknote, CircleCheck, CornerUpLeft, Hourglass, SearchCheck, ThumbsUp, Undo2, type LucideIcon } from 'lucide-react';
+import { Banknote, CircleCheck, CornerUpLeft, FileCheck2, Hourglass, SearchCheck, ThumbsUp, Undo2, UserCheck, type LucideIcon } from 'lucide-react';
 import { PETTY_STATUS_LABELS, PETTY_STATUS_STYLES, type PettyStatus } from '@/lib/finance/petty-status';
 
 // ไอคอนชุดเดียวกับป้ายของ Advance (StatusBadge) เพื่อให้สองโมดูลอ่านเหมือนกัน
@@ -6,10 +6,12 @@ const ICONS: Record<PettyStatus, LucideIcon> = {
   PENDING_APPROVAL: Hourglass,
   RETURNED: CornerUpLeft,
   APPROVED: ThumbsUp,
-  TRANSFERRED: Banknote,
+  CLEAR_PENDING: UserCheck,
   AWAITING_REVIEW: SearchCheck,
   SENT_BACK: Undo2,
+  REVIEWED: FileCheck2,
   CLOSED: CircleCheck,
+  TRANSFERRED: Banknote,
 };
 
 export function PettyStatusBadge({ status, note }: { status: PettyStatus; note?: string | null }) {

@@ -41,6 +41,8 @@ export type PettyClaim = {
   /** ช่องหัวใบตาม spec.header_fields ของประเภทที่ไม่ใช่รายการรถ (เส้นทาง เหตุผล ฯลฯ) */
   detail?: Record<string, unknown>;
   amount: number; dd_no: string | null; receipt_no: string | null;
+  /** หักภาษี ณ ที่จ่าย — ส่งกลับไปตอน "ส่งอีกครั้ง" ไม่งั้นค่าหาย */
+  wht_applicable?: boolean;
   status: import('@/lib/finance/petty-status').PettyStatus;
   created_by: string; approved_by: string | null; approved_at: string | null;
   /** ชื่อ-สกุลจาก users — ใบพิมพ์/หน้าจอใช้แทนรหัส (ไม่มี = ใช้รหัส) */
@@ -53,4 +55,23 @@ export type PettyClaim = {
 export type PettyBalance = {
   fund_id: number; holder_employee_id: string;
   advance_outstanding: number; petty_committed: number; available: number; fund_limit: number | null;
+};
+
+/** รอบส่งเคลียร์ (flow v2 29/10/2026) — ชุดใบของกองทุนเดียว ส่งพร้อมใบปะหน้า */
+export type PettyRound = {
+  id: number; batch_no: string; fund_id: number;
+  status: import('@/lib/finance/petty-status').PettyRoundStatus; status_label: string;
+  branch_code: string | null; division_code: string | null;
+  holder_employee_id: string | null; holder_name: string | null;
+  total_amount: number; remark: string | null; claim_count?: number;
+  submitted_by: string | null; submitted_at: string | null; clear_required_level: number | null;
+  clear_approved_by: string | null; clear_approved_by_name: string | null; clear_approved_at: string | null;
+  clear_reject_reason: string | null;
+  voucher_no: string | null; vouchered_by: string | null; vouchered_at: string | null;
+  pay_date: string | null; paid_by: string | null; paid_at: string | null;
+  closed_by: string | null; closed_at: string | null;
+  /** มีเมื่อขอรายละเอียดรอบ */
+  claims?: PettyClaim[];
+  /** คนที่ขอดูรอบนี้กดอนุมัติเคลียร์ได้ไหม (สายงานรู้ที่ BE) */
+  can_clear?: boolean;
 };

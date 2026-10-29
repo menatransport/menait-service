@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DeleteObjectCommand, PutObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 import { BASE_PATH, BUCKET_NAME, FORM_ID_PATTERN, isSafeUploadName, s3 } from '@/lib/s3';
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { denyUnlessAdvViewer, isAdvOwner, loadPettyClaimFor, requireUser } from '@/lib/finance/server';
+import { denyUnlessAdvViewer, isAdvOwner, isRoundHeadOf, loadPettyClaimFor, requireUser } from '@/lib/finance/server';
 import { isAdvTarget } from '@/lib/finance/formsubmit-guard';
 import { advUploadRole, isAdvUploadFolder } from '@/lib/finance/adv-access';
 import { canSeeClaim, isPettyFormId } from '@/lib/finance/petty-access';
@@ -113,11 +113,11 @@ export async function GET(req: NextRequest) {
   if (isPettyFormId(form_id)) {
     // ไฟล์แนบของใบเงินสดย่อยเห็นได้เท่าที่เห็นตัวใบ — ไม่ใช่ทุกคนที่ล็อกอิน
     const loaded = await loadPettyClaimFor(form_id);
-    const allowed = !!loaded.claim && canSeeClaim(
+    const allowed = !!loaded.claim && (canSeeClaim(
       guard.user,
       loaded.claim as { created_by: string; fund_id: number; status: never },
       loaded.fund ? [loaded.fund] : [],
-    );
+    ) || await isRoundHeadOf(guard.user.employee_id, loaded.claim.batch_id));
     if (!allowed) return NextResponse.json({ error: 'ไม่มีสิทธิ์ดูรายการนี้' }, { status: 403 });
   } else {
     const denied = await denyUnlessAdvViewer(guard.user, form_id);

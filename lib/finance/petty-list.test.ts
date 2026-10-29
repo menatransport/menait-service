@@ -17,20 +17,17 @@ const claim = (over: Partial<PettyClaim>): PettyClaim =>
 
 const TABS: PettyTab[] = [
   { key: 'pending', label: 'รออนุมัติ', statuses: ['PENDING_APPROVAL'] },
-  { key: 'review', label: 'รอตรวจ', statuses: ['AWAITING_REVIEW'], reviewed: false },
-  { key: 'passed', label: 'ผ่านแล้ว', statuses: ['AWAITING_REVIEW'], reviewed: true },
+  { key: 'review', label: 'รอตรวจ', statuses: ['AWAITING_REVIEW'] },
+  { key: 'passed', label: 'ตรวจผ่าน', statuses: ['REVIEWED'] },
   { key: 'all', label: 'ทั้งหมด' },
 ];
 
 describe('matchesTab', () => {
   test('status tab', () => expect(matchesTab(claim({}), TABS[0])).toBe(true));
   test('all tab takes everything', () => expect(matchesTab(claim({ status: 'CLOSED' }), TABS[3])).toBe(true));
-  test('reviewed flag splits the accounting queue', () => {
-    const waiting = claim({ status: 'AWAITING_REVIEW' });
-    const passed = claim({ status: 'AWAITING_REVIEW', reviewed_at: '2026-10-13T01:00:00Z' });
-    expect(matchesTab(waiting, TABS[1])).toBe(true);
-    expect(matchesTab(waiting, TABS[2])).toBe(false);
-    expect(matchesTab(passed, TABS[2])).toBe(true);
+  test('passed is its own status now (no reviewed flag)', () => {
+    expect(matchesTab(claim({ status: 'AWAITING_REVIEW' }), TABS[2])).toBe(false);
+    expect(matchesTab(claim({ status: 'REVIEWED' }), TABS[2])).toBe(true);
   });
 });
 
@@ -62,33 +59,32 @@ describe('sortClaims / paginate', () => {
 });
 
 describe('quickAction — ปุ่มลัดตามสถานะและบทบาท', () => {
-  test('holder: pending → approve', () =>
-    expect(quickAction(claim({}), 'holder')).toEqual({ action: 'approve', label: 'อนุมัติ' }));
-  test('holder: approved → transfer', () =>
-    expect(quickAction(claim({ status: 'APPROVED' }), 'holder')?.action).toBe('transfer'));
-  test('holder: transferred or sent back → submit-accounting', () => {
-    expect(quickAction(claim({ status: 'TRANSFERRED' }), 'holder')?.action).toBe('submit-accounting');
-    expect(quickAction(claim({ status: 'SENT_BACK' }), 'holder')?.action).toBe('submit-accounting');
-  });
+  test('holder: pending → approve and pay', () =>
+    expect(quickAction(claim({}), 'holder')).toEqual({ action: 'approve', label: 'อนุมัติจ่าย' }));
+  test('holder: approved claims go out as a round, not one by one', () =>
+    expect(quickAction(claim({ status: 'APPROVED' }), 'holder')).toBeNull());
   test('holder: nothing to do once at accounting', () =>
     expect(quickAction(claim({ status: 'AWAITING_REVIEW' }), 'holder')).toBeNull());
-  test('accounting: awaiting review and not yet reviewed → review', () =>
+  test('accounting: awaiting review → review', () =>
     expect(quickAction(claim({ status: 'AWAITING_REVIEW' }), 'accounting')?.action).toBe('review'));
   test('accounting: already passed → nothing', () =>
-    expect(quickAction(claim({ status: 'AWAITING_REVIEW', reviewed_at: 'x' }), 'accounting')).toBeNull());
+    expect(quickAction(claim({ status: 'REVIEWED' }), 'accounting')).toBeNull());
   test('accounting never approves', () => expect(quickAction(claim({}), 'accounting')).toBeNull());
   test('requester never has a quick action', () => expect(quickAction(claim({}), 'mine')).toBeNull());
 });
 
 describe('flowPosition — แถบขั้นตอน', () => {
-  test('five steps in order', () =>
-    expect(FLOW_STEPS.map(s => s.status)).toEqual(['PENDING_APPROVAL', 'APPROVED', 'TRANSFERRED', 'AWAITING_REVIEW', 'CLOSED']));
+  test('six steps in order', () =>
+    expect(FLOW_STEPS.map(s => s.status)).toEqual(
+      ['PENDING_APPROVAL', 'APPROVED', 'CLEAR_PENDING', 'AWAITING_REVIEW', 'REVIEWED', 'CLOSED']));
   test('on-track statuses map to their step', () => {
     expect(flowPosition('PENDING_APPROVAL')).toEqual({ index: 0, offTrack: false });
-    expect(flowPosition('AWAITING_REVIEW')).toEqual({ index: 3, offTrack: false });
-    expect(flowPosition('CLOSED')).toEqual({ index: 4, offTrack: false });
+    expect(flowPosition('CLEAR_PENDING')).toEqual({ index: 2, offTrack: false });
+    expect(flowPosition('CLOSED')).toEqual({ index: 5, offTrack: false });
   });
   test('returned sits at step 0 off track', () => expect(flowPosition('RETURNED')).toEqual({ index: 0, offTrack: true }));
-  test('sent back sits at the transfer step off track (holder must resubmit)', () =>
-    expect(flowPosition('SENT_BACK')).toEqual({ index: 2, offTrack: true }));
+  test('sent back sits at the accounting step off track (clerk fixes, then straight back)', () =>
+    expect(flowPosition('SENT_BACK')).toEqual({ index: 3, offTrack: true }));
+  test('old transferred claims sit with the approved ones', () =>
+    expect(flowPosition('TRANSFERRED')).toEqual({ index: 1, offTrack: false }));
 });

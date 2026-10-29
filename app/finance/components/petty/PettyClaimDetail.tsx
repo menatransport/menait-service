@@ -8,12 +8,12 @@ import Link from 'next/link';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
-import { canApprove, canCloseBatch, canReview } from '@/lib/finance/petty-access';
+import { canApprove, canReview } from '@/lib/finance/petty-access';
 import { isItemBased } from '@/lib/finance/petty-spec';
 import { canUploadPettyFile } from '@/lib/finance/petty-upload';
 import { formatBaht, formatDate } from '@/lib/finance/status';
-import { showAlert } from '../../api';
-import { checkDuplicate, getClaim, getExpenseTypes, getFunds, type PettyAction } from '../../petty-api';
+import { showAlert, showConfirm } from '../../api';
+import { checkDuplicate, getClaim, getExpenseTypes, getFunds, resubmitClaim, type PettyAction } from '../../petty-api';
 import { Field, NoAccess, Panel } from '../FinanceShell';
 import { DdSheet } from './DdSheet';
 import { DocumentPreset } from './DocumentPreset';
@@ -94,6 +94,22 @@ export function PettyClaimDetail({ formId, onChanged, compact = false, headerRig
     return () => { alive = false; };
   }, [claim, type, files, isHolder]);
 
+  // ใบที่ถูกตีกลับ: ผู้เปิดใบแนบเอกสารที่ขาดแล้วส่งกลับเข้าคิวเดิม (ตีกลับผู้เบิก → เจ้าของเงินสด · บัญชีตีกลับ → บัญชีโดยตรง)
+  async function resubmit() {
+    if (!claim) return;
+    const toAccounting = claim.status === 'SENT_BACK';
+    const res = await showConfirm({ title: toAccounting ? 'ส่งกลับให้บัญชีตรวจอีกครั้ง' : 'ส่งให้เจ้าของเงินสดอนุมัติอีกครั้ง',
+      text: `ใบ ${claim.form_id} · แนบเอกสารที่ขาดครบแล้วใช่ไหม`, confirmButtonText: 'ส่ง' }) as { isConfirmed?: boolean };
+    if (!res?.isConfirmed) return;
+    setBusy('resubmit');
+    try {
+      await resubmitClaim(claim);
+      await load(); onChanged?.();
+    } catch (err) {
+      showAlert({ icon: 'error', title: 'ส่งไม่สำเร็จ', text: (err as Error).message });
+    } finally { setBusy(null); }
+  }
+
   async function act(action: PettyAction, pass?: boolean) {
     if (!claim) return;
     setBusy(action);
@@ -119,22 +135,33 @@ export function PettyClaimDetail({ formId, onChanged, compact = false, headerRig
       {busy ? 'กำลังทำ…' : label}
     </button>
   );
+  const usesDd = (spec.prints ?? []).includes('DD');
+  const isClerk = !!user?.employee_id && user.employee_id === claim.created_by;
   if (isHolder) {
     if (claim.status === 'PENDING_APPROVAL') {
-      buttons.push(btn('อนุมัติ', () => void act('approve'), { key: 'approve', disabled: blocked }));
+      buttons.push(btn('อนุมัติจ่าย', () => void act('approve'), { key: 'approve', disabled: blocked }));
       buttons.push(btn('ตีกลับผู้เบิก', () => void act('return'), { key: 'return', tone: 'ghost' }));
     }
-    if (claim.status === 'APPROVED') buttons.push(btn('บันทึกการโอน', () => void act('transfer'), { key: 'transfer' }));
-    if (claim.status === 'TRANSFERRED' || claim.status === 'SENT_BACK') buttons.push(btn('ส่งบัญชี', () => void act('submit-accounting'), { key: 'submit' }));
+    if (claim.status === 'APPROVED') {
+      if (usesDd) buttons.push(btn(claim.dd_no ? 'แก้เลข DD' : 'ใส่เลข DD', () => void act('dd'), { key: 'dd', tone: claim.dd_no ? 'ghost' : 'primary' }));
+      buttons.push(
+        <Link key="round" href="/finance/petty/approvals?tab=clear" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-slate-50">
+          ไปส่งเคลียร์เป็นรอบ
+        </Link>,
+      );
+    }
   }
-  if (canReview(user) && claim.status === 'AWAITING_REVIEW' && !claim.reviewed_at) {
+  if (isClerk && (claim.status === 'RETURNED' || claim.status === 'SENT_BACK')) {
+    buttons.push(btn(claim.status === 'SENT_BACK' ? 'ส่งกลับให้บัญชี' : 'ส่งให้เจ้าของเงินสดอีกครั้ง', () => void resubmit(), { key: 'resubmit' }));
+  }
+  if (canReview(user) && claim.status === 'AWAITING_REVIEW') {
     buttons.push(btn('ตรวจผ่าน', () => void act('review', true), { key: 'pass' }));
-    buttons.push(btn('ส่งกลับแก้ไข', () => void act('review', false), { key: 'sendback', tone: 'ghost' }));
+    buttons.push(btn('ตีกลับแก้ไข', () => void act('review', false), { key: 'sendback', tone: 'ghost' }));
   }
-  if (canCloseBatch(user) && claim.status === 'AWAITING_REVIEW' && claim.reviewed_at) {
+  if (claim.batch_id) {
     buttons.push(
-      <Link key="batch" href="/finance/petty/batches" className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-        ไปปิดรอบคืนยอด
+      <Link key="open-round" href={`/finance/petty/rounds/${claim.batch_id}`} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-slate-50">
+        ดูรอบส่งเคลียร์
       </Link>,
     );
   }
@@ -174,7 +201,7 @@ export function PettyClaimDetail({ formId, onChanged, compact = false, headerRig
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">ผู้อนุมัติตีกลับ: {claim.return_reason}</div>
       )}
       {claim.status === 'SENT_BACK' && claim.review_remark && (
-        <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">บัญชีส่งกลับแก้ไข: {claim.review_remark}</div>
+        <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">บัญชีตีกลับ: {claim.review_remark} — แก้หรือแนบเอกสารแล้วกด &quot;ส่งกลับให้บัญชี&quot;</div>
       )}
       {claim.dup_override_reason && (
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-ink-700">ผู้อนุมัติยืนยันทับเรื่องรายการซ้ำ: {claim.dup_override_reason}</div>
@@ -191,8 +218,8 @@ export function PettyClaimDetail({ formId, onChanged, compact = false, headerRig
           <Field label="เจ้าหน้าที่ผู้เปิดใบ" value={claim.created_by_name ?? claim.created_by} />
           <Field label="วงเงินสดย่อย" value={fund ? fundLabelWithHolder(fund) : '-'} />
           <Field label="รหัสค่าใช้จ่าย (บัญชี)" value={accountCodeLine(fund) || '-'} />
-          <Field label="ผู้อนุมัติ" value={claim.approved_by_name ?? claim.approved_by ?? '-'} />
-          <Field label="วันที่โอน" value={formatDate(claim.transfer_date) || '-'} />
+          <Field label="เจ้าของเงินสด (ผู้อนุมัติจ่าย)" value={claim.approved_by_name ?? claim.approved_by ?? '-'} />
+          <Field label="วันที่จ่าย" value={formatDate(claim.transfer_date) || '-'} />
           <Field label="บัญชีตรวจเมื่อ" value={claim.reviewed_at ? new Date(claim.reviewed_at).toLocaleString('th-TH') : '-'} />
         </div>
       </Panel>
@@ -215,7 +242,7 @@ export function PettyClaimDetail({ formId, onChanged, compact = false, headerRig
           files={files.map(f => ({ key: f.key, fileName: f.fileName, url: f.url, folder: f.folder ?? 'other' }))}
           canUpload={canUpload} onChanged={() => void loadFiles()} />
         {!canUpload && (
-          <p className="mt-2 text-xs text-ink-400">แนบไฟล์เพิ่มได้เฉพาะเจ้าหน้าที่ผู้เปิดใบและผู้ถือเงินของกองทุน ขณะที่ใบยังไม่ปิดรอบ</p>
+          <p className="mt-2 text-xs text-ink-400">แนบไฟล์เพิ่มได้เฉพาะเจ้าหน้าที่ผู้เปิดใบและเจ้าของเงินสด จนกว่าบัญชีจะตรวจผ่าน</p>
         )}
       </Panel>
     </div>

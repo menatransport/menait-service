@@ -22,6 +22,15 @@ export function groupByClerk(claims: readonly PettyClaim[]): ClerkGroup[] {
   return [...buckets.values()].sort((a, b) => b.total - a.total);
 }
 
+/** รอบส่งเคลียร์ทั้งรอบเป็นกลุ่มเดียว ในชื่อเจ้าของเงินสด (flow v2: ส่งบัญชีแยกตามผู้อนุมัติ) */
+export function roundGroup(round: { holder_employee_id: string | null; claims: readonly PettyClaim[] }): ClerkGroup {
+  return {
+    clerk: round.holder_employee_id ?? '-',
+    claims: [...round.claims],
+    total: round.claims.reduce((sum, c) => round2(sum + c.amount), 0),
+  };
+}
+
 /** ชื่อเจ้าหน้าที่ของกลุ่ม — จากใบใบแรกที่มีชื่อ ไม่มีก็รหัส */
 export function clerkNameOf(group: ClerkGroup): string {
   return group.claims.find(c => c.created_by_name)?.created_by_name ?? group.clerk;
@@ -66,11 +75,15 @@ export function coverSheetHtml(opts: {
   branchCode: string;
   divisionCode: string;
   batchNo?: string | null;
+  /** 'round' = ใบปะหน้าของรอบส่งเคลียร์ (ผู้ส่ง = เจ้าของเงินสด มีช่องหัวหน้าอนุมัติเคลียร์) */
+  mode?: 'clerk' | 'round';
+  clearApproverName?: string | null;
   logoUrl?: string | null;
   /** เวลาที่พิมพ์ (ใส่ในเทสต์) — วันที่บนใบคิดตามเวลาไทย */
   now?: Date;
 }): string {
   const rows = coverRows(opts.group, opts.types);
+  const isRound = opts.mode === 'round';
   const ref = opts.batchNo ?? opts.group.claims[0]?.form_id ?? '-';
   const today = thaiDate(bangkokDate((opts.now ?? new Date()).toISOString()));
 
@@ -79,8 +92,8 @@ ${docHead({ title: 'ใบปะหน้าเอกสารเบิกเง
     meta: [['อ้างอิง', ref], ['วันที่', today]] })}
 
 ${sec(1, 'ผู้ส่งเอกสาร', 'Sender')}
-<div class="grid">${field('เจ้าหน้าที่ผู้เปิดใบ', opts.clerkName)}${field('ส่งถึง', 'ฝ่ายบัญชีและการเงิน')}
-${field('สาขา · แผนก', `${opts.branchCode} · ${opts.divisionCode}`)}${field('รอบคืนยอด', opts.batchNo ?? '-')}</div>
+<div class="grid">${field(isRound ? 'เจ้าของเงินสด (ผู้อนุมัติจ่าย)' : 'เจ้าหน้าที่ผู้เปิดใบ', opts.clerkName)}${field('ส่งถึง', 'ฝ่ายบัญชีและการเงิน')}
+${field('สาขา · แผนก', `${opts.branchCode} · ${opts.divisionCode}`)}${field(isRound ? 'รอบส่งเคลียร์' : 'รอบคืนยอด', opts.batchNo ?? '-')}</div>
 
 ${sec(2, 'ใบเบิกที่ส่งมาด้วย', 'Documents')}
 <table class="items"><thead><tr><th class="c" style="width:8mm">#</th><th style="width:34mm">เลขที่ใบเบิก</th><th>ประเภท</th>
@@ -93,10 +106,16 @@ ${totalBox('รวมทั้งสิ้น', money(opts.group.total), bahtTex
 ${sec(3, 'รายการเอกสารที่ต้องรวบรวม', 'Checklist')}
 ${checklistHtml(opts.group, opts.types)}
 
-${signBlock(4, 'ลงนาม', 'Signatures', [
-    { title: 'ผู้ส่งเอกสาร', name: opts.clerkName },
-    { title: 'ผู้รับเอกสาร (บัญชี)', name: '' },
-  ])}
+${signBlock(4, 'ลงนาม', 'Signatures', isRound
+    ? [
+      { title: 'ผู้ส่งเอกสาร (เจ้าของเงินสด)', name: opts.clerkName },
+      { title: 'หัวหน้าอนุมัติเคลียร์', name: opts.clearApproverName ?? '' },
+      { title: 'ผู้รับเอกสาร (บัญชี)', name: '' },
+    ]
+    : [
+      { title: 'ผู้ส่งเอกสาร', name: opts.clerkName },
+      { title: 'ผู้รับเอกสาร (บัญชี)', name: '' },
+    ])}
 </section>`;
 
   return wrapDocument({

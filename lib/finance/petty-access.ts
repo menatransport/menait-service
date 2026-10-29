@@ -22,8 +22,8 @@ export function canApprove(user: U | null | undefined, fund: F | null | undefine
   return !!user?.employee_id && !!fund && user.employee_id === fund.holder_employee_id;
 }
 
-/** บัญชี/การเงินเห็นใบตั้งแต่ส่งบัญชีเป็นต้นไป ไม่ใช่ตั้งแต่เปิดใบ */
-const FINANCE_VISIBLE: PettyStatus[] = ['AWAITING_REVIEW', 'SENT_BACK', 'CLOSED'];
+/** บัญชี/การเงินเห็นใบตั้งแต่หัวหน้าอนุมัติเคลียร์ส่งถึงบัญชีเป็นต้นไป ไม่ใช่ตั้งแต่เปิดใบ */
+const FINANCE_VISIBLE: PettyStatus[] = ['AWAITING_REVIEW', 'SENT_BACK', 'REVIEWED', 'CLOSED'];
 
 const isBackOffice = (user: U) =>
   user.is_accounting === true || user.is_treasury === true || user.is_finance === true;
@@ -54,7 +54,24 @@ export function canReview(user: U | null | undefined): boolean {
   return user.is_treasury === true ? false : user.is_finance === true;
 }
 
-/** ปิดรอบคืนยอด (ขั้น 7) = การเงิน */
+/** ตั้งเบิกทั้งรอบ = บัญชี (คนเดียวกับที่ตรวจเอกสาร) */
+export function canVoucher(user: U | null | undefined): boolean {
+  return canReview(user);
+}
+
+/** ใครเปิดดูรอบส่งเคลียร์ได้ — can_clear มาจาก BE (สายงานรู้ที่ BE เท่านั้น) */
+export function canSeeRound(
+  user: U | null | undefined,
+  round: { holder_employee_id: string | null; clear_approved_by: string | null; can_clear?: boolean | null },
+): boolean {
+  if (!user?.employee_id) return false;
+  if (user.role === 'a' || isBackOffice(user)) return true;
+  if (round.holder_employee_id === user.employee_id) return true;
+  if (round.clear_approved_by === user.employee_id) return true;
+  return round.can_clear === true;
+}
+
+/** ทำจ่ายทั้งรอบ = การเงิน (เดิมเรียกว่าปิดรอบคืนยอด) */
 export function canCloseBatch(user: U | null | undefined): boolean {
   if (!user) return false;
   if (user.role === 'a' || user.is_treasury === true) return true;

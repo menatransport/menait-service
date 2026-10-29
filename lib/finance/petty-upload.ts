@@ -9,9 +9,9 @@ export function isPettyFolder(folder: unknown): boolean {
   return typeof folder === 'string' && (PETTY_FOLDERS as readonly string[]).includes(folder);
 }
 
-/** สถานะที่ยังรับไฟล์เพิ่มได้ — ปิดรอบแล้วไม่รับ เพราะบัญชีตรวจไปแล้ว */
+/** สถานะที่ยังรับไฟล์เพิ่มได้ — บัญชีตรวจผ่านแล้ว (REVIEWED/CLOSED) ไม่รับ · ระหว่างรอหัวหน้ายังแนบเพิ่มได้ */
 const OPEN_FOR_FILES: PettyStatus[] = [
-  'PENDING_APPROVAL', 'RETURNED', 'APPROVED', 'TRANSFERRED', 'AWAITING_REVIEW', 'SENT_BACK',
+  'PENDING_APPROVAL', 'RETURNED', 'APPROVED', 'CLEAR_PENDING', 'AWAITING_REVIEW', 'SENT_BACK', 'TRANSFERRED',
 ];
 
 /**

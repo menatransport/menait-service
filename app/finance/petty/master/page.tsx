@@ -126,7 +126,7 @@ export default function PettyMasterPage() {
                   <tr>
                     <th className="py-2">ชื่อวงเงินสดย่อย</th>
                     <th className="py-2">สาขา · แผนก</th>
-                    <th className="py-2">ผู้ถือเงิน / ผู้อนุมัติ</th>
+                    <th className="py-2">เจ้าของเงินสด (ผู้อนุมัติจ่าย)</th>
                     <th className="py-2 text-right">ยอดวงเงินสดย่อย</th>
                     <th className="py-2">สถานะ</th><th className="py-2" />
                   </tr>
@@ -140,7 +140,7 @@ export default function PettyMasterPage() {
                         <>
                           <td className="py-2">
                             <input value={editing.holder} onChange={e => setEditing({ ...editing, holder: e.target.value })}
-                              placeholder="รหัสพนักงาน" aria-label="รหัสผู้ถือเงิน"
+                              placeholder="รหัสพนักงาน" aria-label="รหัสเจ้าของเงินสด"
                               className="w-28 rounded-lg border border-slate-200 px-2 py-1" />
                           </td>
                           <td className="py-2 text-right">
@@ -196,7 +196,7 @@ export default function PettyMasterPage() {
                 <input value={draft.division_code} onChange={e => setDraft({ ...draft, division_code: e.target.value })}
                   placeholder="B02" className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5" />
               </label>
-              <label className="text-sm">ผู้ถือเงิน (ผู้อนุมัติ)
+              <label className="text-sm">เจ้าของเงินสด (ผู้อนุมัติจ่าย)
                 <input value={draft.holder_employee_id} onChange={e => setDraft({ ...draft, holder_employee_id: e.target.value })}
                   placeholder="รหัสพนักงาน" className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5" />
               </label>

@@ -152,7 +152,7 @@ export async function denyUnlessAdvViewer(user: AdvUser, formId: string): Promis
 
 /** ใบเงินสดย่อย + กองทุนของมัน สำหรับการ์ดไฟล์แนบ · โหลดไม่ได้คืน null ทั้งคู่ (ผู้เรียก fail closed) */
 export async function loadPettyClaimFor(formId: string): Promise<{
-  claim: { created_by: string; fund_id: number; status: any; expense_type?: string } | null;
+  claim: { created_by: string; fund_id: number; status: any; expense_type?: string; batch_id?: number | null } | null;
   fund: { id: number; holder_employee_id: string } | null;
   /** spec ของประเภทการเบิก (max ต่อหมวดไฟล์) — null เมื่อหาไม่เจอ ผู้เรียกถือว่าไม่มีเพดาน */
   spec: { attachments?: { key: string; max?: number }[] } | null;
@@ -172,6 +172,17 @@ export async function loadPettyClaimFor(formId: string): Promise<{
     ? types.find((t: any) => t?.code === claim.expense_type)?.spec ?? null
     : null;
   return { claim, fund, spec };
+}
+
+/**
+ * หัวหน้าที่อนุมัติเคลียร์รอบของใบนี้ได้ (หรือตัดสินไปแล้ว) เปิดดูใบและไฟล์แนบได้ — สายงานรู้ที่ BE เท่านั้น
+ * จึงถามรอบจาก BE พร้อม employee_id · BE ล่ม = ไม่เห็น (fail closed)
+ */
+export async function isRoundHeadOf(employeeId: string, batchId: number | null | undefined): Promise<boolean> {
+  if (typeof batchId !== 'number') return false;
+  const round = await beJsonOrNull(beUrl(`/finance/petty/batches/${batchId}`, { employee_id: employeeId })) as
+    { can_clear?: boolean; clear_approved_by?: string | null } | null;
+  return !!round && (round.can_clear === true || round.clear_approved_by === employeeId);
 }
 
 /** กองทุนที่คนนี้ถือ — ใช้ตัดสินว่าเห็นใบของกองทุนนั้นได้ไหม (fail closed: BE ล่ม = ไม่ถือกองทุนไหน) */

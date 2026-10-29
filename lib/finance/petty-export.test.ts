@@ -25,7 +25,7 @@ describe('toPettySheetRows', () => {
     expect(row['แผนก']).toBe('B02');
   });
   test('type shows the Thai name', () => expect(row['ประเภท']).toBe('ค่าชั่งน้ำหนัก'));
-  test('status shows the Thai label, not the code', () => expect(row['สถานะ']).toBe('คืนยอดแล้ว'));
+  test('status shows the Thai label, not the code', () => expect(row['สถานะ']).toBe('ปิดแล้ว'));
   test('period is a range when the claim spans days', () =>
     expect(row['ช่วงวันที่']).toBe('17/09/2026 – 24/09/2026'));
   test('amount stays a number so Excel can sum it', () => expect(row['จำนวนเงิน']).toBe(1640));

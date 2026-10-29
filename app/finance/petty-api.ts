@@ -1,4 +1,4 @@
-import type { PettyBalance, PettyClaim, PettyExpenseType, PettyFund } from './types-petty';
+import type { PettyBalance, PettyClaim, PettyExpenseType, PettyFund, PettyRound } from './types-petty';
 import { uniqueFileName } from '@/lib/finance/status';
 import { fetchJson } from './api';
 
@@ -29,15 +29,47 @@ export const updateClaim = (formId: string, body: Record<string, unknown>) =>
   fetchJson<PettyClaim>(`/api/finance/petty/claims/${encodeURIComponent(formId)}`,
     { method: 'PUT', body: JSON.stringify(body) });
 
-export type PettyAction = 'approve' | 'return' | 'transfer' | 'submit-accounting' | 'review';
+/** flow v2: อนุมัติ = จ่าย (ส่งวันที่จ่ายมาด้วย) · dd = เจ้าของเงินสดใส่เลข DD ก่อนรวมรอบ */
+export type PettyAction = 'approve' | 'return' | 'review' | 'dd';
 
 export const postAction = (formId: string, action: PettyAction, body: Record<string, unknown> = {}) =>
   fetchJson<PettyClaim>(`/api/finance/petty/claims/${encodeURIComponent(formId)}/${action}`,
     { method: 'POST', body: JSON.stringify(body) });
 
-export const closeBatch = (body: { fund_id: number; claim_ids: number[]; remark?: string }) =>
-  fetchJson<{ batch_no: string; total_amount: number }>('/api/finance/petty/batches',
-    { method: 'POST', body: JSON.stringify(body) });
+/** ส่งใบเดิมกลับเข้าคิวโดยไม่แก้รายการ — ใช้หลังแนบเอกสารที่ขาด (ตีกลับผู้เบิก → ผู้อนุมัติ · บัญชีตีกลับ → บัญชี) */
+export function resubmitClaim(claim: PettyClaim) {
+  const items = claim.items.map(i => ({
+    event_date: i.event_date, truck_code: i.truck_code ?? null, truck_plate: i.truck_plate ?? null,
+    truck_type: i.truck_type ?? null, ref_no: i.ref_no ?? null, qty: i.qty, rate: i.rate,
+    remark: i.remark ?? null, driver_name: i.driver_name ?? null,
+  }));
+  return updateClaim(claim.form_id, {
+    fund_id: claim.fund_id, expense_type: claim.expense_type, expense_date: claim.expense_date,
+    driver_employee_id: claim.driver_employee_id, driver_name: claim.driver_name, payee_name: claim.payee_name,
+    detail: claim.detail ?? {}, dd_no: claim.dd_no, receipt_no: claim.receipt_no,
+    wht_applicable: claim.wht_applicable ?? false, items,
+  });
+}
+
+// ---- รอบส่งเคลียร์ ----
+
+/** view: mine = รอบของกองทุนที่ฉันถือ · clear = รอบที่ฉันอนุมัติเคลียร์ได้ · all = ทุกรอบ (บัญชี/การเงิน) */
+export function listRounds(view: 'mine' | 'clear' | 'all', status?: string) {
+  const qs = new URLSearchParams({ view });
+  if (status) qs.set('status', status);
+  return fetchJson<PettyRound[]>(`/api/finance/petty/batches?${qs.toString()}`);
+}
+
+export const getRound = (id: number) => fetchJson<PettyRound>(`/api/finance/petty/batches/${id}`);
+
+export const createRound = (body: {
+  fund_id: number; claim_ids: number[]; remark?: string; attachments: Record<string, Record<string, number>>;
+}) => fetchJson<PettyRound>('/api/finance/petty/batches', { method: 'POST', body: JSON.stringify(body) });
+
+export type RoundAction = 'clear-approve' | 'clear-reject' | 'voucher' | 'pay';
+
+export const postRoundAction = (id: number, action: RoundAction, body: Record<string, unknown> = {}) =>
+  fetchJson<PettyRound>(`/api/finance/petty/batches/${id}/${action}`, { method: 'POST', body: JSON.stringify(body) });
 
 /** อัปโหลดไฟล์แนบของใบเงินสดย่อย โฟลเดอร์ = key ของหมวดใน spec (ดู lib/finance/petty-upload.ts) */
 export async function uploadPettyFiles(formId: string, folder: string, files: File[]): Promise<string[]> {

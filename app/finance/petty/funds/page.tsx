@@ -57,7 +57,7 @@ export default function PettyFundsPage() {
             <thead className="text-left text-ink-500">
               <tr>
                 <th className="py-2">สาขา · ดิวิชัน</th>
-                <th className="py-2">ผู้ถือเงิน</th>
+                <th className="py-2">เจ้าของเงินสด</th>
                 <th className="py-2 text-right">วงเงิน</th>
                 <th className="py-2 text-right">Advance คงเหลือ</th>
                 <th className="py-2 text-right">ยังไม่คืนยอด</th>
@@ -92,7 +92,7 @@ export default function PettyFundsPage() {
             )}
           </table>
         </div>
-        <p className="mt-3 text-xs text-ink-400">ยอดพร้อมอนุมัติ = Advance คงเหลือ − ใบที่อนุมัติแล้วแต่ยังไม่ปิดรอบ · ติดลบได้ แต่ควรเร่งปิดรอบคืนยอด</p>
+        <p className="mt-3 text-xs text-ink-400">ยอดพร้อมอนุมัติ = Advance คงเหลือ − ใบที่อนุมัติจ่ายแล้วแต่การเงินยังไม่ทำจ่ายคืน · ติดลบได้ แต่ควรเร่งส่งเคลียร์เป็นรอบ</p>
       </Panel>
     </FinanceCanvas>
   );

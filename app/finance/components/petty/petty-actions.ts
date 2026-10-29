@@ -2,13 +2,14 @@
 
 import type { PettyClaim, PettySpec } from '@/app/finance/types-petty';
 import { ApiError } from '@/lib/finance/api-error';
+import { bangkokDate } from '@/lib/finance/petty-doc';
 import { showAlert, showConfirm } from '../../api';
 import { countAttachments, postAction, type PettyAction } from '../../petty-api';
 
 type Prompt = { isConfirmed?: boolean; value?: string };
 
 /**
- * เปลี่ยนสถานะใบหนึ่งใบจากปุ่มลัดในตารางหรือแผงรายละเอียด — ถามสิ่งที่ต้องกรอก (เหตุผล วันที่โอน เลข DD)
+ * เปลี่ยนสถานะใบหนึ่งใบจากปุ่มลัดในตารางหรือแผงรายละเอียด — ถามสิ่งที่ต้องกรอก (เหตุผล วันที่จ่าย เลข DD)
  * แล้วส่งให้ BE ตัดสิน · ด่านเอกสาร/ซ้ำตอบกลับมาเป็นรายการให้คนอ่าน ซ้ำอ่อนขอเหตุผลแล้วยิงซ้ำให้เอง
  * คืน true เมื่อสถานะเปลี่ยน (ผู้เรียกค่อยโหลดใหม่)
  */
@@ -20,7 +21,15 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
   const body: Record<string, unknown> = {};
   const baht = claim.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 });
 
-  if (action === 'approve' || action === 'submit-accounting') body.attachments = await countAttachments(claim.form_id);
+  if (action === 'approve') {
+    // flow v2: อนุมัติ = จ่ายเงินในจังหวะเดียวกัน — ถามวันที่จ่าย (สลิปโอนอยู่ในด่านเอกสารอยู่แล้ว)
+    body.attachments = await countAttachments(claim.form_id);
+    const res = await showConfirm({ title: `อนุมัติจ่าย ${baht} บาท`, text: `ใบ ${claim.form_id} · ${claim.payee_name ?? ''}`,
+      input: 'date', inputLabel: 'วันที่จ่ายเงิน', inputValue: bangkokDate(new Date().toISOString()),
+      inputValidator: (v: string) => (!v ? 'ต้องระบุวันที่จ่าย' : null), confirmButtonText: 'อนุมัติจ่าย' }) as Prompt;
+    if (!res?.isConfirmed) return false;
+    body.transfer_date = res.value;
+  }
 
   if (action === 'return') {
     const res = await showConfirm({ title: `ตีกลับใบ ${claim.form_id}`, input: 'textarea',
@@ -29,38 +38,23 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
     if (!res?.isConfirmed) return false;
     body.reason = res.value;
   }
-  if (action === 'transfer') {
-    const res = await showConfirm({ title: `บันทึกการโอน ${baht} บาท`, text: `ใบ ${claim.form_id} · ${claim.payee_name ?? ''}`,
-      input: 'date', inputLabel: 'วันที่โอน', inputValue: new Date().toISOString().slice(0, 10),
-      inputValidator: (v: string) => (!v ? 'ต้องระบุวันที่โอน' : null), confirmButtonText: 'บันทึก' }) as Prompt;
+  if (action === 'dd') {
+    const res = await showConfirm({ title: `เลข DD ของใบ ${claim.form_id}`, input: 'text',
+      inputLabel: 'เลขที่ใบรับสินค้า (DD) จาก ATMS', inputPlaceholder: 'LBDD26090931', inputValue: claim.dd_no ?? '',
+      inputValidator: (v: string) => (!v || !v.trim()) ? 'ต้องกรอกเลข DD' : null, confirmButtonText: 'บันทึก' }) as Prompt;
     if (!res?.isConfirmed) return false;
-    body.transfer_date = res.value;
-  }
-  if (action === 'submit-accounting') {
-    // ประเภทที่ต้องมี DD (ชั่ง/ยาง/ซ่อม) และยังไม่ได้กรอก — ถามตรงนี้ ไม่ต้องไปแก้ใบ
-    const needsDd = (opts.spec?.prints ?? []).includes('DD') && !claim.dd_no;
-    if (needsDd) {
-      const res = await showConfirm({ title: `ส่งบัญชี ใบ ${claim.form_id}`, input: 'text',
-        inputLabel: 'เลขที่ใบรับสินค้า (DD) จาก ATMS — เว้นว่างได้ถ้ายอดต่ำกว่า 500',
-        inputPlaceholder: 'LBDD26090931', confirmButtonText: 'ส่งบัญชี' }) as Prompt;
-      if (!res?.isConfirmed) return false;
-      if (res.value?.trim()) body.dd_no = res.value.trim().toUpperCase();
-    } else {
-      const res = await showConfirm({ title: `ส่งบัญชี ใบ ${claim.form_id}`, text: `${baht} บาท · เอกสารจะไปอยู่ในคิวตรวจของบัญชี`,
-        confirmButtonText: 'ส่งบัญชี' }) as Prompt;
-      if (!res?.isConfirmed) return false;
-    }
+    body.dd_no = (res.value ?? '').trim().toUpperCase();
   }
   if (action === 'review') {
     body.action = opts.pass ? 'PASS' : 'SEND_BACK';
     if (opts.pass) {
-      const res = await showConfirm({ title: `ตรวจผ่าน ใบ ${claim.form_id}`, text: `${baht} บาท · การเงินจะปิดรอบคืนยอดได้`,
-        confirmButtonText: 'ผ่าน' }) as Prompt;
+      const res = await showConfirm({ title: `ตรวจผ่าน ใบ ${claim.form_id}`,
+        text: `${baht} บาท · ผ่านครบทั้งรอบเมื่อไร ตั้งเบิกได้เลย`, confirmButtonText: 'ผ่าน' }) as Prompt;
       if (!res?.isConfirmed) return false;
     } else {
-      const res = await showConfirm({ title: `ส่งกลับใบ ${claim.form_id}`, input: 'textarea',
-        inputLabel: 'เหตุผล (ผู้อนุมัติและเจ้าหน้าที่จะเห็นข้อความนี้)',
-        inputValidator: (v: string) => (!v || !v.trim()) ? 'ต้องระบุเหตุผล' : null, confirmButtonText: 'ส่งกลับ' }) as Prompt;
+      const res = await showConfirm({ title: `ตีกลับใบ ${claim.form_id}`, input: 'textarea',
+        inputLabel: 'เหตุผล (เจ้าหน้าที่ผู้เปิดใบจะเห็น แก้แล้วส่งกลับมาที่บัญชีได้เลย)',
+        inputValidator: (v: string) => (!v || !v.trim()) ? 'ต้องระบุเหตุผล' : null, confirmButtonText: 'ตีกลับ' }) as Prompt;
       if (!res?.isConfirmed) return false;
       body.remark = res.value;
     }

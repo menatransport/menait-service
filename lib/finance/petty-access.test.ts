@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { FORM_ID_PATTERN } from '@/lib/s3';
-import { canApprove, canCloseBatch, canReview, canSeeAllClaims, canSeeClaim, isPettyFormId } from './petty-access';
+import { canApprove, canCloseBatch, canReview, canSeeAllClaims, canSeeClaim, canSeeRound, canVoucher, isPettyFormId } from './petty-access';
 
 const fund = { id: 1, branch_code: '03', division_code: 'B02', holder_employee_id: '12345' };
 
@@ -89,4 +89,28 @@ describe('เลขที่ใบแบบตัวอักษรสาขา 
   test('LB-B02-2610-001 เป็นเลขที่ใบเบิก', () => expect(isPettyFormId('LB-B02-2610-001')).toBe(true));
   test('สาขาที่ยังเป็นตัวเลขก็ยังใช้ได้', () => expect(isPettyFormId('04-A01-2610-001')).toBe(true));
   test('ADV ยังไม่ใช่', () => expect(isPettyFormId('ADV-2610-001')).toBe(false));
+});
+
+describe('flow v2 (29/10/2026)', () => {
+  const claimAt = (status: string) => ({ created_by: '1', fund_id: 1, status }) as never;
+  test('back office sees claims that passed review but are not paid yet', () =>
+    expect(canSeeClaim({ employee_id: '9', is_accounting: true }, claimAt('REVIEWED'), [])).toBe(true));
+  test('back office does not see claims still with the head', () =>
+    expect(canSeeClaim({ employee_id: '9', is_accounting: true }, claimAt('CLEAR_PENDING'), [])).toBe(false));
+  test('voucher is accounting work', () => {
+    expect(canVoucher({ employee_id: '8', is_accounting: true })).toBe(true);
+    expect(canVoucher({ employee_id: '9', is_treasury: true })).toBe(false);
+  });
+
+  const round = { holder_employee_id: '12345', clear_approved_by: null, can_clear: false };
+  test('holder sees their round', () => expect(canSeeRound({ employee_id: '12345' }, round)).toBe(true));
+  test('the head who may clear sees it', () =>
+    expect(canSeeRound({ employee_id: '600100' }, { ...round, can_clear: true })).toBe(true));
+  test('the head who already decided still sees it', () =>
+    expect(canSeeRound({ employee_id: '600100' }, { ...round, clear_approved_by: '600100' })).toBe(true));
+  test('back office and admin see every round', () => {
+    expect(canSeeRound({ employee_id: '9', is_treasury: true }, round)).toBe(true);
+    expect(canSeeRound({ employee_id: '1', role: 'a' }, round)).toBe(true);
+  });
+  test('anyone else does not', () => expect(canSeeRound({ employee_id: '777' }, round)).toBe(false));
 });
