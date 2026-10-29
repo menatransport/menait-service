@@ -2,8 +2,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { canReview, isPettyFormId } from '@/lib/finance/petty-access';
 import { beUrl, proxy, requireUser } from '@/lib/finance/server';
 
-// flow v2: อนุมัติ = จ่าย · ไม่มี transfer/submit-accounting แล้ว (ส่งเคลียร์เป็นรอบที่ /batches) · dd = ใส่เลข DD ก่อนรวมรอบ
-const ACTIONS = new Set(['approve', 'return', 'review', 'dd']);
+// flow v2: อนุมัติ = จ่าย · ไม่มี transfer/submit-accounting แล้ว (ส่งเคลียร์เป็นรอบที่ /batches)
+// dd / debt-doc = เจ้าของเงินสดใส่เลข DD / เลขรับสภาพหนี้ หลังจ่าย ก่อนรวมรอบ (BE ตรวจว่าเป็นเจ้าของเงินสดจาก employee_id)
+const ACTIONS = new Set(['approve', 'return', 'review', 'dd', 'debt-doc']);
 
 export async function POST(
   req: NextRequest,
