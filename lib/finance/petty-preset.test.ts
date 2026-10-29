@@ -74,7 +74,7 @@ describe('เอกสารที่บังคับตามเงื่อ�
   const spec = {
     header_fields: [
       { key: 'payment_method', label: 'วิธีจ่าย', type: 'select', options: ['โอนเงิน', 'เงินสด'] },
-      { key: 'payee_type', label: 'ผู้รับเงิน', type: 'select', options: ['ร้านจดทะเบียน', 'บุคคล/ร้านเงินสด'] },
+      { key: 'payee_type', label: 'ผู้รับเงิน', type: 'select', options: ['นิติบุคคล', 'บุคคล/ร้านเงินสด'] },
     ],
     attachments: [
       { key: 'receipt', label: 'บิล', required: true },

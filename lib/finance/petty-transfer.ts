@@ -5,14 +5,16 @@ import { round2 } from '@/lib/finance/status';
  * ไม่บันทึกตัวเลขภาษีลงระบบ ใบ 50 ทวิ ยังออกจากระบบบัญชีเหมือนเดิม
  *
  * - บุคคล/ร้านเงินสด: บริษัทออกภาษีให้ 3% (gross-up) ร้านได้เต็มยอดบิล — ตัวอย่างจริง 1,200 → ฐาน 1,237.11 ภาษี 37.11
- * - ร้านจดทะเบียน (นิติบุคคล): หัก ณ ที่จ่าย 3% จากยอดบิล โอนส่วนที่เหลือ
+ * - นิติบุคคล: หัก ณ ที่จ่าย 3% จากยอดบิล โอนส่วนที่เหลือ (ใบเก่าที่เป็นชื่อเดิม "ร้านจดทะเบียน" คิดแบบเดียวกัน)
  * - ยอดต่ำกว่า 1,000 บาท หรือประเภทที่ไม่มีช่องผู้รับเงิน: โอนเต็มยอด
  * อัตรา/เกณฑ์อยู่ที่นี่จุดเดียว (รอผู้ใช้ยืนยัน)
  */
 export const WHT_RATE = 0.03;
 export const WHT_MIN_AMOUNT = 1000;
 export const PAYEE_INDIVIDUAL = 'บุคคล/ร้านเงินสด';
-export const PAYEE_COMPANY = 'ร้านจดทะเบียน';
+export const PAYEE_COMPANY = 'นิติบุคคล';
+/** ชื่อตัวเลือกเดิมก่อน 29/10/2026 — ใบที่เปิดไว้ก่อนเปลี่ยนชื่อยังเป็นค่านี้ */
+const PAYEE_COMPANY_OLD = 'ร้านจดทะเบียน';
 
 export type TransferCalc = {
   kind: 'none' | 'gross_up' | 'withhold';
@@ -30,6 +32,7 @@ const baht = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2
 export function transferCalc(amount: number, payeeType: string | null | undefined): TransferCalc {
   const bill = round2(Number(amount) || 0);
   const none = (note: string): TransferCalc => ({ kind: 'none', bill, transfer: bill, base: bill, tax: 0, note });
+  if (payeeType === PAYEE_COMPANY_OLD) payeeType = PAYEE_COMPANY;
   if (payeeType !== PAYEE_INDIVIDUAL && payeeType !== PAYEE_COMPANY) {
     return none('ประเภทนี้ไม่มีหัก ณ ที่จ่าย โอนตามยอดบิล');
   }
@@ -42,5 +45,5 @@ export function transferCalc(amount: number, payeeType: string | null | undefine
   }
   const tax = round2(bill * WHT_RATE);
   return { kind: 'withhold', bill, transfer: round2(bill - tax), base: bill, tax,
-    note: `นิติบุคคล/ร้านจดทะเบียน: หัก ณ ที่จ่าย 3% = ${baht(tax)} บาท โอน ${baht(round2(bill - tax))} บาท` };
+    note: `นิติบุคคล: หัก ณ ที่จ่าย 3% = ${baht(tax)} บาท โอน ${baht(round2(bill - tax))} บาท` };
 }
