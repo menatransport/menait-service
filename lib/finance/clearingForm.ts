@@ -58,7 +58,7 @@ export interface ClearingSignature { name: string; date: string; esign?: ESign }
 export interface ClearingFormData {
   /** form_id: Document Control ref and the Ref on every e-Signature stamp. */
   document_no: string;
-  /** REF No. (โดยแผนกบัญชี) = fin.clear_doc_no */
+  /** REF No. (โดยแผนกบัญชี) = เลขที่ใบคำขอเบิก (form_id) — ผู้ใช้สั่ง 29/10/2026 (เดิม fin.clear_doc_no ซึ่งยังโชว์ในหน้าจอ/Excel) */
   ref_no: string;
   /** 'YYYY-MM-DD' */
   clear_date: string;
@@ -118,7 +118,7 @@ export function toClearingData(detail: AdvanceDetail): ClearingFormData {
       amount_before_vat: num(fin?.amount_actual), vat_amount: null, wht_amount: null }];
   return {
     document_no: detail.form_id,
-    ref_no: fin?.clear_doc_no ?? '',
+    ref_no: detail.form_id ?? '',
     clear_date: toBkkDate(fin?.clear_date),
     centers: center.centers,
     employee: {
