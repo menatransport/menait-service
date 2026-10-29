@@ -72,7 +72,7 @@ export function PendingClaimCard({ claim, typeName, spec, files, highlight, proc
           : <span className={DOCS_TONE[docsText.tone]}>{docsText.text}</span>} />
         {debt && (
           <div className="col-span-2 sm:col-span-3">
-            <Field label="ใบรับสภาพหนี้ (มี พจร.)" value={claim.debt_doc_no ?? 'ยังไม่มีเลข กรอกตอนกดอนุมัติจ่าย'} />
+            <Field label="ใบรับสภาพหนี้ (มี พจร.)" value={claim.debt_doc_no ?? 'ยังไม่มีเลข ใส่หลังโอนเงินได้ ต้องมีก่อนส่งเคลียร์'} />
           </div>
         )}
       </div>

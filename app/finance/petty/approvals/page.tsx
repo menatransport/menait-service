@@ -34,12 +34,13 @@ const CAPTION = 'อนุมัติจ่ายใบของวงเงิ
 const PAGE_SIZE = 20;
 
 type HistoryTab = 'claims' | 'rounds';
-type ClaimAction = 'approve' | 'return' | 'dd';
+type ClaimAction = 'approve' | 'return' | 'dd' | 'debt-doc';
 
 const SUCCESS: Record<ClaimAction, [string, string | undefined]> = {
   approve: ['อนุมัติจ่ายแล้ว', 'ใบนี้ไปรอที่แถบ ส่งเคลียร์'],
   return: ['ตีกลับใบแล้ว', 'คนเปิดใบจะเห็นเหตุผล แก้แล้วส่งมาใหม่ได้'],
   dd: ['บันทึกเลข DD แล้ว', undefined],
+  'debt-doc': ['บันทึกเลขรับสภาพหนี้แล้ว', undefined],
 };
 
 function Loading() {
@@ -291,8 +292,8 @@ function PettyApprovals() {
                   return (
                     <ClearClaimCard key={c.id} claim={c} typeName={typeName(c.expense_type)} checked={selected.includes(c.id)}
                       blocker={roundBlocker(c, spec)} hasDd={usesDd(spec)} highlight={!!doc && c.form_id === doc}
-                      busy={busy === `dd-${c.form_id}`} onToggle={() => toggle(c.id)}
-                      onView={() => setOpenId(c.form_id)} onDd={() => void act(c, 'dd')} />
+                      busy={busy === `dd-${c.form_id}`} debtBusy={busy === `debt-doc-${c.form_id}`} onToggle={() => toggle(c.id)}
+                      onView={() => setOpenId(c.form_id)} onDd={() => void act(c, 'dd')} onDebtDoc={() => void act(c, 'debt-doc')} />
                   );
                 })}
               </div>

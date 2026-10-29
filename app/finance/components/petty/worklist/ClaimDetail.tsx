@@ -27,7 +27,7 @@ import { ItemGrid } from '../ItemGrid';
 import { PettyAttachments } from '../PettyAttachments';
 import { PettyPrintButton } from '../PettyPrintButton';
 import { runPettyAction } from '../petty-actions';
-import { docsState } from '../approvals/model';
+import { debtDocButton, docsState } from '../approvals/model';
 import { ClaimReviewPanel } from './ClaimReviewPanel';
 import { HistoryPanel } from './HistoryPanel';
 import { PRIMARY_BTN } from './RoundVoucherForm';
@@ -41,7 +41,8 @@ const OUTLINE_BTN = 'h-11 rounded-xl';
 /**
  * ใบเงินสดย่อยหนึ่งใบ ใช้ทั้งในแผงด้านข้าง (PettySheet) และหน้าเต็ม — เรียงแบบ FinanceAdvanceDetail:
  * ข้อมูลใบ · รายการ · DD · ไฟล์แนบทุกขั้นตอน · กล่องทำงานตามบทบาท · ประวัติ
- * กล่องทำงาน: เจ้าของเงินสด (อนุมัติจ่าย/ตีกลับ/เลข DD) · ผู้เปิดใบ (ส่งอีกครั้ง) · บัญชี (ตรวจผ่าน/ส่งกลับแก้ไข) · สิทธิ์จริงตัดสินที่ BE
+ * กล่องทำงาน: เจ้าของเงินสด (อนุมัติจ่าย/ตีกลับ/เลข DD/เลขรับสภาพหนี้) · ผู้เปิดใบ (ส่งอีกครั้ง) · บัญชี (ตรวจผ่าน/ส่งกลับแก้ไข)
+ * · สิทธิ์จริงตัดสินที่ BE
  */
 export function ClaimDetail({ formId, onChanged, onOpenRound }: {
   formId: string;
@@ -142,6 +143,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
   const counts = files.reduce<Record<string, number>>((acc, f) => { const k = f.folder ?? 'request'; acc[k] = (acc[k] ?? 0) + 1; return acc; }, {});
   const blocked = (gate?.missing.length ?? 0) > 0 || (gate?.holderMissing.length ?? 0) > 0 || (gate?.hard.length ?? 0) > 0;
   const usesDd = (spec.prints ?? []).includes('DD');
+  const debtLabel = debtDocButton(claim);
   const isClerk = !!user?.employee_id && user.employee_id === claim.created_by;
   const calc = transferCalc(claim.amount, typeof claim.detail?.payee_type === 'string' ? claim.detail.payee_type : null);
   const payeeBank = payeeBankText(claim.detail);
@@ -174,7 +176,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
           <Field label="เจ้าของเงินสด (ผู้อนุมัติจ่าย)" value={claim.approved_by_name ?? claim.approved_by ?? '-'} />
           <Field label="วันที่จ่าย" value={claim.transfer_date ? formatDate(claim.transfer_date) : '-'} />
           {(claim.debt_doc_no || needsDebtDoc(claim)) && (
-            <Field label="เลขที่ใบรับสภาพหนี้ (มี พจร.)" value={claim.debt_doc_no ?? 'กรอกตอนอนุมัติจ่าย'} />
+            <Field label="เลขที่ใบรับสภาพหนี้ (มี พจร.)" value={claim.debt_doc_no ?? 'ยังไม่ได้ใส่'} />
           )}
           {roundLink && <Field label="รอบส่งเคลียร์" value={roundLink} />}
         </div>
@@ -233,14 +235,23 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
         </>
       )}
 
-      {/* เจ้าของเงินสด: ใบที่อนุมัติจ่ายแล้ว รอรวมรอบ */}
+      {/* เจ้าของเงินสด: ใบที่อนุมัติจ่ายแล้ว รอรวมรอบ · ใส่เลข DD / เลขรับสภาพหนี้ (ใบมี พจร.) ให้ครบก่อนส่งเคลียร์ */}
       {isHolder && claim.status === 'APPROVED' && (
         <Panel title="ส่งเคลียร์">
+          {debtLabel && !claim.debt_doc_no?.trim() && (
+            <p className="mb-3 text-xs text-amber-700">ใบนี้มี พจร. ใส่เลขรับสภาพหนี้ก่อน ถึงจะส่งเคลียร์ได้</p>
+          )}
           <div className="flex flex-col gap-2 sm:flex-row">
             {usesDd && (
               <Button type="button" variant={claim.dd_no ? 'outline' : 'default'} onClick={() => void act('dd')} disabled={busy !== null}
                 className={`${OUTLINE_BTN} flex-1 ${claim.dd_no ? '' : 'bg-brand-600 text-white hover:bg-brand-700'}`}>
                 {claim.dd_no ? 'แก้เลข DD' : 'ใส่เลข DD'}
+              </Button>
+            )}
+            {debtLabel && (
+              <Button type="button" variant={claim.debt_doc_no ? 'outline' : 'default'} onClick={() => void act('debt-doc')} disabled={busy !== null}
+                className={`${OUTLINE_BTN} flex-1 ${claim.debt_doc_no ? '' : 'bg-brand-600 text-white hover:bg-brand-700'}`}>
+                {busy === 'debt-doc' ? 'กำลังบันทึก...' : debtLabel}
               </Button>
             )}
             <Link href="/finance/petty/approvals?tab=clear"

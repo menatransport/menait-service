@@ -1,19 +1,30 @@
 'use client';
 
-import { FileText, PencilLine } from 'lucide-react';
+import { FileSignature, FileText, PencilLine } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { PettyClaim } from '@/app/finance/types-petty';
+import { needsDebtDoc } from '@/lib/finance/petty-debt';
 import { formatDate } from '@/lib/finance/status';
 import { Field } from '../../FinanceShell';
+import { debtDocButton } from './model';
 import { openerName } from './PendingClaimCard';
 import { BTN_VIEW, CARD, HintLine, Money } from './ui';
 
-/** ใบที่อนุมัติจ่ายแล้วในแถบส่งเคลียร์ — ติ๊กเข้ารอบ · ใส่/แก้ DD (เฉพาะประเภทที่มี DD) */
-export function ClearClaimCard({ claim, typeName, checked, blocker, hasDd, highlight, busy, onToggle, onView, onDd }: {
+// Tailwind ต้องเห็นชื่อ class เต็ม ๆ — 4 ช่องพื้นฐาน + DD + เลขรับสภาพหนี้ (ครบ 6 ช่อง = 3×2 ไม่งั้นยอดเงินตกบรรทัด)
+const COLS: Record<number, string> = { 4: 'sm:grid-cols-4', 5: 'sm:grid-cols-5', 6: 'sm:grid-cols-3' };
+
+/**
+ * ใบที่อนุมัติจ่ายแล้วในแถบส่งเคลียร์ — ติ๊กเข้ารอบ · ใส่/แก้ DD (เฉพาะประเภทที่มี DD)
+ * · ใส่/แก้เลขรับสภาพหนี้ (เฉพาะใบที่มี พจร. — ใส่หลังโอนเงิน ต้องมีก่อนติ๊กเข้ารอบ)
+ */
+export function ClearClaimCard({ claim, typeName, checked, blocker, hasDd, highlight, busy, debtBusy, onToggle, onView, onDd, onDebtDoc }: {
   claim: PettyClaim; typeName: string; checked: boolean; blocker: string | null; hasDd: boolean;
-  highlight: boolean; busy: boolean; onToggle: () => void; onView: () => void; onDd: () => void;
+  highlight: boolean; busy: boolean; debtBusy: boolean;
+  onToggle: () => void; onView: () => void; onDd: () => void; onDebtDoc: () => void;
 }) {
   const id = `pick-${claim.id}`;
+  const debt = needsDebtDoc(claim);
+  const debtLabel = debtDocButton(claim);
   return (
     <div id={`apv-${claim.form_id}`} className={`${CARD} ${checked ? 'border-brand-200 bg-brand-50/40' : ''} ${highlight ? 'ring-2 ring-mint-500' : ''}`}>
       <div className="flex items-start gap-3">
@@ -30,12 +41,13 @@ export function ClearClaimCard({ claim, typeName, checked, blocker, hasDd, highl
               อนุมัติจ่ายแล้ว
             </span>
           </label>
-          <div className={`grid grid-cols-2 gap-4 ${hasDd ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
+          <div className={`grid grid-cols-2 gap-4 ${COLS[4 + Number(hasDd) + Number(debt)]}`}>
             <Money label="จำนวนเงิน" value={claim.amount} strong />
             <Field label="ประเภท" value={typeName} />
             <Field label="จ่ายให้" value={claim.payee_name ?? '-'} />
             <Field label="จ่ายเมื่อ" value={formatDate(claim.transfer_date)} />
             {hasDd && <Field label="เลข DD" value={claim.dd_no ?? <span className="text-gray-400">ยังไม่มี</span>} />}
+            {debt && <Field label="เลขรับสภาพหนี้" value={claim.debt_doc_no ?? <span className="text-gray-400">ยังไม่มี</span>} />}
           </div>
           <div className="mt-4 border-t border-gray-100 pt-3">
             {blocker && <HintLine tone="warn">{blocker} ใบนี้ยังติ๊กเข้ารอบไม่ได้</HintLine>}
@@ -46,6 +58,11 @@ export function ClearClaimCard({ claim, typeName, checked, blocker, hasDd, highl
               {hasDd && (
                 <button type="button" onClick={onDd} disabled={busy} className={BTN_VIEW}>
                   <PencilLine className="h-4 w-4" /> {busy ? 'กำลังบันทึก…' : claim.dd_no ? 'แก้ DD' : 'ใส่ DD'}
+                </button>
+              )}
+              {debtLabel && (
+                <button type="button" onClick={onDebtDoc} disabled={debtBusy} className={BTN_VIEW}>
+                  <FileSignature className="h-4 w-4" /> {debtBusy ? 'กำลังบันทึก…' : debtLabel}
                 </button>
               )}
             </div>
