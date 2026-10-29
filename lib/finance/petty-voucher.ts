@@ -86,11 +86,11 @@ export function pettyVoucherHtml(opts: VoucherOpts): string {
 
   const rows = groups.map((g, i) => {
     const remark = singleTruck ? truckRemark(claim.items) : g.truckCodes.join(', ');
-    return `<tr><td class="c">${i + 1}</td><td></td><td>${esc(g.label)}</td><td class="c">${g.count} ${esc(g.unit)}</td>` +
+    return `<tr><td class="c">${i + 1}</td><td>${esc(g.label)}</td><td class="c">${g.count} ${esc(g.unit)}</td>` +
       `<td class="a">${money(g.total)}</td><td>${esc(remark)}</td></tr>`;
   });
   // ฟอร์มกระดาษมี 6 บรรทัดเสมอ — เติมแถวว่างให้ช่องเซ็นอยู่ที่เดิม
-  for (let i = rows.length; i < 6; i += 1) rows.push(`<tr><td class="c">${i + 1}</td><td></td><td>&nbsp;</td><td></td><td class="a"></td><td></td></tr>`);
+  for (let i = rows.length; i < 6; i += 1) rows.push(`<tr><td class="c">${i + 1}</td><td>&nbsp;</td><td></td><td class="a"></td><td></td></tr>`);
 
   const body = `<section class="doc-part">
 ${docHead({ title: 'ใบสำคัญจ่ายเงินสดย่อย', english: '(Petty Cash Voucher)', logoUrl: opts.logoUrl,
@@ -103,7 +103,7 @@ ${field('รหัสค่าใช้จ่ายของผู้เบิ�
 ${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}</div>
 
 ${sec(2, 'รายการ', 'Items')}
-<table class="items"><thead><tr><th class="c" style="width:9mm">ลำดับ</th><th style="width:22mm">Account Code</th><th>รายการ</th>
+<table class="items"><thead><tr><th class="c" style="width:9mm">ลำดับ</th><th>รายการ</th>
 <th class="c" style="width:22mm">จำนวน (หน่วย)</th><th class="a" style="width:24mm">จำนวนเงิน</th><th style="width:34mm">หมายเหตุ</th></tr></thead>
 <tbody>${rows.join('')}</tbody></table>
 <div class="sum"><div class="dates">${field('วันที่โอน', thaiDate(claim.transfer_date))}

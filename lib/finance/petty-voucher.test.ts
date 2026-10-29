@@ -359,8 +359,11 @@ describe('ชื่อพนักงานบนใบ แทนรหัส (�
 describe('ตรงกับฟอร์มกระดาษจริง (ดูตัวอย่างที่ผู้ใช้ส่ง 2026-10-13)', () => {
   const html = pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก' });
   test('ชื่อบริษัทมี (มหาชน)', () => expect(html).toContain('บริษัท มีนาทรานสปอร์ต จำกัด (มหาชน)'));
-  test('ตารางมีคอลัมน์ ลำดับ / Account Code / รายการ / จำนวน (หน่วย) / จำนวนเงิน / หมายเหตุ', () => {
-    for (const h of ['ลำดับ', 'Account Code', 'รายการ', 'จำนวน (หน่วย)', 'จำนวนเงิน', 'หมายเหตุ']) expect(html).toContain(`>${h}</th>`);
+  test('ตารางมีคอลัมน์ ลำดับ / รายการ / จำนวน (หน่วย) / จำนวนเงิน / หมายเหตุ — ไม่มี Account Code (ผู้ใช้สั่ง 29/10/2026)', () => {
+    for (const h of ['ลำดับ', 'รายการ', 'จำนวน (หน่วย)', 'จำนวนเงิน', 'หมายเหตุ']) expect(html).toContain(`>${h}</th>`);
+    expect(html).not.toContain('Account Code');
+    const firstRow = html.split('<table class="items">')[1]?.split('<tbody>')[1]?.split('</tr>')[0] ?? '';
+    expect(firstRow.match(/<td/g)?.length).toBe(5);
     expect(html).not.toContain('>ราคา/หน่วย</th>');
   });
   test('ใบชั่งรวมตามราคา บอกจำนวนแยกประเภทรถในรายการ', () =>
