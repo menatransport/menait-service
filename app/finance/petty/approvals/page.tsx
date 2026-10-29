@@ -114,6 +114,11 @@ function PettyApprovals() {
     })();
     return () => { alive = false; };
   }, [pendingKey, claims]);
+  // แนบสลิปจากการ์ดแล้วโหลดไฟล์ของใบนั้นใบเดียว ปุ่มอนุมัติจ่ายจะเปิดเองเมื่อเอกสารครบ
+  const reloadFiles = useCallback(async (formId: string) => {
+    const rows = await listClaimFiles(formId);
+    setFiles(f => ({ ...f, [formId]: rows }));
+  }, []);
 
   // ลิงก์ ?doc=<เลขที่ใบ>: ไปแถบที่ใบอยู่ ถ้าผ่านมือไปแล้วบอกว่าไปไหน (แบบหน้าอนุมัติ Advance)
   useEffect(() => {
@@ -245,7 +250,8 @@ function PettyApprovals() {
                   files={files[c.form_id]} highlight={!!doc && c.form_id === doc}
                   processing={busy === `approve-${c.form_id}` || busy === `return-${c.form_id}`}
                   onView={() => setOpenId(c.form_id)}
-                  onReturn={() => void act(c, 'return')} onApprove={() => void act(c, 'approve')} />
+                  onReturn={() => void act(c, 'return')} onApprove={() => void act(c, 'approve')}
+                  onFilesChanged={() => reloadFiles(c.form_id)} />
               ))}
             </div>
           )}

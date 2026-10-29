@@ -3,6 +3,7 @@
  * — ไม่มี React ไม่มี fetch · โครงแถบ/การ์ดลอกหน้าอนุมัติ Advance (app/finance/approvals/page.tsx)
  */
 import type { PettyClaim, PettyRound, PettySpec } from '@/app/finance/types-petty';
+import { isHolderAttachment } from '@/lib/finance/petty-spec';
 import { formatDate } from '@/lib/finance/status';
 
 export type HolderView = 'pending' | 'clear' | 'history';
@@ -60,11 +61,23 @@ export function claimPeriod(claim: Pick<PettyClaim, 'period_from' | 'period_to' 
   return formatDate(claim.expense_date);
 }
 
+export type DocsState = {
+  ready: boolean;
+  /** ทุกอย่างที่ยังขาด (ชื่อหมวด) */
+  missing: string[];
+  /** ที่คนเปิดใบต้องแนบ */
+  fromClerk: string[];
+  /** ที่เจ้าของเงินสดแนบเองตอนอนุมัติจ่าย (สลิปโอน) */
+  fromHolder: string[];
+  /** หมวดที่ปุ่ม แนบสลิปโอน บนการ์ดอัปโหลดเข้า — null = สลิปมีแล้ว */
+  slipFolder: string | null;
+};
+
 /**
  * เอกสารครบไหม — นับไฟล์ต่อหมวดเทียบ spec: หมวดที่ติ๊กบังคับ + กฎ require_attachment ก่อนอนุมัติที่เข้าเงื่อนไขของใบ
- * (เช่น จ่ายร้านเงินสดต้องมีสำเนาบัตร) · ด่านจริงอยู่ที่ BE ตอนกด
+ * (เช่น จ่ายร้านเงินสดต้องมีสำเนาบัตร) · แยกว่าขาดจากคนเปิดใบ หรือขาดสลิปโอนของเจ้าของเงินสดเอง · ด่านจริงอยู่ที่ BE ตอนกด
  */
-export function docsState(spec: PettySpec | null | undefined, counts: Record<string, number>, claim?: PettyClaim): { ready: boolean; missing: string[] } {
+export function docsState(spec: PettySpec | null | undefined, counts: Record<string, number>, claim?: PettyClaim): DocsState {
   const keys = new Set((spec?.attachments ?? []).filter(a => a.required).map(a => a.key));
   if (claim) {
     for (const r of spec?.rules ?? []) {
@@ -72,8 +85,35 @@ export function docsState(spec: PettySpec | null | undefined, counts: Record<str
     }
   }
   const label = (key: string) => spec?.attachments?.find(a => a.key === key)?.label ?? key;
-  const missing = [...keys].filter(k => !(counts[k] > 0)).map(label);
-  return { ready: missing.length === 0, missing };
+  const missingKeys = [...keys].filter(k => !(counts[k] > 0));
+  const holderKeys = missingKeys.filter(isHolderAttachment);
+  return {
+    ready: missingKeys.length === 0,
+    missing: missingKeys.map(label),
+    fromClerk: missingKeys.filter(k => !isHolderAttachment(k)).map(label),
+    fromHolder: holderKeys.map(label),
+    slipFolder: holderKeys[0] ?? null,
+  };
+}
+
+/**
+ * บรรทัดเหนือปุ่มของการ์ดรออนุมัติจ่าย — null = ไม่ต้องบอกอะไร
+ * ขาดของคนเปิดใบ: ให้คนเปิดใบแนบหรือตีกลับ (ยังไม่ควรจ่าย) · ขาดแค่สลิปโอน: เป็นงานของเจ้าของเงินสดเอง มีปุ่มแนบให้
+ */
+export function pendingHint(docs: DocsState | null): { text: string; attachFolder: string | null } | null {
+  if (!docs || docs.ready) return null;
+  if (docs.fromClerk.length > 0) {
+    return { text: 'เอกสารยังไม่ครบ ให้คนเปิดใบแนบเพิ่มก่อน หรือกดตีกลับพร้อมบอกว่าขาดอะไร', attachFolder: null };
+  }
+  return { text: 'โอนเงินแล้วแนบสลิปโอนก่อน แล้วค่อยกดอนุมัติจ่าย', attachFolder: docs.slipFolder };
+}
+
+/** ช่อง "เอกสาร" บนการ์ด — ขาดแค่สลิปโอนของเจ้าของเงินสดไม่ใช่ความผิดของใบ จึงเป็นสีเตือน ไม่ใช่สีแดง */
+export function docsLabel(docs: DocsState | null): { text: string; tone: 'muted' | 'ok' | 'warn' | 'bad' } {
+  if (!docs) return { text: 'กำลังตรวจ…', tone: 'muted' };
+  if (docs.ready) return { text: 'ครบ', tone: 'ok' };
+  if (docs.fromClerk.length === 0) return { text: 'รอสลิปโอนจากคุณ', tone: 'warn' };
+  return { text: `ไม่ครบ ขาด ${docs.missing.length} อย่าง`, tone: 'bad' };
 }
 
 /** ประเภทนี้มีเลข DD — ปุ่ม ใส่ DD / แก้ DD */

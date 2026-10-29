@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettyClaim, PettyRound, PettySpec } from '@/app/finance/types-petty';
 import {
-  claimOutcome, claimPeriod, clearableClaims, clearedByMe, ddRequired, docsState, handledClaims, locateClaim,
-  locateRound, parseHeadView, parseHolderView, pendingClaims, pickSummary, roundBlocker, roundOutcome, ruleApplies,
+  claimOutcome, claimPeriod, clearableClaims, clearedByMe, ddRequired, docsLabel, docsState, handledClaims, locateClaim,
+  locateRound, parseHeadView, parseHolderView, pendingClaims, pendingHint, pickSummary, roundBlocker, roundOutcome, ruleApplies,
   splitByPrimary, tabLabel, usesDd, type ClearRound,
 } from './model';
 
@@ -105,14 +105,39 @@ describe('claimPeriod', () => {
   });
 });
 
+const ALL_IN = { ready: true, missing: [], fromClerk: [], fromHolder: [], slipFolder: null };
+
 describe('docsState', () => {
   test('ready when every required folder has a file', () => {
-    expect(docsState(DD_SPEC, { receipt: 1, transfer: 2 })).toEqual({ ready: true, missing: [] });
+    expect(docsState(DD_SPEC, { receipt: 1, transfer: 2 })).toEqual(ALL_IN);
   });
   test('lists what is missing by label', () => {
-    expect(docsState(DD_SPEC, { receipt: 1, photo: 3 })).toEqual({ ready: false, missing: ['สลิปโอน'] });
+    expect(docsState(DD_SPEC, { receipt: 1, photo: 3 }).missing).toEqual(['สลิปโอน']);
   });
-  test('no spec = nothing required', () => expect(docsState(undefined, {})).toEqual({ ready: true, missing: [] }));
+  test('no spec = nothing required', () => expect(docsState(undefined, {})).toEqual(ALL_IN));
+  test('only the holder\'s transfer slip missing = owed by the holder, upload goes to transfer', () => {
+    expect(docsState(DD_SPEC, { receipt: 1 })).toEqual({
+      ready: false, missing: ['สลิปโอน'], fromClerk: [], fromHolder: ['สลิปโอน'], slipFolder: 'transfer',
+    });
+  });
+  test('clerk files missing are kept apart from the holder slip', () => {
+    expect(docsState(DD_SPEC, {})).toEqual({
+      ready: false, missing: ['ใบเสร็จ', 'สลิปโอน'], fromClerk: ['ใบเสร็จ'], fromHolder: ['สลิปโอน'], slipFolder: 'transfer',
+    });
+    expect(docsState(DD_SPEC, { transfer: 1 })).toEqual({
+      ready: false, missing: ['ใบเสร็จ'], fromClerk: ['ใบเสร็จ'], fromHolder: [], slipFolder: null,
+    });
+  });
+  test('a rule that asks for the transfer slip before approve still counts as the holder\'s', () => {
+    const spec: PettySpec = {
+      attachments: [{ key: 'receipt', label: 'ใบเสร็จ', required: true }, { key: 'transfer', label: 'หลักฐานโอนเงิน' }],
+      rules: [{ when: 'always', require_attachment: 'transfer', at: 'BEFORE_APPROVE' }],
+    };
+    const out = docsState(spec, { receipt: 1 }, claim({}));
+    expect(out.fromClerk).toEqual([]);
+    expect(out.fromHolder).toEqual(['หลักฐานโอนเงิน']);
+    expect(out.slipFolder).toBe('transfer');
+  });
   test('conditional attachment rules before approve count when the claim matches (same as the BE gate)', () => {
     const spec: PettySpec = {
       attachments: [{ key: 'receipt', label: 'ใบเสร็จ', required: true }, { key: 'id_card', label: 'สำเนาบัตรประชาชน' }],
@@ -123,9 +148,39 @@ describe('docsState', () => {
     };
     const cash = claim({ detail: { payment_method: 'โอนเงิน', payee_type: 'บุคคล/ร้านเงินสด' } });
     const company = claim({ detail: { payment_method: 'โอนเงิน', payee_type: 'นิติบุคคล' } });
-    expect(docsState(spec, { receipt: 1 }, cash)).toEqual({ ready: false, missing: ['สำเนาบัตรประชาชน'] });
-    expect(docsState(spec, { receipt: 1 }, company)).toEqual({ ready: true, missing: [] });
-    expect(docsState(spec, {}, company)).toEqual({ ready: false, missing: ['ใบเสร็จ'] });
+    expect(docsState(spec, { receipt: 1 }, cash)).toMatchObject({ ready: false, missing: ['สำเนาบัตรประชาชน'], fromClerk: ['สำเนาบัตรประชาชน'] });
+    expect(docsState(spec, { receipt: 1 }, company)).toEqual(ALL_IN);
+    expect(docsState(spec, {}, company)).toMatchObject({ ready: false, missing: ['ใบเสร็จ'], fromClerk: ['ใบเสร็จ'] });
+  });
+});
+
+describe('pendingHint (line above the buttons on the holder\'s pending card)', () => {
+  test('nothing to say while loading or when everything is in', () => {
+    expect(pendingHint(null)).toBeNull();
+    expect(pendingHint(docsState(DD_SPEC, { receipt: 1, transfer: 1 }))).toBeNull();
+  });
+  test('only the holder slip missing: tell the holder to pay, attach the slip, then approve — with an attach button', () => {
+    expect(pendingHint(docsState(DD_SPEC, { receipt: 1 }))).toEqual({
+      text: 'โอนเงินแล้วแนบสลิปโอนก่อน แล้วค่อยกดอนุมัติจ่าย', attachFolder: 'transfer',
+    });
+  });
+  test('clerk files missing: keep the old message, no attach button (even if the slip is missing too)', () => {
+    const clerk = { text: 'เอกสารยังไม่ครบ ให้คนเปิดใบแนบเพิ่มก่อน หรือกดตีกลับพร้อมบอกว่าขาดอะไร', attachFolder: null };
+    expect(pendingHint(docsState(DD_SPEC, { transfer: 1 }))).toEqual(clerk);
+    expect(pendingHint(docsState(DD_SPEC, {}))).toEqual(clerk);
+  });
+});
+
+describe('docsLabel (เอกสาร field on the pending card)', () => {
+  test('loading / ready', () => {
+    expect(docsLabel(null)).toEqual({ text: 'กำลังตรวจ…', tone: 'muted' });
+    expect(docsLabel(docsState(DD_SPEC, { receipt: 1, transfer: 1 }))).toEqual({ text: 'ครบ', tone: 'ok' });
+  });
+  test('only the holder slip missing = waiting on you, not an error', () =>
+    expect(docsLabel(docsState(DD_SPEC, { receipt: 1 }))).toEqual({ text: 'รอสลิปโอนจากคุณ', tone: 'warn' }));
+  test('clerk files missing = count of everything missing', () => {
+    expect(docsLabel(docsState(DD_SPEC, {}))).toEqual({ text: 'ไม่ครบ ขาด 2 อย่าง', tone: 'bad' });
+    expect(docsLabel(docsState(DD_SPEC, { transfer: 1 }))).toEqual({ text: 'ไม่ครบ ขาด 1 อย่าง', tone: 'bad' });
   });
 });
 
