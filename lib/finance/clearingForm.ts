@@ -56,7 +56,7 @@ export interface ClaimRow {
 export interface ClearingSignature { name: string; date: string; esign?: ESign }
 
 export interface ClearingFormData {
-  /** form_id: Document Control ref and the requester stamp's ref. */
+  /** form_id: Document Control ref and the Ref on every e-Signature stamp. */
   document_no: string;
   /** REF No. (โดยแผนกบัญชี) = fin.clear_doc_no */
   ref_no: string;
@@ -95,7 +95,7 @@ function clearApprovalSignatures(detail: AdvanceDetail): { unit_head?: ClearingS
   const approved = logs.slice(start).filter(l => l.action === 'APPROVED' && l.created_at);
   const stamp = (l: (typeof approved)[number]): ClearingSignature => {
     const name = l.action_by_name ?? l.action_by ?? '';
-    return { name, date: dmy(l.created_at), esign: { name, timestamp: l.created_at!, ref: 'อนุมัติเคลียร์' } };
+    return { name, date: dmy(l.created_at), esign: { name, timestamp: l.created_at!, ref: detail.form_id } };
   };
   const slots = signatureSlots(approved.map(l => ({ step: l.step, who: l.action_by, item: l })),
     detail.status !== 'CLEARING_APPROVAL');
@@ -136,7 +136,7 @@ export function toClearingData(detail: AdvanceDetail): ClearingFormData {
         ...(fin?.clear_submitted_at ? { esign: { name, timestamp: fin.clear_submitted_at, ref: detail.form_id } } : {}),
       },
       accounting: closed
-        ? { name: fin?.closed_by_name ?? '', date: dmy(fin?.closed_at), esign: { name: fin?.closed_by_name ?? '', timestamp: fin!.closed_at!, ref: 'ปิดรายการ' } }
+        ? { name: fin?.closed_by_name ?? '', date: dmy(fin?.closed_at), esign: { name: fin?.closed_by_name ?? '', timestamp: fin!.closed_at!, ref: detail.form_id } }
         : { name: '', date: '' },
     },
   };

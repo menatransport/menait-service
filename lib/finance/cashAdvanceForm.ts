@@ -218,10 +218,8 @@ export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
   const multiStep = (detail.approval?.steps?.length ?? 0) >= 2;
   const mkStamp = (name: string | null | undefined, at: string | null | undefined): Signature => ({
     name: name ?? '', date: dmy(at),
-    ...(at ? { esign: {
-      name: name ?? '', timestamp: at,
-      ref: detail.approval ? `ข้อ ${detail.approval.clause}` : detail.form_id,
-    } } : {}),
+    // Ref บนตราลงนามทุกช่อง = เลขที่ใบคำขอเบิก
+    ...(at ? { esign: { name: name ?? '', timestamp: at, ref: detail.form_id } } : {}),
   });
   const mapped = multiStep && stepApprovals.length > 0;
   // BE keeps current_step numeric after completion, so "complete" comes from the document status

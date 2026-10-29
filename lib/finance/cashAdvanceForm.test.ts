@@ -163,7 +163,8 @@ describe('cash advance form', () => {
     };
     const d = toCashAdvanceData(detail);
     expect(d.signatures.requester.esign).toEqual({ name: 'ผู้ขอ', timestamp: '2026-09-15T02:12:45+00:00', ref: 'ADV-2026-0001' });
-    expect(d.signatures.approver.esign).toEqual({ name: 'อธิวัฒน์', timestamp: '2026-09-16T07:03:10+00:00', ref: 'ข้อ 6.6' });
+    // Ref บนตราลงนามทุกช่อง = เลขที่ใบคำขอเบิก (ผู้ใช้สั่ง 29/10/2026)
+    expect(d.signatures.approver.esign).toEqual({ name: 'อธิวัฒน์', timestamp: '2026-09-16T07:03:10+00:00', ref: 'ADV-2026-0001' });
     expect(d.signatures.unit_head.esign).toBeUndefined();
     expect(d.signatures.manager.esign).toBeUndefined();
     expect(toCashAdvanceData({ ...detail, approval_logs: [] }).signatures.approver.esign).toBeUndefined();
@@ -189,6 +190,7 @@ describe('cash advance form', () => {
     expect(d.signatures.unit_head.esign?.name).toBe('พุทธชาติ');
     expect(d.signatures.manager.esign?.name).toBe('เจษฎา');
     expect(d.signatures.approver.esign?.name).toBe('สุวรรณา');
+    expect([d.signatures.unit_head, d.signatures.manager, d.signatures.approver].map(s => s.esign?.ref)).toEqual(Array(3).fill('ADV-2610-002'));
     const pend = toCashAdvanceData({ ...detail, status: 'PENDING_APPROVAL',
       approval: { ...detail.approval, current_step: 3, step_approvals: detail.approval.step_approvals.slice(0, 2) } });
     expect(pend.signatures.unit_head.esign?.name).toBe('พุทธชาติ');
@@ -210,8 +212,8 @@ describe('cash advance form', () => {
       approval_logs: [{ level_no: 2, action: 'APPROVED', action_at: '2026-09-17T02:00:00+00:00', actor_name: 'ผู้อำนวยการ', remark: null }],
     };
     const d = toCashAdvanceData(detail);
-    expect(d.signatures.unit_head.esign).toEqual({ name: 'หัวหน้า', timestamp: '2026-09-16T01:00:00+00:00', ref: 'ข้อ 6.5' });
-    expect(d.signatures.approver.esign).toEqual({ name: 'ผู้อำนวยการ', timestamp: '2026-09-17T02:00:00+00:00', ref: 'ข้อ 6.5' });
+    expect(d.signatures.unit_head.esign).toEqual({ name: 'หัวหน้า', timestamp: '2026-09-16T01:00:00+00:00', ref: 'ADV-2610-001' });
+    expect(d.signatures.approver.esign).toEqual({ name: 'ผู้อำนวยการ', timestamp: '2026-09-17T02:00:00+00:00', ref: 'ADV-2610-001' });
     expect(d.signatures.manager.esign).toBeUndefined();
     // step 2 pending: approver blank, unit head stamped
     const pend = toCashAdvanceData({ ...detail, status: 'PENDING_APPROVAL', approval: { ...detail.approval, current_step: 2, step_approvals: [detail.approval.step_approvals[0]] }, approval_logs: [] });

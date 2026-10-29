@@ -64,12 +64,13 @@ describe('expense claim form (Part 2)', () => {
     expect(open.signatures.requester.date).toBe('10/9/2026');
     expect(open.signatures.accounting).toEqual({ name: '', date: '' });
     const closed = toClearingData(detail({ status: 'CLOSED' }));
-    expect(closed.signatures.accounting.esign).toEqual({ name: 'นายบัญชี ตรวจ', timestamp: '2026-09-11T08:30:00+00:00', ref: 'ปิดรายการ' });
+    // Ref บนตราลงนามทุกช่อง = เลขที่ใบคำขอเบิก (ผู้ใช้สั่ง 29/10/2026)
+    expect(closed.signatures.accounting.esign).toEqual({ name: 'นายบัญชี ตรวจ', timestamp: '2026-09-11T08:30:00+00:00', ref: 'ADV-2026-0001' });
     expect(toClearingData(detail({ status: 'CLOSED' }, { closed_at: null })).signatures.accounting.esign).toBeUndefined();
     expect((buildClearingHtml(open, {}).match(/class="esign"/g) ?? []).length).toBe(1);
     const html = buildClearingHtml(closed, {});
     expect((html.match(/class="esign"/g) ?? []).length).toBe(2);
-    expect(html).toContain('ปิดรายการ');
+    expect(html).not.toContain('<div class="esign-ref">ปิดรายการ');
     expect(html).toContain('ลงนามอิเล็กทรอนิกส์ผ่านระบบ');
   });
   test('html has the title, header, every column header, clause, summary label and signature title (verbatim)', () => {
@@ -259,6 +260,7 @@ describe('Part 2 — ลายเซ็นผู้อนุมัติกา�
   test('อนุมัติขั้นเดียว ลงช่องผู้มีอำนาจอนุมัติ', () => {
     const d = toClearingData(detail({ status: 'AWAITING_REVIEW', clear_logs: [log(1, 'SUBMITTED', '2026-10-20T02:00:00Z'), log(1, 'APPROVED', '2026-10-20T03:00:00Z', 'ศิวพร ม่วงสวย')] }));
     expect(d.signatures.approver?.name).toBe('ศิวพร ม่วงสวย');
+    expect(d.signatures.approver?.esign?.ref).toBe('ADV-2026-0001');
     expect(d.signatures.unit_head?.name ?? '').toBe('');
     expect(buildClearingHtml(d, {})).toContain('ศิวพร ม่วงสวย');
   });
