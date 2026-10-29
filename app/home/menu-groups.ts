@@ -21,6 +21,17 @@ export interface MenuItem {
     financeOnly?: boolean;
 }
 
+/**
+ * Link filter for /home?group=<id> (e.g. /home?group=finance shows only Finance Service).
+ * Picks from the groups this user can already see, so a link can't open a hidden group.
+ * No param or an unknown id → null = show every group.
+ */
+export function focusGroup(groups: readonly MenuGroup[], id: string | null | undefined): MenuGroup | null {
+    const key = id?.trim().toLowerCase();
+    if (!key) return null;
+    return groups.find(g => g.id === key) ?? null;
+}
+
 /** An item with a link or with sub-items can be opened; anything else is "เร็ว ๆ นี้". */
 export const isMenuItemReady = (item: MenuItem) => Boolean(item.href || item.children?.length);
 
