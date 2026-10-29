@@ -32,7 +32,7 @@ describe('pettyVoucherHtml', () => {
     expect(html).not.toContain('เล่มที่');
   });
   test('shows the division of the fund — branch is in the form id (สาขาแบบติ๊กเอาออก 29/10/2026)', () => {
-    expect(html).toContain('B02 ฝ่ายยานยนต์');
+    expect(html).toContain('3B02 ศลบ - ยานยนต์');
     expect(html).toContain('LB-B02-2610-001');
   });
   test('groups rows by rate and truck type', () => {
@@ -95,7 +95,7 @@ describe('หน่วยนับบนใบ มาจากประเภท
 describe('รหัสค่าใช้จ่ายของบัญชี บนใบสำคัญจ่าย (ตารางบัญชี 2026-10-14)', () => {
   const html = pettyVoucherHtml({ claim, fund, typeName: 'ค่าชั่งน้ำหนัก' });
   test('พิมพ์รหัส + ชื่อแผนกตามบัญชี แทนช่อง Project Code เดิม', () => {
-    expect(html).toMatch(/<span class="l">รหัสค่าใช้จ่ายของผู้เบิก \(บัญชี\)<\/span><span class="v">B02 ฝ่ายยานยนต์<\/span>/);
+    expect(html).toMatch(/<span class="l">รหัสค่าใช้จ่ายของผู้เบิก \(บัญชี\)<\/span><span class="v">3B02 ศลบ - ยานยนต์<\/span>/);
     expect(html).not.toContain('Project Code');
   });
   test('เลขที่ใบเป็นแบบตัวอักษรสาขา', () => expect(html).toContain('LB-B02-2610-001'));
@@ -462,7 +462,21 @@ describe('รหัสค่าใช้จ่ายของผู้เบิ�
   test('ใบที่เลือกแล้ว พิมพ์รหัสที่เลือก', () =>
     expect(pettyVoucherHtml({ claim: { ...claim, cost_center: '3B04' }, fund, typeName: 'x' }))
       .toMatch(/<span class="l">รหัสค่าใช้จ่ายของผู้เบิก \(บัญชี\)<\/span><span class="v">3B04 ศลบ - ความปลอดภัย<\/span>/));
-  test('ใบเก่าที่ไม่มี พิมพ์รหัสแผนกของวงเงินแบบเดิม', () =>
+  test('ใบเก่าที่ไม่มี พิมพ์รหัสแผนกจากวงเงิน format เดียวกัน', () =>
     expect(pettyVoucherHtml({ claim, fund, typeName: 'x' }))
-      .toMatch(/<span class="l">รหัสค่าใช้จ่ายของผู้เบิก \(บัญชี\)<\/span><span class="v">B02 ฝ่ายยานยนต์<\/span>/));
+      .toMatch(/<span class="l">รหัสค่าใช้จ่ายของผู้เบิก \(บัญชี\)<\/span><span class="v">3B02 ศลบ - ยานยนต์<\/span>/));
+  test('ใบสรุปรายการใช้ช่องเดียวกัน แทน "สาขา · Division"', () => {
+    const html = itemSummaryHtml({ claim: { ...claim, cost_center: '3B04' }, fund, typeName: 'x', spec: null });
+    expect(html).toMatch(/<span class="l">รหัสค่าใช้จ่ายของผู้เบิก \(บัญชี\)<\/span><span class="v">3B04 ศลบ - ความปลอดภัย<\/span>/);
+    expect(html).not.toContain('สาขา · Division');
+  });
+});
+
+describe('ช่องวงเงินสดย่อยบน PDF แบบเดียวกับหน้าเปิดใบ (ผู้ใช้สั่ง 29/10/2026)', () => {
+  const held = { ...fund, holder_name: 'สุทธิพงษ์ แจ่มฟ้า' };
+  const want = /<span class="l">วงเงินสดย่อย<\/span><span class="v">วงเงินสดย่อย - ลาดกระบัง - ยานยนต์ · สุทธิพงษ์ แจ่มฟ้า<\/span>/;
+  test('ใบสำคัญจ่าย', () => expect(pettyVoucherHtml({ claim, fund: held, typeName: 'x' })).toMatch(want));
+  test('ใบสรุปรายการ', () => expect(itemSummaryHtml({ claim, fund: held, typeName: 'x', spec: null })).toMatch(want));
+  test('ไม่มีชื่อผู้ถือเงิน ใช้รหัสพนักงานแทน', () =>
+    expect(pettyVoucherHtml({ claim, fund, typeName: 'x' })).toContain('วงเงินสดย่อย - ลาดกระบัง - ยานยนต์ · 12345'));
 });

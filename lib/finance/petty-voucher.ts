@@ -5,6 +5,7 @@ import {
   bangkokDate, checkboxes, docHead, field, PETTY_DOC_CSS, sec, signBlock, thaiDate, totalBox,
 } from '@/lib/finance/petty-doc';
 import { claimCostCenterLine } from '@/lib/finance/petty-cost-centers';
+import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
 import { payeeBankText, type PayeeBank } from '@/lib/finance/petty-payee';
 import { documentControlFooter, esc, money, printedNow, wrapDocument, type ESign } from '@/lib/finance/printShared';
 
@@ -21,9 +22,6 @@ export type VoucherOpts = {
   logoUrl?: string | null;
 };
 
-export const BRANCHES: Record<string, string> = {
-  '01': 'สกท', '02': 'สสบ', '03': 'สลบ', '04': 'ศรย', '05': 'สขก',
-};
 /** ที่อยู่สาขาที่พิมพ์บนใบรับรองแทนใบเสร็จ (จากต้นฉบับ) — สาขาอื่นเติมเมื่อได้เอกสาร */
 const BRANCH_ADDRESS: Record<string, { address: string; taxId: string }> = {
   '03': { address: 'เลขที่ 1 ซอยแฮปปี้เพลส 16 แขวงคลองสามประเวศ เขตลาดกระบัง จังหวัดกรุงเทพมหานคร 10520', taxId: '0107563000207' },
@@ -100,8 +98,9 @@ ${docHead({ title: 'ใบสำคัญจ่ายเงินสดย่อ
 <p class="t2" style="margin-top:4px">${esc(COMPANY)}</p>
 
 ${sec(1, 'ข้อมูลการจ่าย', 'Payment')}
-<div class="grid">${field('จ่ายให้', payeeLine(claim))}${field('รหัสค่าใช้จ่ายของผู้เบิก (บัญชี)', claimCostCenterLine(claim, fund))}
-${field('ประเภทการเบิก', typeName)}${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}</div>
+<div class="grid">${field('จ่ายให้', payeeLine(claim))}${field('วงเงินสดย่อย', fundLabelWithHolder(fund))}
+${field('รหัสค่าใช้จ่ายของผู้เบิก (บัญชี)', claimCostCenterLine(claim, fund))}${field('ประเภทการเบิก', typeName)}
+${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}</div>
 
 ${sec(2, 'รายการ', 'Items')}
 <table class="items"><thead><tr><th class="c" style="width:9mm">ลำดับ</th><th style="width:22mm">Account Code</th><th>รายการ</th>
@@ -303,8 +302,9 @@ ${docHead({ title: `ใบสรุปรายการ ${typeName}`, english: 
     meta: [['เลขที่', claim.form_id], ['วันที่', voucherDate(claim)]] })}
 
 ${sec(1, 'ข้อมูลใบเบิก', 'Claim')}
-<div class="grid">${field('จ่ายให้', claim.payee_name)}${field('ประเภทการเบิก', typeName)}
-${field('สาขา · Division', `${fund.branch_code} ${BRANCHES[fund.branch_code] ?? ''} · ${fund.division_code}`)}${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}</div>
+<div class="grid">${field('จ่ายให้', claim.payee_name)}${field('วงเงินสดย่อย', fundLabelWithHolder(fund))}
+${field('รหัสค่าใช้จ่ายของผู้เบิก (บัญชี)', claimCostCenterLine(claim, fund))}${field('ประเภทการเบิก', typeName)}
+${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}</div>
 
 ${sec(2, 'รายการ', 'Items')}
 ${content}

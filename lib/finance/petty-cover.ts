@@ -4,6 +4,7 @@ import { round2 } from '@/lib/finance/status';
 import { bangkokDate, docHead, field, PETTY_DOC_CSS, sec, signBlock, thaiDate, totalBox } from '@/lib/finance/petty-doc';
 import { printableDocs, requiredDocs } from '@/lib/finance/petty-preset';
 import { documentControlFooter, esc, money, printedNow, wrapDocument } from '@/lib/finance/printShared';
+import { fundCostCenterLine } from '@/lib/finance/petty-cost-centers';
 
 export type ClerkGroup = { clerk: string; claims: PettyClaim[]; total: number };
 
@@ -93,7 +94,7 @@ ${docHead({ title: 'ใบปะหน้าเอกสารเบิกเง
 
 ${sec(1, 'ผู้ส่งเอกสาร', 'Sender')}
 <div class="grid">${field(isRound ? 'เจ้าของเงินสด (ผู้อนุมัติจ่าย)' : 'เจ้าหน้าที่ผู้เปิดใบ', opts.clerkName)}${field('ส่งถึง', 'ฝ่ายบัญชีและการเงิน')}
-${field('สาขา · แผนก', `${opts.branchCode} · ${opts.divisionCode}`)}${field(isRound ? 'รอบส่งเคลียร์' : 'รอบคืนยอด', opts.batchNo ?? '-')}</div>
+${field('สาขา · แผนก', fundCostCenterLine({ branch_code: opts.branchCode, division_code: opts.divisionCode }) || `${opts.branchCode} · ${opts.divisionCode}`)}${field(isRound ? 'รอบส่งเคลียร์' : 'รอบคืนยอด', opts.batchNo ?? '-')}</div>
 
 ${sec(2, 'ใบเบิกที่ส่งมาด้วย', 'Documents')}
 <table class="items"><thead><tr><th class="c" style="width:8mm">#</th><th style="width:34mm">เลขที่ใบเบิก</th><th>ประเภท</th>

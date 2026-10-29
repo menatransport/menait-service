@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   COST_CENTERS, COST_CENTER_GROUPS, centerOfSite, claimCostCenterLine, costCenterGroupsForSite, costCenterLabel,
-  defaultCostCenterForUser, fundForCostCenter, fundsInCenter, isCostCenter,
+  defaultCostCenterForUser, fundCostCenterLine, fundForCostCenter, fundsInCenter, isCostCenter,
 } from './petty-cost-centers';
 
 describe('รายการศูนย์และแผนก (จากผู้ใช้ 29/10/2026)', () => {
@@ -57,12 +57,16 @@ describe('ค่าตั้งต้นจากแผนกของผู้�
   test('ยังไม่มีข้อมูลผู้ใช้ → ว่าง', () => expect(defaultCostCenterForUser(null)).toBe(''));
 });
 
-describe('บรรทัดรหัสค่าใช้จ่ายของผู้เบิก', () => {
-  const fund = { division_code: 'B02' };
+describe('บรรทัดรหัสค่าใช้จ่ายของผู้เบิก (format รหัสแผนกเสมอ ผู้ใช้สั่ง 29/10/2026)', () => {
+  const fund = { branch_code: '03', division_code: 'B02' };
   test('ใบที่เลือกศูนย์และแผนกแล้ว → รหัสที่เลือก', () =>
     expect(claimCostCenterLine({ cost_center: '3B04' }, fund)).toBe('3B04 ศลบ - ความปลอดภัย'));
-  test('ใบเก่าที่ไม่มี → รหัสแผนกของวงเงินแบบเดิม', () =>
-    expect(claimCostCenterLine({ cost_center: null }, fund)).toBe('B02 ฝ่ายยานยนต์'));
+  test('ใบเก่าที่ไม่มี → รหัสแผนกจากวงเงิน (สาขา 03 + B02 → 3B02)', () =>
+    expect(claimCostCenterLine({ cost_center: null }, fund)).toBe('3B02 ศลบ - ยานยนต์'));
+  test('วงเงินที่สาขาไม่มีในรายการ → รหัสฝ่ายแบบเดิม ดีกว่าว่าง', () =>
+    expect(claimCostCenterLine({ cost_center: null }, { branch_code: '04', division_code: 'B02' })).toBe('B02 ฝ่ายยานยนต์'));
+  test('บรรทัดของวงเงิน (ใบปะหน้ารอบ)', () =>
+    expect(fundCostCenterLine({ branch_code: '03', division_code: 'A04' })).toBe('3A04 ศลบ - ฝ่ายบัญชีและการเงิน'));
 });
 
 describe('กรองตามศูนย์ของผู้เบิก (ผู้ใช้สั่ง 29/10/2026: Bangkok HQ มาช่วยกรอง)', () => {

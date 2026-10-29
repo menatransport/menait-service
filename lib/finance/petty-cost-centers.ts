@@ -136,12 +136,25 @@ export function defaultCostCenterForUser(user: CostCenterUser | null | undefined
   return BY_CODE.has(code) ? code : '';
 }
 
-/** บรรทัด "รหัสค่าใช้จ่ายของผู้เบิก (บัญชี)" — ศูนย์และแผนกที่เลือกตอนเปิดใบ · ใบเก่าที่ไม่มี ใช้แผนกของวงเงินแบบเดิม */
+/** รหัสแผนกของวงเงิน: สาขา '03' + ฝ่าย 'B02' → '3B02' · ไม่มีในรายการ = '' */
+function fundCostCenter(fund: Partial<Pick<PettyFund, 'branch_code' | 'division_code'>> | null | undefined): string {
+  if (!fund?.branch_code || !fund.division_code) return '';
+  const code = `${Number(fund.branch_code)}${fund.division_code}`;
+  return BY_CODE.has(code) ? code : '';
+}
+
+/** วงเงินในรูปแบบรหัสแผนก "3B02 ศลบ - ยานยนต์" (ใบปะหน้ารอบ) · สาขาที่ไม่มีในรายการ = รหัสฝ่ายแบบเดิม */
+export function fundCostCenterLine(fund: Partial<Pick<PettyFund, 'branch_code' | 'division_code'>> | null | undefined): string {
+  return costCenterLabel(fundCostCenter(fund)) || accountCodeLine(fund?.division_code ? { division_code: fund.division_code } : null);
+}
+
+/** บรรทัด "รหัสค่าใช้จ่ายของผู้เบิก (บัญชี)" — format รหัสแผนกเสมอ (ผู้ใช้สั่ง 29/10/2026)
+ *  ศูนย์และแผนกที่เลือกตอนเปิดใบ · ใบเก่าที่ไม่มี = รหัสแผนกจากวงเงิน */
 export function claimCostCenterLine(
   claim: Pick<PettyClaim, 'cost_center'>,
-  fund: Pick<PettyFund, 'division_code'> | null | undefined,
+  fund: Partial<Pick<PettyFund, 'branch_code' | 'division_code'>> | null | undefined,
 ): string {
-  return costCenterLabel(claim.cost_center) || accountCodeLine(fund);
+  return costCenterLabel(claim.cost_center) || fundCostCenterLine(fund);
 }
 
 /** เลขศูนย์ตัวแรกของรหัส → สาขาของวงเงิน: '3B02' → '03' */

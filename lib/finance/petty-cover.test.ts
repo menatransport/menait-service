@@ -59,6 +59,8 @@ describe('coverSheetHtml', () => {
     clerkName: 'สายใจ ทองดี', branchCode: '03', divisionCode: 'B02' });
 
   test('names the clerk', () => expect(html).toContain('สายใจ ทองดี'));
+  test('สาขา · แผนก เป็น format รหัสแผนก (ผู้ใช้สั่ง 29/10/2026)', () =>
+    expect(html).toMatch(/<span class="l">สาขา · แผนก<\/span><span class="v">3B02 ศลบ - ยานยนต์<\/span>/));
   test('lists every claim', () => {
     expect(html).toContain('03-B02-2610-001');
     expect(html).toContain('03-B02-2610-002');
