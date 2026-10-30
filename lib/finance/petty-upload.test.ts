@@ -42,6 +42,11 @@ describe('canUploadPettyFile', () => {
     expect(canUploadPettyFile({ user: { employee_id: null }, claim, fund })).toBe(false));
 });
 
+describe('หมวดใบรับรองแทนใบเสร็จ (ค่าใช้จ่ายทั่วไป บิลสำเนา)', () => {
+  // เจอตอนทดสอบ 30/10: อัปโหลดหมวดนี้ได้ 400 ใบบิลสำเนาเลยอนุมัติไม่ได้ตลอด
+  test('อัปโหลดหมวด receipt_substitute ได้', () => expect(isPettyFolder('receipt_substitute')).toBe(true));
+});
+
 describe('หมวด map (REQUIREMENT §3.2/§3.5 รูป Map)', () => {
   test('อัปโหลดหมวด map ได้', () => expect(isPettyFolder('map')).toBe(true));
 });

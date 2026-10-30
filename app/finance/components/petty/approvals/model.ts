@@ -149,6 +149,13 @@ export function printsFor(spec: PettySpec | null | undefined, claim: PettyClaim)
   return (spec?.prints ?? ['PETTY_VOUCHER']).filter(kind => !when[kind] || ruleApplies(when[kind], claim));
 }
 
+/** ชื่อใบสรุปรายการในเมนูพิมพ์ — ประเภทที่ไม่บังคับรถ (ค่าใช้จ่ายทั่วไป) ไม่เขียนว่ารายคัน */
+export function itemSummaryLabel(spec: PettySpec | null | undefined): string {
+  if (spec?.item_based !== true) return 'ใบสรุปรายการ';
+  const truckRequired = (spec.item_fields ?? []).some(f => f.type === 'truck' && f.required);
+  return truckRequired ? 'ใบสรุปรายการ (รายคัน/รายวัน)' : 'ใบสรุปรายการ (รายบิล/รายวัน)';
+}
+
 /** BE บังคับ DD ตอนรวมรอบ (BEFORE_SUBMIT_TO_ACCOUNTING) เมื่อเงื่อนไขของประเภทเข้า */
 export function ddRequired(claim: PettyClaim, spec: PettySpec | null | undefined): boolean {
   return (spec?.rules ?? []).some(r => r.require_field === 'dd_no' && r.at === 'BEFORE_SUBMIT_TO_ACCOUNTING' && ruleApplies(r.when, claim));

@@ -3,7 +3,7 @@ import type { PettyClaim, PettyRound, PettySpec } from '@/app/finance/types-pett
 import {
   claimOutcome, claimPeriod, clearableClaims, clearedByMe, ddRequired, debtDocButton, debtDocMissing, docsLabel, docsState,
   handledClaims, locateClaim,
-  locateRound, parseHeadView, parseHolderView, pendingClaims, pendingHint, pickSummary, printsFor, roundBlocker, roundOutcome, ruleApplies,
+  locateRound, parseHeadView, parseHolderView, itemSummaryLabel, pendingClaims, pendingHint, pickSummary, printsFor, roundBlocker, roundOutcome, ruleApplies,
   splitByPrimary, tabLabel, usesDd, type ClearRound,
 } from './model';
 
@@ -330,6 +330,15 @@ describe('printsFor (print menu of one claim)', () => {
   test('no prints listed = the voucher only', () => {
     expect(printsFor({}, claim({}))).toEqual(['PETTY_VOUCHER']);
   });
+});
+
+describe('itemSummaryLabel (print menu name of the item summary)', () => {
+  const truck = { key: 'truck', label: 'รถ', type: 'truck' };
+  test('rows with a required truck = per truck / per day', () =>
+    expect(itemSummaryLabel({ item_based: true, item_fields: [{ ...truck, required: true }] })).toBe('ใบสรุปรายการ (รายคัน/รายวัน)'));
+  test('rows without a required truck (ค่าใช้จ่ายทั่วไป) do not say per truck', () =>
+    expect(itemSummaryLabel({ item_based: true, item_fields: [{ ...truck, required: false }] })).toBe('ใบสรุปรายการ (รายบิล/รายวัน)'));
+  test('single-amount types = plain name', () => expect(itemSummaryLabel({ item_based: false })).toBe('ใบสรุปรายการ'));
 });
 
 // type-only guard: PettyRound stays assignable (lane A adds is_primary later)

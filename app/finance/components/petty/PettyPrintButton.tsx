@@ -5,9 +5,9 @@ import { Printer } from 'lucide-react';
 import type { PettyClaim, PettyFund, PettySpec } from '@/app/finance/types-petty';
 import { itemSummaryHtml, pettyVoucherHtml, receiptSubstituteHtml, travelRequestFormHtml } from '@/lib/finance/petty-voucher';
 import { attachmentPagesHtml, openPrintWindow, type PrintFile } from '@/lib/finance/printShared';
-import { isItemBased, printUnit } from '@/lib/finance/petty-spec';
+import { printUnit } from '@/lib/finance/petty-spec';
 import { showAlert } from '@/app/finance/api';
-import { printsFor } from './approvals/model';
+import { itemSummaryLabel, printsFor } from './approvals/model';
 
 type Kind = 'PETTY_VOUCHER' | 'RECEIPT_SUBSTITUTE' | 'ITEM_SUMMARY' | 'REQUEST_FORM';
 
@@ -79,7 +79,7 @@ export function PettyPrintButton({ claim, fund, spec, typeName, payeePosition }:
         <div className="absolute right-0 z-20 mt-1 w-60 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
           {prints.includes('PETTY_VOUCHER') && item('PETTY_VOUCHER', 'ใบสำคัญจ่ายเงินสดย่อย')}
           {prints.includes('RECEIPT_SUBSTITUTE') && item('RECEIPT_SUBSTITUTE', 'ใบรับรองแทนใบเสร็จรับเงิน')}
-          {item('ITEM_SUMMARY', isItemBased(spec) ? 'ใบสรุปรายการ (รายคัน/รายวัน)' : 'ใบสรุปรายการ')}
+          {item('ITEM_SUMMARY', itemSummaryLabel(spec))}
           {prints.includes('REQUEST_FORM') && item('REQUEST_FORM', 'แบบฟอร์มขอใช้บริการแกร็บแท็กซี่')}
           {prints.includes('DD') && (
             <span className="block px-3 py-1.5 text-left text-xs text-ink-400">
