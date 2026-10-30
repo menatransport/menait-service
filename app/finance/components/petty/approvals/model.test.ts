@@ -3,7 +3,7 @@ import type { PettyClaim, PettyRound, PettySpec } from '@/app/finance/types-pett
 import {
   claimOutcome, claimPeriod, clearableClaims, clearedByMe, ddRequired, debtDocButton, debtDocMissing, docsLabel, docsState,
   handledClaims, locateClaim,
-  locateRound, parseHeadView, parseHolderView, pendingClaims, pendingHint, pickSummary, roundBlocker, roundOutcome, ruleApplies,
+  locateRound, parseHeadView, parseHolderView, pendingClaims, pendingHint, pickSummary, printsFor, roundBlocker, roundOutcome, ruleApplies,
   splitByPrimary, tabLabel, usesDd, type ClearRound,
 } from './model';
 
@@ -312,6 +312,24 @@ describe('locateRound (?doc= on the head page)', () => {
     expect(locateRound('LB-B02-2610-B8', rounds)).toEqual({ id: 8, sub: 'delegable' });
   });
   test('missing round = null', () => expect(locateRound('LB-B02-2610-B9', rounds)).toBeNull());
+});
+
+describe('printsFor (print menu of one claim)', () => {
+  const GENERAL: PettySpec = {
+    prints: ['PETTY_VOUCHER', 'RECEIPT_SUBSTITUTE', 'DD'],
+    print_when: { RECEIPT_SUBSTITUTE: 'bill_kind == สำเนา' },
+  };
+  test('receipt substitute only when the cash bill is a copy', () => {
+    expect(printsFor(GENERAL, claim({ detail: { bill_kind: 'สำเนา' } }))).toEqual(['PETTY_VOUCHER', 'RECEIPT_SUBSTITUTE', 'DD']);
+    expect(printsFor(GENERAL, claim({ detail: { bill_kind: 'ตัวจริง' } }))).toEqual(['PETTY_VOUCHER', 'DD']);
+    expect(printsFor(GENERAL, claim({ detail: {} }))).toEqual(['PETTY_VOUCHER', 'DD']);
+  });
+  test('types without print_when keep every print', () => {
+    expect(printsFor({ prints: ['PETTY_VOUCHER', 'RECEIPT_SUBSTITUTE', 'DD'] }, claim({}))).toEqual(['PETTY_VOUCHER', 'RECEIPT_SUBSTITUTE', 'DD']);
+  });
+  test('no prints listed = the voucher only', () => {
+    expect(printsFor({}, claim({}))).toEqual(['PETTY_VOUCHER']);
+  });
 });
 
 // type-only guard: PettyRound stays assignable (lane A adds is_primary later)

@@ -173,11 +173,11 @@ export type DupResult = {
   soft: { line_no?: number; message?: string; form_id?: string | null }[];
 };
 
-/** ตรวจซ้ำรายแถวขณะกรอก — ทำงานเมื่อมีวันที่ + รถครบแล้ว */
+/** ตรวจซ้ำรายแถวขณะกรอก — ทำงานเมื่อมีวันที่ + รถหรือเลขอ้างอิงแล้ว (ดู dupCheckParams) */
 export function checkDuplicate(params: {
   expense_type: string; event_date: string;
   truck_code?: string | null; truck_plate?: string | null; ref_no?: string | null;
-  exclude_claim_id?: number | null;
+  payee_name?: string | null; exclude_claim_id?: number | null;
 }) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v !== null && v !== undefined && v !== '') qs.set(k, String(v));

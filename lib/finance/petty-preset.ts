@@ -93,7 +93,12 @@ export function ruleSentences(spec: PettySpec | null | undefined): string[] {
   }
 
   const dup = spec?.duplicate_check;
-  if (dup?.hard) lines.push('รายการที่เลขอ้างอิงและรถตรงกันทั้งคู่ เบิกซ้ำไม่ได้');
+  if (dup?.hard) {
+    // ค่าใช้จ่ายทั่วไปไม่มีรถ BE เทียบ เลขที่บิล + จ่ายให้ (petty_logic.hard_dup_key)
+    lines.push(dup.hard.keys?.includes('payee_name')
+      ? 'เลขที่บิลเดียวกันของผู้รับเงินรายเดียวกัน เบิกซ้ำไม่ได้'
+      : 'รายการที่เลขอ้างอิงและรถตรงกันทั้งคู่ เบิกซ้ำไม่ได้');
+  }
   if (dup?.soft) {
     const byDriver = dup.soft.keys?.includes('driver');
     lines.push(`${byDriver ? 'คนเดิม' : 'รถคันเดิม'}ภายใน ${dup.soft.days} วัน ระบบจะเตือน แต่ยืนยันทับได้พร้อมเหตุผล`);

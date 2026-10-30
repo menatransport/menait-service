@@ -99,7 +99,8 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
         if (!row.event_date) continue;
         try {
           const res = await checkDuplicate({ expense_type: claim.expense_type, event_date: row.event_date,
-            truck_code: row.truck_code, truck_plate: row.truck_plate, ref_no: row.ref_no, exclude_claim_id: claim.id });
+            truck_code: row.truck_code, truck_plate: row.truck_plate, ref_no: row.ref_no, payee_name: claim.payee_name,
+            exclude_claim_id: claim.id });
           res.hard.forEach(d => hard.push({ ...d, line_no: i + 1 }));
           res.soft.forEach(d => soft.push({ ...d, line_no: i + 1 }));
         } catch { /* บอกล่วงหน้าไม่ได้ก็ไม่เป็นไร */ }

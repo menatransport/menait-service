@@ -8,7 +8,7 @@ import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { claimTotal, periodOf, type PettyItemDraft } from '@/lib/finance/petty-items';
 import {
-  blankHeader, blankItem, claimPayload, headerFields, isHolderAttachment, isItemBased, itemsFrom, missingAtCreate,
+  blankHeader, blankItem, claimPayload, dupCheckParams, headerFields, isHolderAttachment, isItemBased, itemsFrom, missingAtCreate,
 } from '@/lib/finance/petty-spec';
 import { payeeBankProblem } from '@/lib/finance/petty-payee';
 import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
@@ -116,15 +116,10 @@ export default function NewPettyClaimPage() {
     const timer = setTimeout(async () => {
       const hints: DupHint[] = [];
       for (const [index, row] of rows.entries()) {
-        const date = String(row.event_date ?? '');
-        const code = String(row.truck_code ?? '');
-        if (!date || !code) continue;
+        const params = dupCheckParams(typeCode, row, header.payee_name);
+        if (!params) continue;
         try {
-          const res = await checkDuplicate({
-            expense_type: typeCode, event_date: date,
-            truck_code: code, truck_plate: String(row.truck_plate ?? ''),
-            ref_no: String(row.ref_no ?? ''),
-          });
+          const res = await checkDuplicate(params);
           res.hard.forEach(d => hints.push({ line_no: index + 1, level: 'hard',
             message: d.message ?? 'เบิกไปแล้ว', form_id: d.form_id }));
           res.soft.forEach(d => hints.push({ line_no: index + 1, level: 'soft',
@@ -134,7 +129,7 @@ export default function NewPettyClaimPage() {
       setDups(hints);
     }, 600);
     return () => clearTimeout(timer);
-  }, [rows, typeCode]);
+  }, [rows, typeCode, header.payee_name]);
 
   const requiredMissing = (() => {
     if (!type || !fundId) return 'เลือกประเภทการเบิกและวงเงินสดย่อยก่อน';

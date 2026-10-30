@@ -7,10 +7,11 @@ import { itemSummaryHtml, pettyVoucherHtml, receiptSubstituteHtml, travelRequest
 import { attachmentPagesHtml, openPrintWindow, type PrintFile } from '@/lib/finance/printShared';
 import { isItemBased, printUnit } from '@/lib/finance/petty-spec';
 import { showAlert } from '@/app/finance/api';
+import { printsFor } from './approvals/model';
 
 type Kind = 'PETTY_VOUCHER' | 'RECEIPT_SUBSTITUTE' | 'ITEM_SUMMARY' | 'REQUEST_FORM';
 
-/** เอกสารที่พิมพ์ได้มาจาก spec.prints ของประเภทนั้น — ประเภทที่ไม่มีใบรับรองก็ไม่ขึ้นปุ่ม · ใบสรุปรายการมีทุกประเภท */
+/** เอกสารที่พิมพ์ได้มาจาก spec.prints ของประเภทนั้น (ตัดใบที่ print_when ไม่เข้าเงื่อนไข) — ประเภทที่ไม่มีใบรับรองก็ไม่ขึ้นปุ่ม · ใบสรุปรายการมีทุกประเภท */
 export function PettyPrintButton({ claim, fund, spec, typeName, payeePosition }: {
   claim: PettyClaim;
   fund: PettyFund | null;
@@ -20,7 +21,7 @@ export function PettyPrintButton({ claim, fund, spec, typeName, payeePosition }:
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const prints = spec.prints ?? ['PETTY_VOUCHER'];
+  const prints = printsFor(spec, claim);
 
   // หน้าแนบไฟล์ต่อท้ายใบสรุปรายการเท่านั้น ใบอื่นไม่แนบ — โหลดไม่ได้ก็พิมพ์ตัวเอกสารไปก่อน
   async function attachments(): Promise<string> {

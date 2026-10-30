@@ -74,6 +74,12 @@ describe('ruleSentences', () => {
     };
     expect(ruleSentences(travel)[0]).toContain('คนเดิม');
   });
+  test('a general spec keyed on bill + payee says so, not truck', () => {
+    const general: PettySpec = {
+      duplicate_check: { hard: { keys: ['ref_no', 'payee_name'], days: 365, action: 'block' } },
+    };
+    expect(ruleSentences(general)).toEqual(['เลขที่บิลเดียวกันของผู้รับเงินรายเดียวกัน เบิกซ้ำไม่ได้']);
+  });
 });
 
 describe('เอกสารที่บังคับตามเงื่อนไข (บัตรประชาชนเมื่อโอนเข้าบุคคล/ร้านเงินสด)', () => {

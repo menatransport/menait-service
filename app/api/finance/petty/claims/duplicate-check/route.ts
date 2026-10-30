@@ -1,8 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { beUrl, proxy, requireUser } from '@/lib/finance/server';
 
-/** ส่งต่อแค่ 6 พารามิเตอร์ที่ด่านใช้ — ไม่ปล่อย query อะไรก็ได้ไปถึง BE */
-const PASS_THROUGH = ['expense_type', 'event_date', 'truck_code', 'truck_plate', 'ref_no', 'exclude_claim_id'] as const;
+/** ส่งต่อแค่พารามิเตอร์ที่ด่านใช้ — ไม่ปล่อย query อะไรก็ได้ไปถึง BE · payee_name ใช้กับประเภทที่เทียบ เลขที่บิล + จ่ายให้ */
+const PASS_THROUGH = ['expense_type', 'event_date', 'truck_code', 'truck_plate', 'ref_no', 'payee_name', 'exclude_claim_id'] as const;
 
 export async function GET(req: NextRequest) {
   const guard = await requireUser(req);

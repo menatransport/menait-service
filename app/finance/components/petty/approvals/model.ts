@@ -143,6 +143,12 @@ export function ruleApplies(when: string | null | undefined, claim: PettyClaim):
   return false;
 }
 
+/** ใบพิมพ์ในเมนูของใบนี้ — spec.prints ตัดใบที่ print_when ไม่เข้าเงื่อนไขออก (ค่าใช้จ่ายทั่วไป: ใบรับรองแทนใบเสร็จเฉพาะบิลสำเนา) */
+export function printsFor(spec: PettySpec | null | undefined, claim: PettyClaim): string[] {
+  const when = spec?.print_when ?? {};
+  return (spec?.prints ?? ['PETTY_VOUCHER']).filter(kind => !when[kind] || ruleApplies(when[kind], claim));
+}
+
 /** BE บังคับ DD ตอนรวมรอบ (BEFORE_SUBMIT_TO_ACCOUNTING) เมื่อเงื่อนไขของประเภทเข้า */
 export function ddRequired(claim: PettyClaim, spec: PettySpec | null | undefined): boolean {
   return (spec?.rules ?? []).some(r => r.require_field === 'dd_no' && r.at === 'BEFORE_SUBMIT_TO_ACCOUNTING' && ruleApplies(r.when, claim));

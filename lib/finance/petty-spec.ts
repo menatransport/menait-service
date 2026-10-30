@@ -66,6 +66,17 @@ export function claimPayload(
   return { ...rest, items: items.filter(i => String(i.rate ?? '').trim() !== '') };
 }
 
+/** พารามิเตอร์เตือนซ้ำขณะกรอกของแถวหนึ่ง · null = ยังไม่พอจะเช็ก
+ *  ต้องมีวันที่ และมีรถหรือเลขอ้างอิง — ใบทั่วไปส่วนใหญ่ไม่มีรถ BE เทียบด้วย เลขที่บิล + จ่ายให้ */
+export function dupCheckParams(expenseType: string, row: Record<string, unknown>, payeeName: unknown) {
+  const date = String(row.event_date ?? '');
+  const code = String(row.truck_code ?? '');
+  const ref = String(row.ref_no ?? '').trim();
+  if (!expenseType || !date || (!code && !ref)) return null;
+  return { expense_type: expenseType, event_date: date, truck_code: code, truck_plate: String(row.truck_plate ?? ''),
+    ref_no: ref, payee_name: String(payeeName ?? '').trim() };
+}
+
 /** ประเภทยอดเดียว: หัวใบกลายเป็นรายการลูกหนึ่งแถว ตารางเดียวจึงรองรับทั้งสองแบบ */
 export function singleItemFrom(form: Record<string, unknown>): PettyItemDraft {
   return {

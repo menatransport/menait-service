@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettySpec } from '@/app/finance/types-petty';
 import {
-  blankHeader, blankItem, claimPayload, HOLDER_ATTACHMENTS, headerFields, isHolderAttachment, isItemBased, itemFields, itemsFrom,
+  blankHeader, blankItem, claimPayload, dupCheckParams, HOLDER_ATTACHMENTS, headerFields, isHolderAttachment, isItemBased, itemFields, itemsFrom,
   missingAtCreate, printUnit, requiredAtCreate, requiredAttachments, singleItemFrom,
 } from './petty-spec';
 
@@ -185,5 +185,27 @@ describe('ค่าตั้งต้นของช่อง (default) — พ�
   test('header starts with defaults too, keeping the date', () => {
     const h = blankHeader({ header_fields: [role, { key: 'payee_name', label: 'จ่ายให้', type: 'text' }] }, '2026-10-29');
     expect(h).toEqual({ expense_date: '2026-10-29', driver_role: 'พจส.' });
+  });
+});
+
+describe('dupCheckParams (live duplicate hint while typing)', () => {
+  const row = { event_date: '2026-10-20', truck_code: '', truck_plate: '', ref_no: '' };
+  test('waits for a date', () => {
+    expect(dupCheckParams('GENERAL', { ...row, event_date: '', ref_no: '001' }, 'ร้าน ก.')).toBeNull();
+    expect(dupCheckParams('WEIGH', { ...row, event_date: '', truck_code: '161' }, 'สถานีชั่ง')).toBeNull();
+  });
+  test('a truck row checks as before', () => {
+    expect(dupCheckParams('WEIGH', { ...row, truck_code: '161', truck_plate: '71-4285', ref_no: 'B-1' }, 'สถานีชั่ง')).toEqual({
+      expense_type: 'WEIGH', event_date: '2026-10-20', truck_code: '161', truck_plate: '71-4285', ref_no: 'B-1', payee_name: 'สถานีชั่ง',
+    });
+  });
+  test('a row without a truck checks by bill number and payee (ค่าใช้จ่ายทั่วไป)', () => {
+    expect(dupCheckParams('GENERAL', { ...row, ref_no: ' 001 ' }, ' ร้าน ก. ')).toEqual({
+      expense_type: 'GENERAL', event_date: '2026-10-20', truck_code: '', truck_plate: '', ref_no: '001', payee_name: 'ร้าน ก.',
+    });
+  });
+  test('nothing to compare yet = no request', () => {
+    expect(dupCheckParams('GENERAL', row, 'ร้าน ก.')).toBeNull();
+    expect(dupCheckParams('', { ...row, ref_no: '001' }, 'ร้าน ก.')).toBeNull();
   });
 });
