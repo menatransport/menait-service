@@ -9,6 +9,8 @@ import { fetchJson, sendOverdueReminders, showAlert, showConfirm } from './api';
 import { AdvanceListView, type AdvanceListTab } from './components/AdvanceListView';
 import { AdvanceSheet } from './components/AdvanceSheet';
 import { FinanceCanvas, FinanceHeading, NoAccess, SummaryTiles } from './components/FinanceShell';
+import { OutstandingTiles } from './components/OutstandingTiles';
+import { outstandingCards } from '@/lib/finance/outstandingCards';
 import type { AdvanceItem } from './types';
 import { combineTabs, fetchAllAdvances, parseTabKey, type AdvancePage, type AdvanceSummary } from '@/lib/finance/advanceQuery';
 
@@ -57,12 +59,13 @@ export default function FinanceQueuePage() {
       .catch(() => setPendingPayees(0));
   }, [user?.is_finance]);
 
+  // การ์ดบนสุด = ยอดค้างเคลียร์แยกตามสถานะ (ผู้ใช้เลือกแบบ B 30/10/2026; รอตั้งเบิก/รอจ่ายดูจากแท็บแทน)
+  const cards = useMemo(() => outstandingCards(summary), [summary]);
+  // BE ยังไม่ส่งยอดแยกสถานะ = การ์ดนับใบแบบเดิม
   const stats = useMemo(() => {
     const n = (status: string) => summary?.counts?.[status] ?? 0;
     return [
       { label: 'ยอดค้างเคลียร์ (บาท)', value: formatBaht(summary?.outstanding_amount ?? 0) },
-      { label: 'รอตั้งเบิก', value: n('AWAITING_VOUCHER') },
-      { label: 'รอจ่าย', value: n('AWAITING_PAYMENT') },
       { label: 'รออนุมัติเคลียร์', value: n('CLEARING_APPROVAL') },
       { label: 'รอบัญชีตรวจ', value: n('AWAITING_REVIEW') },
       { label: 'เกินกำหนดเคลียร์', value: summary?.overdue ?? 0, alert: true },
@@ -147,7 +150,7 @@ export default function FinanceQueuePage() {
           </Link>
         )}
       />
-      <SummaryTiles items={stats} />
+      {cards ? <OutstandingTiles cards={cards} /> : <SummaryTiles items={stats} />}
       <AdvanceListView
         mode="finance"
         tabs={TABS}

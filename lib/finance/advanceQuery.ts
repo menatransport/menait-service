@@ -18,6 +18,10 @@ export interface AdvanceSummary {
   counts: Record<string, number>;
   overdue: number;
   outstanding_amount: number;
+  /** outstanding_amount split by status (BE 30/10/2026 on; missing from an older BE) */
+  outstanding_by_status?: Record<string, number>;
+  /** money of the overdue advances, already inside outstanding_amount */
+  overdue_amount?: number;
 }
 
 export interface AdvancePage {
