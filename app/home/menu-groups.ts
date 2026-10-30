@@ -131,7 +131,7 @@ export const MENU_GROUPS: MenuGroup[] = [
             { title: 'เบิกเงินสดย่อย', description: 'เปิดใบเบิกแทน พจส. ตามประเภทค่าใช้จ่าย', icon: Receipt, href: '/finance/petty/new', section: PETTY },
             { title: 'ติดตามใบเบิกเงินสดย่อย', description: 'ดูสถานะใบที่คุณเปิด และแก้ใบที่ถูกตีกลับ', icon: ClipboardCheck, href: '/finance/petty', section: PETTY },
             { title: 'อนุมัติเบิกเงินสดย่อย', description: 'อนุมัติจ่าย แล้วส่งเคลียร์เป็นรอบพร้อมใบปะหน้า (เจ้าของเงินสด)', icon: BadgeCheck, href: '/finance/petty/approvals', section: PETTY },
-            { title: 'อนุมัติเคลียร์เงินสดย่อย', description: 'รอบที่เจ้าของเงินสดในสายงานส่งมา (หัวหน้า)', icon: UserCheck, href: '/finance/petty/clear', section: PETTY },
+            { title: 'หัวหน้าอนุมัติเงินสดย่อย', description: 'ใบเบิกของลูกทีมก่อนโอน และรอบเคลียร์ที่เจ้าของเงินสดส่งมา', icon: UserCheck, href: '/finance/petty/clear', section: PETTY },
             { title: 'งานเงินสดย่อย', description: 'ตรวจใบ ตั้งเบิก และจ่ายเงินคืนเจ้าของเงินสด (บัญชี การเงิน)', icon: Landmark, href: '/finance/petty/accounting', financeOnly: true, section: PETTY },
             { title: 'ยอดกองทุนเงินสดย่อย', description: 'ทุกกองทุน: Advance คงเหลือ ใบที่ยังไม่คืนยอด พร้อมอนุมัติ', icon: Wallet, href: '/finance/petty/funds', financeOnly: true, section: PETTY },
             { title: 'ตั้งค่าเงินสดย่อย', description: 'กองทุน ผู้ถือเงิน วงเงิน และประเภทการเบิก', icon: Settings2, href: '/finance/petty/master', financeOnly: true, section: PETTY },

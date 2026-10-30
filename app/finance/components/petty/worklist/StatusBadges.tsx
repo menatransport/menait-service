@@ -16,6 +16,7 @@ const ROUND_ICONS: Record<PettyRoundStatus, LucideIcon> = {
 };
 
 const CLAIM_ICONS: Record<PettyStatus, LucideIcon> = {
+  PENDING_HEAD: UserCheck,
   PENDING_APPROVAL: Hourglass,
   RETURNED: CornerUpLeft,
   APPROVED: ThumbsUp,

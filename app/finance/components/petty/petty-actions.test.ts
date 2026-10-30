@@ -109,3 +109,22 @@ describe('runPettyAction debt-doc — เจ้าของเงินสดใ
     expect(posts).toHaveLength(0);
   });
 });
+
+describe('runPettyAction head-approve — หัวหน้าอนุมัติใบก่อนโอน (flow v3 30/10/2026)', () => {
+  const waiting = (over: Partial<PettyClaim> = {}) => claim({ status: 'PENDING_HEAD', created_by_name: 'กฤตบุญ ลายเงิน', ...over });
+  test('one confirm with who/amount, then posts head-approve with no extra fields', async () => {
+    const { deps, dialogs, posts } = fakeDeps([{ isConfirmed: true }]);
+    expect(await runPettyAction(waiting(), 'head-approve', {}, deps)).toBe(true);
+    expect(dialogs).toHaveLength(1);
+    expect(String(dialogs[0].title)).toContain('อนุมัติ');
+    expect(String(dialogs[0].html)).toContain('กฤตบุญ ลายเงิน');
+    expect(String(dialogs[0].html)).toContain('1,200.00');
+    expect(String(dialogs[0].html)).toContain('เจ้าของเงินสด');
+    expect(posts).toEqual([{ formId: 'LB-B02-2610-001', action: 'head-approve', body: {} }]);
+  });
+  test('cancel = nothing sent', async () => {
+    const { deps, posts } = fakeDeps([{ isConfirmed: false }]);
+    expect(await runPettyAction(waiting(), 'head-approve', {}, deps)).toBe(false);
+    expect(posts).toHaveLength(0);
+  });
+});

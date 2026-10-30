@@ -185,6 +185,13 @@ export async function isRoundHeadOf(employeeId: string, batchId: number | null |
   return !!round && (round.can_clear === true || round.clear_approved_by === employeeId);
 }
 
+/** หัวหน้าของผู้ขอเบิก (flow v3): กดอนุมัติใบนี้ได้ตอนนี้ หรือเคยอนุมัติขั้นหัวหน้าไปแล้ว — สายงานรู้ที่ BE เท่านั้น */
+export async function isClaimHeadOf(employeeId: string, formId: string): Promise<boolean> {
+  const claim = await beJsonOrNull(beUrl(`/finance/petty/claims/${encodeURIComponent(formId)}`, { employee_id: employeeId })) as
+    { can_head_approve?: boolean; head_approved_by?: string | null } | null;
+  return !!claim && (claim.can_head_approve === true || claim.head_approved_by === employeeId);
+}
+
 /** กองทุนที่คนนี้ถือ — ใช้ตัดสินว่าเห็นใบของกองทุนนั้นได้ไหม (fail closed: BE ล่ม = ไม่ถือกองทุนไหน) */
 export async function loadPettyFundsHeldBy(employeeId: string): Promise<{ id: number; holder_employee_id: string }[]> {
   const funds = await beJsonOrNull(beUrl('/finance/petty/funds', { holder: employeeId, active: 'false' }));

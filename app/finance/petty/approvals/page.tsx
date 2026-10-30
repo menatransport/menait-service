@@ -29,6 +29,7 @@ import { RoundCard } from '../../components/petty/approvals/RoundCard';
 import { listClaimFiles, type ClaimFile } from '../../components/petty/approvals/files-api';
 import {
   clearableClaims, handledClaims, locateClaim, parseHolderView, pendingClaims, pickSummary, roundBlocker, tabLabel, usesDd,
+  waitingHeadClaims,
   type HolderView,
 } from '../../components/petty/approvals/model';
 import { BTN_APPROVE, BTN_VIEW, EmptyState, HeaderTabs, HintLine, NoticeBar, SubTabs } from '../../components/petty/approvals/ui';
@@ -115,6 +116,8 @@ function PettyApprovals() {
   const pendingT = useMemo(() => filterByType(pending, typeCode), [pending, typeCode]);
   const clearableT = useMemo(() => filterByType(clearable, typeCode), [clearable, typeCode]);
   const handledT = useMemo(() => filterByType(handled, typeCode), [handled, typeCode]);
+  // ใบที่กำลังมา: ยังรอหัวหน้าของผู้ขอเบิกอนุมัติ (flow v3) — บอกจำนวนไว้ เจ้าของเงินสดจะได้รู้ว่ามีงานรออยู่
+  const waitingHeadT = useMemo(() => filterByType(waitingHeadClaims(all, fundId), typeCode), [all, fundId, typeCode]);
   const { tally, loading: tallyBusy } = useRoundTypeTally(all, myRounds, typeCode !== '');
   const roundsT = useMemo(() => filterRoundsByType(myRounds, typeCode, tally), [myRounds, typeCode, tally]);
 
@@ -261,6 +264,9 @@ function PettyApprovals() {
 
       {view === 'pending' && (
         <Section label="รายการรออนุมัติจ่าย">
+          {waitingHeadT.length > 0 && (
+            <HintLine>มีอีก {waitingHeadT.length} ใบ{ofType}รอหัวหน้าของผู้ขอเบิกอนุมัติ หัวหน้าอนุมัติแล้วใบจะมาขึ้นที่นี่</HintLine>
+          )}
           {shownPending.length === 0 ? <EmptyState text={`ไม่มีใบ${ofType}รอคุณอนุมัติจ่าย`} /> : (
             <div className="space-y-4">
               {shownPending.map(c => (

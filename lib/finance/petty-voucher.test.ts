@@ -160,15 +160,16 @@ describe('มาตรฐานเดียวกับใบ Advance (ผู้
     expect(html).toContain('<div class="tot">');
     expect(html).toContain('จำนวนเงิน (ตัวอักษร) : สองร้อยแปดสิบบาทถ้วน');
   });
-  test('ตารางลงนาม 3 ช่อง ผู้ขอเบิก → ผู้อนุมัติและผู้โอนเงิน → ผู้รับเงิน (ผู้ใช้สั่ง 29/10/2026)', () => {
+  test('ตารางลงนาม 4 ช่อง ผู้ขอเบิก → หัวหน้าแผนก → ผู้อนุมัติและผู้โอนเงิน → ผู้รับเงิน (flow v3 30/10/2026)', () => {
     expect(html).toContain('<table class="sig">');
-    const order = ['ผู้ขอเบิก', 'ผู้อนุมัติและผู้โอนเงิน', 'ผู้รับเงิน'].map(t => html.indexOf(`<th>${t}</th>`));
+    const order = ['ผู้ขอเบิก', 'หัวหน้าแผนก', 'ผู้อนุมัติและผู้โอนเงิน', 'ผู้รับเงิน'].map(t => html.indexOf(`<th>${t}</th>`));
     expect(order[0]).toBeGreaterThan(0);
     expect(order[0]).toBeLessThan(order[1]);
     expect(order[1]).toBeLessThan(order[2]);
+    expect(order[2]).toBeLessThan(order[3]);
     const sigHead = html.split('<table class="sig">')[1]?.split('</thead>')[0] ?? '';
-    expect(sigHead.match(/<th>/g)?.length).toBe(3);
-    for (const old of ['หัวหน้าแผนก', 'ผู้จ่ายเงิน']) expect(html).not.toContain(`<th>${old}</th>`);
+    expect(sigHead.match(/<th>/g)?.length).toBe(4);
+    expect(html).not.toContain('<th>ผู้จ่ายเงิน</th>');
     expect(html).toContain('ลงนามอิเล็กทรอนิกส์ผ่านระบบ menait-service');
   });
   test('ไม่มีช่องผู้เปิดใบในส่วนข้อมูลแล้ว ชื่อไปอยู่ช่องผู้ขอเบิก', () =>
@@ -436,14 +437,26 @@ describe('ตราในช่องลงนามของใบสำคั�
     expect(c).toContain('กฤตบุญ ลายเงิน');
     expect(c).toContain('24/09/2026');
   });
-  test('ผู้อนุมัติและผู้โอนเงิน: ตราของเจ้าของเงินสดตอนอนุมัติจ่าย', () => {
+  test('หัวหน้าแผนก: ตราของหัวหน้าตอนอนุมัติใบ', () => {
+    const headed = { ...named, head_approved_by: '600050', head_approved_by_name: 'สมชาย หัวหน้า',
+      head_approved_at: '2026-09-24T05:00:00Z' } as PettyClaim;
+    const c = cell(pettyVoucherHtml({ claim: headed, fund, typeName: 'x' }), 2);
+    expect(c).toContain('✔ e-Signature');
+    expect(c).toContain('สมชาย หัวหน้า');
+    expect(c).toContain('24/09/2026');
+  });
+  test('ใบเก่าที่ไม่มีขั้นหัวหน้า: ช่องหัวหน้าแผนกว่าง ไม่มีตรา', () => {
     const c = cell(pettyVoucherHtml({ claim: named, fund, typeName: 'x' }), 2);
+    expect(c).not.toContain('e-Signature');
+  });
+  test('ผู้อนุมัติและผู้โอนเงิน: ตราของเจ้าของเงินสดตอนอนุมัติจ่าย', () => {
+    const c = cell(pettyVoucherHtml({ claim: named, fund, typeName: 'x' }), 3);
     expect(c).toContain('✔ e-Signature');
     expect(c).toContain('ณรงค์กรณ์ อัจฉริยญาติ');
   });
   test('ผู้รับเงิน: ตราเขียน "รับเงินโอน" กับวันที่โอน', () => {
     const html = pettyVoucherHtml({ claim: named, fund, typeName: 'x' });
-    const c = cell(html, 3);
+    const c = cell(html, 4);
     expect(c).toContain('✔ รับเงินโอน');
     expect(c).not.toContain('e-Signature');
     expect(c).toContain('อัญชัญ น่วมมี');
@@ -451,7 +464,7 @@ describe('ตราในช่องลงนามของใบสำคั�
     expect(c).toContain('LB-B02-2610-001');
   });
   test('ยังไม่โอน: ช่องผู้รับเงินว่าง ไม่มีตรา', () => {
-    const c = cell(pettyVoucherHtml({ claim: { ...named, transfer_date: null }, fund, typeName: 'x' }), 3);
+    const c = cell(pettyVoucherHtml({ claim: { ...named, transfer_date: null }, fund, typeName: 'x' }), 4);
     expect(c).not.toContain('รับเงินโอน');
   });
   test('ใบเก่าที่ BE ไม่ส่งเวลาเปิดใบ: ช่องผู้ขอเบิกมีแค่ชื่อ ไม่มีตรา', () => {

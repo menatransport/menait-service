@@ -1,15 +1,17 @@
 /**
  * flow v2 (ผู้ใช้สั่ง 29/10/2026): ขออนุมัติ → เจ้าของเงินสดอนุมัติพร้อมจ่าย → ส่งเคลียร์เป็นรอบ
  * → หัวหน้าตามสายงานอนุมัติเคลียร์ → บัญชีตรวจ (ผ่าน → ตั้งเบิก/ทำจ่าย → ปิด · ไม่ผ่าน → ตีกลับ)
+ * flow v3 (ผู้ใช้สั่ง 30/10/2026): หัวหน้าของผู้ขอเบิกอนุมัติก่อน เจ้าของเงินสดถึงโอนได้ (PENDING_HEAD)
  * ต้องตรงกับ services/finance/petty_logic.py — BE เป็นผู้ตัดสินจริง ตรงนี้ไว้ปิดปุ่มและเขียนป้าย
  */
 export type PettyStatus =
-  | 'PENDING_APPROVAL' | 'RETURNED' | 'APPROVED' | 'CLEAR_PENDING'
+  | 'PENDING_HEAD' | 'PENDING_APPROVAL' | 'RETURNED' | 'APPROVED' | 'CLEAR_PENDING'
   | 'AWAITING_REVIEW' | 'SENT_BACK' | 'REVIEWED' | 'CLOSED'
   /** flow เดิม (โอนแยกขั้น) เลิกใช้แล้ว — เก็บไว้ให้ใบเก่ายังมีป้าย */
   | 'TRANSFERRED';
 
 export const PETTY_STATUS_LABELS: Record<PettyStatus, string> = {
+  PENDING_HEAD: 'รอหัวหน้าอนุมัติ',
   PENDING_APPROVAL: 'รอเจ้าของเงินสดอนุมัติ',
   RETURNED: 'ตีกลับผู้เบิก',
   APPROVED: 'อนุมัติจ่ายแล้ว รอส่งเคลียร์',
@@ -23,6 +25,7 @@ export const PETTY_STATUS_LABELS: Record<PettyStatus, string> = {
 
 // สีเดียวกับชุดของ Advance (lib/finance/status.ts) เพื่อให้ป้ายสองโมดูลอ่านเหมือนกัน
 export const PETTY_STATUS_STYLES: Record<PettyStatus, string> = {
+  PENDING_HEAD: 'bg-yellow-50 text-yellow-800 border-yellow-200',
   PENDING_APPROVAL: 'bg-amber-50 text-amber-700 border-amber-200',
   RETURNED: 'bg-amber-50 text-amber-700 border-amber-200',
   APPROVED: 'bg-brand-50 text-brand-700 border-brand-200',
@@ -35,8 +38,9 @@ export const PETTY_STATUS_STYLES: Record<PettyStatus, string> = {
 };
 
 export const PETTY_ALLOWED: Record<PettyStatus, PettyStatus[]> = {
+  PENDING_HEAD: ['PENDING_APPROVAL', 'RETURNED'],
   PENDING_APPROVAL: ['APPROVED', 'RETURNED'],
-  RETURNED: ['PENDING_APPROVAL'],
+  RETURNED: ['PENDING_HEAD'],
   APPROVED: ['CLEAR_PENDING'],
   CLEAR_PENDING: ['AWAITING_REVIEW', 'APPROVED'],
   AWAITING_REVIEW: ['REVIEWED', 'SENT_BACK'],

@@ -59,6 +59,12 @@ export type PettyClaim = {
   cost_center?: string | null;
   /** ชื่อ-สกุลจาก users — ใบพิมพ์/หน้าจอใช้แทนรหัส (ไม่มี = ใช้รหัส) */
   created_by_name?: string | null; approved_by_name?: string | null;
+  /** หัวหน้าของผู้ขอเบิกที่อนุมัติก่อนโอน (flow v3 30/10/2026) — ใบเก่าว่าง */
+  head_approved_by?: string | null; head_approved_by_name?: string | null; head_approved_at?: string | null;
+  /** คนที่เปิดดูกดอนุมัติขั้นหัวหน้าได้ไหม (BE คิดจากสายงาน) — มีเฉพาะใบที่รอหัวหน้า */
+  can_head_approve?: boolean;
+  /** คิวหัวหน้า: true = รอฉันอนุมัติ (ได้อีเมล) · false = อนุมัติแทนได้ */
+  is_primary?: boolean;
   transfer_date: string | null; review_remark: string | null; return_reason: string | null;
   reviewed_by: string | null; reviewed_at: string | null; submitted_to_acc_at: string | null;
   dup_override_reason: string | null; batch_id: number | null;

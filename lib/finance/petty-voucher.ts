@@ -45,10 +45,17 @@ function truckRemark(items: PettyClaim['items']): string {
 }
 
 const approverName = (claim: PettyClaim) => claim.approved_by_name ?? claim.approved_by ?? '';
+const headName = (claim: PettyClaim) => claim.head_approved_by_name ?? claim.head_approved_by ?? '';
 const clerkName = (claim: PettyClaim) => claim.created_by_name ?? claim.created_by;
 
 function requesterEsign(claim: PettyClaim): ESign | null {
   return claim.created_at ? { name: clerkName(claim), timestamp: claim.created_at, ref: claim.form_id } : null;
+}
+
+/** หัวหน้าแผนกอนุมัติใบก่อนโอน (flow v3) — ใบเก่าไม่มีขั้นนี้ ช่องว่าง */
+function headEsign(claim: PettyClaim): ESign | null {
+  return claim.head_approved_by && claim.head_approved_at
+    ? { name: headName(claim), timestamp: claim.head_approved_at, ref: claim.form_id } : null;
 }
 
 function approverEsign(claim: PettyClaim): ESign | null {
@@ -112,6 +119,8 @@ ${totalBox('รวมทั้งสิ้น', money(total), bahtText(total))}<
 
 ${signBlock(3, 'ลงนามและอนุมัติ', 'Signatures', [
     { title: 'ผู้ขอเบิก', name: clerkName(claim), esign: requesterEsign(claim) },
+    // หัวหน้าของผู้ขอเบิกอนุมัติก่อนโอน — ช่องหัวหน้าแผนกของฟอร์มกระดาษ (flow v3 ผู้ใช้สั่ง 30/10/2026)
+    { title: 'หัวหน้าแผนก', name: headName(claim), esign: headEsign(claim) },
     // เจ้าของเงินสดอนุมัติและโอนเงินเองในขั้นเดียว — รวมเป็นช่องเดียว (ผู้ใช้สั่ง 29/10/2026)
     { title: 'ผู้อนุมัติและผู้โอนเงิน', name: approverName(claim) || (fund.holder_name ?? fund.holder_employee_id), esign: approverEsign(claim) },
     { title: 'ผู้รับเงิน', name: claim.payee_name,

@@ -8,7 +8,8 @@ import { isHolderAttachment } from '@/lib/finance/petty-spec';
 import { formatDate } from '@/lib/finance/status';
 
 export type HolderView = 'pending' | 'clear' | 'history';
-export type HeadView = 'pending' | 'history';
+/** claims = ใบรอหัวหน้าอนุมัติ (flow v3) · pending = รอบรออนุมัติเคลียร์ · history = ที่ตัดสินไปแล้ว */
+export type HeadView = 'claims' | 'pending' | 'history';
 export type SubTab = 'mine' | 'delegable';
 
 /** รอบในคิวหัวหน้า · is_primary = คนที่ระบบส่งอีเมลหา (clear_notify) — BE ส่งมาหลังงาน lane A */
@@ -24,7 +25,9 @@ export function parseHolderView(tab: string | null | undefined): HolderView {
 }
 
 export function parseHeadView(tab: string | null | undefined): HeadView {
-  return tab === 'history' ? 'history' : 'pending';
+  if (tab === 'history') return 'history';
+  if (tab === 'pending' || tab === 'clear' || tab === 'rounds') return 'pending';
+  return 'claims';
 }
 
 /** ตัวเลขในแถบโชว์เมื่อมีของ — แบบ "รออนุมัติเคลียร์ (1)" ของ Advance */
@@ -35,9 +38,25 @@ export function tabLabel(label: string, count?: number | null): string {
 const ofFund = (claims: readonly PettyClaim[], fundId: number | null) =>
   fundId === null ? [] : claims.filter(c => c.fund_id === fundId);
 
-/** รออนุมัติจ่าย — ใหม่สุดก่อน (เหมือนตารางเดิม) */
+/** รออนุมัติจ่าย — ใหม่สุดก่อน (เหมือนตารางเดิม)
+ *  + ใบที่ยังรอหัวหน้า แต่เจ้าของเงินสดเป็นหัวหน้าของผู้ขอเบิกด้วย (BE ส่ง can_head_approve) กดครั้งเดียวได้ทั้งสองขั้น */
 export function pendingClaims(claims: readonly PettyClaim[], fundId: number | null): PettyClaim[] {
-  return ofFund(claims, fundId).filter(c => c.status === 'PENDING_APPROVAL').sort((a, b) => b.id - a.id);
+  return ofFund(claims, fundId)
+    .filter(c => c.status === 'PENDING_APPROVAL' || (c.status === 'PENDING_HEAD' && c.can_head_approve === true))
+    .sort((a, b) => b.id - a.id);
+}
+
+/** ใบที่กำลังมา — ยังรอหัวหน้าของผู้ขอเบิกอนุมัติ เจ้าของเงินสดยังกดจ่ายไม่ได้ (flow v3) */
+export function waitingHeadClaims(claims: readonly PettyClaim[], fundId: number | null): PettyClaim[] {
+  return ofFund(claims, fundId).filter(c => c.status === 'PENDING_HEAD' && c.can_head_approve !== true)
+    .sort((a, b) => b.id - a.id);
+}
+
+/** ใบที่หัวหน้าคนนี้อนุมัติไปแล้ว — อนุมัติล่าสุดก่อน (แถบ อนุมัติ/ไม่อนุมัติแล้ว ของหัวหน้า) */
+export function headDoneClaims(claims: readonly PettyClaim[], me: string | null | undefined): PettyClaim[] {
+  if (!me) return [];
+  return claims.filter(c => c.head_approved_by === me)
+    .sort((a, b) => (b.head_approved_at ?? '').localeCompare(a.head_approved_at ?? '') || b.id - a.id);
 }
 
 /** อนุมัติจ่ายแล้ว รอส่งเคลียร์ — วันที่จ่ายเก่าสุดก่อน เพราะรวมรอบตามช่วงวันที่จ่าย */
@@ -48,7 +67,10 @@ export function clearableClaims(claims: readonly PettyClaim[], fundId: number | 
 
 /** ผ่านมือเจ้าของเงินสดแล้ว (อนุมัติจ่าย หรือ ตีกลับ) — ทำล่าสุดก่อน */
 export function handledClaims(claims: readonly PettyClaim[], fundId: number | null): PettyClaim[] {
-  return ofFund(claims, fundId).filter(c => c.status !== 'PENDING_APPROVAL')
+  // ตีกลับโดยหัวหน้า (ยังไม่มี head_approved_by) ไม่เคยถึงมือเจ้าของเงินสด จึงไม่นับ
+  return ofFund(claims, fundId)
+    .filter(c => c.status !== 'PENDING_APPROVAL' && c.status !== 'PENDING_HEAD')
+    .filter(c => c.status !== 'RETURNED' || !!c.head_approved_by)
     .sort((a, b) => (b.approved_at ?? '').localeCompare(a.approved_at ?? '') || b.id - a.id);
 }
 
@@ -189,7 +211,7 @@ export function pickSummary(shown: readonly PettyClaim[], selected: readonly num
 }
 
 /** รอฉันอนุมัติ / อนุมัติแทนได้ — ไม่มีธง (BE เก่า) นับเป็นของฉัน แบบ splitByTab ของ Advance */
-export function splitByPrimary<T extends ClearRound>(rounds: readonly T[]): { mine: T[]; delegable: T[] } {
+export function splitByPrimary<T extends { is_primary?: boolean | null }>(rounds: readonly T[]): { mine: T[]; delegable: T[] } {
   return {
     mine: rounds.filter(r => r.is_primary !== false),
     delegable: rounds.filter(r => r.is_primary === false),

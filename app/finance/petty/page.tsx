@@ -20,7 +20,7 @@ const CAPTION = 'ใบที่คุณเปิด สถานะ และ�
 
 const TABS: PettyTab[] = [
   { key: 'all', label: 'ทั้งหมด' },
-  { key: 'pending', label: 'รออนุมัติ', statuses: ['PENDING_APPROVAL'] },
+  { key: 'pending', label: 'รออนุมัติ', statuses: ['PENDING_HEAD', 'PENDING_APPROVAL'] },
   { key: 'approved', label: 'อนุมัติจ่ายแล้ว', statuses: ['APPROVED', 'CLEAR_PENDING', 'TRANSFERRED'] },
   { key: 'fix', label: 'ต้องแก้ไข', statuses: ['RETURNED', 'SENT_BACK'], tone: 'alert' },
   { key: 'review', label: 'อยู่ที่บัญชี', statuses: ['AWAITING_REVIEW', 'REVIEWED'] },
@@ -64,10 +64,10 @@ function MyPettyClaims() {
   const sum = (...s: PettyClaim['status'][]) => list.filter(c => s.includes(c.status)).reduce((a, c) => a + c.amount, 0);
   const stats = [
     { label: 'ใบทั้งหมด', value: claims ? list.length : '-' },
-    { label: 'รออนุมัติ', value: count('PENDING_APPROVAL') },
+    { label: 'รออนุมัติ', value: count('PENDING_HEAD', 'PENDING_APPROVAL') },
     { label: 'อนุมัติจ่ายแล้ว รอเคลียร์', value: count('APPROVED', 'CLEAR_PENDING', 'TRANSFERRED') },
     { label: 'ต้องแก้ไข', value: count('RETURNED', 'SENT_BACK'), alert: claims !== null },
-    { label: 'ยอดที่ยังไม่ปิด (บาท)', value: claims ? formatBaht(sum('PENDING_APPROVAL', 'APPROVED', 'CLEAR_PENDING', 'TRANSFERRED', 'AWAITING_REVIEW', 'SENT_BACK', 'REVIEWED')) : '-' },
+    { label: 'ยอดที่ยังไม่ปิด (บาท)', value: claims ? formatBaht(sum('PENDING_HEAD', 'PENDING_APPROVAL', 'APPROVED', 'CLEAR_PENDING', 'TRANSFERRED', 'AWAITING_REVIEW', 'SENT_BACK', 'REVIEWED')) : '-' },
   ];
 
   return (

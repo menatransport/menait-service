@@ -7,21 +7,25 @@ import { PaginationControls } from '@/components/pagination-controls';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyClaim, PettyExpenseType } from '@/app/finance/types-petty';
 import { pageCount, paginate } from '@/lib/finance/petty-list';
-import { filterRoundsByType, roundTypeHint } from '@/lib/finance/petty-type-filter';
-import { showAlert } from '../../api';
-import { getExpenseTypes, listRounds } from '../../petty-api';
+import { filterByType, filterRoundsByType, roundTypeHint } from '@/lib/finance/petty-type-filter';
+import { showAlert, showSuccess } from '../../api';
+import { getExpenseTypes, listAllClaims, listRounds } from '../../petty-api';
+import { PettySheet } from '../../components/petty/PettySheet';
+import { actionDoneText, runPettyAction } from '../../components/petty/petty-actions';
+import { HeadClaimCard } from '../../components/petty/approvals/HeadClaimCard';
+import { listClaimFiles, type ClaimFile } from '../../components/petty/approvals/files-api';
 import { PettyPage, Section } from '../../components/petty/ui';
 import { TypeFilter, usePettyTypeFilter } from '../../components/petty/TypeFilter';
 import { useRoundTypeTally } from '../../components/petty/useRoundTypeTally';
 import { RoundCard } from '../../components/petty/approvals/RoundCard';
 import { decideRound, listClearHistory } from '../../components/petty/approvals/clear-actions';
 import {
-  clearedByMe, locateRound, parseHeadView, splitByPrimary, tabLabel, type ClearRound, type HeadView, type SubTab,
+  clearedByMe, headDoneClaims, locateRound, parseHeadView, splitByPrimary, tabLabel, type ClearRound, type HeadView, type SubTab,
 } from '../../components/petty/approvals/model';
 import { EmptyState, HeaderTabs, HintLine, NoticeBar, SubTabs } from '../../components/petty/approvals/ui';
 
-const TITLE = 'อนุมัติเคลียร์เงินสดย่อย';
-const CAPTION = 'รอบที่เจ้าของเงินสดในสายงานของคุณส่งมา อนุมัติแล้วรอบไปให้บัญชีตรวจต่อ';
+const TITLE = 'หัวหน้าอนุมัติเงินสดย่อย';
+const CAPTION = 'อนุมัติใบเบิกของลูกทีมก่อนเจ้าของเงินสดโอน และอนุมัติเคลียร์รอบที่เจ้าของเงินสดในสายงานส่งมา';
 const PAGE_SIZE = 20;
 const NO_ROUNDS: ClearRound[] = [];
 const NO_CLAIMS: PettyClaim[] = [];
@@ -29,14 +33,16 @@ const NO_CLAIMS: PettyClaim[] = [];
 function Loading() {
   return (
     <PettyPage title={TITLE} caption={CAPTION}>
-      <Section label="รอบรออนุมัติเคลียร์"><div className="py-8"><MascotLoader text="กำลังโหลดรายการ" size={80} /></div></Section>
+      <Section label="รายการรออนุมัติ"><div className="py-8"><MascotLoader text="กำลังโหลดรายการ" size={80} /></div></Section>
     </PettyPage>
   );
 }
 
 /**
- * คิวของหัวหน้า (ผู้จัดการตามสายงานของเจ้าของเงินสด) — วางแบบแถบรออนุมัติเคลียร์ของ Advance
- * แต่การ์ดหนึ่งใบ = หนึ่งรอบ · BE คัดให้เฉพาะรอบที่คนนี้กดได้ · is_primary แยก รอฉันอนุมัติ / อนุมัติแทนได้
+ * หน้าของหัวหน้า มีงานสองอย่าง:
+ * 1. ใบเบิกรอหัวหน้าอนุมัติ (flow v3 30/10/2026) — หัวหน้าของผู้ขอเบิก อนุมัติแล้วใบไปที่เจ้าของเงินสดโอน
+ * 2. รอบรออนุมัติเคลียร์ — ผู้จัดการตามสายงานของเจ้าของเงินสด การ์ดหนึ่งใบ = หนึ่งรอบ
+ * BE คัดให้เฉพาะของที่คนนี้กดได้ · is_primary แยก รอฉันอนุมัติ / อนุมัติแทนได้ (แบบ Advance)
  */
 function PettyClear() {
   const { user, loading } = useSessionContext();
@@ -48,7 +54,13 @@ function PettyClear() {
   const [rounds, setRounds] = useState<ClearRound[] | null>(null);
   const [history, setHistory] = useState<ClearRound[] | null>(null);
   const [historyPage, setHistoryPage] = useState(1);
-  const [busy, setBusy] = useState<number | null>(null);
+  const [busy, setBusy] = useState<number | string | null>(null);
+  const [claims, setClaims] = useState<PettyClaim[] | null>(null);
+  const [claimSub, setClaimSub] = useState<SubTab>('mine');
+  const [headDone, setHeadDone] = useState<PettyClaim[] | null>(null);
+  const [historyKind, setHistoryKind] = useState<'claims' | 'rounds'>('claims');
+  const [files, setFiles] = useState<Record<string, ClaimFile[]>>({});
+  const [openId, setOpenId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const handledDoc = useRef<string | null>(null);
   const [types, setTypes] = useState<PettyExpenseType[]>([]);
@@ -66,29 +78,52 @@ function PettyClear() {
 
   const load = useCallback(async () => {
     try {
-      setRounds(await listRounds('clear') as ClearRound[]);
+      const [r, c] = await Promise.all([listRounds('clear') as Promise<ClearRound[]>, listAllClaims({ view: 'head' })]);
+      setRounds(r); setClaims(c.items);
     } catch (err) {
-      setRounds(r => r ?? []);
+      setRounds(r => r ?? []); setClaims(c => c ?? []);
       showAlert({ icon: 'error', title: 'โหลดคิวไม่สำเร็จ', text: (err as Error).message });
     }
   }, []);
+  const loadHeadDone = useCallback(async () => {
+    try { setHeadDone(headDoneClaims((await listAllClaims({ view: 'head_history' })).items, me)); } catch { setHeadDone([]); }
+  }, [me]);
+
+  // ไฟล์แนบของใบที่รอหัวหน้า — โชว์บนการ์ดให้ดูก่อนกด (สิทธิ์ดูไฟล์ BFF เช็กว่าเป็นหัวหน้าของผู้ขอเบิก)
+  const claimKey = (claims ?? []).map(c => c.form_id).join(',');
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const ids = claimKey ? claimKey.split(',') : [];
+      const rows = await Promise.all(ids.map(async id => [id, await listClaimFiles(id).catch(() => [])] as const));
+      if (alive) setFiles(Object.fromEntries(rows));
+    })();
+    return () => { alive = false; };
+  }, [claimKey]);
   const loadHistory = useCallback(async () => {
     // กรองคนกดอีกชั้นเสมอ — ถ้า BFF ยังไม่รู้จัก view นี้ จะได้แถบว่าง ไม่ใช่รอบของคนอื่น
     try { setHistory(clearedByMe(await listClearHistory() as ClearRound[], me)); } catch { setHistory([]); }
   }, [me]);
   useEffect(() => { if (me) void load(); }, [me, load]);
-  useEffect(() => { if (me && view === 'history') void loadHistory(); }, [me, view, loadHistory]);
+  useEffect(() => { if (me && view === 'history') { void loadHistory(); void loadHeadDone(); } }, [me, view, loadHistory, loadHeadDone]);
 
-  // ลิงก์ ?doc=<id หรือเลขรอบ>: เปิดแถบย่อยที่รอบอยู่แล้วเลื่อนไปหา
+  // ลิงก์ ?doc=<เลขที่ใบ | id หรือเลขรอบ>: เปิดแถบที่ของอยู่แล้วเลื่อนไปหา (อีเมลหาหัวหน้าลิงก์มาที่ใบ)
   useEffect(() => {
-    if (!doc || rounds === null || handledDoc.current === doc) return;
+    if (!doc || rounds === null || claims === null || handledDoc.current === doc) return;
     handledDoc.current = doc;
+    const claimHit = claims.find(c => c.form_id === doc);
+    if (claimHit) {
+      setView('claims');
+      setClaimSub(claimHit.is_primary === false ? 'delegable' : 'mine');
+      setTimeout(() => document.getElementById(`head-${doc}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+      return;
+    }
     const hit = locateRound(doc, rounds);
     if (!hit) { setNotice(`รอบ ${doc} ไม่อยู่ในคิวอนุมัติเคลียร์ของคุณแล้ว อาจมีคนอนุมัติหรือไม่อนุมัติไปก่อน`); return; }
     setView('pending');
     setSubTab(hit.sub);
     setTimeout(() => document.getElementById(`rnd-${hit.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-  }, [doc, rounds]);
+  }, [doc, rounds, claims]);
 
   async function decide(round: ClearRound, action: 'clear-approve' | 'clear-reject') {
     setBusy(round.id);
@@ -98,7 +133,23 @@ function PettyClear() {
     } finally { setBusy(null); }
   }
 
-  if (loading || rounds === null) return <Loading />;
+  async function actOnClaim(claim: PettyClaim, action: 'head-approve' | 'return') {
+    setBusy(`${action}-${claim.form_id}`);
+    try {
+      const ok = await runPettyAction(claim, action);
+      if (ok) { await showSuccess(actionDoneText(action), undefined); setHeadDone(null); }
+      await load(); // พลาดก็โหลดใหม่ ใบอาจถูกหัวหน้าคนอื่นกดไปแล้ว
+    } finally { setBusy(null); }
+  }
+
+  if (loading || rounds === null || claims === null) return <Loading />;
+
+  const claimsT = filterByType(claims, typeCode);
+  const claimSplit = splitByPrimary(claimsT);
+  const shownClaimsRaw = claimSub === 'mine' ? claimSplit.mine : claimSplit.delegable;
+  const shownClaims = doc ? [...shownClaimsRaw].sort((a, b) => Number(b.form_id === doc) - Number(a.form_id === doc)) : shownClaimsRaw;
+  const headDoneT = filterByType(headDone ?? [], typeCode);
+  const specOf = (code: string) => types.find(t => t.code === code)?.spec;
 
   const { mine, delegable } = splitByPrimary(roundsT);
   const typeName = typeFilter.name;
@@ -113,13 +164,39 @@ function PettyClear() {
     <PettyPage title={TITLE} caption={CAPTION}
       aside={
         <HeaderTabs value={view} onChange={v => { setView(v); setHistoryPage(1); }} tabs={[
+          ['claims', tabLabel('รออนุมัติใบเบิก', claimsT.length)],
           ['pending', tabLabel('รออนุมัติเคลียร์', roundsT.length)],
           ['history', 'อนุมัติ/ไม่อนุมัติแล้ว'],
         ]} />
       }>
       <NoticeBar text={notice} onClose={() => setNotice('')} />
 
-      {view === 'pending' ? (
+      {view === 'claims' && (
+        <Section label="ใบเบิกรอหัวหน้าอนุมัติ" actions={typeSelect}>
+          <SubTabs value={claimSub} onChange={setClaimSub} tabs={[
+            ['mine', `รอฉันอนุมัติ (${claimSplit.mine.length})`],
+            ['delegable', `อนุมัติแทนได้ (${claimSplit.delegable.length})`],
+          ]} />
+          <HintLine>อนุมัติแล้วใบไปที่เจ้าของเงินสด เพื่ออนุมัติจ่ายและโอนเงิน ถ้ามีอะไรไม่ถูก กดตีกลับพร้อมบอกเหตุผล</HintLine>
+          {shownClaims.length === 0 ? (
+            <EmptyState text={typeCode
+              ? `ไม่มีใบ${typeName}${claimSub === 'mine' ? 'รอคุณอนุมัติ' : 'ที่อนุมัติแทนได้'}`
+              : (claimSub === 'mine' ? 'ไม่มีใบเบิกรอคุณอนุมัติ' : 'ไม่มีใบเบิกที่อนุมัติแทนได้')} />
+          ) : (
+            <div className="space-y-4">
+              {shownClaims.map(c => (
+                <HeadClaimCard key={c.id} claim={c} mode="pending" typeName={typeNameOf(c.expense_type)} spec={specOf(c.expense_type)}
+                  files={files[c.form_id]} highlight={!!doc && c.form_id === doc}
+                  processing={busy === `head-approve-${c.form_id}` || busy === `return-${c.form_id}`}
+                  onView={() => setOpenId(c.form_id)}
+                  onReturn={() => void actOnClaim(c, 'return')} onApprove={() => void actOnClaim(c, 'head-approve')} />
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
+
+      {view === 'pending' && (
         <Section label="รอบรออนุมัติเคลียร์" actions={typeSelect}>
           <SubTabs value={subTab} onChange={setSubTab} tabs={[
             ['mine', `รอฉันอนุมัติ (${mine.length})`],
@@ -144,8 +221,37 @@ function PettyClear() {
             </div>
           )}
         </Section>
-      ) : (
-        <Section label="รอบที่อนุมัติ/ไม่อนุมัติแล้ว" actions={typeSelect}>
+      )}
+
+      {view === 'history' && historyKind === 'claims' && (
+        <Section label="ที่อนุมัติ/ไม่อนุมัติแล้ว" actions={typeSelect}>
+          <SubTabs value={historyKind} onChange={k => { setHistoryKind(k); setHistoryPage(1); }} tabs={[
+            ['claims', `ใบเบิกที่อนุมัติแล้ว${headDone ? ` (${headDoneT.length})` : ''}`],
+            ['rounds', 'รอบเคลียร์'],
+          ]} />
+          {headDone === null ? (
+            <div className="py-8"><MascotLoader text="กำลังโหลดรายการ" size={80} /></div>
+          ) : headDoneT.length === 0 ? (
+            <EmptyState text={typeCode ? `ยังไม่มีใบ${typeName}ที่คุณอนุมัติ` : 'ยังไม่มีใบเบิกที่คุณอนุมัติ'} />
+          ) : (
+            <div className="space-y-4">
+              {paginate(headDoneT, historyPage, PAGE_SIZE).map(c => (
+                <HeadClaimCard key={c.id} claim={c} mode="done" typeName={typeNameOf(c.expense_type)} onView={() => setOpenId(c.form_id)} />
+              ))}
+              <div className="flex justify-end pt-2">
+                <PaginationControls currentPage={historyPage} totalPages={pageCount(headDoneT.length, PAGE_SIZE)} onPageChange={setHistoryPage} />
+              </div>
+            </div>
+          )}
+        </Section>
+      )}
+
+      {view === 'history' && historyKind === 'rounds' && (
+        <Section label="ที่อนุมัติ/ไม่อนุมัติแล้ว" actions={typeSelect}>
+          <SubTabs value={historyKind} onChange={k => { setHistoryKind(k); setHistoryPage(1); }} tabs={[
+            ['claims', `ใบเบิกที่อนุมัติแล้ว${headDone ? ` (${headDoneT.length})` : ''}`],
+            ['rounds', `รอบเคลียร์${history ? ` (${historyT.length})` : ''}`],
+          ]} />
           {typeCode && <HintLine>เห็นเฉพาะรอบที่มีใบ{typeName}อยู่ · รอบที่ไม่อนุมัติจะไม่ขึ้น เพราะใบหลุดรอบไปแล้ว</HintLine>}
           {history === null || historyBusy ? (
             <div className="py-8"><MascotLoader text="กำลังโหลดรายการ" size={80} /></div>
@@ -163,6 +269,8 @@ function PettyClear() {
           )}
         </Section>
       )}
+
+      <PettySheet formId={openId} isOpen={openId !== null} onClose={() => setOpenId(null)} onChanged={() => void load()} />
     </PettyPage>
   );
 }

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import type { PettyClaim, PettyRound, PettySpec } from '@/app/finance/types-petty';
 import {
   claimOutcome, claimPeriod, clearableClaims, clearedByMe, ddRequired, debtDocButton, debtDocMissing, docsLabel, docsState,
-  handledClaims, locateClaim,
+  handledClaims, headDoneClaims, locateClaim, waitingHeadClaims,
   locateRound, parseHeadView, parseHolderView, itemSummaryLabel, pendingClaims, pendingHint, pickSummary, printsFor, roundBlocker, roundOutcome, ruleApplies,
   splitByPrimary, tabLabel, usesDd, type ClearRound,
 } from './model';
@@ -51,10 +51,13 @@ describe('parseHolderView', () => {
 });
 
 describe('parseHeadView', () => {
-  test('history or pending', () => {
+  test('claims first (flow v3), then rounds, then history', () => {
     expect(parseHeadView('history')).toBe('history');
-    expect(parseHeadView(null)).toBe('pending');
+    expect(parseHeadView(null)).toBe('claims');
+    expect(parseHeadView('claims')).toBe('claims');
+    expect(parseHeadView('pending')).toBe('pending');
     expect(parseHeadView('clear')).toBe('pending');
+    expect(parseHeadView('rounds')).toBe('pending');
   });
 });
 
@@ -72,20 +75,29 @@ describe('claim lists per tab', () => {
     claim({ id: 2, status: 'APPROVED', transfer_date: '2026-10-22' }),
     claim({ id: 3, status: 'APPROVED', transfer_date: '2026-10-21' }),
     claim({ id: 4, status: 'CLEAR_PENDING', approved_at: '2026-10-20T03:00:00Z' }),
-    claim({ id: 5, status: 'RETURNED' }),
+    claim({ id: 5, status: 'RETURNED', head_approved_by: '600050' }),
+    claim({ id: 9, status: 'PENDING_HEAD' }),
+    claim({ id: 10, status: 'PENDING_HEAD', can_head_approve: true }),
+    claim({ id: 11, status: 'RETURNED', head_approved_by: null }),
     claim({ id: 6, status: 'PENDING_APPROVAL', fund_id: 2 }),
     claim({ id: 7, status: 'CLOSED', approved_at: '2026-10-25T03:00:00Z' }),
     claim({ id: 8, status: 'PENDING_APPROVAL' }),
   ];
   test('pending = waiting for the holder, this fund only, newest first', () => {
-    expect(pendingClaims(claims, 1).map(c => c.id)).toEqual([8, 1]);
+    // 10 = รอหัวหน้า แต่เจ้าของเงินสดเป็นหัวหน้าของผู้ขอเบิกด้วย กดครั้งเดียวได้ทั้งสองขั้น
+    expect(pendingClaims(claims, 1).map(c => c.id)).toEqual([10, 8, 1]);
     expect(pendingClaims(claims, 2).map(c => c.id)).toEqual([6]);
   });
   test('clearable = approved but not in a round yet, oldest pay date first', () => {
     expect(clearableClaims(claims, 1).map(c => c.id)).toEqual([3, 2]);
   });
   test('handled = everything past the holder, including returned, latest action first', () => {
+    // 11 = หัวหน้าตีกลับ ไม่เคยถึงมือเจ้าของเงินสด · 9/10 ยังรอหัวหน้า
     expect(handledClaims(claims, 1).map(c => c.id)).toEqual([7, 4, 5, 3, 2]);
+  });
+  test('waiting for the head = coming soon, the holder cannot act yet', () => {
+    expect(waitingHeadClaims(claims, 1).map(c => c.id)).toEqual([9]);
+    expect(waitingHeadClaims(claims, 2)).toEqual([]);
   });
   test('null fund shows nothing', () => expect(pendingClaims(claims, null)).toEqual([]));
 });
@@ -256,6 +268,18 @@ describe('pickSummary', () => {
     const out = pickSummary(shown, [1, 3, 99]);
     expect(out.picked.map(c => c.id)).toEqual([1, 3]);
     expect(out.sum).toBe(500.5);
+  });
+});
+
+describe('headDoneClaims (head history tab)', () => {
+  test('only claims this head approved, latest first', () => {
+    const rows = [
+      claim({ id: 1, head_approved_by: '600050', head_approved_at: '2026-10-20T03:00:00Z' }),
+      claim({ id: 2, head_approved_by: '600050', head_approved_at: '2026-10-25T03:00:00Z' }),
+      claim({ id: 3, head_approved_by: '600090', head_approved_at: '2026-10-26T03:00:00Z' }),
+    ];
+    expect(headDoneClaims(rows, '600050').map(c => c.id)).toEqual([2, 1]);
+    expect(headDoneClaims(rows, null)).toEqual([]);
   });
 });
 

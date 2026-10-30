@@ -4,7 +4,8 @@ import { beUrl, proxy, requireUser } from '@/lib/finance/server';
 
 // flow v2: อนุมัติ = จ่าย · ไม่มี transfer/submit-accounting แล้ว (ส่งเคลียร์เป็นรอบที่ /batches)
 // dd / debt-doc = เจ้าของเงินสดใส่เลข DD / เลขรับสภาพหนี้ หลังจ่าย ก่อนรวมรอบ (BE ตรวจว่าเป็นเจ้าของเงินสดจาก employee_id)
-const ACTIONS = new Set(['approve', 'return', 'review', 'dd', 'debt-doc']);
+// head-approve = หัวหน้าของผู้ขอเบิกอนุมัติก่อนโอน (flow v3) — BE ตรวจสายงานจาก employee_id เอง
+const ACTIONS = new Set(['approve', 'return', 'review', 'dd', 'debt-doc', 'head-approve']);
 
 export async function POST(
   req: NextRequest,

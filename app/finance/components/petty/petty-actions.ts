@@ -52,6 +52,14 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
     body.transfer_date = res.value;
   }
 
+  if (action === 'head-approve') {
+    // หัวหน้าอนุมัติใบ ยังไม่มีการโอน — ใบไปรอเจ้าของเงินสดอนุมัติจ่ายต่อ
+    const who = claim.created_by_name?.trim() || claim.created_by;
+    const res = await showConfirm({ title: 'ยืนยันอนุมัติใบเบิกเงินสดย่อย', html: headApproveHtml(claim, who, baht),
+      confirmButtonText: 'อนุมัติ' }) as Prompt;
+    if (!res?.isConfirmed) return false;
+  }
+
   if (action === 'return') {
     // แบบกล่อง "ยืนยันไม่อนุมัติ" ของ Advance: บังคับหมายเหตุ ใบกลับไปให้คนเปิดใบแก้แล้วส่งใหม่
     const res = await showConfirm({ title: 'ยืนยันตีกลับใบเบิกเงินสดย่อย', text: `ฟอร์ม ${claim.form_id} · ${baht} บาท`, input: 'textarea',
@@ -124,6 +132,7 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
 
 /** ข้อความแจ้งสำเร็จหลัง runPettyAction คืน true — ผู้เรียกเป็นคนแจ้ง (หน้าอนุมัติมีข้อความของตัวเอง) */
 export function actionDoneText(action: PettyAction, pass?: boolean): string {
+  if (action === 'head-approve') return 'อนุมัติแล้ว ใบไปรอเจ้าของเงินสดอนุมัติจ่าย';
   return action === 'approve' ? 'อนุมัติจ่ายแล้ว' : action === 'return' ? 'ตีกลับแล้ว' : action === 'dd' ? 'บันทึกเลข DD แล้ว'
     : action === 'debt-doc' ? 'บันทึกเลขรับสภาพหนี้แล้ว' : pass ? 'ตรวจผ่านแล้ว' : 'ตีกลับแล้ว';
 }
@@ -131,6 +140,16 @@ export function actionDoneText(action: PettyAction, pass?: boolean): string {
 const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const money = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** เนื้อหากล่องยืนยันของหัวหน้า: ใครขอ เท่าไร จ่ายใคร แล้วบอกว่าขั้นถัดไปคือเจ้าของเงินสดโอนเงิน */
+function headApproveHtml(claim: PettyClaim, who: string, baht: string): string {
+  const row = (k: string, v: string) =>
+    `<div style="display:flex;justify-content:space-between;gap:12px"><span>${escapeHtml(k)}</span><b>${escapeHtml(v)}</b></div>`;
+  return `<div style="margin:0 0 12px;font-size:16px;color:#334155">ฟอร์ม ${escapeHtml(claim.form_id)}</div>`
+    + `<div style="text-align:left;font-size:14px;line-height:1.7">${row('ผู้ขอเบิก', who)}${row('จ่ายให้', claim.payee_name ?? '-')}`
+    + `${row('ยอดเบิก', `${baht} บาท`)}`
+    + `<div style="margin-top:8px;font-size:12px;color:#6b7f9e">อนุมัติแล้วใบไปที่เจ้าของเงินสด เพื่ออนุมัติจ่ายและโอนเงิน</div></div>`;
+}
 
 /** เนื้อหากล่องยืนยันอนุมัติจ่าย: บรรทัด "ฟอร์ม …" แบบ Advance แล้วตามด้วยตัวเลขของเงินสดย่อย */
 export function approveDialogHtml(claim: PettyClaim, balance: { available: number } | null,

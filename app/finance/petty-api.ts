@@ -37,8 +37,9 @@ export const updateClaim = (formId: string, body: Record<string, unknown>) =>
   fetchJson<PettyClaim>(`/api/finance/petty/claims/${encodeURIComponent(formId)}`,
     { method: 'PUT', body: JSON.stringify(body) });
 
-/** flow v2: อนุมัติ = จ่าย (ส่งวันที่จ่ายมาด้วย) · dd / debt-doc = เจ้าของเงินสดใส่เลข DD / เลขรับสภาพหนี้ หลังจ่าย ก่อนรวมรอบ */
-export type PettyAction = 'approve' | 'return' | 'review' | 'dd' | 'debt-doc';
+/** flow v2: อนุมัติ = จ่าย (ส่งวันที่จ่ายมาด้วย) · dd / debt-doc = เจ้าของเงินสดใส่เลข DD / เลขรับสภาพหนี้ หลังจ่าย ก่อนรวมรอบ
+ *  head-approve = หัวหน้าของผู้ขอเบิกอนุมัติก่อนโอน (flow v3) · ตีกลับขั้นหัวหน้าใช้ return เหมือนกัน */
+export type PettyAction = 'approve' | 'return' | 'review' | 'dd' | 'debt-doc' | 'head-approve';
 
 export const postAction = (formId: string, action: PettyAction, body: Record<string, unknown> = {}) =>
   fetchJson<PettyClaim>(`/api/finance/petty/claims/${encodeURIComponent(formId)}/${action}`,

@@ -12,7 +12,7 @@ export function isPettyFolder(folder: unknown): boolean {
 
 /** สถานะที่ยังรับไฟล์เพิ่มได้ — บัญชีตรวจผ่านแล้ว (REVIEWED/CLOSED) ไม่รับ · ระหว่างรอหัวหน้ายังแนบเพิ่มได้ */
 const OPEN_FOR_FILES: PettyStatus[] = [
-  'PENDING_APPROVAL', 'RETURNED', 'APPROVED', 'CLEAR_PENDING', 'AWAITING_REVIEW', 'SENT_BACK', 'TRANSFERRED',
+  'PENDING_HEAD', 'PENDING_APPROVAL', 'RETURNED', 'APPROVED', 'CLEAR_PENDING', 'AWAITING_REVIEW', 'SENT_BACK', 'TRANSFERRED',
 ];
 
 /**

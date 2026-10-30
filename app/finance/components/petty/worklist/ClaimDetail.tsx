@@ -83,11 +83,14 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
 
   const spec = type?.spec ?? {};
   const isHolder = canApprove(user, fund);
+  // ขั้นที่เจ้าของเงินสดกดจ่ายได้: รอเจ้าของเงินสด หรือยังรอหัวหน้าแต่ตัวเองเป็นหัวหน้าของผู้ขอเบิกด้วย (flow v3 กดครั้งเดียวสองขั้น)
+  const holderCanPay = isHolder && !!claim
+    && (claim.status === 'PENDING_APPROVAL' || (claim.status === 'PENDING_HEAD' && claim.can_head_approve === true));
 
   // ด่านล่วงหน้าเฉพาะใบที่รออนุมัติ: เอกสารที่ขาดตาม spec (แยกของคนเปิดใบ/สลิปโอนของเจ้าของเงินสด แบบการ์ดหน้าอนุมัติ)
   // + ซ้ำรายแถวจาก BE (ด่านจริงคือตอนกด)
   useEffect(() => {
-    if (!claim || !type || claim.status !== 'PENDING_APPROVAL' || !isHolder) { setGate(null); return; }
+    if (!claim || !type || !holderCanPay) { setGate(null); return; }
     let alive = true;
     (async () => {
       const counts: Record<string, number> = {};
@@ -109,7 +112,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
       if (alive) setGate({ missing, holderMissing, hard, soft });
     })();
     return () => { alive = false; };
-  }, [claim, type, files, isHolder]);
+  }, [claim, type, files, holderCanPay]);
 
   const changed = async () => { await load(); onChanged?.(); };
 
@@ -117,7 +120,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
   async function resubmit() {
     if (!claim) return;
     const toAccounting = claim.status === 'SENT_BACK';
-    const res = await pettyConfirm({ title: toAccounting ? 'ส่งกลับให้บัญชีตรวจอีกครั้ง?' : 'ส่งให้เจ้าของเงินสดอนุมัติอีกครั้ง?',
+    const res = await pettyConfirm({ title: toAccounting ? 'ส่งกลับให้บัญชีตรวจอีกครั้ง?' : 'ส่งให้หัวหน้าอนุมัติอีกครั้ง?',
       text: `ใบ ${claim.form_id} · แนบเอกสารที่ขาดครบแล้วใช่ไหม`, confirmButtonText: 'ส่ง' }) as { isConfirmed?: boolean };
     if (!res?.isConfirmed) return;
     setBusy('resubmit');
@@ -178,6 +181,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
           <Field label="เจ้าหน้าที่ผู้เปิดใบ" value={claim.created_by_name ?? claim.created_by} />
           <Field label="วงเงินสดย่อย" value={fund ? fundLabelWithHolder(fund) : '-'} />
           <Field label="รหัสค่าใช้จ่ายของผู้เบิก (บัญชี)" value={claimCostCenterLine(claim, fund) || '-'} />
+          <Field label="หัวหน้าผู้อนุมัติ" value={claim.head_approved_by_name ?? claim.head_approved_by ?? (claim.status === 'PENDING_HEAD' ? 'รออนุมัติ' : '-')} />
           <Field label="เจ้าของเงินสด (ผู้อนุมัติจ่าย)" value={claim.approved_by_name ?? claim.approved_by ?? '-'} />
           <Field label="วันที่จ่าย" value={claim.transfer_date ? formatDate(claim.transfer_date) : '-'} />
           {(claim.debt_doc_no || needsDebtDoc(claim)) && (
@@ -221,12 +225,36 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
         <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-ink-700">เจ้าของเงินสดยืนยันทับเรื่องรายการซ้ำ: {claim.dup_override_reason}</p>
       )}
 
+      {/* หัวหน้าของผู้ขอเบิก: อนุมัติก่อนเจ้าของเงินสดโอน (flow v3) — เจ้าของเงินสดที่เป็นหัวหน้าด้วยใช้แผงอนุมัติจ่ายข้างล่าง */}
+      {claim.status === 'PENDING_HEAD' && claim.can_head_approve && !isHolder && (
+        <Panel title="หัวหน้าอนุมัติ">
+          <div className="space-y-3">
+            <p className="text-sm text-ink-700">อนุมัติแล้วใบไปที่เจ้าของเงินสด เพื่ออนุมัติจ่ายและโอนเงิน</p>
+            <Button type="button" onClick={() => void act('head-approve')} disabled={busy !== null} className={PRIMARY_BTN}>
+              {busy === 'head-approve' ? 'กำลังบันทึก...' : 'อนุมัติ'}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => void act('return')} disabled={busy !== null}
+              className={`${OUTLINE_BTN} w-full border-rose-300 text-rose-600 hover:bg-rose-50`}>
+              ตีกลับผู้เบิก
+            </Button>
+          </div>
+        </Panel>
+      )}
+      {claim.status === 'PENDING_HEAD' && isHolder && !claim.can_head_approve && (
+        <p className="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+          ใบนี้รอหัวหน้าของผู้ขอเบิกอนุมัติก่อน หัวหน้าอนุมัติแล้วคุณถึงอนุมัติจ่ายได้
+        </p>
+      )}
+
       {/* เจ้าของเงินสด: อนุมัติจ่าย */}
-      {isHolder && claim.status === 'PENDING_APPROVAL' && (
+      {holderCanPay && (
         <>
           {gate && <GatePanel {...gate} />}
           <Panel title="อนุมัติจ่าย">
             <div className="space-y-3">
+              {claim.status === 'PENDING_HEAD' && (
+                <p className="text-xs text-ink-500">คุณเป็นหัวหน้าของผู้ขอเบิกด้วย กดครั้งเดียว นับทั้งขั้นหัวหน้าและขั้นจ่าย</p>
+              )}
               <Button type="button" onClick={() => void act('approve')} disabled={busy !== null || blocked} className={PRIMARY_BTN}>
                 {busy === 'approve' ? 'กำลังบันทึก...' : 'อนุมัติจ่าย'}
               </Button>

@@ -54,13 +54,16 @@ export type QuickAction = { action: PettyAction; label: string };
  * ใบที่อนุมัติจ่ายแล้วไม่มีปุ่มรายใบ เพราะส่งเคลียร์เป็นรอบ (ติ๊กหลายใบแล้วกดส่ง) */
 export function quickAction(claim: PettyClaim, role: PettyRole): QuickAction | null {
   if (role === 'holder' && claim.status === 'PENDING_APPROVAL') return { action: 'approve', label: 'อนุมัติจ่าย' };
+  // เจ้าของเงินสดที่เป็นหัวหน้าของผู้ขอเบิกด้วย กดครั้งเดียวนับทั้งสองขั้น (flow v3)
+  if (role === 'holder' && claim.status === 'PENDING_HEAD' && claim.can_head_approve) return { action: 'approve', label: 'อนุมัติจ่าย' };
   if (role === 'accounting' && claim.status === 'AWAITING_REVIEW') return { action: 'review', label: 'ผ่าน' };
   return null;
 }
 
-/** ขั้นตอนหลักของใบ ซ้าย→ขวา (flow v2) — ตีกลับคือ "หลุดราง" อยู่ที่ขั้นที่ต้องทำซ้ำ */
+/** ขั้นตอนหลักของใบ ซ้าย→ขวา (flow v3) — ตีกลับคือ "หลุดราง" อยู่ที่ขั้นที่ต้องทำซ้ำ */
 export const FLOW_STEPS: { status: PettyStatus; label: string }[] = [
-  { status: 'PENDING_APPROVAL', label: 'ขออนุมัติ' },
+  { status: 'PENDING_HEAD', label: 'ขออนุมัติ' },
+  { status: 'PENDING_APPROVAL', label: 'หัวหน้าอนุมัติ' },
   { status: 'APPROVED', label: 'เจ้าของเงินสดอนุมัติ' },
   { status: 'CLEAR_PENDING', label: 'หัวหน้าอนุมัติเคลียร์' },
   { status: 'AWAITING_REVIEW', label: 'บัญชีตรวจ' },
@@ -70,8 +73,8 @@ export const FLOW_STEPS: { status: PettyStatus; label: string }[] = [
 
 export function flowPosition(status: PettyStatus): { index: number; offTrack: boolean } {
   if (status === 'RETURNED') return { index: 0, offTrack: true };
-  if (status === 'SENT_BACK') return { index: 3, offTrack: true };
-  if (status === 'TRANSFERRED') return { index: 1, offTrack: false };
+  if (status === 'SENT_BACK') return { index: 4, offTrack: true };
+  if (status === 'TRANSFERRED') return { index: 2, offTrack: false };
   return { index: Math.max(0, FLOW_STEPS.findIndex(s => s.status === status)), offTrack: false };
 }
 

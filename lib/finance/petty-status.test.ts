@@ -4,8 +4,10 @@ import {
 } from './petty-status';
 
 describe('labels — flow v2 (29/10/2026)', () => {
-  test('eight live statuses plus the old TRANSFERRED for history', () =>
-    expect(Object.keys(PETTY_STATUS_LABELS)).toHaveLength(9));
+  test('nine live statuses plus the old TRANSFERRED for history', () =>
+    expect(Object.keys(PETTY_STATUS_LABELS)).toHaveLength(10));
+  test('flow v3 (30/10/2026): หัวหน้าอนุมัติก่อนโอน', () =>
+    expect(PETTY_STATUS_LABELS.PENDING_HEAD).toBe('รอหัวหน้าอนุมัติ'));
   test('wording matches the backend', () => {
     expect(PETTY_STATUS_LABELS.PENDING_APPROVAL).toBe('รอเจ้าของเงินสดอนุมัติ');
     expect(PETTY_STATUS_LABELS.APPROVED).toBe('อนุมัติจ่ายแล้ว รอส่งเคลียร์');
@@ -27,7 +29,15 @@ describe('labels — flow v2 (29/10/2026)', () => {
 
 describe('transitions mirror the backend', () => {
   test('approve', () => expect(canGo('PENDING_APPROVAL', 'APPROVED')).toBe(true));
-  test('resubmit after return', () => expect(canGo('RETURNED', 'PENDING_APPROVAL')).toBe(true));
+  test('resubmit after return goes back to the head', () => {
+    expect(canGo('RETURNED', 'PENDING_HEAD')).toBe(true);
+    expect(canGo('RETURNED', 'PENDING_APPROVAL')).toBe(false);
+  });
+  test('head approves into the cash owner queue or returns', () => {
+    expect(canGo('PENDING_HEAD', 'PENDING_APPROVAL')).toBe(true);
+    expect(canGo('PENDING_HEAD', 'RETURNED')).toBe(true);
+  });
+  test('money cannot skip the head', () => expect(canGo('PENDING_HEAD', 'APPROVED')).toBe(false));
   test('approved goes into a round', () => expect(canGo('APPROVED', 'CLEAR_PENDING')).toBe(true));
   test('cannot skip the head', () => expect(canGo('APPROVED', 'AWAITING_REVIEW')).toBe(false));
   test('sent back goes straight back to accounting', () => expect(canGo('SENT_BACK', 'AWAITING_REVIEW')).toBe(true));
