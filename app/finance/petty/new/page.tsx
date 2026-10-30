@@ -235,12 +235,21 @@ export default function NewPettyClaimPage() {
     } finally { setSaving(false); }
   }
 
-  if (loading || types === null || funds === null) return <MascotLoader />;
-
   const requester = (
     <HeaderMeta primary={user ? `${user.firstname} ${user.lastname}` : '-'}
       secondary={[user?.employee_id, user?.department_th || user?.department, user?.site].filter(Boolean).join(' · ')} />
   );
+
+  // โหลดอยู่ในโครงหน้าเดียวกับหน้าจริง — หัวเรื่อง/Navbar/ผู้เบิกไม่กระพริบหรือขยับตอนข้อมูลตั้งต้นมาถึง
+  if (loading || types === null || funds === null) {
+    return (
+      <PettyPage title={TITLE} aside={user ? requester : undefined}>
+        <Section band index={1} label="ข้อมูลการเบิก">
+          <div className="py-10"><MascotLoader text="กำลังเตรียมแบบฟอร์ม" size={80} /></div>
+        </Section>
+      </PettyPage>
+    );
+  }
 
   if (funds.length === 0) {
     return (
