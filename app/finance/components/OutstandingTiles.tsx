@@ -1,5 +1,6 @@
 'use client';
 
+import { TriangleAlert } from 'lucide-react';
 import { formatBaht } from '@/lib/finance/status';
 import type { OutstandingCard } from '@/lib/finance/outstandingCards';
 
@@ -17,6 +18,14 @@ export function OutstandingTiles({ cards }: { cards: OutstandingCard[] }) {
             {formatBaht(c.amount)}
           </dd>
           <p className="text-[11px] text-ink-500">{c.hint}</p>
+          {c.overdue && (c.overdue.count > 0 ? (
+            <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-rose-600">
+              <TriangleAlert className="size-3 shrink-0" aria-hidden />
+              <span>เกินกำหนด {c.overdue.count} ใบ · <span className="tabular-nums">{formatBaht(c.overdue.amount)}</span></span>
+            </p>
+          ) : (
+            <p className="mt-1 text-[11px] text-ink-500">ไม่มีใบเกินกำหนด</p>
+          ))}
         </div>
       ))}
     </dl>

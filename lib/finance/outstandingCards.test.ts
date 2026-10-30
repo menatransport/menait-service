@@ -29,6 +29,24 @@ test('total, then the 4 statuses in flow order (no overdue card)', () => {
   expect(cards[0].tone).toBe('total');
 });
 
+test('overdue tickets and money ride on รอเคลียร์ / ส่งกลับแก้ไข only', () => {
+  const cards = outstandingCards({ ...base, overdue_by_status: {
+    AWAITING_CLEARING: { count: 3, amount: 13000 }, SENT_BACK: { count: 1, amount: 8500 },
+    AWAITING_REVIEW: { count: 0, amount: 0 }, CLEARING_APPROVAL: { count: 0, amount: 0 } } })!;
+  const by = Object.fromEntries(cards.map(c => [c.key, c.overdue]));
+  expect(by.AWAITING_CLEARING).toEqual({ count: 3, amount: 13000 });
+  expect(by.SENT_BACK).toEqual({ count: 1, amount: 8500 });
+  expect(by.CLEARING_APPROVAL).toBeUndefined();
+  expect(by.AWAITING_REVIEW).toBeUndefined();
+  expect(by.total).toBeUndefined();
+});
+
+test('no overdue split from the BE → no overdue line; a status missing from it reads as 0', () => {
+  expect(outstandingCards(base)!.some(c => c.overdue)).toBe(false);
+  const cards = outstandingCards({ ...base, overdue_by_status: {} })!;
+  expect(cards.find(c => c.key === 'SENT_BACK')!.overdue).toEqual({ count: 0, amount: 0 });
+});
+
 test('money outside the 4 statuses shows as one extra card so the cards add up', () => {
   const cards = outstandingCards({ ...base, outstanding_amount: 87510.5 })!;
   const other = cards.find(c => c.key === 'other')!;

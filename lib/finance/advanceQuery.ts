@@ -22,6 +22,8 @@ export interface AdvanceSummary {
   outstanding_by_status?: Record<string, number>;
   /** money of the overdue advances, already inside outstanding_amount */
   overdue_amount?: number;
+  /** overdue tickets and money per status (only AWAITING_CLEARING / SENT_BACK can be overdue; missing from an older BE) */
+  overdue_by_status?: Record<string, { count: number; amount: number }>;
 }
 
 export interface AdvancePage {

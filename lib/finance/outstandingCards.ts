@@ -1,4 +1,4 @@
-import type { AdvanceSummary } from './advanceQuery';
+import { OVERDUE_STATUSES, type AdvanceSummary } from './advanceQuery';
 
 /** The statuses that hold paid-out money not yet closed (ตีกลับผู้เบิก is before payment, so it has none).
  * Colors: validated categorical slots 1–4 in this fixed order (adjacent pairs stay apart for color-blind readers). */
@@ -16,6 +16,8 @@ export interface OutstandingCard {
   hint: string;
   color?: string;
   tone?: 'total';
+  /** set on the statuses that can be overdue (รอเคลียร์ / ส่งกลับแก้ไข) once the BE sends overdue_by_status */
+  overdue?: { count: number; amount: number };
 }
 
 /**
@@ -27,8 +29,11 @@ export function outstandingCards(summary: AdvanceSummary | null | undefined): Ou
   const by = summary?.outstanding_by_status;
   if (!summary || !by) return null;
   const count = (status: string) => summary.counts?.[status] ?? 0;
-  const parts = OUTSTANDING_PARTS.map(p => ({
+  const overdueBy = summary.overdue_by_status;
+  const parts: OutstandingCard[] = OUTSTANDING_PARTS.map(p => ({
     key: p.status, label: p.label, amount: by[p.status] ?? 0, hint: `${count(p.status)} ใบ`, color: p.color,
+    ...(overdueBy && OVERDUE_STATUSES.includes(p.status)
+      ? { overdue: { count: overdueBy[p.status]?.count ?? 0, amount: overdueBy[p.status]?.amount ?? 0 } } : {}),
   }));
   const total = summary.outstanding_amount ?? 0;
   const other = Math.round((total - parts.reduce((n, p) => n + p.amount, 0)) * 100) / 100;
