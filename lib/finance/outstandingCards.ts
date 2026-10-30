@@ -15,11 +15,11 @@ export interface OutstandingCard {
   amount: number;
   hint: string;
   color?: string;
-  tone?: 'total' | 'alert';
+  tone?: 'total';
 }
 
 /**
- * ยอดค้างเคลียร์ card, one card per status inside it, then เกินกำหนด (already part of the total, said so on the card).
+ * ยอดค้างเคลียร์ card, then one card per status inside it (no เกินกำหนด card: user removed it 30/10/2026).
  * Money in any other status (should not happen) shows as one "สถานะอื่น" card so the cards still add up to the total.
  * null = the BE does not send the split yet.
  */
@@ -37,7 +37,5 @@ export function outstandingCards(summary: AdvanceSummary | null | undefined): Ou
     { key: 'total', label: 'ยอดค้างเคลียร์ (บาท)', amount: total, hint: `${tickets} ใบ รวมทุกสถานะ`, tone: 'total' },
     ...parts,
     ...(other >= 0.01 ? [{ key: 'other', label: 'สถานะอื่น', amount: other, hint: 'ไม่อยู่ใน 4 สถานะข้างหน้า' }] : []),
-    { key: 'overdue', label: 'เกินกำหนดเคลียร์', amount: summary.overdue_amount ?? 0,
-      hint: `${summary.overdue ?? 0} ใบ (อยู่ในยอดรวมแล้ว)`, tone: 'alert' },
   ];
 }

@@ -68,7 +68,6 @@ export default function FinanceQueuePage() {
       { label: 'ยอดค้างเคลียร์ (บาท)', value: formatBaht(summary?.outstanding_amount ?? 0) },
       { label: 'รออนุมัติเคลียร์', value: n('CLEARING_APPROVAL') },
       { label: 'รอบัญชีตรวจ', value: n('AWAITING_REVIEW') },
-      { label: 'เกินกำหนดเคลียร์', value: summary?.overdue ?? 0, alert: true },
     ];
   }, [summary]);
 
