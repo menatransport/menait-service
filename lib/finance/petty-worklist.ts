@@ -139,6 +139,7 @@ export type WorklistColumn<T> = {
   /** ช่องกรองกว้าง */
   wide?: boolean;
   text: (row: T, ctx: WorklistCtx) => string;
+  /** ค่าตัวเลขของช่อง — Excel ส่งออกเป็นตัวเลข (ช่องเงินใช้กรอง > < ด้วย) */
   value?: (row: T) => number | null;
 };
 
@@ -274,14 +275,16 @@ export function sortWorklist<T extends { id: number }>(rows: readonly T[], order
   return [...rows].sort((a, b) => (order === 'desc' ? b.id - a.id : a.id - b.id));
 }
 
-/** แถว Excel — ใช้คอลัมน์ชุดเดียวกับตาราง เงินเป็นตัวเลข */
-export function worklistSheetRows(kind: WorklistKind, rows: readonly (PettyClaim | PettyRound)[], ctx: WorklistCtx): Record<string, string | number | null>[] {
-  const columns = (kind === 'claim' ? CLAIM_COLUMNS : ROUND_COLUMNS) as WorklistColumn<PettyClaim | PettyRound>[];
+/** แถว Excel — ใช้คอลัมน์ชุดเดียวกับตาราง เงินเป็นตัวเลข · extra = คอลัมน์ต่อท้าย (เช่น ใบ/ยอดของประเภทที่กรอง) */
+export function worklistSheetRows<T extends PettyClaim | PettyRound>(
+  kind: WorklistKind, rows: readonly T[], ctx: WorklistCtx, extra: readonly WorklistColumn<T>[] = [],
+): Record<string, string | number | null>[] {
+  const columns = [...(kind === 'claim' ? CLAIM_COLUMNS : ROUND_COLUMNS) as WorklistColumn<T>[], ...extra];
   return rows.map((row, i) => {
     const out: Record<string, string | number | null> = {};
     for (const col of columns) {
       if (col.label === 'ลำดับ') out[col.label] = i + 1;
-      else if (col.money && col.value) out[col.label] = col.value(row);
+      else if (col.value) out[col.label] = col.value(row); // เงินและจำนวน ส่งออกเป็นตัวเลข รวมใน Excel ได้
       else out[col.label] = col.text(row, ctx);
     }
     return out;

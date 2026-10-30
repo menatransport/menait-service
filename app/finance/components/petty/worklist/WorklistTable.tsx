@@ -14,6 +14,7 @@ import {
 } from '@/lib/finance/petty-worklist';
 import { formatBaht, todayBkk } from '@/lib/finance/status';
 import { showAlert } from '../../../api';
+import { RoundTypeChip } from '../TypeFilter';
 import { ClaimBadge, RoundBadge } from './StatusBadges';
 
 const PAGE_SIZE = 20;
@@ -32,7 +33,10 @@ type AnyRow = PettyClaim | PettyRound;
  * · หัวการ์ดน้ำเงินเข้ม (ค้นหา ตัวกรอง เรียง Excel) · ช่องกรองใต้หัวคอลัมน์ทุกช่อง · การ์ดบนจอแคบกว่า 1280px
  * แถวเป็นใบหรือรอบตามแถบ · ไม่มีปุ่มในแถว คลิกแถวเปิดแผงด้านข้าง
  */
-export function WorklistTable({ claims, rounds, ctx, activeTab, onTabChange, loading, onOpenClaim, onOpenRound }: {
+export function WorklistTable({
+  claims, rounds, ctx, activeTab, onTabChange, loading, onOpenClaim, onOpenRound, filters: extraFilters, roundNote,
+  exportRoundColumns = [], exportTag,
+}: {
   claims: PettyClaim[];
   rounds: PettyRound[];
   ctx: WorklistCtx;
@@ -41,6 +45,14 @@ export function WorklistTable({ claims, rounds, ctx, activeTab, onTabChange, loa
   loading: boolean;
   onOpenClaim: (claim: PettyClaim) => void;
   onOpenRound: (round: PettyRound) => void;
+  /** ตัวเลือกเพิ่มข้างช่วงเดือน (เช่น ประเภทการเบิก) */
+  filters?: ReactNode;
+  /** ป้ายเล็กใต้เลขที่รอบ (เช่น "มีค่าชั่งน้ำหนัก 2 จาก 5 ใบ") */
+  roundNote?: (round: PettyRound) => string | null;
+  /** คอลัมน์ต่อท้าย Excel ของรอบ (เช่น ใบ/ยอดของประเภทที่กรอง) */
+  exportRoundColumns?: WorklistColumn<PettyRound>[];
+  /** ต่อท้ายชื่อไฟล์ Excel (เช่น รหัสประเภทที่กรอง) */
+  exportTag?: string;
 }) {
   const [startMonth, setStartMonth] = useState<string>(() => shiftMonths(11));
   const [endMonth, setEndMonth] = useState<string>(() => currentMonth());
@@ -97,10 +109,13 @@ export function WorklistTable({ claims, rounds, ctx, activeTab, onTabChange, loa
     setExporting(true);
     try {
       const XLSX = await import('xlsx');
-      const sheet = XLSX.utils.json_to_sheet(worklistSheetRows(kind, filtered, ctx), { header: columns.map(c => c.label) });
+      // แถวเดียวกับที่เห็นบนจอ (ผ่านทุกตัวกรองแล้ว) · รอบที่กรองประเภทได้คอลัมน์ใบ/ยอดของประเภทนั้นต่อท้าย
+      const extra = (kind === 'round' ? exportRoundColumns : []) as WorklistColumn<AnyRow>[];
+      const sheet = XLSX.utils.json_to_sheet(worklistSheetRows(kind, filtered, ctx, extra),
+        { header: [...columns, ...extra].map(c => c.label) });
       const book = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(book, sheet, kind === 'claim' ? 'ใบเบิก' : 'รอบ');
-      XLSX.writeFile(book, `เงินสดย่อย-${activeTab}-${todayBkk()}.xlsx`);
+      XLSX.writeFile(book, `เงินสดย่อย-${activeTab}${exportTag ? `-${exportTag}` : ''}-${todayBkk()}.xlsx`);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ส่งออก Excel ไม่สำเร็จ', text: (err as Error).message });
     } finally {
@@ -141,7 +156,16 @@ export function WorklistTable({ claims, rounds, ctx, activeTab, onTabChange, loa
     if (col.label === 'ลำดับ') return no;
     if (col.label === 'สถานะ') return kind === 'claim' ? <ClaimBadge status={(row as PettyClaim).status} /> : <RoundBadge status={(row as PettyRound).status} />;
     const text = col.text(row, ctx);
-    if (col.label === 'เลขที่ใบเบิก' || col.label === 'เลขที่รอบ') return <span className="font-medium text-brand-800">{text}</span>;
+    if (col.label === 'เลขที่รอบ') {
+      const note = roundNote?.(row as PettyRound);
+      return (
+        <div className="flex flex-col items-start gap-1">
+          <span className="font-medium text-brand-800">{text}</span>
+          <RoundTypeChip text={note} />
+        </div>
+      );
+    }
+    if (col.label === 'เลขที่ใบเบิก') return <span className="font-medium text-brand-800">{text}</span>;
     if (!text) return '-';
     if (col.wide) return <div className="max-w-[14rem] truncate" title={text}>{text}</div>;
     return text;
@@ -161,7 +185,10 @@ export function WorklistTable({ claims, rounds, ctx, activeTab, onTabChange, loa
             </TabsTrigger>
           ))}
         </TabsList>
-        <MonthRangeFilter startMonth={startMonth} endMonth={endMonth} onChange={handleMonthRangeChange} compact />
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          {extraFilters}
+          <MonthRangeFilter startMonth={startMonth} endMonth={endMonth} onChange={handleMonthRangeChange} compact />
+        </div>
       </div>
 
       <section className="relative overflow-hidden rounded-2xl border border-white/30 bg-white shadow-xl">
@@ -284,7 +311,7 @@ export function WorklistTable({ claims, rounds, ctx, activeTab, onTabChange, loa
             <div className="divide-y divide-gray-100">
               {shown.map(row => kind === 'claim'
                 ? <ClaimCard key={`c${row.id}`} claim={row as PettyClaim} ctx={ctx} onOpen={() => open(row)} />
-                : <RoundCard key={`r${row.id}`} round={row as PettyRound} onOpen={() => open(row)} />)}
+                : <RoundCard key={`r${row.id}`} round={row as PettyRound} note={roundNote?.(row as PettyRound)} onOpen={() => open(row)} />)}
             </div>
           )}
         </div>
@@ -359,7 +386,7 @@ function ClaimCard({ claim, ctx, onOpen }: { claim: PettyClaim; ctx: WorklistCtx
   );
 }
 
-function RoundCard({ round, onOpen }: { round: PettyRound; onOpen: () => void }) {
+function RoundCard({ round, note, onOpen }: { round: PettyRound; note?: string | null; onOpen: () => void }) {
   return (
     <div onClick={onOpen} className="cursor-pointer p-4 transition-colors active:bg-gray-100">
       <div className="flex items-start justify-between gap-2">
@@ -367,6 +394,7 @@ function RoundCard({ round, onOpen }: { round: PettyRound; onOpen: () => void })
           <p className="text-xs font-medium text-brand-600">{round.batch_no}</p>
           <p className="truncate text-sm font-semibold text-gray-800">{round.holder_name ?? round.holder_employee_id ?? '-'}</p>
           <p className="mt-0.5 text-xs text-gray-500">สาขา {round.branch_code ?? '-'} · แผนก {round.division_code ?? '-'}</p>
+          {note && <div className="mt-1"><RoundTypeChip text={note} /></div>}
           {(round.voucher_no || round.pay_doc_no) && (
             <p className="mt-0.5 text-xs text-gray-500">ตั้งเบิก: {round.voucher_no ?? '-'} · ทำจ่าย: {round.pay_doc_no ?? '-'}</p>
           )}

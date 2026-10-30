@@ -1,18 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Receipt } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import type { PettyTab } from '@/lib/finance/petty-list';
+import { filterByType } from '@/lib/finance/petty-type-filter';
 import { formatBaht } from '@/lib/finance/status';
 import { showAlert } from '../api';
-import { getExpenseTypes, getFunds, listClaims } from '../petty-api';
+import { getExpenseTypes, getFunds, listAllClaims } from '../petty-api';
 import { FinanceCanvas, FinanceHeading, SummaryTiles } from '../components/FinanceShell';
 import { PettyListView } from '../components/petty/PettyListView';
 import { PettySheet } from '../components/petty/PettySheet';
+import { TypeFilter, usePettyTypeFilter } from '../components/petty/TypeFilter';
 
 const TITLE = 'ใบเบิกเงินสดย่อยของฉัน';
 const CAPTION = 'ใบที่คุณเปิด ติดตามสถานะ และสิ่งที่ต้องแก้';
@@ -27,6 +29,15 @@ const TABS: PettyTab[] = [
 ];
 
 export default function MyPettyClaimsPage() {
+  // ?type= อ่านผ่าน useSearchParams ต้องมี Suspense ครอบ
+  return (
+    <Suspense fallback={<MascotLoader />}>
+      <MyPettyClaims />
+    </Suspense>
+  );
+}
+
+function MyPettyClaims() {
   const { loading } = useSessionContext();
   const [tab, setTab] = useState('all');
   const [claims, setClaims] = useState<PettyClaim[] | null>(null);
@@ -34,10 +45,12 @@ export default function MyPettyClaimsPage() {
   const [funds, setFunds] = useState<PettyFund[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const typeFilter = usePettyTypeFilter(types);
 
   const load = useCallback(async () => {
     try {
-      const [page, t, f] = await Promise.all([listClaims({ view: 'mine', limit: '200' }), getExpenseTypes(), getFunds(true)]);
+      // ทุกหน้า ไม่ใช่แค่ 200 ใบแรก — กรองประเภทแล้วตัวเลขจะได้ครบ
+      const [page, t, f] = await Promise.all([listAllClaims({ view: 'mine' }), getExpenseTypes(), getFunds(true)]);
       setClaims(page.items); setTypes(t); setFunds(f);
     } catch (err) {
       setClaims([]);
@@ -48,10 +61,12 @@ export default function MyPettyClaimsPage() {
 
   if (loading || claims === null) return <MascotLoader />;
 
-  const count = (...s: PettyClaim['status'][]) => claims.filter(c => s.includes(c.status)).length;
-  const sum = (...s: PettyClaim['status'][]) => claims.filter(c => s.includes(c.status)).reduce((a, c) => a + c.amount, 0);
+  // ตัวเลขบนการ์ดสรุปและแท็บนับเฉพาะประเภทที่เลือก จะได้ตรงกับตาราง
+  const mine = filterByType(claims, typeFilter.code);
+  const count = (...s: PettyClaim['status'][]) => mine.filter(c => s.includes(c.status)).length;
+  const sum = (...s: PettyClaim['status'][]) => mine.filter(c => s.includes(c.status)).reduce((a, c) => a + c.amount, 0);
   const stats = [
-    { label: 'ใบทั้งหมด', value: claims.length },
+    { label: 'ใบทั้งหมด', value: mine.length },
     { label: 'รออนุมัติ', value: count('PENDING_APPROVAL') },
     { label: 'อนุมัติจ่ายแล้ว รอเคลียร์', value: count('APPROVED', 'CLEAR_PENDING', 'TRANSFERRED') },
     { label: 'ต้องแก้ไข', value: count('RETURNED', 'SENT_BACK'), alert: true, hint: 'เปิดใบ แนบเอกสาร แล้วกดส่งอีกครั้ง' },
@@ -63,8 +78,10 @@ export default function MyPettyClaimsPage() {
       <FinanceHeading icon={Receipt} title={TITLE} caption={CAPTION}
         actions={<Link href="/finance/petty/new" className="v2-btn text-sm"><Plus className="h-4 w-4" /> เปิดใบใหม่</Link>} />
       <SummaryTiles items={stats} />
-      <PettyListView claims={claims} types={types} funds={funds} tabs={TABS} activeTab={tab} onTabChange={setTab}
-        onOpen={c => { setOpenId(c.form_id); setSheetOpen(true); }} exportFileBase="เงินสดย่อยของฉัน" />
+      <PettyListView claims={mine} types={types} funds={funds} tabs={TABS} activeTab={tab} onTabChange={setTab}
+        onOpen={c => { setOpenId(c.form_id); setSheetOpen(true); }}
+        filters={<TypeFilter types={types} value={typeFilter.code} onChange={typeFilter.setCode} onCanvas />}
+        exportFileBase={typeFilter.code ? `เงินสดย่อยของฉัน-${typeFilter.name}` : 'เงินสดย่อยของฉัน'} />
       <PettySheet formId={openId} isOpen={sheetOpen} onClose={() => setSheetOpen(false)} onChanged={() => void load()} />
     </FinanceCanvas>
   );

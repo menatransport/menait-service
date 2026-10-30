@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Landmark, Wallet } from 'lucide-react';
@@ -8,11 +8,16 @@ import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyClaim, PettyExpenseType, PettyFund, PettyRound } from '@/app/finance/types-petty';
 import { canSeePettyWorklist, worklistPerms } from '@/lib/finance/petty-access';
-import { defaultTab, resolveTab, worklistStats, type WorklistCtx, type WorklistTabKey } from '@/lib/finance/petty-worklist';
+import { filterByType, filterRoundsByType, roundTypeHint, typeRoundColumns } from '@/lib/finance/petty-type-filter';
+import {
+  WORKLIST_ROUND_STATUSES, defaultTab, resolveTab, worklistStats, type WorklistCtx, type WorklistTabKey,
+} from '@/lib/finance/petty-worklist';
 import { showAlert } from '../../api';
-import { getExpenseTypes, getFunds, listClaims, listRounds } from '../../petty-api';
+import { getExpenseTypes, getFunds, listAllClaims, listRounds } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, NoAccess, SummaryTiles } from '../../components/FinanceShell';
 import { PettySheet } from '../../components/petty/PettySheet';
+import { TypeFilter, usePettyTypeFilter } from '../../components/petty/TypeFilter';
+import { useRoundTypeTally } from '../../components/petty/useRoundTypeTally';
 import { RoundSheet } from '../../components/petty/worklist/RoundSheet';
 import { WorklistTable } from '../../components/petty/worklist/WorklistTable';
 
@@ -45,6 +50,13 @@ function PettyWork() {
   const [busy, setBusy] = useState(true);
   const [open, setOpen] = useState<Open>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const typeFilter = usePettyTypeFilter(types);
+  const typeCode = typeFilter.code;
+  // ใบในรอบที่ผ่านบัญชีแล้ว (ตรวจผ่าน/ปิดแล้ว) — โหลดเมื่อกรองประเภทเท่านั้น ไว้รู้ว่ารอบไหนมีใบประเภทนั้น
+  const [loadGen, setLoadGen] = useState(0);
+  const [roundClaims, setRoundClaims] = useState<PettyClaim[]>([]);
+  const [roundClaimsBusy, setRoundClaimsBusy] = useState(false);
+  const roundClaimsGen = useRef(-1);
 
   // แถบเริ่มต้น: ?tab= จากลิงก์ (เช่น /finance/petty/batches → รอจ่าย) ไม่มีก็ตามแผนก
   useEffect(() => {
@@ -56,12 +68,13 @@ function PettyWork() {
     setBusy(true);
     try {
       const [a, b, r, t, f] = await Promise.all([
-        listClaims({ view: 'all', status: 'AWAITING_REVIEW', limit: '200' }),
-        listClaims({ view: 'all', status: 'SENT_BACK', limit: '200' }),
+        listAllClaims({ view: 'all', status: 'AWAITING_REVIEW' }),
+        listAllClaims({ view: 'all', status: 'SENT_BACK' }),
         listRounds('all', undefined, 200),
         getExpenseTypes(), getFunds(true),
       ]);
       setClaims([...a.items, ...b.items]); setRounds(r); setTypes(t); setFunds(f);
+      setLoadGen(g => g + 1);
     } catch (err) {
       showAlert({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ', text: (err as Error).message });
     } finally {
@@ -79,7 +92,33 @@ function PettyWork() {
     };
   }, [rounds, types, funds]);
 
-  const stats = useMemo(() => worklistStats(claims, rounds, types), [claims, rounds, types]);
+  const wantRoundClaims = typeCode !== '' && loadGen > 0;
+  useEffect(() => {
+    if (!wantRoundClaims || roundClaimsGen.current === loadGen) return;
+    const gen = loadGen;
+    roundClaimsGen.current = gen;
+    setRoundClaimsBusy(true);
+    Promise.all([listAllClaims({ view: 'all', status: 'REVIEWED' }), listAllClaims({ view: 'all', status: 'CLOSED' })])
+      .then(([x, y]) => { if (roundClaimsGen.current === gen) setRoundClaims([...x.items, ...y.items]); })
+      .catch(err => {
+        roundClaimsGen.current = -1;
+        showAlert({ icon: 'error', title: 'โหลดใบในรอบไม่สำเร็จ', text: (err as Error).message });
+      })
+      .finally(() => { if (roundClaimsGen.current === gen || roundClaimsGen.current === -1) setRoundClaimsBusy(false); });
+  }, [wantRoundClaims, loadGen]);
+
+  // รอบที่หน้านี้โชว์ (ถึงบัญชีแล้ว) — รอบที่ยังอยู่กับหัวหน้าไม่ต้องนับประเภท
+  const workRounds = useMemo(() => rounds.filter(r => WORKLIST_ROUND_STATUSES.includes(r.status)), [rounds]);
+  const knownClaims = useMemo(() => [...claims, ...roundClaims], [claims, roundClaims]);
+  const { tally, loading: tallyBusy } = useRoundTypeTally(knownClaims, workRounds, wantRoundClaims && !roundClaimsBusy, 30);
+  const shownClaims = useMemo(() => filterByType(claims, typeCode), [claims, typeCode]);
+  const shownRounds = useMemo(() => filterRoundsByType(workRounds, typeCode, tally), [workRounds, typeCode, tally]);
+  const typeBusy = typeCode !== '' && (roundClaimsBusy || tallyBusy);
+
+  // ตัวเลขสรุปและตัวเลขบนแถบนับตามประเภทที่เลือก · ยอดของรอบยังเป็นยอดทั้งรอบ
+  const stats = useMemo(() => worklistStats(shownClaims, shownRounds, types), [shownClaims, shownRounds, types]);
+  const roundNote = useCallback((r: PettyRound) => roundTypeHint(r, typeCode, tally, ctx.typeName), [typeCode, tally, ctx]);
+  const exportRoundColumns = useMemo(() => typeRoundColumns(typeCode, ctx.typeName, tally), [typeCode, ctx, tally]);
 
   const openClaim = (formId: string) => { setOpen({ kind: 'claim', formId }); setSheetOpen(true); };
   const openRound = (round: { id: number; batch_no: string }) => { setOpen({ kind: 'round', id: round.id, batch_no: round.batch_no }); setSheetOpen(true); };
@@ -104,9 +143,17 @@ function PettyWork() {
         )}
       />
       <SummaryTiles items={stats} />
+      {typeCode && (
+        <p className="text-xs text-white/85">
+          เห็นเฉพาะ{typeFilter.name} · แถบที่เป็นรอบ โชว์รอบที่มีใบ{typeFilter.name}อยู่ด้วย ยอดเงินยังเป็นยอดทั้งรอบ
+        </p>
+      )}
       {tab !== null && (
-        <WorklistTable claims={claims} rounds={rounds} ctx={ctx} activeTab={tab} onTabChange={setTab} loading={busy || loading}
-          onOpenClaim={c => openClaim(c.form_id)} onOpenRound={openRound} />
+        <WorklistTable claims={shownClaims} rounds={shownRounds} ctx={ctx} activeTab={tab} onTabChange={setTab}
+          loading={busy || loading || typeBusy}
+          onOpenClaim={c => openClaim(c.form_id)} onOpenRound={openRound}
+          filters={<TypeFilter types={types} value={typeCode} onChange={typeFilter.setCode} onCanvas />}
+          roundNote={roundNote} exportRoundColumns={exportRoundColumns} exportTag={typeCode || undefined} />
       )}
 
       <PettySheet formId={open?.kind === 'claim' ? open.formId : null} isOpen={sheetOpen && open?.kind === 'claim'}

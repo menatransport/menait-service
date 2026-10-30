@@ -5,6 +5,7 @@ import { Check, FileText, Printer, X } from 'lucide-react';
 import { fundLabel } from '@/lib/finance/petty-fund-label';
 import { formatDate } from '@/lib/finance/status';
 import { Field } from '../../FinanceShell';
+import { RoundTypeChip } from '../TypeFilter';
 import { roundOutcome, type ClearRound } from './model';
 import { BTN_APPROVE, BTN_REJECT, BTN_VIEW, CARD, CARD_FOOT, CARD_HEAD, HintLine, Money, OutcomeBadge, RoundStatusPill, WaitingBadge } from './ui';
 
@@ -12,9 +13,11 @@ import { BTN_APPROVE, BTN_REJECT, BTN_VIEW, CARD, CARD_FOOT, CARD_HEAD, HintLine
  * การ์ดรอบส่งเคลียร์ — หนึ่งการ์ด = หนึ่งรอบ
  * head-pending = คิวหัวหน้า (ไม่อนุมัติ/อนุมัติ) · head-history = หัวหน้ากดไปแล้ว · holder = รอบที่เจ้าของเงินสดส่งไปแล้ว
  */
-export function RoundCard({ round, mode, highlight = false, processing = false, onApprove, onReject, onPrint }: {
+export function RoundCard({ round, mode, highlight = false, processing = false, typeHint, onApprove, onReject, onPrint }: {
   round: ClearRound; mode: 'head-pending' | 'head-history' | 'holder';
   highlight?: boolean; processing?: boolean;
+  /** กรองประเภทอยู่: รอบนี้มีใบประเภทนั้นกี่ใบ (ใบอื่นในรอบยังอยู่ กดอะไรก็มีผลทั้งรอบ) */
+  typeHint?: string | null;
   onApprove?: () => void; onReject?: () => void; onPrint?: () => void;
 }) {
   const count = round.claim_count ?? round.claims?.length ?? 0;
@@ -26,6 +29,7 @@ export function RoundCard({ round, mode, highlight = false, processing = false, 
         <div>
           <p className="text-sm font-semibold text-brand-800">รอบ {round.batch_no}</p>
           <p className="text-xs text-gray-500">เจ้าของเงินสด {round.holder_name ?? round.holder_employee_id ?? '-'}</p>
+          {typeHint && <div className="mt-1"><RoundTypeChip text={typeHint} /></div>}
         </div>
         {mode === 'head-pending' ? <WaitingBadge text="รออนุมัติเคลียร์" />
           : mode === 'head-history' ? <OutcomeBadge ok={!rejected} okText="อนุมัติแล้ว" noText="ไม่อนุมัติ" />

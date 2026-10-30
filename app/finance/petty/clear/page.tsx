@@ -1,25 +1,31 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ClipboardCheck } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
 import { PaginationControls } from '@/components/pagination-controls';
 import { useSessionContext } from '@/app/context/SessionContext';
+import type { PettyClaim, PettyExpenseType } from '@/app/finance/types-petty';
 import { pageCount, paginate } from '@/lib/finance/petty-list';
+import { filterRoundsByType, roundTypeHint } from '@/lib/finance/petty-type-filter';
 import { showAlert } from '../../api';
-import { listRounds } from '../../petty-api';
+import { getExpenseTypes, listRounds } from '../../petty-api';
 import { FinanceHeading, FinanceShell, Panel } from '../../components/FinanceShell';
+import { TypeFilter, usePettyTypeFilter } from '../../components/petty/TypeFilter';
+import { useRoundTypeTally } from '../../components/petty/useRoundTypeTally';
 import { RoundCard } from '../../components/petty/approvals/RoundCard';
 import { decideRound, listClearHistory } from '../../components/petty/approvals/clear-actions';
 import {
   clearedByMe, locateRound, parseHeadView, splitByPrimary, tabLabel, type ClearRound, type HeadView, type SubTab,
 } from '../../components/petty/approvals/model';
-import { EmptyState, HeaderTabs, NoticeBar, SubTabs } from '../../components/petty/approvals/ui';
+import { EmptyState, HeaderTabs, HintLine, NoticeBar, SubTabs } from '../../components/petty/approvals/ui';
 
 const TITLE = 'อนุมัติเคลียร์เงินสดย่อย';
 const CAPTION = 'รอบที่เจ้าของเงินสดในสายงานของคุณส่งมา อนุมัติแล้วรอบไปให้บัญชีตรวจต่อ';
 const PAGE_SIZE = 20;
+const NO_ROUNDS: ClearRound[] = [];
+const NO_CLAIMS: PettyClaim[] = [];
 
 function Loading() {
   return (
@@ -47,6 +53,18 @@ function PettyClear() {
   const [busy, setBusy] = useState<number | null>(null);
   const [notice, setNotice] = useState('');
   const handledDoc = useRef<string | null>(null);
+  const [types, setTypes] = useState<PettyExpenseType[]>([]);
+  const typeFilter = usePettyTypeFilter(types);
+  const typeCode = typeFilter.code;
+  useEffect(() => { getExpenseTypes().then(setTypes).catch(() => setTypes([])); }, []);
+
+  // รายการรอบไม่มีใบติดมา — กรองประเภทเมื่อไรค่อยขอรายละเอียดรอบมานับ (คิวหัวหน้าไม่ยาว)
+  const pendingTally = useRoundTypeTally(NO_CLAIMS, rounds ?? NO_ROUNDS, typeCode !== '', 200);
+  const historyTally = useRoundTypeTally(NO_CLAIMS, history ?? NO_ROUNDS, typeCode !== '' && view === 'history', 200);
+  const roundsT = useMemo(() => filterRoundsByType(rounds ?? NO_ROUNDS, typeCode, pendingTally.tally), [rounds, typeCode, pendingTally.tally]);
+  const historyT = useMemo(() => filterRoundsByType(history ?? NO_ROUNDS, typeCode, historyTally.tally), [history, typeCode, historyTally.tally]);
+  const typeNameOf = (code: string) => types.find(t => t.code === code)?.name_th ?? code;
+  useEffect(() => { setHistoryPage(1); }, [typeCode]);
 
   const load = useCallback(async () => {
     try {
@@ -84,7 +102,11 @@ function PettyClear() {
 
   if (loading || rounds === null) return <Loading />;
 
-  const { mine, delegable } = splitByPrimary(rounds);
+  const { mine, delegable } = splitByPrimary(roundsT);
+  const typeName = typeFilter.name;
+  const pendingBusy = pendingTally.loading;
+  const historyBusy = historyTally.loading;
+  const typeSelect = <TypeFilter types={types} value={typeCode} onChange={typeFilter.setCode} compact />;
   const shownRaw = subTab === 'mine' ? mine : delegable;
   const isDoc = (r: ClearRound) => !!doc && (r.batch_no === doc || String(r.id) === doc);
   const shown = doc ? [...shownRaw].sort((a, b) => Number(isDoc(b)) - Number(isDoc(a))) : shownRaw;
@@ -97,7 +119,7 @@ function PettyClear() {
         caption={CAPTION}
         actions={
           <HeaderTabs value={view} onChange={v => { setView(v); setHistoryPage(1); }} tabs={[
-            ['pending', tabLabel('รออนุมัติเคลียร์', rounds.length)],
+            ['pending', tabLabel('รออนุมัติเคลียร์', roundsT.length)],
             ['history', 'อนุมัติ/ไม่อนุมัติแล้ว'],
           ]} />
         }
@@ -105,33 +127,44 @@ function PettyClear() {
       <NoticeBar text={notice} onClose={() => setNotice('')} />
 
       {view === 'pending' ? (
-        <Panel title="รอบรออนุมัติเคลียร์">
+        <Panel title="รอบรออนุมัติเคลียร์" actions={typeSelect}>
           <SubTabs value={subTab} onChange={setSubTab} tabs={[
             ['mine', `รอฉันอนุมัติ (${mine.length})`],
             ['delegable', `อนุมัติแทนได้ (${delegable.length})`],
           ]} />
-          {shown.length === 0 ? (
-            <EmptyState text={subTab === 'mine' ? 'ไม่มีรอบที่รอคุณอนุมัติเคลียร์' : 'ไม่มีรอบที่อนุมัติแทนได้'} />
+          {typeCode && (
+            <HintLine>เห็นเฉพาะรอบที่มีใบ{typeName}อยู่ด้วย กดอนุมัติหรือไม่อนุมัติ มีผลกับทุกใบในรอบ</HintLine>
+          )}
+          {pendingBusy ? (
+            <div className="py-8"><MascotLoader text="กำลังดูว่ารอบไหนมีใบประเภทนี้" size={80} /></div>
+          ) : shown.length === 0 ? (
+            <EmptyState text={typeCode
+              ? `ไม่มีรอบที่มีใบ${typeName}${subTab === 'mine' ? 'รอคุณอนุมัติเคลียร์' : 'ที่อนุมัติแทนได้'}`
+              : (subTab === 'mine' ? 'ไม่มีรอบที่รอคุณอนุมัติเคลียร์' : 'ไม่มีรอบที่อนุมัติแทนได้')} />
           ) : (
             <div className="space-y-4">
               {shown.map(r => (
                 <RoundCard key={r.id} round={r} mode="head-pending" highlight={isDoc(r)} processing={busy === r.id}
+                  typeHint={roundTypeHint(r, typeCode, pendingTally.tally, typeNameOf)}
                   onApprove={() => void decide(r, 'clear-approve')} onReject={() => void decide(r, 'clear-reject')} />
               ))}
             </div>
           )}
         </Panel>
       ) : (
-        <Panel title="รอบที่อนุมัติ/ไม่อนุมัติแล้ว">
-          {history === null ? (
+        <Panel title="รอบที่อนุมัติ/ไม่อนุมัติแล้ว" actions={typeSelect}>
+          {typeCode && <HintLine>เห็นเฉพาะรอบที่มีใบ{typeName}อยู่ · รอบที่ไม่อนุมัติจะไม่ขึ้น เพราะใบหลุดรอบไปแล้ว</HintLine>}
+          {history === null || historyBusy ? (
             <div className="py-8"><MascotLoader text="กำลังโหลดรายการ" size={80} /></div>
-          ) : history.length === 0 ? (
-            <EmptyState text="ยังไม่มีรอบที่คุณอนุมัติหรือไม่อนุมัติ" />
+          ) : historyT.length === 0 ? (
+            <EmptyState text={typeCode ? `ยังไม่มีรอบที่มีใบ${typeName}` : 'ยังไม่มีรอบที่คุณอนุมัติหรือไม่อนุมัติ'} />
           ) : (
             <div className="space-y-4">
-              {paginate(history, historyPage, PAGE_SIZE).map(r => <RoundCard key={r.id} round={r} mode="head-history" />)}
+              {paginate(historyT, historyPage, PAGE_SIZE).map(r => (
+                <RoundCard key={r.id} round={r} mode="head-history" typeHint={roundTypeHint(r, typeCode, historyTally.tally, typeNameOf)} />
+              ))}
               <div className="flex justify-end pt-2">
-                <PaginationControls currentPage={historyPage} totalPages={pageCount(history.length, PAGE_SIZE)} onPageChange={setHistoryPage} />
+                <PaginationControls currentPage={historyPage} totalPages={pageCount(historyT.length, PAGE_SIZE)} onPageChange={setHistoryPage} />
               </div>
             </div>
           )}

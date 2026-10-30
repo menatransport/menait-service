@@ -1,5 +1,6 @@
 import type { PettyBalance, PettyClaim, PettyExpenseType, PettyFund, PettyRound } from './types-petty';
 import { roundDuplicateText, type RoundDocField, type RoundDupField } from '@/lib/finance/petty-worklist';
+import { fetchAllClaimPages } from '@/lib/finance/petty-type-filter';
 import { uniqueFileName } from '@/lib/finance/status';
 import { fetchJson } from './api';
 
@@ -18,6 +19,12 @@ export function listClaims(params: Record<string, string | undefined>) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v) qs.set(k, v);
   return fetchJson<ClaimPage>(`/api/finance/petty/claims?${qs.toString()}`);
+}
+
+/** ใบทุกหน้าของมุมมองนั้น (BE ให้ทีละไม่เกิน 200) — กรองประเภทในเครื่องได้ครบ ไม่ใช่แค่ 200 ใบแรก · เพดาน 10 หน้า */
+export function listAllClaims(params: Record<string, string | undefined>, maxPages = 10) {
+  return fetchAllClaimPages(
+    (offset, limit) => listClaims({ ...params, limit: String(limit), offset: String(offset) }), 200, maxPages);
 }
 
 export const getClaim = (formId: string) =>

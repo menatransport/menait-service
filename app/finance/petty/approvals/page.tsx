@@ -10,12 +10,15 @@ import type { PettyBalance, PettyClaim, PettyExpenseType, PettyFund, PettyRound 
 import { ApiError } from '@/lib/finance/api-error';
 import { pageCount, paginate, paidInRange } from '@/lib/finance/petty-list';
 import { fundLabel } from '@/lib/finance/petty-fund-label';
+import { filterByType, filterRoundsByType, roundTypeHint } from '@/lib/finance/petty-type-filter';
 import { formatBaht, formatDate } from '@/lib/finance/status';
 import { showAlert, showConfirm, showSuccess } from '../../api';
-import { countAttachments, createRound, getBalance, getExpenseTypes, getFunds, getRound, listClaims, listRounds } from '../../petty-api';
+import { countAttachments, createRound, getBalance, getExpenseTypes, getFunds, getRound, listAllClaims, listRounds } from '../../petty-api';
 import { DateField } from '../../components/DateField';
 import { FinanceHeading, FinanceShell, Panel } from '../../components/FinanceShell';
 import { PettySheet } from '../../components/petty/PettySheet';
+import { TypeFilter, usePettyTypeFilter } from '../../components/petty/TypeFilter';
+import { useRoundTypeTally } from '../../components/petty/useRoundTypeTally';
 import { runPettyAction } from '../../components/petty/petty-actions';
 import { printRoundCover } from '../../components/petty/round-actions';
 import { ClearClaimCard } from '../../components/petty/approvals/ClearClaimCard';
@@ -27,7 +30,7 @@ import {
   clearableClaims, handledClaims, locateClaim, parseHolderView, pendingClaims, pickSummary, roundBlocker, tabLabel, usesDd,
   type HolderView,
 } from '../../components/petty/approvals/model';
-import { BTN_APPROVE, BTN_VIEW, EmptyState, HeaderTabs, NoticeBar, SubTabs } from '../../components/petty/approvals/ui';
+import { BTN_APPROVE, BTN_VIEW, EmptyState, HeaderTabs, HintLine, NoticeBar, SubTabs } from '../../components/petty/approvals/ui';
 
 const TITLE = 'อนุมัติเบิกเงินสดย่อย';
 const CAPTION = 'อนุมัติจ่ายใบของวงเงินที่คุณถือ แล้วรวมหลายใบส่งเคลียร์เป็นรอบ';
@@ -75,11 +78,14 @@ function PettyApprovals() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const handledDoc = useRef<string | null>(null);
+  const typeFilter = usePettyTypeFilter(types);
+  const typeCode = typeFilter.code;
 
   const load = useCallback(async () => {
     try {
       const [f, page, t, r] = await Promise.all([
-        getFunds(), listClaims({ view: 'approvals', limit: '200' }), getExpenseTypes(), listRounds('mine'),
+        // ทุกหน้า ไม่ใช่แค่ 200 ใบแรก — กรองประเภทแล้วตัวเลขในแถบจะได้ครบ และรู้ว่ารอบไหนมีใบประเภทอะไร
+        getFunds(), listAllClaims({ view: 'approvals' }), getExpenseTypes(), listRounds('mine'),
       ]);
       const mine = f.filter(x => x.holder_employee_id === user?.employee_id);
       setFunds(mine); setClaims(page.items); setTypes(t); setRounds(r);
@@ -91,11 +97,11 @@ function PettyApprovals() {
   }, [user?.employee_id]);
   useEffect(() => { if (user?.employee_id) void load(); }, [user?.employee_id, load]);
   useEffect(() => { if (fundId) getBalance(fundId).then(setBalance).catch(() => setBalance(null)); }, [fundId, claims]);
-  useEffect(() => { setSelected([]); }, [fundId, view, paidFrom, paidTo]);
-  useEffect(() => { setHistoryPage(1); }, [historyTab, fundId]);
+  useEffect(() => { setSelected([]); }, [fundId, view, paidFrom, paidTo, typeCode]);
+  useEffect(() => { setHistoryPage(1); }, [historyTab, fundId, typeCode]);
 
   const specOf = useCallback((code: string) => types.find(t => t.code === code)?.spec, [types]);
-  const typeName = (code: string) => types.find(t => t.code === code)?.name_th ?? code;
+  const typeNameOf = (code: string) => types.find(t => t.code === code)?.name_th ?? code;
 
   const all = useMemo(() => claims ?? [], [claims]);
   const pending = useMemo(() => pendingClaims(all, fundId), [all, fundId]);
@@ -103,6 +109,14 @@ function PettyApprovals() {
   const handled = useMemo(() => handledClaims(all, fundId), [all, fundId]);
   const myRounds = useMemo(() => rounds.filter(r => r.fund_id === fundId)
     .sort((a, b) => (b.submitted_at ?? '').localeCompare(a.submitted_at ?? '') || b.id - a.id), [rounds, fundId]);
+
+  // กรองตามประเภทการเบิก — ตัวเลขในแถบนับตามนี้ · รอบโชว์ถ้ามีใบประเภทนั้นอย่างน้อยหนึ่งใบ (ใบในรอบยังครบ ยอดรอบไม่เปลี่ยน)
+  // pending/clearable/handled ตัวเต็มยังใช้หาใบจากลิงก์ ?doc= และโหลดไฟล์แนบ (เปลี่ยนประเภทไม่ต้องโหลดไฟล์ใหม่)
+  const pendingT = useMemo(() => filterByType(pending, typeCode), [pending, typeCode]);
+  const clearableT = useMemo(() => filterByType(clearable, typeCode), [clearable, typeCode]);
+  const handledT = useMemo(() => filterByType(handled, typeCode), [handled, typeCode]);
+  const { tally, loading: tallyBusy } = useRoundTypeTally(all, myRounds, typeCode !== '');
+  const roundsT = useMemo(() => filterRoundsByType(myRounds, typeCode, tally), [myRounds, typeCode, tally]);
 
   // ไฟล์แนบของใบที่รออนุมัติ — ใช้ทั้งโชว์บนการ์ดและเช็กว่าเอกสารครบไหม (ด่านจริงอยู่ที่ BE ตอนกด)
   const pendingKey = pending.map(c => c.form_id).join(',');
@@ -146,7 +160,7 @@ function PettyApprovals() {
     } finally { setBusy(null); }
   }
 
-  const inRange = clearable.filter(c => paidInRange(c, paidFrom, paidTo));
+  const inRange = clearableT.filter(c => paidInRange(c, paidFrom, paidTo));
   const tickable = inRange.filter(c => !roundBlocker(c, specOf(c.expense_type)));
   const { picked, sum } = pickSummary(tickable, selected);
   const toggle = (id: number) => setSelected(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
@@ -200,9 +214,11 @@ function PettyApprovals() {
   }
 
   const docFirst = (rows: PettyClaim[]) => (doc ? [...rows].sort((a, b) => Number(b.form_id === doc) - Number(a.form_id === doc)) : rows);
-  const shownPending = docFirst(pending);
-  const shownHandled = docFirst(handled);
-  const historyRows = historyTab === 'claims' ? shownHandled : myRounds;
+  const shownPending = docFirst(pendingT);
+  const shownHandled = docFirst(handledT);
+  const historyRows = historyTab === 'claims' ? shownHandled : roundsT;
+  const typeName = typeFilter.name;
+  const ofType = typeCode ? typeName : '';
   const historyPages = pageCount(historyRows.length, PAGE_SIZE);
 
   return (
@@ -213,8 +229,8 @@ function PettyApprovals() {
         caption={CAPTION}
         actions={
           <HeaderTabs value={view} onChange={v => { setView(v); setNotice(''); }} tabs={[
-            ['pending', tabLabel('รออนุมัติจ่าย', pending.length)],
-            ['clear', tabLabel('ส่งเคลียร์', clearable.length)],
+            ['pending', tabLabel('รออนุมัติจ่าย', pendingT.length)],
+            ['clear', tabLabel('ส่งเคลียร์', clearableT.length)],
             ['history', 'อนุมัติแล้ว'],
           ]} />
         }
@@ -232,22 +248,25 @@ function PettyApprovals() {
         {balance && (
           <span className="text-xs text-ink-500">Advance {formatBaht(balance.advance_outstanding)} − ยังไม่คืน {formatBaht(balance.petty_committed)}</span>
         )}
-        {funds.length > 1 && (
-          <select value={fundId ?? ''} onChange={e => setFundId(Number(e.target.value))} aria-label="เลือกวงเงิน"
-            className="ml-auto rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-ink-800">
-            {funds.map(f => <option key={f.id} value={f.id}>{fundLabel(f)}</option>)}
-          </select>
-        )}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <TypeFilter types={types} value={typeCode} onChange={typeFilter.setCode} />
+          {funds.length > 1 && (
+            <select value={fundId ?? ''} onChange={e => setFundId(Number(e.target.value))} aria-label="เลือกวงเงิน"
+              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-ink-800">
+              {funds.map(f => <option key={f.id} value={f.id}>{fundLabel(f)}</option>)}
+            </select>
+          )}
+        </div>
       </div>
 
       <NoticeBar text={notice} onClose={() => setNotice('')} />
 
       {view === 'pending' && (
         <Panel title="รายการรออนุมัติจ่าย">
-          {shownPending.length === 0 ? <EmptyState text="ไม่มีใบรอคุณอนุมัติจ่าย" /> : (
+          {shownPending.length === 0 ? <EmptyState text={`ไม่มีใบ${ofType}รอคุณอนุมัติจ่าย`} /> : (
             <div className="space-y-4">
               {shownPending.map(c => (
-                <PendingClaimCard key={c.id} claim={c} typeName={typeName(c.expense_type)} spec={specOf(c.expense_type)}
+                <PendingClaimCard key={c.id} claim={c} typeName={typeNameOf(c.expense_type)} spec={specOf(c.expense_type)}
                   files={files[c.form_id]} highlight={!!doc && c.form_id === doc}
                   processing={busy === `approve-${c.form_id}` || busy === `return-${c.form_id}`}
                   onView={() => setOpenId(c.form_id)}
@@ -276,7 +295,7 @@ function PettyApprovals() {
             </button>
           </div>
           {inRange.length === 0 ? (
-            <EmptyState text={clearable.length === 0 ? 'ไม่มีใบรอส่งเคลียร์' : 'ไม่มีใบที่จ่ายในช่วงวันที่นี้'} />
+            <EmptyState text={clearableT.length === 0 ? `ไม่มีใบ${ofType}รอส่งเคลียร์` : `ไม่มีใบ${ofType}ที่จ่ายในช่วงวันที่นี้`} />
           ) : (
             <>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -286,11 +305,14 @@ function PettyApprovals() {
                 </button>
                 <p className="text-xs text-gray-500">รอบหนึ่งรวมได้เฉพาะใบของวงเงินที่คุณถือ</p>
               </div>
+              {typeCode && (
+                <HintLine>ตอนนี้เห็นเฉพาะใบ{typeName} ถ้าจะรวมหลายประเภทในรอบเดียว เปลี่ยนเป็น ทุกประเภท ก่อน</HintLine>
+              )}
               <div className="space-y-3">
                 {inRange.map(c => {
                   const spec = specOf(c.expense_type);
                   return (
-                    <ClearClaimCard key={c.id} claim={c} typeName={typeName(c.expense_type)} checked={selected.includes(c.id)}
+                    <ClearClaimCard key={c.id} claim={c} typeName={typeNameOf(c.expense_type)} checked={selected.includes(c.id)}
                       blocker={roundBlocker(c, spec)} hasDd={usesDd(spec)} highlight={!!doc && c.form_id === doc}
                       busy={busy === `dd-${c.form_id}`} debtBusy={busy === `debt-doc-${c.form_id}`} onToggle={() => toggle(c.id)}
                       onView={() => setOpenId(c.form_id)} onDd={() => void act(c, 'dd')} onDebtDoc={() => void act(c, 'debt-doc')} />
@@ -313,20 +335,28 @@ function PettyApprovals() {
       {view === 'history' && (
         <Panel title="รายการที่อนุมัติแล้ว">
           <SubTabs value={historyTab} onChange={setHistoryTab} tabs={[
-            ['claims', `ใบที่อนุมัติ/ตีกลับแล้ว (${handled.length})`],
-            ['rounds', `รอบที่ส่งเคลียร์ (${myRounds.length})`],
+            ['claims', `ใบที่อนุมัติ/ตีกลับแล้ว (${handledT.length})`],
+            ['rounds', `รอบที่ส่งเคลียร์ (${roundsT.length})`],
           ]} />
-          {historyRows.length === 0 ? (
-            <EmptyState text={historyTab === 'claims' ? 'ยังไม่มีใบที่อนุมัติหรือตีกลับ' : 'ยังไม่เคยส่งรอบ'} />
+          {historyTab === 'rounds' && typeCode && (
+            <HintLine>เห็นเฉพาะรอบที่มีใบ{typeName}อยู่ด้วย ยอดรวมยังเป็นยอดทั้งรอบ</HintLine>
+          )}
+          {historyTab === 'rounds' && tallyBusy ? (
+            <div className="py-8"><MascotLoader text="กำลังดูว่ารอบไหนมีใบประเภทนี้" size={80} /></div>
+          ) : historyRows.length === 0 ? (
+            <EmptyState text={historyTab === 'claims'
+              ? (typeCode ? `ยังไม่มีใบ${typeName}ที่อนุมัติหรือตีกลับ` : 'ยังไม่มีใบที่อนุมัติหรือตีกลับ')
+              : (typeCode ? `ยังไม่มีรอบที่มีใบ${typeName}` : 'ยังไม่เคยส่งรอบ')} />
           ) : (
             <div className="space-y-4">
               {historyTab === 'claims'
                 ? paginate(shownHandled, historyPage, PAGE_SIZE).map(c => (
-                  <HandledClaimCard key={c.id} claim={c} typeName={typeName(c.expense_type)} highlight={!!doc && c.form_id === doc}
+                  <HandledClaimCard key={c.id} claim={c} typeName={typeNameOf(c.expense_type)} highlight={!!doc && c.form_id === doc}
                     onView={() => setOpenId(c.form_id)} />
                 ))
-                : paginate(myRounds, historyPage, PAGE_SIZE).map(r => (
+                : paginate(roundsT, historyPage, PAGE_SIZE).map(r => (
                   <RoundCard key={r.id} round={r} mode="holder" processing={busy === `print-${r.id}`}
+                    typeHint={roundTypeHint(r, typeCode, tally, typeNameOf)}
                     onPrint={r.status === 'CLEAR_REJECTED' ? undefined : () => void printCover(r)} />
                 ))}
               <div className="flex justify-end pt-2">

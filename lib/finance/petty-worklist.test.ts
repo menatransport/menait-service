@@ -199,6 +199,16 @@ describe('worklistSheetRows', () => {
     expect(rows[0]['ยอดเงิน']).toBe(2200);
     expect(rows[0]['เลขที่ตั้งเบิก']).toBe('PV-1');
   });
+  test('extra columns (เช่น ใบ/ยอดของประเภทที่กรอง) go after the table columns', () => {
+    const extra = [
+      { label: 'จำนวนใบค่าชั่งน้ำหนัก', text: () => '2', value: () => 2 },
+      { label: 'ยอดค่าชั่งน้ำหนัก', money: true, text: () => '500.00', value: () => 500 },
+    ];
+    const rows = worklistSheetRows('round', [round(4, 'VOUCHERED')], ctx, extra);
+    expect(Object.keys(rows[0])).toEqual([...ROUND_COLUMNS.map(c => c.label), 'จำนวนใบค่าชั่งน้ำหนัก', 'ยอดค่าชั่งน้ำหนัก']);
+    expect(rows[0]['จำนวนใบค่าชั่งน้ำหนัก']).toBe(2);
+    expect(rows[0]['ยอดค่าชั่งน้ำหนัก']).toBe(500);
+  });
 });
 
 describe('voucher / pay payloads', () => {
