@@ -38,17 +38,16 @@ export function tabLabel(label: string, count?: number | null): string {
 const ofFund = (claims: readonly PettyClaim[], fundId: number | null) =>
   fundId === null ? [] : claims.filter(c => c.fund_id === fundId);
 
-/** รออนุมัติจ่าย — ใหม่สุดก่อน (เหมือนตารางเดิม)
- *  + ใบที่ยังรอหัวหน้า แต่เจ้าของเงินสดเป็นหัวหน้าของผู้ขอเบิกด้วย (BE ส่ง can_head_approve) กดครั้งเดียวได้ทั้งสองขั้น */
+/** รออนุมัติจ่าย — ใหม่สุดก่อน (เหมือนตารางเดิม) · หัวหน้าต้องอนุมัติก่อนเสมอ คนอนุมัติกับคนโอนเป็นคนละคน */
 export function pendingClaims(claims: readonly PettyClaim[], fundId: number | null): PettyClaim[] {
   return ofFund(claims, fundId)
-    .filter(c => c.status === 'PENDING_APPROVAL' || (c.status === 'PENDING_HEAD' && c.can_head_approve === true))
+    .filter(c => c.status === 'PENDING_APPROVAL')
     .sort((a, b) => b.id - a.id);
 }
 
 /** ใบที่กำลังมา — ยังรอหัวหน้าของผู้ขอเบิกอนุมัติ เจ้าของเงินสดยังกดจ่ายไม่ได้ (flow v3) */
 export function waitingHeadClaims(claims: readonly PettyClaim[], fundId: number | null): PettyClaim[] {
-  return ofFund(claims, fundId).filter(c => c.status === 'PENDING_HEAD' && c.can_head_approve !== true)
+  return ofFund(claims, fundId).filter(c => c.status === 'PENDING_HEAD')
     .sort((a, b) => b.id - a.id);
 }
 

@@ -62,9 +62,6 @@ export function PendingClaimCard({ claim, typeName, spec, files, highlight, proc
         </div>
         <WaitingBadge text="รออนุมัติจ่าย" />
       </div>
-      {claim.status === 'PENDING_HEAD' && (
-        <HintLine>คุณเป็นหัวหน้าของผู้ขอเบิกด้วย กดอนุมัติจ่ายครั้งเดียว นับทั้งขั้นหัวหน้าและขั้นจ่าย</HintLine>
-      )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <Money label="จำนวนเงินที่ขอ" value={claim.amount} strong />

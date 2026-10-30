@@ -83,9 +83,8 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
 
   const spec = type?.spec ?? {};
   const isHolder = canApprove(user, fund);
-  // ขั้นที่เจ้าของเงินสดกดจ่ายได้: รอเจ้าของเงินสด หรือยังรอหัวหน้าแต่ตัวเองเป็นหัวหน้าของผู้ขอเบิกด้วย (flow v3 กดครั้งเดียวสองขั้น)
-  const holderCanPay = isHolder && !!claim
-    && (claim.status === 'PENDING_APPROVAL' || (claim.status === 'PENDING_HEAD' && claim.can_head_approve === true));
+  // เจ้าของเงินสดกดจ่ายได้หลังหัวหน้าอนุมัติแล้วเท่านั้น (คนอนุมัติกับคนโอนเป็นคนละคน)
+  const holderCanPay = isHolder && claim?.status === 'PENDING_APPROVAL';
 
   // ด่านล่วงหน้าเฉพาะใบที่รออนุมัติ: เอกสารที่ขาดตาม spec (แยกของคนเปิดใบ/สลิปโอนของเจ้าของเงินสด แบบการ์ดหน้าอนุมัติ)
   // + ซ้ำรายแถวจาก BE (ด่านจริงคือตอนกด)
@@ -240,7 +239,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
           </div>
         </Panel>
       )}
-      {claim.status === 'PENDING_HEAD' && isHolder && !claim.can_head_approve && (
+      {claim.status === 'PENDING_HEAD' && isHolder && (
         <p className="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
           ใบนี้รอหัวหน้าของผู้ขอเบิกอนุมัติก่อน หัวหน้าอนุมัติแล้วคุณถึงอนุมัติจ่ายได้
         </p>
@@ -252,9 +251,6 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
           {gate && <GatePanel {...gate} />}
           <Panel title="อนุมัติจ่าย">
             <div className="space-y-3">
-              {claim.status === 'PENDING_HEAD' && (
-                <p className="text-xs text-ink-500">คุณเป็นหัวหน้าของผู้ขอเบิกด้วย กดครั้งเดียว นับทั้งขั้นหัวหน้าและขั้นจ่าย</p>
-              )}
               <Button type="button" onClick={() => void act('approve')} disabled={busy !== null || blocked} className={PRIMARY_BTN}>
                 {busy === 'approve' ? 'กำลังบันทึก...' : 'อนุมัติจ่าย'}
               </Button>

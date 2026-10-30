@@ -54,8 +54,6 @@ export type QuickAction = { action: PettyAction; label: string };
  * ใบที่อนุมัติจ่ายแล้วไม่มีปุ่มรายใบ เพราะส่งเคลียร์เป็นรอบ (ติ๊กหลายใบแล้วกดส่ง) */
 export function quickAction(claim: PettyClaim, role: PettyRole): QuickAction | null {
   if (role === 'holder' && claim.status === 'PENDING_APPROVAL') return { action: 'approve', label: 'อนุมัติจ่าย' };
-  // เจ้าของเงินสดที่เป็นหัวหน้าของผู้ขอเบิกด้วย กดครั้งเดียวนับทั้งสองขั้น (flow v3)
-  if (role === 'holder' && claim.status === 'PENDING_HEAD' && claim.can_head_approve) return { action: 'approve', label: 'อนุมัติจ่าย' };
   if (role === 'accounting' && claim.status === 'AWAITING_REVIEW') return { action: 'review', label: 'ผ่าน' };
   return null;
 }

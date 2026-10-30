@@ -84,8 +84,8 @@ describe('claim lists per tab', () => {
     claim({ id: 8, status: 'PENDING_APPROVAL' }),
   ];
   test('pending = waiting for the holder, this fund only, newest first', () => {
-    // 10 = รอหัวหน้า แต่เจ้าของเงินสดเป็นหัวหน้าของผู้ขอเบิกด้วย กดครั้งเดียวได้ทั้งสองขั้น
-    expect(pendingClaims(claims, 1).map(c => c.id)).toEqual([10, 8, 1]);
+    // 9/10 ยังรอหัวหน้า — เจ้าของเงินสดกดไม่ได้เสมอ (คนอนุมัติ ≠ คนโอน)
+    expect(pendingClaims(claims, 1).map(c => c.id)).toEqual([8, 1]);
     expect(pendingClaims(claims, 2).map(c => c.id)).toEqual([6]);
   });
   test('clearable = approved but not in a round yet, oldest pay date first', () => {
@@ -96,7 +96,7 @@ describe('claim lists per tab', () => {
     expect(handledClaims(claims, 1).map(c => c.id)).toEqual([7, 4, 5, 3, 2]);
   });
   test('waiting for the head = coming soon, the holder cannot act yet', () => {
-    expect(waitingHeadClaims(claims, 1).map(c => c.id)).toEqual([9]);
+    expect(waitingHeadClaims(claims, 1).map(c => c.id)).toEqual([10, 9]);
     expect(waitingHeadClaims(claims, 2)).toEqual([]);
   });
   test('null fund shows nothing', () => expect(pendingClaims(claims, null)).toEqual([]));

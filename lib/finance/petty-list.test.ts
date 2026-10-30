@@ -73,8 +73,8 @@ describe('quickAction — ปุ่มลัดตามสถานะและ
   test('requester never has a quick action', () => expect(quickAction(claim({}), 'mine')).toBeNull());
   test('holder waits while the head has not approved', () =>
     expect(quickAction(claim({ status: 'PENDING_HEAD' }), 'holder')).toBeNull());
-  test('holder who is also the head approves in one click', () =>
-    expect(quickAction(claim({ status: 'PENDING_HEAD', can_head_approve: true }), 'holder')?.action).toBe('approve'));
+  test('holder never approves a claim still waiting for the head (approver ≠ payer)', () =>
+    expect(quickAction(claim({ status: 'PENDING_HEAD', can_head_approve: true }), 'holder')).toBeNull());
 });
 
 describe('flowPosition — แถบขั้นตอน', () => {
