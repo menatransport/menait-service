@@ -40,29 +40,24 @@ export interface TabFilter {
 /** The only statuses the BE can flag overdue (derive_status: fin PAID / SENT_BACK past clear_due_date). */
 export const OVERDUE_STATUSES = ['AWAITING_CLEARING', 'SENT_BACK'];
 
-/** Tabs picked together in one group share one key, in tab order: 'clearing,sentback'. */
-const KEY_SEP = ',';
+/** Ticked options ride on their tab's key: 'clear' = the whole tab, 'clear:overdue,review' = only those options. */
+export function parseTabKey(key: string): { tab: string; picks: string[] } {
+  const i = key.indexOf(':');
+  return i < 0 ? { tab: key, picks: [] } : { tab: key.slice(0, i), picks: key.slice(i + 1).split(',').filter(Boolean) };
+}
 
-export function splitTabKey(key: string): string[] {
-  return key.split(KEY_SEP);
+/** The key after ticking or unticking one option of a tab (options kept in tab order; none or all ticked = the whole tab). */
+export function toggleTabOption(tab: { key: string; options?: { key: string }[] }, activeKey: string, option: string): string {
+  const current = parseTabKey(activeKey);
+  const picked = current.tab === tab.key ? current.picks : [];
+  const next = picked.includes(option) ? picked.filter(k => k !== option) : [...picked, option];
+  const order = (tab.options ?? []).map(o => o.key);
+  const ticked = order.filter(k => next.includes(k));
+  return ticked.length === 0 || ticked.length === order.length ? tab.key : `${tab.key}:${ticked.join(',')}`;
 }
 
 /**
- * The key after clicking a tab. A tab outside a group, or a group tab while something else is open, opens alone.
- * Inside the open group a click adds or removes that tab; the last one stays picked.
- */
-export function nextTabKey(tabs: { key: string; group?: string }[], activeKey: string, clicked: string): string {
-  const tab = tabs.find(t => t.key === clicked);
-  const picked = splitTabKey(activeKey);
-  const groupOpen = !!tab?.group && picked.every(k => tabs.find(t => t.key === k)?.group === tab.group);
-  if (!groupOpen) return clicked;
-  const next = picked.includes(clicked) ? picked.filter(k => k !== clicked) : [...picked, clicked];
-  if (next.length === 0) return activeKey;
-  return tabs.filter(t => next.includes(t.key)).map(t => t.key).join(KEY_SEP);
-}
-
-/**
- * Several picked tabs = every advance in any of them, each once. Group tabs are a status list or overdue alone.
+ * Several picked tabs = every advance in any of them, each once. Each one is a status list or overdue alone.
  * Overdue is a flag, not a status, so the BE cannot OR it with other statuses: when the picked statuses do not
  * already cover every overdue advance, ask for those statuses plus the overdue ones and keep the union in the browser.
  */

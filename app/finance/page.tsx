@@ -10,20 +10,23 @@ import { AdvanceListView, type AdvanceListTab } from './components/AdvanceListVi
 import { AdvanceSheet } from './components/AdvanceSheet';
 import { FinanceCanvas, FinanceHeading, NoAccess, SummaryTiles } from './components/FinanceShell';
 import type { AdvanceItem } from './types';
-import { fetchAllAdvances, splitTabKey, type AdvancePage, type AdvanceSummary } from '@/lib/finance/advanceQuery';
+import { combineTabs, fetchAllAdvances, parseTabKey, type AdvancePage, type AdvanceSummary } from '@/lib/finance/advanceQuery';
 
-const CLEAR_GROUP = 'สถานะติดตามเคลียร์';
+// ปุ่มติดตามเคลียร์ (ผู้ใช้สั่ง 30/10/2026): กดแล้วได้ทั้ง 6 สถานะรวมกัน ติ๊กในเมนูเพื่อกรองเหลือบางสถานะ
+// ทั้งกลุ่ม = 5 สถานะ (เกินกำหนดเป็นใบรอเคลียร์/ส่งกลับแก้ไขอยู่แล้ว)
+const CLEAR_OPTIONS: AdvanceListTab[] = [
+  { key: 'clearing', label: 'จ่ายแล้วรอเคลียร์', status: ['AWAITING_CLEARING'] },
+  { key: 'overdue', label: 'เกินกำหนด', overdue: true },
+  { key: 'returned', label: 'ตีกลับผู้เบิก', status: ['RETURNED'] },
+  { key: 'clearapprove', label: 'รออนุมัติเคลียร์', status: ['CLEARING_APPROVAL'] },
+  { key: 'review', label: 'รอบัญชีตรวจ', status: ['AWAITING_REVIEW'] },
+  { key: 'sentback', label: 'ส่งกลับแก้ไข', status: ['SENT_BACK'] },
+];
 
 const TABS: AdvanceListTab[] = [
   { key: 'voucher', label: 'รอตั้งเบิก', status: ['AWAITING_VOUCHER'] },
   { key: 'pay', label: 'รอจ่าย', status: ['AWAITING_PAYMENT'] },
-  // 6 แท็บนี้อยู่กล่องเดียว กดได้หลายอันพร้อมกัน ตารางรวมใบของทุกอันที่เลือก (ผู้ใช้สั่ง 30/10/2026)
-  { key: 'clearing', label: 'จ่ายแล้วรอเคลียร์', status: ['AWAITING_CLEARING'], group: CLEAR_GROUP },
-  { key: 'overdue', label: 'เกินกำหนด', overdue: true, group: CLEAR_GROUP },
-  { key: 'returned', label: 'ตีกลับผู้เบิก', status: ['RETURNED'], group: CLEAR_GROUP },
-  { key: 'clearapprove', label: 'รออนุมัติเคลียร์', status: ['CLEARING_APPROVAL'], group: CLEAR_GROUP },
-  { key: 'review', label: 'รอบัญชีตรวจ', status: ['AWAITING_REVIEW'], group: CLEAR_GROUP },
-  { key: 'sentback', label: 'ส่งกลับแก้ไข', status: ['SENT_BACK'], group: CLEAR_GROUP },
+  { key: 'clear', label: 'ติดตามเคลียร์', ...combineTabs(CLEAR_OPTIONS), options: CLEAR_OPTIONS },
   { key: 'closed', label: 'ปิดแล้ว', status: ['CLOSED'] },
   { key: 'all', label: 'ทั้งหมด' },
 ];
@@ -69,6 +72,9 @@ export default function FinanceQueuePage() {
   const [reminding, setReminding] = useState(false);
   const remindInFlight = useRef(false);
   const overdueCount = summary?.overdue ?? 0;
+  // ปุ่มส่งแจ้งเตือน: เห็นใบเกินกำหนดอยู่ในตาราง = ทั้งกลุ่มติดตามเคลียร์ หรือติ๊กเกินกำหนดไว้
+  const openTab = parseTabKey(tab);
+  const showRemind = openTab.tab === 'clear' && (openTab.picks.length === 0 || openTab.picks.includes('overdue'));
 
   const remindAll = async () => {
     if (remindInFlight.current || overdueCount === 0) return;
@@ -150,7 +156,7 @@ export default function FinanceQueuePage() {
         onOpen={handleOpen}
         exportFileBase="advance"
         refreshKey={refreshKey}
-        headerAction={splitTabKey(tab).includes('overdue') && overdueCount > 0 ? (
+        headerAction={showRemind && overdueCount > 0 ? (
           <button type="button" onClick={remindAll} disabled={reminding}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-all cursor-pointer disabled:opacity-50">
             <BellRing size={14} /> <span>ส่งแจ้งเตือนทั้งหมด ({overdueCount})</span>

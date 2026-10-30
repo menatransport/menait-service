@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import {
-  LIST_PARAMS, buildAdvanceQuery, combineTabs, pickListParams, fetchAllAdvances, monthEnd, nextTabKey, tabCount, type AdvancePage,
+  LIST_PARAMS, buildAdvanceQuery, combineTabs, pickListParams, fetchAllAdvances, monthEnd, parseTabKey, tabCount, toggleTabOption, type AdvancePage,
 } from './advanceQuery';
 import type { AdvanceItem } from '@/app/finance/types';
 
@@ -92,24 +92,22 @@ test('fetchAllAdvances hands back the first page (summary + options) for the col
   expect(seen).toEqual([1]);
 });
 
-// กลุ่มสถานะติดตามเคลียร์ในหน้าการเงิน: กดได้หลายอันพร้อมกัน
-const GROUP_TABS = [
-  { key: 'pay' },
-  { key: 'clearing', group: 'g' }, { key: 'overdue', group: 'g' }, { key: 'review', group: 'g' }, { key: 'sentback', group: 'g' },
-  { key: 'closed' },
-];
+// ปุ่มติดตามเคลียร์ในหน้าการเงิน: กดแล้วได้ทั้งกลุ่ม ติ๊กในเมนูเพื่อกรองเหลือบางสถานะ
+const CLEAR_TAB = { key: 'clear', options: [{ key: 'clearing' }, { key: 'overdue' }, { key: 'review' }, { key: 'sentback' }] };
 
-test('nextTabKey: outside the open group a click opens that tab alone', () => {
-  expect(nextTabKey(GROUP_TABS, 'pay', 'review')).toBe('review');
-  expect(nextTabKey(GROUP_TABS, 'review,sentback', 'closed')).toBe('closed');
-  expect(nextTabKey(GROUP_TABS, 'closed', 'pay')).toBe('pay');
+test('parseTabKey splits the tab from its ticked options', () => {
+  expect(parseTabKey('clear')).toEqual({ tab: 'clear', picks: [] });
+  expect(parseTabKey('clear:overdue,review')).toEqual({ tab: 'clear', picks: ['overdue', 'review'] });
+  expect(parseTabKey('clear:')).toEqual({ tab: 'clear', picks: [] });
 });
 
-test('nextTabKey: inside the open group a click adds or removes, in tab order, never leaving none', () => {
-  expect(nextTabKey(GROUP_TABS, 'sentback', 'clearing')).toBe('clearing,sentback');
-  expect(nextTabKey(GROUP_TABS, 'clearing,sentback', 'overdue')).toBe('clearing,overdue,sentback');
-  expect(nextTabKey(GROUP_TABS, 'clearing,overdue,sentback', 'overdue')).toBe('clearing,sentback');
-  expect(nextTabKey(GROUP_TABS, 'review', 'review')).toBe('review');
+test('toggleTabOption ticks in tab order and unticks; none or all ticked = the whole tab', () => {
+  expect(toggleTabOption(CLEAR_TAB, 'clear', 'sentback')).toBe('clear:sentback');
+  expect(toggleTabOption(CLEAR_TAB, 'clear:sentback', 'clearing')).toBe('clear:clearing,sentback');
+  expect(toggleTabOption(CLEAR_TAB, 'clear:clearing,sentback', 'clearing')).toBe('clear:sentback');
+  expect(toggleTabOption(CLEAR_TAB, 'clear:sentback', 'sentback')).toBe('clear');
+  expect(toggleTabOption(CLEAR_TAB, 'clear:clearing,overdue,review', 'sentback')).toBe('clear');
+  expect(toggleTabOption(CLEAR_TAB, 'pay', 'review')).toBe('clear:review');
 });
 
 test('combineTabs: statuses merge into one server filter', () => {
