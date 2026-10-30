@@ -11,6 +11,8 @@ export type PettyTab = {
   label: string;
   /** ไม่ระบุ = ทุกสถานะ */
   statuses?: PettyStatus[];
+  /** alert = ตัวเลขแท็บเป็นสีแดงเมื่อมีใบ (เช่น ต้องแก้ไข) */
+  tone?: 'alert';
 };
 
 export function matchesTab(claim: PettyClaim, tab: PettyTab): boolean {

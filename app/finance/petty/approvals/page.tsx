@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { BadgeCheck, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
 import { PaginationControls } from '@/components/pagination-controls';
 import { useSessionContext } from '@/app/context/SessionContext';
@@ -12,14 +12,15 @@ import { pageCount, paginate, paidInRange } from '@/lib/finance/petty-list';
 import { fundLabel } from '@/lib/finance/petty-fund-label';
 import { filterByType, filterRoundsByType, roundTypeHint } from '@/lib/finance/petty-type-filter';
 import { formatBaht, formatDate } from '@/lib/finance/status';
-import { showAlert, showConfirm, showSuccess } from '../../api';
+import { showAlert, showSuccess } from '../../api';
 import { countAttachments, createRound, getBalance, getExpenseTypes, getFunds, getRound, listAllClaims, listRounds } from '../../petty-api';
 import { DateField } from '../../components/DateField';
-import { FinanceHeading, FinanceShell, Panel } from '../../components/FinanceShell';
 import { PettySheet } from '../../components/petty/PettySheet';
 import { TypeFilter, usePettyTypeFilter } from '../../components/petty/TypeFilter';
 import { useRoundTypeTally } from '../../components/petty/useRoundTypeTally';
 import { runPettyAction } from '../../components/petty/petty-actions';
+import { pettyConfirm, pettyReview } from '../../components/petty/petty-confirm';
+import { FIELD_SM, LINE, PettyPage, Section } from '../../components/petty/ui';
 import { printRoundCover } from '../../components/petty/round-actions';
 import { ClearClaimCard } from '../../components/petty/approvals/ClearClaimCard';
 import { HandledClaimCard } from '../../components/petty/approvals/HandledClaimCard';
@@ -48,10 +49,9 @@ const SUCCESS: Record<ClaimAction, [string, string | undefined]> = {
 
 function Loading() {
   return (
-    <FinanceShell title={TITLE}>
-      <FinanceHeading icon={BadgeCheck} title={TITLE} caption={CAPTION} />
-      <Panel title="รายการรออนุมัติจ่าย"><div className="py-8"><MascotLoader text="กำลังโหลดรายการ" size={80} /></div></Panel>
-    </FinanceShell>
+    <PettyPage title={TITLE} caption={CAPTION}>
+      <Section label="รายการรออนุมัติจ่าย"><div className="py-8"><MascotLoader text="กำลังโหลดรายการ" size={80} /></div></Section>
+    </PettyPage>
   );
 }
 
@@ -167,12 +167,18 @@ function PettyApprovals() {
 
   async function sendRound() {
     if (!fundId || picked.length === 0) return;
-    const range = paidFrom || paidTo
-      ? ` · จ่ายช่วง ${paidFrom ? formatDate(paidFrom) : 'แรกสุด'} ถึง ${paidTo ? formatDate(paidTo) : 'ล่าสุด'}` : '';
-    const res = await showConfirm({ title: 'ยืนยันส่งเคลียร์',
-      text: `${picked.length} ใบ รวม ${formatBaht(sum)} บาท${range} · หัวหน้าตามสายงานอนุมัติก่อน แล้วไปบัญชีตรวจ`,
-      confirmButtonText: 'ส่งเคลียร์' }) as { isConfirmed?: boolean };
-    if (!res?.isConfirmed) return;
+    const fund = funds?.find(f => f.id === fundId);
+    const ok = await pettyReview({ title: 'ยืนยันส่งเคลียร์',
+      rows: [
+        ['วงเงินสดย่อย', fund ? fundLabel(fund) : '-'],
+        ['จำนวนใบ', `${picked.length} ใบ`],
+        ['ยอดรวม', `${formatBaht(sum)} บาท`],
+        ...(paidFrom || paidTo
+          ? [['ช่วงวันที่จ่าย', `${paidFrom ? formatDate(paidFrom) : 'แรกสุด'} ถึง ${paidTo ? formatDate(paidTo) : 'ล่าสุด'}`] as [string, string]] : []),
+        ['เลขที่ใบ', picked.map(c => c.form_id).join('\n')],
+      ],
+      note: 'หัวหน้าตามสายงานอนุมัติก่อน แล้วไปบัญชีตรวจ', confirmButtonText: 'ส่งเคลียร์' });
+    if (!ok) return;
     setBusy('round');
     try {
       const attachments: Record<string, Record<string, number>> = {};
@@ -181,7 +187,7 @@ function PettyApprovals() {
       const round = await createRound({ fund_id: fundId, claim_ids: picked.map(c => c.id), attachments, remark });
       setSelected([]);
       await load();
-      const again = await showConfirm({ icon: 'success', title: `ส่งรอบ ${round.batch_no} แล้ว`,
+      const again = await pettyConfirm({ icon: 'success', title: `ส่งรอบ ${round.batch_no} แล้ว`,
         text: 'พิมพ์ใบปะหน้าแนบไปกับเอกสารตัวจริงเลยไหม', confirmButtonText: 'พิมพ์ใบปะหน้า', cancelButtonText: 'ไว้ทีหลัง' }) as { isConfirmed?: boolean };
       if (again?.isConfirmed) printRoundCover(round.claims ? round : await getRound(round.id), types, funds ?? []);
     } catch (err) {
@@ -204,12 +210,9 @@ function PettyApprovals() {
   if (loading || funds === null || claims === null) return <Loading />;
   if (funds.length === 0) {
     return (
-      <FinanceShell title={TITLE}>
-        <FinanceHeading icon={BadgeCheck} title={TITLE} caption={CAPTION} />
-        <Panel title="ไม่มีวงเงินสดย่อยที่คุณถือ">
-          <p className="text-sm text-ink-600">หน้านี้สำหรับเจ้าของเงินสดย่อย ถ้าคุณควรเห็น ให้ผู้ดูแลระบบตั้งวงเงินเป็นชื่อคุณ</p>
-        </Panel>
-      </FinanceShell>
+      <PettyPage title={TITLE} caption={CAPTION}>
+        <EmptyState text="ไม่มีวงเงินสดย่อยที่คุณถือ — หน้านี้สำหรับเจ้าของเงินสดย่อย ถ้าคุณควรเห็น ให้ผู้ดูแลระบบตั้งวงเงินเป็นชื่อคุณ" />
+      </PettyPage>
     );
   }
 
@@ -222,25 +225,20 @@ function PettyApprovals() {
   const historyPages = pageCount(historyRows.length, PAGE_SIZE);
 
   return (
-    <FinanceShell title={TITLE}>
-      <FinanceHeading
-        icon={BadgeCheck}
-        title={TITLE}
-        caption={CAPTION}
-        actions={
-          <HeaderTabs value={view} onChange={v => { setView(v); setNotice(''); }} tabs={[
-            ['pending', tabLabel('รออนุมัติจ่าย', pendingT.length)],
-            ['clear', tabLabel('ส่งเคลียร์', clearableT.length)],
-            ['history', 'อนุมัติแล้ว'],
-          ]} />
-        }
-      />
+    <PettyPage title={TITLE} caption={CAPTION}
+      aside={
+        <HeaderTabs value={view} onChange={v => { setView(v); setNotice(''); }} tabs={[
+          ['pending', tabLabel('รออนุมัติจ่าย', pendingT.length)],
+          ['clear', tabLabel('ส่งเคลียร์', clearableT.length)],
+          ['history', 'อนุมัติแล้ว'],
+        ]} />
+      }>
 
       {/* ยอดพร้อมอนุมัติ — เก็บไว้ตัวเดียวจากแถบตัวเลขเดิม เพราะเจ้าของเงินสดต้องเห็นก่อนกดอนุมัติจ่าย */}
-      <div className="v2-glass flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-4 py-2.5">
+      <div className={`mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-b ${LINE} pb-4`}>
         <div className="flex items-baseline gap-2">
           <span className="text-xs text-ink-500">ยอดพร้อมอนุมัติ</span>
-          <span className={`font-display text-lg font-semibold tabular-nums ${balance && balance.available < 0 ? 'text-rose-600' : 'text-ink-900'}`}>
+          <span className={`font-display text-lg font-semibold tabular-nums ${balance && balance.available < 0 ? 'text-rose-700' : 'text-ink-900'}`}>
             {balance ? formatBaht(balance.available) : '-'}
           </span>
           <span className="text-xs text-ink-500">บาท</span>
@@ -252,7 +250,7 @@ function PettyApprovals() {
           <TypeFilter types={types} value={typeCode} onChange={typeFilter.setCode} />
           {funds.length > 1 && (
             <select value={fundId ?? ''} onChange={e => setFundId(Number(e.target.value))} aria-label="เลือกวงเงิน"
-              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-ink-800">
+              className={FIELD_SM}>
               {funds.map(f => <option key={f.id} value={f.id}>{fundLabel(f)}</option>)}
             </select>
           )}
@@ -262,7 +260,7 @@ function PettyApprovals() {
       <NoticeBar text={notice} onClose={() => setNotice('')} />
 
       {view === 'pending' && (
-        <Panel title="รายการรออนุมัติจ่าย">
+        <Section label="รายการรออนุมัติจ่าย">
           {shownPending.length === 0 ? <EmptyState text={`ไม่มีใบ${ofType}รอคุณอนุมัติจ่าย`} /> : (
             <div className="space-y-4">
               {shownPending.map(c => (
@@ -275,11 +273,11 @@ function PettyApprovals() {
               ))}
             </div>
           )}
-        </Panel>
+        </Section>
       )}
 
       {view === 'clear' && (
-        <Panel title="ใบที่รอส่งเคลียร์">
+        <Section label="ใบที่รอส่งเคลียร์">
           <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
             <div className="space-y-1">
               <p className="text-xs text-gray-500">จ่ายตั้งแต่วันที่</p>
@@ -319,7 +317,7 @@ function PettyApprovals() {
                   );
                 })}
               </div>
-              <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+              <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#edf1f7] bg-white/95 px-4 py-3 backdrop-blur sm:-mx-8 sm:px-8">
                 <p className="text-sm text-gray-700">
                   เลือก <b className="tabular-nums">{picked.length}</b> ใบ · รวม <b className="tabular-nums text-brand-800">{formatBaht(sum)}</b> บาท
                 </p>
@@ -329,11 +327,11 @@ function PettyApprovals() {
               </div>
             </>
           )}
-        </Panel>
+        </Section>
       )}
 
       {view === 'history' && (
-        <Panel title="รายการที่อนุมัติแล้ว">
+        <Section label="รายการที่อนุมัติแล้ว">
           <SubTabs value={historyTab} onChange={setHistoryTab} tabs={[
             ['claims', `ใบที่อนุมัติ/ตีกลับแล้ว (${handledT.length})`],
             ['rounds', `รอบที่ส่งเคลียร์ (${roundsT.length})`],
@@ -364,11 +362,11 @@ function PettyApprovals() {
               </div>
             </div>
           )}
-        </Panel>
+        </Section>
       )}
 
       <PettySheet formId={openId} isOpen={openId !== null} onClose={() => setOpenId(null)} onChanged={() => void load()} />
-    </FinanceShell>
+    </PettyPage>
   );
 }
 

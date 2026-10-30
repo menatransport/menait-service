@@ -2,7 +2,6 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ClipboardCheck } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
 import { PaginationControls } from '@/components/pagination-controls';
 import { useSessionContext } from '@/app/context/SessionContext';
@@ -11,7 +10,7 @@ import { pageCount, paginate } from '@/lib/finance/petty-list';
 import { filterRoundsByType, roundTypeHint } from '@/lib/finance/petty-type-filter';
 import { showAlert } from '../../api';
 import { getExpenseTypes, listRounds } from '../../petty-api';
-import { FinanceHeading, FinanceShell, Panel } from '../../components/FinanceShell';
+import { PettyPage, Section } from '../../components/petty/ui';
 import { TypeFilter, usePettyTypeFilter } from '../../components/petty/TypeFilter';
 import { useRoundTypeTally } from '../../components/petty/useRoundTypeTally';
 import { RoundCard } from '../../components/petty/approvals/RoundCard';
@@ -29,10 +28,9 @@ const NO_CLAIMS: PettyClaim[] = [];
 
 function Loading() {
   return (
-    <FinanceShell title={TITLE}>
-      <FinanceHeading icon={ClipboardCheck} title={TITLE} caption={CAPTION} />
-      <Panel title="รอบรออนุมัติเคลียร์"><div className="py-8"><MascotLoader text="กำลังโหลดรายการ" size={80} /></div></Panel>
-    </FinanceShell>
+    <PettyPage title={TITLE} caption={CAPTION}>
+      <Section label="รอบรออนุมัติเคลียร์"><div className="py-8"><MascotLoader text="กำลังโหลดรายการ" size={80} /></div></Section>
+    </PettyPage>
   );
 }
 
@@ -112,22 +110,17 @@ function PettyClear() {
   const shown = doc ? [...shownRaw].sort((a, b) => Number(isDoc(b)) - Number(isDoc(a))) : shownRaw;
 
   return (
-    <FinanceShell title={TITLE}>
-      <FinanceHeading
-        icon={ClipboardCheck}
-        title={TITLE}
-        caption={CAPTION}
-        actions={
-          <HeaderTabs value={view} onChange={v => { setView(v); setHistoryPage(1); }} tabs={[
-            ['pending', tabLabel('รออนุมัติเคลียร์', roundsT.length)],
-            ['history', 'อนุมัติ/ไม่อนุมัติแล้ว'],
-          ]} />
-        }
-      />
+    <PettyPage title={TITLE} caption={CAPTION}
+      aside={
+        <HeaderTabs value={view} onChange={v => { setView(v); setHistoryPage(1); }} tabs={[
+          ['pending', tabLabel('รออนุมัติเคลียร์', roundsT.length)],
+          ['history', 'อนุมัติ/ไม่อนุมัติแล้ว'],
+        ]} />
+      }>
       <NoticeBar text={notice} onClose={() => setNotice('')} />
 
       {view === 'pending' ? (
-        <Panel title="รอบรออนุมัติเคลียร์" actions={typeSelect}>
+        <Section label="รอบรออนุมัติเคลียร์" actions={typeSelect}>
           <SubTabs value={subTab} onChange={setSubTab} tabs={[
             ['mine', `รอฉันอนุมัติ (${mine.length})`],
             ['delegable', `อนุมัติแทนได้ (${delegable.length})`],
@@ -150,9 +143,9 @@ function PettyClear() {
               ))}
             </div>
           )}
-        </Panel>
+        </Section>
       ) : (
-        <Panel title="รอบที่อนุมัติ/ไม่อนุมัติแล้ว" actions={typeSelect}>
+        <Section label="รอบที่อนุมัติ/ไม่อนุมัติแล้ว" actions={typeSelect}>
           {typeCode && <HintLine>เห็นเฉพาะรอบที่มีใบ{typeName}อยู่ · รอบที่ไม่อนุมัติจะไม่ขึ้น เพราะใบหลุดรอบไปแล้ว</HintLine>}
           {history === null || historyBusy ? (
             <div className="py-8"><MascotLoader text="กำลังโหลดรายการ" size={80} /></div>
@@ -168,9 +161,9 @@ function PettyClear() {
               </div>
             </div>
           )}
-        </Panel>
+        </Section>
       )}
-    </FinanceShell>
+    </PettyPage>
   );
 }
 

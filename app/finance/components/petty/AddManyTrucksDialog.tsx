@@ -5,6 +5,7 @@ import type { PettySpec } from '@/app/finance/types-petty';
 import { searchTrucks } from '@/app/finance/petty-api';
 import { parseTruckPaste, type PettyItemDraft } from '@/lib/finance/petty-items';
 import { blankItem, itemFields } from '@/lib/finance/petty-spec';
+import { Button, FIELD, LABEL, Notice } from './ui';
 
 /** ของจริงมี 16 แถว ถ้ากรอกทีละช่องคงไม่มีใครใช้ — วางรหัสรถรวดเดียวแล้วเติมเลขบัตรทีหลัง */
 export function AddManyTrucksDialog({ spec, onClose, onAdd }: {
@@ -52,29 +53,26 @@ export function AddManyTrucksDialog({ spec, onClose, onAdd }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
-        <h2 className="text-lg font-medium">เพิ่มหลายคัน</h2>
-        <p className="mt-1 text-sm text-ink-500">
-          วางรหัสรถคั่นด้วยเว้นวรรคหรือจุลภาค เช่น 161 144 F014 F016 — ระบบสร้างแถวให้ทุกคัน
-          ด้วยวันที่กับราคาเดียวกัน แล้วค่อยเติมเลขที่บัตรชั่งทีละแถว
-        </p>
-        <textarea value={raw} onChange={e => setRaw(e.target.value)} rows={4}
-          placeholder="161 144 F014 F016"
-          className="mt-3 w-full rounded-lg border border-slate-200 p-2 font-mono text-sm" />
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          <label className="text-sm">วันที่
-            <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5" />
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/30 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="add-many-title">
+      <div className="w-full max-w-lg rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl sm:p-6">
+        <h2 id="add-many-title" className="font-display text-base font-semibold text-ink-900">เพิ่มหลายคัน</h2>
+        <p className="mt-1 text-xs text-ink-500">วางรหัสรถคั่นด้วยเว้นวรรคหรือจุลภาค — สร้างแถวด้วยวันที่และราคาเดียวกัน</p>
+        <label className="mt-4 block">
+          <span className={LABEL}>รหัสรถ</span>
+          <textarea value={raw} onChange={e => setRaw(e.target.value)} rows={4}
+            placeholder="161 144 F014 F016"
+            className={`${FIELD} font-mono`} />
+        </label>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <label className="block"><span className={LABEL}>วันที่</span>
+            <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} className={FIELD} />
           </label>
-          <label className="text-sm">ราคา/ครั้ง
-            <input value={rate} onChange={e => setRate(e.target.value)} inputMode="decimal"
-              className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-right" />
+          <label className="block"><span className={LABEL}>ราคา/ครั้ง</span>
+            <input value={rate} onChange={e => setRate(e.target.value)} inputMode="decimal" className={`${FIELD} text-right`} />
           </label>
           {typeField && (
-            <label className="text-sm">{typeField.label}
-              <select value={truckType} onChange={e => setTruckType(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5">
+            <label className="block"><span className={LABEL}>{typeField.label}</span>
+              <select value={truckType} onChange={e => setTruckType(e.target.value)} className={FIELD}>
                 <option value="">เลือก</option>
                 {(typeField.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
               </select>
@@ -82,22 +80,18 @@ export function AddManyTrucksDialog({ spec, onClose, onAdd }: {
           )}
         </div>
         {unknown.length > 0 && (
-          <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-            ไม่พบรถใน master: {unknown.join(', ')} — ให้เพิ่มใน master ก่อน แล้วลองอีกครั้ง
-          </div>
+          <div className="mt-3"><Notice tone="error">ไม่พบรถใน master: {unknown.join(', ')}</Notice></div>
         )}
-        <div className="mt-4 flex items-center justify-between">
-          <span className="text-sm text-ink-500">
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+          <span className="text-xs text-ink-500">
             {codes.length > 0 ? `จะสร้าง ${codes.length} แถว` : 'ยังไม่ได้วางรหัสรถ'}
           </span>
           <div className="flex gap-2">
-            <button type="button" onClick={onClose}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm">ยกเลิก</button>
-            <button type="button" onClick={() => void submit()}
-              disabled={resolving || codes.length === 0 || !eventDate || !rate}
-              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm text-white disabled:opacity-40">
+            <Button onClick={onClose}>ยกเลิก</Button>
+            <Button tone="primary" onClick={() => void submit()}
+              disabled={resolving || codes.length === 0 || !eventDate || !rate}>
               {resolving ? 'กำลังหาทะเบียน…' : 'สร้างแถว'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

@@ -4,15 +4,18 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { searchTrucks, type TruckOption } from '@/app/finance/petty-api';
 import { highlightParts, stepIndex } from '@/lib/finance/petty-truck-search';
+import { FIELD, FIELD_SM } from './ui';
 
 /** เลือกรถจาก master เท่านั้น — พิมพ์เองไม่ได้ เพราะด่านซ้ำเข้มใช้เบอร์รถ+ทะเบียนเป็นคีย์
  *  ค้นแบบ autocomplete: พิมพ์ส่วนไหนของเบอร์รถหรือทะเบียนก็ได้ ไม่ต้องใส่จุด/ขีด (BE จับคู่และเรียงให้)
  *  รายการลอยอยู่เหนือหน้า (Popover พอร์ทัล) จึงไม่โดนกล่องตารางที่เลื่อนแนวนอนตัดขอบ */
-export function TruckPicker({ code, plate, lineNo, readOnly = false, onPick }: {
+export function TruckPicker({ code, plate, lineNo, readOnly = false, block = false, onPick }: {
   code: string;
   plate: string;
   lineNo: number;
   readOnly?: boolean;
+  /** เต็มความกว้างแบบช่องกรอก (หัวใบ) — ไม่ระบุ = ขนาดในตาราง */
+  block?: boolean;
   onPick: (truck: TruckOption) => void;
 }) {
   const [query, setQuery] = useState('');
@@ -55,14 +58,24 @@ export function TruckPicker({ code, plate, lineNo, readOnly = false, onPick }: {
   }
 
   if (readOnly || (code && !open)) {
+    const change = !readOnly && (
+      <button type="button" onClick={() => { setOpen(true); setQuery(code); requestAnimationFrame(() => input.current?.select()); }}
+        aria-label={`เปลี่ยนรถ${lineNo ? ` แถวที่ ${lineNo}` : ''}`}
+        className="ml-auto shrink-0 rounded px-1 text-xs font-medium text-ink-500 underline-offset-2 hover:text-ink-900 hover:underline">เปลี่ยน</button>
+    );
+    if (!readOnly) {
+      return (
+        <div className={`${block ? FIELD : `${FIELD_SM} h-9`} flex w-full items-center gap-2`}>
+          <span className="font-medium text-ink-900">{code}</span>
+          {plate && <span className="text-ink-500">· {plate}</span>}
+          {change}
+        </div>
+      );
+    }
     return (
-      <span className="inline-flex items-center gap-1 text-sm">
-        <span className="font-medium">{code || '—'}</span>
-        {plate && <span className="text-ink-400">({plate})</span>}
-        {!readOnly && (
-          <button type="button" onClick={() => { setOpen(true); setQuery(code); requestAnimationFrame(() => input.current?.select()); }}
-            className="ml-1 text-xs text-brand-700 hover:underline">เปลี่ยน</button>
-        )}
+      <span className="inline-flex items-center gap-1.5 text-sm">
+        <span className="font-medium text-ink-900">{code || '—'}</span>
+        {plate && <span className="text-ink-500">{plate}</span>}
       </span>
     );
   }
@@ -79,21 +92,21 @@ export function TruckPicker({ code, plate, lineNo, readOnly = false, onPick }: {
           placeholder="พิมพ์เบอร์รถหรือทะเบียน"
           role="combobox" aria-expanded={showList} aria-controls={listId} aria-autocomplete="list"
           aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
-          aria-label={`ค้นรถ แถวที่ ${lineNo}`}
-          className="w-48 rounded-lg border border-slate-200 px-2 py-1 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100" />
+          aria-label={lineNo ? `ค้นรถ แถวที่ ${lineNo}` : 'ค้นรถ'}
+          className={block ? FIELD : `${FIELD_SM} h-9 w-full`} />
       </PopoverAnchor>
       <PopoverContent align="start" sideOffset={4} collisionPadding={12}
         onOpenAutoFocus={e => e.preventDefault()} onCloseAutoFocus={e => e.preventDefault()}
         onInteractOutside={e => { if (input.current?.contains(e.target as Node)) e.preventDefault(); }}
-        className="w-80 max-w-[calc(100vw-24px)] overflow-hidden rounded-lg border border-slate-200 bg-white p-0 shadow-lg">
+        className="w-80 max-w-[calc(100vw-24px)] overflow-hidden rounded-[10px] border border-[#dbe4f3] bg-white p-0 shadow-[0_12px_28px_-12px_rgba(15,39,72,0.25)]">
         {typed.length < 2 ? (
           <p className="px-3 py-2 text-sm text-ink-500">พิมพ์อย่างน้อย 2 ตัว เบอร์รถหรือทะเบียนส่วนไหนก็ได้ เช่น 1093 หรือ 1325</p>
         ) : options === null ? (
-          <p className="px-3 py-2 text-sm text-ink-400">กำลังค้น…</p>
+          <p className="px-3 py-2 text-sm text-ink-500">กำลังค้น…</p>
         ) : list.length === 0 ? (
           <div className="px-3 py-2 text-sm">
             <p className="text-ink-700">ไม่พบรถที่มี “{typed}” ในเบอร์รถหรือทะเบียน</p>
-            <p className="mt-0.5 text-xs text-ink-400">รถใหม่ที่ยังไม่อยู่ใน master ของ ATMS ต้องเพิ่มที่นั่นก่อน แล้วค้นอีกครั้ง</p>
+            <p className="mt-0.5 text-xs text-ink-500">รถใหม่ที่ยังไม่อยู่ใน master ของ ATMS ต้องเพิ่มที่นั่นก่อน แล้วค้นอีกครั้ง</p>
           </div>
         ) : (
           <>
@@ -102,15 +115,15 @@ export function TruckPicker({ code, plate, lineNo, readOnly = false, onPick }: {
                 <li key={`${t.truck_code}-${t.truck_plate}`} id={`${listId}-${i}`} role="option" aria-selected={i === active}>
                   <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => pick(t)}
                     onMouseEnter={() => setActive(i)}
-                    className={`flex w-full items-baseline gap-2 px-3 py-1.5 text-left ${i === active ? 'bg-brand-50' : 'hover:bg-slate-50'}`}>
+                    className={`flex w-full items-baseline gap-2 px-3 py-2 text-left ${i === active ? 'bg-[#f3f7fd]' : 'hover:bg-[#f3f7fd]'}`}>
                     <Marked className="min-w-14 font-semibold text-ink-900" text={t.truck_code} query={typed} />
                     {t.truck_plate && <Marked className="text-ink-700" text={t.truck_plate} query={typed} />}
-                    {t.truck_type && <span className="ml-auto rounded-full bg-slate-100 px-2 text-xs text-ink-500">{t.truck_type}</span>}
+                    {t.truck_type && <span className="ml-auto text-xs text-ink-500">{t.truck_type}</span>}
                   </button>
                 </li>
               ))}
             </ul>
-            <p className="border-t border-slate-100 px-3 py-1 text-xs text-ink-400">↑ ↓ เลือก · Enter ใช้คันนี้ · Esc ปิด</p>
+            <p className="border-t border-[#edf1f7] px-3 py-1.5 text-xs text-ink-500">↑ ↓ เลือก · Enter ใช้คันนี้ · Esc ปิด</p>
           </>
         )}
       </PopoverContent>

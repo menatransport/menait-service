@@ -14,12 +14,13 @@ import {
 } from '@/lib/finance/petty-worklist';
 import { showAlert } from '../../api';
 import { getExpenseTypes, getFunds, listAllClaims, listRounds } from '../../petty-api';
-import { FinanceCanvas, FinanceHeading, NoAccess, SummaryTiles } from '../../components/FinanceShell';
+import { FinanceCanvas, FinanceHeading, SummaryTiles } from '../../components/FinanceShell';
 import { PettySheet } from '../../components/petty/PettySheet';
 import { TypeFilter, usePettyTypeFilter } from '../../components/petty/TypeFilter';
 import { useRoundTypeTally } from '../../components/petty/useRoundTypeTally';
 import { RoundSheet } from '../../components/petty/worklist/RoundSheet';
 import { WorklistTable } from '../../components/petty/worklist/WorklistTable';
+import { EmptyState, PettyPage } from '../../components/petty/ui';
 
 const TITLE = 'งานเงินสดย่อย';
 
@@ -126,9 +127,9 @@ function PettyWork() {
 
   if (!loading && !allowed) {
     return (
-      <FinanceCanvas title={TITLE} width="max-w-lg">
-        <NoAccess text="หน้านี้สำหรับฝ่ายบัญชีและการเงิน" />
-      </FinanceCanvas>
+      <PettyPage title={TITLE}>
+        <EmptyState title="ไม่มีสิทธิ์เข้าถึง" text="หน้านี้สำหรับฝ่ายบัญชีและการเงิน" />
+      </PettyPage>
     );
   }
 

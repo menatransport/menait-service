@@ -49,7 +49,7 @@ export function TirePositionPicker({ value, qty, onChange, readOnly = false, mis
     const on = picked.includes(code);
     return (
       <button key={code} type="button" onClick={() => onChange(togglePosition(value, code))} aria-pressed={on}
-        className={`h-8 w-11 rounded-md border text-[11px] font-semibold transition-colors ${on ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-200 bg-white text-ink-700 hover:border-brand-300'}`}>
+        className={`h-8 w-11 rounded-md border text-[11px] font-semibold transition-colors ${on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#dbe4f3] bg-white text-ink-700 hover:border-ink-300'}`}>
         {code}
       </button>
     );
@@ -58,28 +58,28 @@ export function TirePositionPicker({ value, qty, onChange, readOnly = false, mis
   return (
     <div ref={box} className="relative">
       <button ref={trigger} type="button" onClick={toggle} aria-label={label} aria-expanded={open}
-        className={`w-36 truncate rounded-lg border px-2 py-1 text-left ${missing ? 'border-rose-300' : 'border-slate-200'} ${picked.length ? '' : 'text-ink-400'}`}>
+        className={`h-9 w-full truncate rounded-lg border bg-white px-2.5 py-1.5 text-left text-sm ${missing ? 'border-rose-300' : 'border-[#dbe4f3]'} ${picked.length ? 'text-ink-900' : 'text-ink-300'}`}>
         {picked.length ? picked.join(', ') : 'เลือกตำแหน่ง'}
       </button>
-      {hint && <p className="mt-0.5 text-[11px] text-amber-700">{hint}</p>}
+      {hint && <p className="mt-0.5 text-[11px] text-ink-500">{hint}</p>}
       {open && at && (
         <div style={{ position: 'fixed', top: at.top, left: at.left }}
-          className="z-50 w-64 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
-          <p className="mb-2 text-center text-[11px] text-ink-400">หัวรถ</p>
+          className="z-50 w-64 rounded-xl border border-[#dbe4f3] bg-white p-3 shadow-[0_12px_28px_-12px_rgba(15,39,72,0.25)]">
+          <p className="mb-2 text-center text-[11px] text-ink-500">หัวรถ</p>
           <div className="space-y-1.5">
             {TIRE_AXLES.map(axle => (
               <div key={axle.label} className="flex items-center justify-between gap-2">
                 <span className="flex gap-1">{axle.left.map(wheel)}</span>
-                <span className="text-[10px] text-ink-400">{axle.label}</span>
+                <span className="text-[10px] text-ink-500">{axle.label}</span>
                 <span className="flex gap-1">{axle.right.map(wheel)}</span>
               </div>
             ))}
           </div>
-          <div className="mt-2 flex items-center justify-center gap-2 border-t border-slate-100 pt-2">
-            <span className="text-[10px] text-ink-400">ยางอะไหล่</span>{SPARE_TIRES.map(wheel)}
+          <div className="mt-2 flex items-center justify-center gap-2 border-t border-[#edf1f7] pt-2">
+            <span className="text-[10px] text-ink-500">ยางอะไหล่</span>{SPARE_TIRES.map(wheel)}
           </div>
           <div className="mt-2 flex justify-end">
-            <button type="button" onClick={() => setOpen(false)} className="rounded-lg bg-brand-600 px-3 py-1 text-xs font-medium text-white">เสร็จ</button>
+            <button type="button" onClick={() => setOpen(false)} className="rounded-lg bg-brand-600 px-3 py-1 text-xs font-semibold text-white hover:bg-brand-700">เสร็จ</button>
           </div>
         </div>
       )}

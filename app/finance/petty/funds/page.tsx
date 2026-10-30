@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Wallet } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyBalance, PettyFund } from '@/app/finance/types-petty';
@@ -9,10 +8,10 @@ import { canSeeAllClaims } from '@/lib/finance/petty-access';
 import { fundSummaryRows, grandTotals, type FundSummaryRow } from '@/lib/finance/petty-funds';
 import { showAlert } from '../../api';
 import { getBalance, getFunds } from '../../petty-api';
-import { FinanceCanvas, FinanceHeading, Panel } from '../../components/FinanceShell';
+import { EmptyState, LINE, PettyPage, StatRow } from '../../components/petty/ui';
 
 const TITLE = 'ยอดกองทุนเงินสดย่อย';
-const CAPTION = 'ทุกกองทุนในสายตาการเงิน — ยอด Advance คงเหลือ ใบที่ยังไม่คืนยอด และยอดที่พร้อมอนุมัติ';
+const CAPTION = 'Advance คงเหลือ · ใบที่ยังไม่คืนยอด · พร้อมอนุมัติ ของทุกกองทุน';
 const baht = (n: number | null) => n === null ? '-' : n.toLocaleString('th-TH', { minimumFractionDigits: 2 });
 
 export default function PettyFundsPage() {
@@ -39,61 +38,85 @@ export default function PettyFundsPage() {
   if (loading || !user) return <MascotLoader />;
   if (!canSeeAllClaims(user)) {
     return (
-      <FinanceCanvas title={TITLE}>
-        <FinanceHeading icon={Wallet} title={TITLE} caption={CAPTION} />
-        <Panel title="สิทธิ์การเข้าถึง"><p className="text-sm text-ink-600">หน้านี้สำหรับฝ่ายบัญชีและการเงิน</p></Panel>
-      </FinanceCanvas>
+      <PettyPage title={TITLE} caption={CAPTION}>
+        <EmptyState title="ไม่มีสิทธิ์เข้าถึง" text="หน้านี้สำหรับฝ่ายบัญชีและการเงิน" />
+      </PettyPage>
     );
   }
   if (rows === null) return <MascotLoader />;
   const totals = grandTotals(rows);
 
+  const TH = 'px-3 py-2.5 text-left text-xs font-medium text-ink-500 whitespace-nowrap';
+  const negatives = rows.filter(r => r.negative).length;
+
   return (
-    <FinanceCanvas title={TITLE}>
-      <FinanceHeading icon={Wallet} title={TITLE} caption={CAPTION} />
-      <Panel title="กองทุนทั้งหมด">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-left text-ink-500">
-              <tr>
-                <th className="py-2">สาขา · ดิวิชัน</th>
-                <th className="py-2">เจ้าของเงินสด</th>
-                <th className="py-2 text-right">วงเงิน</th>
-                <th className="py-2 text-right">Advance คงเหลือ</th>
-                <th className="py-2 text-right">ยังไม่คืนยอด</th>
-                <th className="py-2 text-right">พร้อมอนุมัติ</th>
-                <th className="py-2">สถานะ</th>
+    <PettyPage title={TITLE} caption={CAPTION}>
+      <StatRow items={[
+        { label: 'กองทุน', value: rows.length },
+        { label: 'Advance คงเหลือ (บาท)', value: baht(totals.advance_outstanding) },
+        { label: 'ยังไม่คืนยอด (บาท)', value: baht(totals.petty_committed) },
+        { label: 'พร้อมอนุมัติ (บาท)', value: baht(totals.available) },
+        { label: 'ติดลบ', value: negatives },
+      ]} />
+
+      {/* มือถือ: แถวซ้อน */}
+      <ul className={`divide-y ${LINE} sm:hidden`}>
+        {rows.map(r => (
+          <li key={r.id} className="py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-ink-900">{r.branch_code} · {r.division_code}</p>
+                <p className="truncate text-xs text-ink-500">{r.holder}{r.holder !== r.holder_employee_id && ` · ${r.holder_employee_id}`} · {r.is_active ? 'ใช้งาน' : 'ปิดแล้ว'}</p>
+              </div>
+              <p className={`shrink-0 font-display text-base font-semibold tabular-nums ${r.negative ? 'text-rose-700' : 'text-ink-900'}`}>{baht(r.available)}</p>
+            </div>
+            <p className="mt-1 text-xs tabular-nums text-ink-500">วงเงิน {baht(r.fund_limit)} · Advance {baht(r.advance_outstanding)} · ยังไม่คืน {r.petty_committed === null ? '-' : baht(r.petty_committed)}</p>
+          </li>
+        ))}
+        {rows.length === 0 && <li className="py-10 text-center text-sm text-ink-500">ยังไม่มีกองทุน</li>}
+      </ul>
+
+      <div className="hidden overflow-x-auto sm:block">
+        <table className="w-full text-sm">
+          <thead className={`border-b ${LINE}`}>
+            <tr>
+              <th className={TH}>สาขา · ดิวิชัน</th>
+              <th className={TH}>เจ้าของเงินสด</th>
+              <th className={`${TH} text-right`}>วงเงิน</th>
+              <th className={`${TH} text-right`}>Advance คงเหลือ</th>
+              <th className={`${TH} text-right`}>ยังไม่คืนยอด</th>
+              <th className={`${TH} text-right`}>พร้อมอนุมัติ</th>
+              <th className={TH}>สถานะ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.id} className="border-b border-[#f3f6fa] text-ink-900 hover:bg-[#f9fbfd]">
+                <td className="px-3 py-2.5">{r.branch_code} · {r.division_code}</td>
+                <td className="px-3 py-2.5">{r.holder}{r.holder !== r.holder_employee_id && <span className="ml-1 text-xs text-ink-500">{r.holder_employee_id}</span>}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-ink-700">{baht(r.fund_limit)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{baht(r.advance_outstanding)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{r.petty_committed === null ? '-' : `− ${baht(r.petty_committed)}`}</td>
+                <td className={`px-3 py-2.5 text-right font-semibold tabular-nums ${r.negative ? 'text-rose-700' : ''}`}>{baht(r.available)}</td>
+                <td className="px-3 py-2.5 text-xs text-ink-500">{r.is_active ? 'ใช้งาน' : 'ปิดแล้ว'}</td>
               </tr>
-            </thead>
-            <tbody>
-              {rows.map(r => (
-                <tr key={r.id} className={`border-t border-slate-100 ${r.negative ? 'bg-rose-50' : ''}`}>
-                  <td className="py-2">{r.branch_code} · {r.division_code}</td>
-                  <td className="py-2">{r.holder}{r.holder !== r.holder_employee_id && <span className="ml-1 text-xs text-ink-400">{r.holder_employee_id}</span>}</td>
-                  <td className="py-2 text-right tabular-nums">{baht(r.fund_limit)}</td>
-                  <td className="py-2 text-right tabular-nums">{baht(r.advance_outstanding)}</td>
-                  <td className="py-2 text-right tabular-nums">{r.petty_committed === null ? '-' : `− ${baht(r.petty_committed)}`}</td>
-                  <td className={`py-2 text-right tabular-nums font-medium ${r.negative ? 'text-rose-700' : ''}`}>{baht(r.available)}</td>
-                  <td className="py-2 text-xs text-ink-500">{r.is_active ? 'ใช้งาน' : 'ปิดแล้ว'}</td>
-                </tr>
-              ))}
-              {rows.length === 0 && <tr><td colSpan={7} className="py-6 text-center text-ink-400">ยังไม่มีกองทุน</td></tr>}
-            </tbody>
-            {rows.length > 0 && (
-              <tfoot className="border-t border-slate-200 font-medium">
-                <tr>
-                  <td className="py-2" colSpan={3}>รวม {rows.length} กองทุน</td>
-                  <td className="py-2 text-right tabular-nums">{baht(totals.advance_outstanding)}</td>
-                  <td className="py-2 text-right tabular-nums">− {baht(totals.petty_committed)}</td>
-                  <td className="py-2 text-right tabular-nums">{baht(totals.available)}</td>
-                  <td />
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-        <p className="mt-3 text-xs text-ink-400">ยอดพร้อมอนุมัติ = Advance คงเหลือ − ใบที่อนุมัติจ่ายแล้วแต่การเงินยังไม่ทำจ่ายคืน · ติดลบได้ แต่ควรเร่งส่งเคลียร์เป็นรอบ</p>
-      </Panel>
-    </FinanceCanvas>
+            ))}
+            {rows.length === 0 && <tr><td colSpan={7} className="py-10 text-center text-ink-500">ยังไม่มีกองทุน</td></tr>}
+          </tbody>
+          {rows.length > 0 && (
+            <tfoot className={`border-t ${LINE} font-semibold text-ink-900`}>
+              <tr>
+                <td className="px-3 py-2.5" colSpan={3}>รวม {rows.length} กองทุน</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{baht(totals.advance_outstanding)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">− {baht(totals.petty_committed)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{baht(totals.available)}</td>
+                <td />
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+      <p className="mt-4 text-xs text-ink-500">พร้อมอนุมัติ = Advance คงเหลือ − ใบที่อนุมัติแล้วแต่ยังไม่ทำจ่ายคืน · ติดลบได้ แต่ควรเร่งส่งเคลียร์</p>
+    </PettyPage>
   );
 }

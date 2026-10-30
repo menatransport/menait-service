@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { FileText, Trash2 } from 'lucide-react';
 import type { PettySpec } from '@/app/finance/types-petty';
 import { displayFileName } from '@/lib/finance/status';
-import { FilePicker } from '../FilePicker';
 import { pettyFileProblem } from '@/lib/finance/petty-upload';
-import { showAlert, showConfirm, uploadFiles } from '../../api';
+import { showAlert, showSuccess, uploadFiles } from '../../api';
+import { PettyFileDrop } from './PettyFileDrop';
+import { pettyConfirm } from './petty-confirm';
+import { Button, LINE, Req } from './ui';
 
 export type PettyFile = { key: string; fileName?: string; url: string; folder: string };
 
@@ -21,7 +23,7 @@ export function PettyAttachments({ formId, spec, files, canUpload, onChanged }: 
   const [busy, setBusy] = useState<string | null>(null);
   const folders = spec.attachments ?? [];
 
-  async function upload(folder: string) {
+  async function upload(folder: string, label: string) {
     const picked = pending[folder] ?? [];
     if (!picked.length) return;
     // บอกก่อนส่งว่าไฟล์ไหนรับไม่ได้ (เซิร์ฟเวอร์เช็กซ้ำอีกชั้น)
@@ -31,11 +33,15 @@ export function PettyAttachments({ formId, spec, files, canUpload, onChanged }: 
         text: bad.map(x => `${x.f.name}: ${x.why}`).join('\n') });
       return;
     }
+    const ask = await pettyConfirm({ title: `อัปโหลด ${picked.length} ไฟล์`,
+      text: `${label} · ใบ ${formId}`, confirmButtonText: 'อัปโหลด' }) as { isConfirmed?: boolean };
+    if (!ask?.isConfirmed) return;
     setBusy(folder);
     try {
       const failed = await uploadFiles(formId, picked, folder as never);
       setPending(p => ({ ...p, [folder]: [] }));
       if (failed.length) showAlert({ icon: 'error', title: 'อัปโหลดไม่สำเร็จ', text: failed.join(', ') });
+      else showSuccess('อัปโหลดแล้ว');
       onChanged();
     } finally {
       setBusy(null);
@@ -43,8 +49,8 @@ export function PettyAttachments({ formId, spec, files, canUpload, onChanged }: 
   }
 
   async function remove(file: PettyFile) {
-    const ask = await showConfirm({ title: 'ลบไฟล์นี้?', text: displayFileName(file.fileName ?? file.key),
-      confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก' });
+    const ask = await pettyConfirm({ title: 'ลบไฟล์นี้?', text: displayFileName(file.fileName ?? file.key),
+      confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก' }, { danger: true });
     if (!ask.isConfirmed) return;
     setBusy(file.folder);
     try {
@@ -55,6 +61,8 @@ export function PettyAttachments({ formId, spec, files, canUpload, onChanged }: 
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string };
         showAlert({ icon: 'error', title: 'ลบไม่สำเร็จ', text: data.error ?? '' });
+      } else {
+        showSuccess('ลบไฟล์แล้ว');
       }
       onChanged();
     } finally {
@@ -63,29 +71,31 @@ export function PettyAttachments({ formId, spec, files, canUpload, onChanged }: 
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
       {folders.map(a => {
         const list = files.filter(f => f.folder === a.key);
         const full = a.max !== undefined && list.length >= a.max;
+        const picked = pending[a.key] ?? [];
         return (
-          <div key={a.key} className="rounded-xl border border-slate-100 p-3">
-            <p className="mb-1 text-sm font-medium">
-              {a.label}{a.required && <span className="text-rose-500"> *</span>}
-              <span className="ml-1 text-xs text-ink-400">{list.length}{a.max ? `/${a.max}` : ''}</span>
+          <div key={a.key} className="min-w-0">
+            <p className="mb-1.5 flex items-baseline justify-between gap-2 text-sm">
+              <span className="font-medium text-ink-900">{a.label}{a.required && <Req />}</span>
+              <span className="text-xs tabular-nums text-ink-500">{list.length}{a.max ? `/${a.max}` : ''} ไฟล์</span>
             </p>
             {list.length === 0 ? (
-              <p className="text-xs text-ink-400">ยังไม่มีไฟล์</p>
+              <p className={`border-t ${LINE} py-2 text-xs text-ink-500`}>ยังไม่มีไฟล์</p>
             ) : (
-              <ul className="space-y-1 text-sm">
+              <ul className={`divide-y border-t ${LINE} divide-[#f3f6fa] text-sm`}>
                 {list.map(f => (
-                  <li key={f.key} className="flex items-center justify-between gap-2">
+                  <li key={f.key} className="flex items-center justify-between gap-2 py-1.5">
                     <a href={f.url} target="_blank" rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 text-brand-700 hover:underline">
-                      <FileText className="h-4 w-4" /> {displayFileName(f.fileName ?? f.key)}
+                      className="inline-flex min-w-0 items-center gap-1.5 text-ink-900 underline-offset-2 hover:text-brand-700 hover:underline">
+                      <FileText className="h-4 w-4 shrink-0 text-ink-300" />
+                      <span className="truncate">{displayFileName(f.fileName ?? f.key)}</span>
                     </a>
                     {canUpload && (
-                      <button type="button" title="ลบไฟล์" disabled={busy === a.key} onClick={() => void remove(f)}
-                        className="rounded p-1 text-ink-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50">
+                      <button type="button" aria-label={`ลบไฟล์ ${displayFileName(f.fileName ?? f.key)}`} disabled={busy === a.key} onClick={() => void remove(f)}
+                        className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-300 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     )}
@@ -95,13 +105,13 @@ export function PettyAttachments({ formId, spec, files, canUpload, onChanged }: 
             )}
             {canUpload && !full && (
               <div className="mt-2 space-y-2">
-                <FilePicker files={pending[a.key] ?? []} onChange={fs => setPending(p => ({ ...p, [a.key]: fs }))}
-                  disabled={busy === a.key} />
-                {(pending[a.key]?.length ?? 0) > 0 && (
-                  <button type="button" disabled={busy === a.key} onClick={() => upload(a.key)}
-                    className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm text-white hover:bg-brand-700 disabled:opacity-50">
-                    {busy === a.key ? 'กำลังอัปโหลด…' : `อัปโหลด ${pending[a.key].length} ไฟล์`}
-                  </button>
+                <PettyFileDrop label="เพิ่มไฟล์" files={picked} disabled={busy === a.key}
+                  tag={picked.length ? `เลือกแล้ว ${picked.length}` : 'เลือกไฟล์'}
+                  onChange={fs => setPending(p => ({ ...p, [a.key]: fs }))} />
+                {picked.length > 0 && (
+                  <Button tone="primary" size="md" disabled={busy === a.key} onClick={() => void upload(a.key, a.label)}>
+                    {busy === a.key ? 'กำลังอัปโหลด…' : `อัปโหลด ${picked.length} ไฟล์`}
+                  </Button>
                 )}
               </div>
             )}

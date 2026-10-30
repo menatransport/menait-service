@@ -5,9 +5,9 @@ import { useParams } from 'next/navigation';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyClaim, PettyRound } from '@/app/finance/types-petty';
-import { FinanceShell, NoAccess } from '../../../components/FinanceShell';
 import { PettySheet } from '../../../components/petty/PettySheet';
 import { RoundDetail } from '../../../components/petty/worklist/RoundDetail';
+import { EmptyState, PettyPage } from '../../../components/petty/ui';
 
 /**
  * หน้าเต็มของรอบส่งเคลียร์ — เนื้อหาเดียวกับแผงด้านข้างในหน้างานเงินสดย่อย (แบบหน้าเต็มของ Advance)
@@ -27,13 +27,13 @@ export default function PettyRoundPage() {
   const openClaim = (c: PettyClaim) => { setOpenId(c.form_id); setSheetOpen(true); };
 
   if (loading) return <MascotLoader />;
-  if (!Number.isInteger(id) || id <= 0) return <FinanceShell title="รอบส่งเคลียร์"><NoAccess text="เลขรอบไม่ถูกต้อง" /></FinanceShell>;
+  if (!Number.isInteger(id) || id <= 0) return <PettyPage title="รอบส่งเคลียร์"><EmptyState title="เลขรอบไม่ถูกต้อง" /></PettyPage>;
 
   return (
-    <FinanceShell title={batchNo ? `รอบส่งเคลียร์ ${batchNo}` : 'รอบส่งเคลียร์'}>
+    <PettyPage title={batchNo ? `รอบส่งเคลียร์ ${batchNo}` : 'รอบส่งเคลียร์'} width="max-w-[1120px]">
       <RoundDetail key={refreshKey} roundId={id} onOpenClaim={openClaim} onLoaded={onLoaded} />
       <PettySheet formId={openId} isOpen={sheetOpen} onClose={() => setSheetOpen(false)}
         onChanged={() => setRefreshKey(k => k + 1)} />
-    </FinanceShell>
+    </PettyPage>
   );
 }

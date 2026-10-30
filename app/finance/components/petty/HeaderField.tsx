@@ -4,6 +4,7 @@ import type { PettySpecField } from '@/app/finance/types-petty';
 import { BANKS } from '@/lib/finance/bank';
 import { payeeAccountHint, payeeAccountType, type PayeeAccountType } from '@/lib/finance/petty-payee';
 import { TruckPicker } from './TruckPicker';
+import { FIELD, LABEL, Req } from './ui';
 
 /** ช่องหัวใบหนึ่งช่อง เรนเดอร์ตามชนิดที่ spec บอก — เพิ่มชนิดใหม่ต้องเพิ่มที่นี่ที่เดียว */
 export function HeaderField({ field, value, form, onChange }: {
@@ -15,24 +16,22 @@ export function HeaderField({ field, value, form, onChange }: {
   const label = (
     <>
       {field.label}
-      {field.required && <span className="text-rose-500"> *</span>}
+      {field.required && <Req />}
     </>
   );
-  const box = 'mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5';
 
   if (field.type === 'truck') {
     return (
-      <label className="text-sm">{label}
-        <div className="mt-1">
-          <TruckPicker lineNo={0}
-            code={String(form.truck_code ?? '')} plate={String(form.truck_plate ?? '')}
-            onPick={truck => onChange({
-              truck_code: truck.truck_code,
-              truck_plate: truck.truck_plate,
-              truck_type: truck.truck_type || form.truck_type,
-            })} />
-        </div>
-      </label>
+      <div>
+        <span className={LABEL}>{label}</span>
+        <TruckPicker lineNo={0} block
+          code={String(form.truck_code ?? '')} plate={String(form.truck_plate ?? '')}
+          onPick={truck => onChange({
+            truck_code: truck.truck_code,
+            truck_plate: truck.truck_plate,
+            truck_type: truck.truck_type || form.truck_type,
+          })} />
+      </div>
     );
   }
 
@@ -46,25 +45,27 @@ export function HeaderField({ field, value, form, onChange }: {
       : digits.length === 1 ? `เลขบัญชี ${digits[0]} หลัก` : 'เลขบัญชีธนาคาร';
     const tab = (value: PayeeAccountType, text: string) => (
       <button type="button" key={value} aria-pressed={type === value}
-        className={`rounded-md px-2.5 py-1 text-xs font-medium ${type === value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        className={`px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-600/30 ${type === value
+          ? 'font-semibold text-ink-900 shadow-[inset_0_-2px_0_0_var(--color-brand-600)]'
+          : 'font-medium text-ink-500 hover:text-ink-900'}`}
         onClick={() => onChange({ payee_account_type: value, payee_account_no: '' })}>
         {text}
       </button>
     );
     return (
-      <div className="text-sm sm:col-span-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span>{label}</span>
-          <div className="inline-flex rounded-lg bg-slate-100 p-0.5" role="group" aria-label="ปลายทางเงิน">
+      <div className="sm:col-span-3">
+        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-medium text-ink-500">{label}</span>
+          <div className="inline-flex overflow-hidden rounded-lg border border-[#dbe4f3] bg-white" role="group" aria-label="ปลายทางเงิน">
             {tab('bank', 'บัญชีธนาคาร')}{tab('promptpay', 'พร้อมเพย์')}
           </div>
         </div>
-        <div className="mt-1 grid gap-2 sm:grid-cols-3">
-          <input value={String(value ?? '')} className="w-full rounded-lg border border-slate-200 px-2 py-1.5"
+        <div className="grid gap-2.5 sm:grid-cols-3">
+          <input value={String(value ?? '')} className={FIELD} aria-label="ชื่อผู้รับเงิน"
             placeholder="ชื่อ นามสกุล" autoComplete="off"
             onChange={e => onChange({ payee_name: e.target.value })} />
           {type === 'bank' && (
-            <select value={String(form.payee_bank ?? '')} className="w-full rounded-lg border border-slate-200 px-2 py-1.5"
+            <select value={String(form.payee_bank ?? '')} className={FIELD}
               aria-label="ชื่อธนาคาร"
               onChange={e => onChange({ payee_bank: e.target.value })}>
               <option value="">ชื่อธนาคาร</option>
@@ -73,12 +74,12 @@ export function HeaderField({ field, value, form, onChange }: {
           )}
           <div className={type === 'promptpay' ? 'sm:col-span-2' : undefined}>
             <input value={String(form.payee_account_no ?? '')}
-              className={`w-full rounded-lg border px-2 py-1.5 ${hint ? 'border-rose-400 bg-rose-50/40' : 'border-slate-200'}`}
+              className={`${FIELD} ${hint ? '!border-rose-400' : ''}`}
               placeholder={noPlaceholder} inputMode="numeric" autoComplete="off"
               aria-label={type === 'promptpay' ? 'เบอร์พร้อมเพย์' : 'เลขบัญชีธนาคาร'}
               aria-invalid={Boolean(hint)}
               onChange={e => onChange({ payee_account_no: e.target.value })} />
-            {hint && <p className="mt-0.5 text-xs text-rose-600">{hint}</p>}
+            {hint && <p className="mt-1 text-xs text-rose-700">{hint}</p>}
           </div>
         </div>
       </div>
@@ -87,8 +88,9 @@ export function HeaderField({ field, value, form, onChange }: {
 
   if (field.type === 'select') {
     return (
-      <label className="text-sm">{label}
-        <select value={String(value ?? '')} className={box}
+      <label className="block">
+        <span className={LABEL}>{label}</span>
+        <select value={String(value ?? '')} className={FIELD}
           onChange={e => onChange({ [field.key]: e.target.value })}>
           <option value="">เลือก</option>
           {(field.options ?? []).map(option => <option key={option} value={option}>{option}</option>)}
@@ -97,12 +99,14 @@ export function HeaderField({ field, value, form, onChange }: {
     );
   }
 
+  const numeric = field.type === 'money' || field.type === 'number';
   return (
-    <label className="text-sm">{label}
-      <input value={String(value ?? '')} className={box}
+    <label className="block">
+      <span className={LABEL}>{label}</span>
+      <input value={String(value ?? '')} className={`${FIELD} ${numeric ? 'text-right tabular-nums' : ''}`}
         type={field.type === 'date' ? 'date' : 'text'}
-        inputMode={field.type === 'money' || field.type === 'number' ? 'decimal' : undefined}
-        placeholder={field.type === 'employee' ? 'ชื่อ-สกุล' : undefined}
+        inputMode={numeric ? 'decimal' : undefined}
+        placeholder={field.type === 'employee' ? 'ชื่อ-สกุล' : numeric ? '0.00' : undefined}
         onChange={e => onChange({ [field.key]: e.target.value })} />
     </label>
   );

@@ -8,12 +8,13 @@ import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
 import { pettyFileProblem } from '@/lib/finance/petty-upload';
 import { payFormError, payPayload } from '@/lib/finance/petty-worklist';
 import { formatBaht, formatDate, todayBkk } from '@/lib/finance/status';
-import { confirmReview, showAlert, showSuccess } from '../../../api';
+import { showAlert, showSuccess } from '../../../api';
 import { payRound, roundDuplicateWarning, uploadRoundSlips } from '../../../petty-api';
 import { DateField } from '../../DateField';
 import { FilePicker } from '../../FilePicker';
 import { Panel } from '../../FinanceShell';
 import { HolderChip, PRIMARY_BTN } from './RoundVoucherForm';
+import { pettyReview } from '../petty-confirm';
 
 /**
  * กล่องจ่ายเงินทั้งรอบ — แบบ PayForm ของ Advance: บัญชีผู้รับ + คัดลอกเลขบัญชี · เลขที่ทำจ่าย · ยอดเงิน · วันที่โอนเงิน
@@ -44,7 +45,7 @@ export function RoundPayForm({ round, onSaved }: { round: PettyRound; onSaved: (
     const warning = await roundDuplicateWarning('pay_doc_no', payDocNo, round.id);
     const account = hasAccount
       ? `${bankLabel(payee?.bank)} ${formatAccountNo(payee?.account_no)}\n${payee?.account_name ?? ''}` : null;
-    if (!(await confirmReview({
+    if (!(await pettyReview({
       warning,
       title: 'ยืนยันบันทึกการจ่ายเงิน',
       rows: [

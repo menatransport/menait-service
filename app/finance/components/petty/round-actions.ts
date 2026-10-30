@@ -6,8 +6,9 @@ import { coverSheetHtml, roundGroup } from '@/lib/finance/petty-cover';
 import { bangkokDate } from '@/lib/finance/petty-doc';
 import { openPrintWindow } from '@/lib/finance/printShared';
 import { formatBaht } from '@/lib/finance/status';
-import { showAlert, showConfirm } from '../../api';
+import { showAlert, showSuccess } from '../../api';
 import { postRoundAction, type RoundAction } from '../../petty-api';
+import { pettyConfirm as showConfirm, pettyReview } from './petty-confirm';
 
 type Prompt = { isConfirmed?: boolean; value?: string };
 
@@ -21,14 +22,20 @@ export async function runRoundAction(round: PettyRound, action: RoundAction): Pr
   const body: Record<string, unknown> = {};
 
   if (action === 'clear-approve') {
-    const res = await showConfirm({ title: `อนุมัติเคลียร์รอบ ${round.batch_no}`,
-      text: `${what} · ส่งต่อให้บัญชีตรวจ`, confirmButtonText: 'อนุมัติเคลียร์' }) as Prompt;
-    if (!res?.isConfirmed) return false;
+    const ok = await pettyReview({ title: `อนุมัติเคลียร์รอบ ${round.batch_no}`,
+      rows: [
+        ['เจ้าของเงินสด', round.holder_name ?? round.holder_employee_id ?? '-'],
+        ['สาขา · แผนก', `${round.branch_code ?? '-'} · ${round.division_code ?? '-'}`],
+        ['จำนวนใบ', `${count} ใบ`],
+        ['ยอดรวม', `${formatBaht(round.total_amount)} บาท`],
+      ],
+      note: 'อนุมัติแล้วรอบจะไปให้บัญชีตรวจ', confirmButtonText: 'อนุมัติเคลียร์' });
+    if (!ok) return false;
   }
   if (action === 'clear-reject') {
-    const res = await showConfirm({ title: `ไม่อนุมัติรอบ ${round.batch_no}`, input: 'textarea',
-      inputLabel: 'เหตุผล (เจ้าของเงินสดจะเห็นข้อความนี้ แล้วจัดรอบใหม่)',
-      inputValidator: (v: string) => (!v || !v.trim()) ? 'ต้องระบุเหตุผล' : null, confirmButtonText: 'ไม่อนุมัติ' }) as Prompt;
+    const res = await showConfirm({ title: `ไม่อนุมัติรอบ ${round.batch_no}`, text: what, input: 'textarea',
+      inputLabel: 'เหตุผล (เจ้าของเงินสดจะเห็น แล้วจัดรอบใหม่)',
+      inputValidator: (v: string) => (!v || !v.trim()) ? 'ต้องระบุเหตุผล' : null, confirmButtonText: 'ไม่อนุมัติ' }, { danger: true }) as Prompt;
     if (!res?.isConfirmed) return false;
     body.reason = res.value;
   }
@@ -48,8 +55,11 @@ export async function runRoundAction(round: PettyRound, action: RoundAction): Pr
     body.pay_date = res.value;
   }
 
+  const done = action === 'clear-approve' ? 'อนุมัติเคลียร์แล้ว' : action === 'clear-reject' ? 'ไม่อนุมัติรอบแล้ว'
+    : action === 'voucher' ? 'ตั้งเบิกแล้ว' : 'ทำจ่ายและปิดรอบแล้ว';
   try {
     await postRoundAction(round.id, action, body);
+    showSuccess(done, `รอบ ${round.batch_no}`);
     return true;
   } catch (err) {
     const api = err instanceof ApiError ? err : null;
