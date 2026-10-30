@@ -5,20 +5,22 @@ import { ApiError } from '@/lib/finance/api-error';
 import { DEBT_DOC_MAX, debtDocProblem, needsDebtDoc } from '@/lib/finance/petty-debt';
 import { bangkokDate } from '@/lib/finance/petty-doc';
 import { transferCalc } from '@/lib/finance/petty-transfer';
-import { showAlert, showConfirm } from '../../api';
+import { showAlert } from '../../api';
 import { countAttachments, getBalance, postAction, type PettyAction } from '../../petty-api';
+import { pettyConfirm, pettyReview } from './petty-confirm';
 
 type Prompt = { isConfirmed?: boolean; value?: string };
 
 /** ของที่ runPettyAction เรียกออกไปข้างนอก (กล่อง SweetAlert + API) — เทสต์ส่งตัวปลอมมาแทนได้ */
 export type PettyActionDeps = {
-  confirm: (options: Record<string, unknown>) => Promise<unknown>;
+  /** theme.danger = ปุ่มยืนยันสีแดง (งานที่ย้อนไม่ได้ เช่น ตีกลับ) */
+  confirm: (options: Record<string, unknown>, theme?: { danger?: boolean }) => Promise<unknown>;
   alert: (options: Record<string, unknown>) => unknown;
   post: typeof postAction;
   countAttachments: typeof countAttachments;
   getBalance: typeof getBalance;
 };
-const LIVE: PettyActionDeps = { confirm: showConfirm, alert: showAlert, post: postAction, countAttachments, getBalance };
+const LIVE: PettyActionDeps = { confirm: pettyConfirm, alert: showAlert, post: postAction, countAttachments, getBalance };
 
 /**
  * เปลี่ยนสถานะใบหนึ่งใบจากปุ่มลัดในตารางหรือแผงรายละเอียด — ถามสิ่งที่ต้องกรอก (เหตุผล วันที่จ่าย เลข DD เลขรับสภาพหนี้)
@@ -52,9 +54,9 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
 
   if (action === 'return') {
     // แบบกล่อง "ยืนยันไม่อนุมัติ" ของ Advance: บังคับหมายเหตุ ใบกลับไปให้คนเปิดใบแก้แล้วส่งใหม่
-    const res = await showConfirm({ title: 'ยืนยันตีกลับใบเบิกเงินสดย่อย', text: `ฟอร์ม ${claim.form_id}`, input: 'textarea',
+    const res = await showConfirm({ title: 'ยืนยันตีกลับใบเบิกเงินสดย่อย', text: `ฟอร์ม ${claim.form_id} · ${baht} บาท`, input: 'textarea',
       inputLabel: 'หมายเหตุ (ระบุเหตุผล)', inputPlaceholder: 'คนเปิดใบจะเห็นข้อความนี้ เช่น ใบชั่งเบลอ อ่านเลขไม่ออก',
-      inputValidator: (v: string) => (!v || !v.trim()) ? 'กรุณาระบุหมายเหตุ' : null }) as Prompt;
+      inputValidator: (v: string) => (!v || !v.trim()) ? 'กรุณาระบุหมายเหตุ' : null, confirmButtonText: 'ตีกลับ' }, { danger: true }) as Prompt;
     if (!res?.isConfirmed) return false;
     body.reason = res.value;
   }
@@ -78,13 +80,14 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
   if (action === 'review') {
     body.action = opts.pass ? 'PASS' : 'SEND_BACK';
     if (opts.pass) {
-      const res = await showConfirm({ title: `ตรวจผ่าน ใบ ${claim.form_id}`,
-        text: `${baht} บาท · ผ่านครบทั้งรอบเมื่อไร ตั้งเบิกได้เลย`, confirmButtonText: 'ผ่าน' }) as Prompt;
-      if (!res?.isConfirmed) return false;
+      const ok = await pettyReview({ title: `ตรวจผ่าน ใบ ${claim.form_id}`,
+        rows: [['จ่ายให้', claim.payee_name ?? '-'], ['ยอด', `${baht} บาท`], ['เลข DD', claim.dd_no ?? '-']],
+        note: 'ผ่านครบทั้งรอบแล้วตั้งเบิกได้', confirmButtonText: 'ผ่าน' });
+      if (!ok) return false;
     } else {
-      const res = await showConfirm({ title: `ตีกลับใบ ${claim.form_id}`, input: 'textarea',
-        inputLabel: 'เหตุผล (เจ้าหน้าที่ผู้เปิดใบจะเห็น แก้แล้วส่งกลับมาที่บัญชีได้เลย)',
-        inputValidator: (v: string) => (!v || !v.trim()) ? 'ต้องระบุเหตุผล' : null, confirmButtonText: 'ตีกลับ' }) as Prompt;
+      const res = await showConfirm({ title: `ตีกลับใบ ${claim.form_id}`, text: `${baht} บาท`, input: 'textarea',
+        inputLabel: 'เหตุผล (ผู้เปิดใบจะเห็น แก้แล้วส่งกลับมาที่บัญชี)',
+        inputValidator: (v: string) => (!v || !v.trim()) ? 'ต้องระบุเหตุผล' : null, confirmButtonText: 'ตีกลับ' }, { danger: true }) as Prompt;
       if (!res?.isConfirmed) return false;
       body.remark = res.value;
     }
@@ -107,7 +110,7 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
       if (!res?.isConfirmed) return false;
       try {
         await postAction(claim.form_id, 'approve', { ...body, dup_override_reason: res.value });
-        return true;
+            return true;
       } catch (err2) {
         showAlert({ icon: 'error', title: 'อนุมัติไม่สำเร็จ', text: (err2 as Error).message });
         return false;
@@ -117,6 +120,12 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
       text: lines.length ? lines.join('\n') : (err as Error).message });
     return false;
   }
+}
+
+/** ข้อความแจ้งสำเร็จหลัง runPettyAction คืน true — ผู้เรียกเป็นคนแจ้ง (หน้าอนุมัติมีข้อความของตัวเอง) */
+export function actionDoneText(action: PettyAction, pass?: boolean): string {
+  return action === 'approve' ? 'อนุมัติจ่ายแล้ว' : action === 'return' ? 'ตีกลับแล้ว' : action === 'dd' ? 'บันทึกเลข DD แล้ว'
+    : action === 'debt-doc' ? 'บันทึกเลขรับสภาพหนี้แล้ว' : pass ? 'ตรวจผ่านแล้ว' : 'ตีกลับแล้ว';
 }
 
 const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c =>
@@ -142,18 +151,18 @@ export function approveSummaryHtml(claim: PettyClaim,
   if (balance) {
     const after = balance.available - claim.amount;
     rows.push(`<div style="display:flex;justify-content:space-between"><span>ยอดคงเหลือของคุณ</span><b>${money(balance.available)} บาท</b></div>`);
-    rows.push(`<div style="display:flex;justify-content:space-between"><span>หลังอนุมัติใบนี้</span><b style="color:${after < 0 ? '#be123c' : '#065f46'}">${money(after)} บาท</b></div>`);
+    rows.push(`<div style="display:flex;justify-content:space-between"><span>หลังอนุมัติใบนี้</span><b style="color:${after < 0 ? '#be123c' : '#0f2748'}">${money(after)} บาท</b></div>`);
     if (after < 0) rows.push('<div style="color:#be123c;font-size:12px">ติดลบ อนุมัติได้ แต่ควรเร่งส่งเคลียร์ให้การเงินทำจ่ายคืน</div>');
   } else {
-    rows.push('<div style="color:#64748b;font-size:12px">โหลดยอดคงเหลือไม่ได้ตอนนี้</div>');
+    rows.push('<div style="color:#6b7f9e;font-size:12px">โหลดยอดคงเหลือไม่ได้ตอนนี้</div>');
   }
-  const transfer = `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe">
+  const transfer = `<div style="margin-top:10px;padding:10px 0 0;border-top:1px solid #edf1f7">
 <div style="display:flex;justify-content:space-between"><span>ยอดตามบิล</span><span>${money(calc.bill)} บาท</span></div>
 <div style="display:flex;justify-content:space-between;font-size:16px"><span>ยอดที่ต้องโอนจริง</span><b>${money(calc.transfer)} บาท</b></div>
-<div style="font-size:12px;color:#475569;margin-top:4px">${escapeHtml(calc.note)}</div></div>`;
+<div style="font-size:12px;color:#6b7f9e;margin-top:4px">${escapeHtml(calc.note)}</div></div>`;
   // เลขรับสภาพหนี้ไม่ต้องมีตอนอนุมัติ ใส่หลังโอนได้ แต่ต้องมีก่อนส่งเคลียร์
   const debtText = debtDocNo ? `ใบรับสภาพหนี้เลขที่ ${escapeHtml(debtDocNo)}` : 'ใส่เลขรับสภาพหนี้หลังโอนเงินได้ ต้องมีก่อนส่งเคลียร์';
   const debt = debtDocNo || needsDebtDoc(claim)
-    ? `<div style="margin-top:8px;font-size:12px;color:#92400e">ใบนี้มี พจร. · ${debtText}</div>` : '';
+    ? `<div style="margin-top:8px;font-size:12px;color:#33476b">ใบนี้มี พจร. · ${debtText}</div>` : '';
   return `<div style="text-align:left;font-size:14px;line-height:1.7">${rows.join('')}${transfer}${debt}</div>`;
 }

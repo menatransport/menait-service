@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { getDd, type DdDoc } from '@/app/finance/petty-api';
+import { Button, LINE, Notice } from './ui';
 
 const baht = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2 });
 
@@ -32,50 +33,47 @@ export function DdSheet({ ddNo, expenseType, claimAmount }: {
   useEffect(() => { void load(); }, [load]);
 
   if (!ddNo) {
-    return <p className="text-sm text-ink-400">ยังไม่กรอกเลขที่ใบรับสินค้า (DD)</p>;
+    return <p className="text-sm text-ink-500">ยังไม่กรอกเลข DD</p>;
   }
 
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-sm">เลขที่ <strong>{ddNo}</strong></p>
-        <button type="button" onClick={() => void load()} disabled={loading}
-          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs disabled:opacity-40">
-          <RefreshCw className="h-3 w-3" /> {loading ? 'กำลังดึง…' : 'ดึงใหม่'}
-        </button>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <p className="text-sm text-ink-700">เลขที่ <span className="font-semibold text-ink-900">{ddNo}</span></p>
+        <Button size="sm" onClick={() => void load()} disabled={loading}>
+          <RefreshCw className="h-3 w-3 text-ink-500" /> {loading ? 'กำลังดึง…' : 'ดึงใหม่'}
+        </Button>
       </div>
 
       {doc?.error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-          {doc.error}
-        </div>
+        <Notice tone="error">{doc.error}</Notice>
       )}
 
       {doc && !doc.found && !doc.error && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          ยังไม่พบใน ATMS อาจรอ sync (ข้อมูลเข้าทุก 4 ชั่วโมง) — ส่งบัญชีได้ตามปกติ
-        </div>
+        <Notice>ยังไม่พบใน ATMS (sync ทุก 4 ชม.) — ส่งบัญชีได้ตามปกติ</Notice>
       )}
 
       {doc?.found && (
         <>
           {doc.total_match === false && (
-            <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              ยอดใน DD ({baht(doc.total)}) ต่างจากยอดใบเบิก ({baht(claimAmount)}) อยู่{' '}
-              <strong>{baht(doc.total_difference ?? 0)}</strong> บาท — ตรวจก่อนส่งบัญชี
+            <div className="mb-3">
+              <Notice>
+                ยอด DD ({baht(doc.total)}) ต่างจากใบเบิก ({baht(claimAmount)}) อยู่{' '}
+                <strong className="text-ink-900">{baht(doc.total_difference ?? 0)}</strong> บาท — ตรวจก่อนส่งบัญชี
+              </Notice>
             </div>
           )}
-          <div className="mb-2 grid gap-2 text-sm sm:grid-cols-3 lg:grid-cols-6">
+          <dl className="mb-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
             <Cell label="วันที่รับ" value={doc.received_date ?? '-'} />
             <Cell label="คลัง" value={doc.warehouse ?? '-'} />
             <Cell label="ผู้ขาย/ผู้รับจ้าง" value={doc.supplier ?? '-'} />
             <Cell label="เลขที่ใบสั่งซื้อ (PO)" value={doc.po ?? '-'} />
             <Cell label="เลขที่ใบขอซื้อ (PR)" value={doc.pr ?? '-'} />
             <Cell label="VAT" value={doc.vat === null ? '-' : `${doc.vat}%`} />
-          </div>
-          <div className="overflow-x-auto">
+          </dl>
+          <div className={`overflow-x-auto rounded-xl border ${LINE}`}>
             <table className="w-full text-sm">
-              <thead className="text-left text-ink-500">
+              <thead className={`border-b ${LINE} text-left text-xs text-ink-500 [&_th]:px-3 [&_th]:font-medium`}>
                 <tr>
                   <th className="py-1.5">รหัสสินค้า</th><th className="py-1.5">ชื่อสินค้า</th>
                   <th className="py-1.5">กลุ่มสินค้า</th><th className="py-1.5 text-right">จำนวน</th>
@@ -85,7 +83,7 @@ export function DdSheet({ ddNo, expenseType, claimAmount }: {
               </thead>
               <tbody>
                 {doc.lines.map((line, i) => (
-                  <tr key={i} className="border-t border-slate-100">
+                  <tr key={i} className="border-t border-[#f3f6fa] text-ink-900 [&_td]:px-3">
                     <td className="py-1.5">{line.sku ?? '-'}</td>
                     <td className="py-1.5">{line.name ?? '-'}</td>
                     <td className="py-1.5">{line.product_group ?? '-'}</td>
@@ -95,13 +93,13 @@ export function DdSheet({ ddNo, expenseType, claimAmount }: {
                     <td className="py-1.5 text-right tabular-nums">{baht(line.amount)}</td>
                     <td className="py-1.5">
                       {line.truck_code ?? '-'}
-                      {line.truck_plate && <span className="text-ink-400"> ({line.truck_plate})</span>}
+                      {line.truck_plate && <span className="text-ink-500"> ({line.truck_plate})</span>}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-slate-200 font-medium">
+                <tr className={`border-t ${LINE} font-semibold text-ink-900 [&_td]:px-3`}>
                   <td colSpan={6} className="py-1.5 text-right">รวม</td>
                   <td className="py-1.5 text-right tabular-nums">{baht(doc.total)}</td>
                   <td />
@@ -117,9 +115,9 @@ export function DdSheet({ ddNo, expenseType, claimAmount }: {
 
 function Cell({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="text-xs text-ink-500">{label}</p>
-      <p>{value}</p>
+    <div className="min-w-0">
+      <dt className="text-xs text-ink-500">{label}</dt>
+      <dd className="break-words text-ink-900">{value}</dd>
     </div>
   );
 }

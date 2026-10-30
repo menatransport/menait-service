@@ -1,0 +1,22 @@
+/* เงินสดย่อย — ป๊อปอัปยืนยันแบบทางการ (ใช้เฉพาะ customClass "petty-swal" ไม่กระทบหน้า Advance) */
+.petty-swal.swal2-popup { border-radius: 14px !important; padding: 1.5rem 1.25rem 1.25rem !important; }
+.petty-swal .swal2-title { font-size: 1.125rem !important; font-weight: 600 !important; }
+.petty-swal .swal2-html-container { font-size: 14px !important; color: #33476b !important; }
+.petty-swal .swal2-actions { gap: .5rem; }
+.petty-swal .swal2-styled {
+  border-radius: 10px !important; padding: .6em 1.4em !important; margin: 0 !important;
+  font-size: 14px !important; font-weight: 600 !important; box-shadow: none !important;
+}
+.petty-swal .swal2-styled.swal2-confirm { background: #1c6ef2 !important; color: #fff !important; box-shadow: none !important; }
+.petty-swal .swal2-styled.swal2-confirm:hover { background: #1556c9 !important; }
+.petty-swal--danger .swal2-styled.swal2-confirm { background: #be123c !important; }
+.petty-swal--danger .swal2-styled.swal2-confirm:hover { background: #9f1239 !important; }
+.petty-swal .swal2-styled.swal2-cancel { background: #fff !important; color: #33476b !important; border: 1px solid #dbe4f3 !important; }
+.petty-swal .swal2-styled.swal2-cancel:hover { background: #f7f9fc !important; }
+.petty-swal .swal2-styled:focus-visible { box-shadow: 0 0 0 3px rgba(28, 110, 242, .25) !important; }
+.petty-swal .swal2-input, .petty-swal .swal2-textarea {
+  border: 1px solid #dbe4f3 !important; border-radius: 10px !important; box-shadow: none !important; font-size: 14px !important; color: #0f2748;
+}
+.petty-swal .swal2-input:focus, .petty-swal .swal2-textarea:focus { border-color: #1c6ef2 !important; box-shadow: 0 0 0 3px rgba(28, 110, 242, .15) !important; }
+.petty-swal .swal2-input-label { font-size: 13px; color: #6b7f9e; }
+.petty-swal .swal2-validation-message { background: #fff; color: #be123c; font-size: 13px; }

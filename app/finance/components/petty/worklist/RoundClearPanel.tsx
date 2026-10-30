@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import type { PettyRound } from '@/app/finance/types-petty';
 import { formatBaht } from '@/lib/finance/status';
-import { showAlert, showConfirm, showSuccess } from '../../../api';
+import { showAlert, showSuccess } from '../../../api';
 import { postRoundAction } from '../../../petty-api';
 import { Panel } from '../../FinanceShell';
+import { pettyConfirm } from '../petty-confirm';
 
 /** หัวหน้าตามสายงานอนุมัติเคลียร์ทั้งรอบ — หน้าตาแบบ ClearApprovalPanel ของ Advance (อีเมลแจ้งหัวหน้าลิงก์มาหน้านี้) */
 export function RoundClearPanel({ round, onSaved }: { round: PettyRound; onSaved: () => void }) {
@@ -20,10 +21,10 @@ export function RoundClearPanel({ round, onSaved }: { round: PettyRound; onSaved
       await showAlert({ icon: 'warning', title: 'กรุณาระบุเหตุผลที่ไม่อนุมัติ' });
       return;
     }
-    const ok = await showConfirm({
+    const ok = await pettyConfirm({
       title: action === 'clear-approve' ? 'อนุมัติเคลียร์รอบนี้?' : 'ไม่อนุมัติรอบนี้?',
       text: `${round.batch_no} · ${count} ใบ รวม ${formatBaht(round.total_amount)} บาท`,
-    });
+    }, { danger: action === 'clear-reject' }) as { isConfirmed?: boolean };
     if (!ok.isConfirmed) return;
     setBusy(true);
     try {

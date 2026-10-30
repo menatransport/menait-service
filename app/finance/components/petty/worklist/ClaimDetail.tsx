@@ -16,7 +16,7 @@ import { transferCalc } from '@/lib/finance/petty-transfer';
 import { canUploadPettyFile } from '@/lib/finance/petty-upload';
 import { claimHistory } from '@/lib/finance/petty-worklist';
 import { formatBaht, formatDate } from '@/lib/finance/status';
-import { showAlert, showConfirm } from '../../../api';
+import { showAlert, showSuccess } from '../../../api';
 import { checkDuplicate, getClaim, getExpenseTypes, getFunds, resubmitClaim, type PettyAction } from '../../../petty-api';
 import { Field, NoAccess, Panel } from '../../FinanceShell';
 import { DdSheet } from '../DdSheet';
@@ -26,12 +26,13 @@ import { GatePanel, type GateDup, type GateItem } from '../GatePanel';
 import { ItemGrid } from '../ItemGrid';
 import { PettyAttachments } from '../PettyAttachments';
 import { PettyPrintButton } from '../PettyPrintButton';
-import { runPettyAction } from '../petty-actions';
+import { actionDoneText, runPettyAction } from '../petty-actions';
 import { debtDocButton, docsState } from '../approvals/model';
 import { ClaimReviewPanel } from './ClaimReviewPanel';
 import { HistoryPanel } from './HistoryPanel';
 import { PRIMARY_BTN } from './RoundVoucherForm';
 import { ClaimBadge } from './StatusBadges';
+import { pettyConfirm } from '../petty-confirm';
 
 type FileRow = { key: string; fileName?: string; url: string; folder?: string };
 type Gate = { missing: GateItem[]; holderMissing: GateItem[]; hard: GateDup[]; soft: GateDup[] };
@@ -116,7 +117,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
   async function resubmit() {
     if (!claim) return;
     const toAccounting = claim.status === 'SENT_BACK';
-    const res = await showConfirm({ title: toAccounting ? 'ส่งกลับให้บัญชีตรวจอีกครั้ง?' : 'ส่งให้เจ้าของเงินสดอนุมัติอีกครั้ง?',
+    const res = await pettyConfirm({ title: toAccounting ? 'ส่งกลับให้บัญชีตรวจอีกครั้ง?' : 'ส่งให้เจ้าของเงินสดอนุมัติอีกครั้ง?',
       text: `ใบ ${claim.form_id} · แนบเอกสารที่ขาดครบแล้วใช่ไหม`, confirmButtonText: 'ส่ง' }) as { isConfirmed?: boolean };
     if (!res?.isConfirmed) return;
     setBusy('resubmit');
@@ -132,7 +133,10 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
     if (!claim) return;
     setBusy(action);
     try {
-      if (await runPettyAction(claim, action, { spec })) await changed();
+      if (await runPettyAction(claim, action, { spec })) {
+        showSuccess(actionDoneText(action), `ใบ ${claim.form_id}`);
+        await changed();
+      }
     } finally { setBusy(null); }
   }
 

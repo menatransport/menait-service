@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import type { PettyRound } from '@/app/finance/types-petty';
 import { voucherFormError, voucherPayload } from '@/lib/finance/petty-worklist';
 import { formatBaht, formatDate, todayBkk } from '@/lib/finance/status';
-import { confirmReview, showAlert, showSuccess } from '../../../api';
+import { showAlert, showSuccess } from '../../../api';
 import { roundDuplicateWarning, voucherRound } from '../../../petty-api';
 import { DateField } from '../../DateField';
 import { Panel } from '../../FinanceShell';
+import { pettyReview } from '../petty-confirm';
 
 export const PRIMARY_BTN = 'w-full h-11 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-60';
 
@@ -35,7 +36,7 @@ export function RoundVoucherForm({ round, onSaved }: { round: PettyRound; onSave
     const err = voucherFormError(voucherNo, voucherDate);
     if (err) return showAlert({ icon: 'warning', title: err });
     const warning = await roundDuplicateWarning('voucher_no', voucherNo, round.id);
-    if (!(await confirmReview({
+    if (!(await pettyReview({
       warning,
       title: 'ยืนยันบันทึกตั้งเบิก',
       rows: [

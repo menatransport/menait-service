@@ -2,34 +2,36 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, IdCard, MapPin, Receipt, User } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { claimTotal, periodOf, type PettyItemDraft } from '@/lib/finance/petty-items';
 import {
-  blankHeader, blankItem, claimPayload, dupCheckParams, headerFields, isHolderAttachment, isItemBased, itemsFrom, missingAtCreate,
+  blankHeader, claimPayload, dupCheckParams, headerFields, isHolderAttachment, isItemBased, itemsFrom, missingAtCreate,
 } from '@/lib/finance/petty-spec';
-import { payeeBankProblem } from '@/lib/finance/petty-payee';
+import { payeeBankProblem, payeeBankText } from '@/lib/finance/petty-payee';
 import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
 import { fundsForExpenseType } from '@/lib/finance/petty-account-code';
 import { bangkokToday } from '@/lib/finance/petty-doc';
 import {
   COST_CENTER_GROUPS, centerOfSite, costCenterGroupsForSite, defaultCostCenterForUser, fundForCostCenter, fundsInCenter,
 } from '@/lib/finance/petty-cost-centers';
-import { showAlert } from '../../api';
+import { requiredDocs } from '@/lib/finance/petty-preset';
+import { formatDate } from '@/lib/finance/status';
+import { showAlert, showSuccess } from '../../api';
 import { checkDuplicate, createClaim, getExpenseTypes, getFunds, uploadPettyFiles } from '../../petty-api';
-import { FinanceCanvas, FinanceHeading, Panel } from '../../components/FinanceShell';
-import { FilePicker } from '../../components/FilePicker';
 import { AddManyTrucksDialog } from '../../components/petty/AddManyTrucksDialog';
-import { DocumentPreset } from '../../components/petty/DocumentPreset';
+import { ExpenseTypeCombobox } from '../../components/petty/ExpenseTypeCombobox';
 import { HeaderField } from '../../components/petty/HeaderField';
 import { ItemGrid, type DupHint } from '../../components/petty/ItemGrid';
+import { PettyFileDrop } from '../../components/petty/PettyFileDrop';
+import { PettyTypeNote } from '../../components/petty/PettyTypeNote';
+import { pettyReview } from '../../components/petty/petty-confirm';
+import { Button, EmptyState, FIELD, HeaderMeta, LABEL, PettyPage, Req, Section, StickyBar, baht2 } from '../../components/petty/ui';
 
 type Row = PettyItemDraft & Record<string, unknown>;
 
 const TITLE = 'เปิดใบเบิกเงินสดย่อย';
-const CAPTION = 'เลือกประเภทการเบิก แล้วกรอกรายการให้ครบ — เอกสารต้องครบก่อนผู้อนุมัติจะกดอนุมัติได้';
 
 export default function NewPettyClaimPage() {
   const { user, loading } = useSessionContext();
@@ -169,6 +171,34 @@ export default function NewPettyClaimPage() {
     return null;
   })();
 
+  // ทบทวนก่อนส่ง (ปุ่ม action ทุกปุ่มต้องมีป๊อปอัปยืนยัน — Bew 30/10/2026)
+  async function confirmSubmit() {
+    if (!type || requiredMissing) return;
+    const fund = funds?.find(f => String(f.id) === fundId);
+    const payee = String(header.payee_name ?? '').trim();
+    const bank = payeeBankText(header);
+    const fileCount = Object.values(files).reduce((s, list) => s + list.length, 0);
+    const soft = dups.filter(d => d.level === 'soft');
+    const ok = await pettyReview({
+      title: 'ส่งใบเบิกให้ผู้อนุมัติ',
+      rows: [
+        ['ประเภท', type.name_th],
+        ['ศูนย์และแผนก', costCenter],
+        ['วงเงินสดย่อย', fund ? fundLabelWithHolder(fund) : '-'],
+        ['วันที่ขอเบิก', formatDate(String(header.expense_date ?? '')) || String(header.expense_date ?? '')],
+        ...(payee ? [['จ่ายให้', bank ? `${payee}\n${bank}` : payee] as [string, string]] : []),
+        ...(itemBased ? [['รายการ', `${rows.length} รายการ`] as [string, string]] : []),
+        ['ยอดรวม', `${baht2(total)} บาท`],
+        ['ไฟล์แนบ', `${fileCount} ไฟล์`],
+        ['เลข DD', ddNo.trim() || 'กรอกทีหลัง'],
+      ],
+      warning: soft.length ? `มี ${soft.length} แถวที่อาจซ้ำ — ผู้อนุมัติจะเห็นคำเตือนนี้` : null,
+      confirmButtonText: 'ส่งให้ผู้อนุมัติ',
+      cancelButtonText: 'กลับไปแก้ไข',
+    });
+    if (ok) await submit();
+  }
+
   async function submit() {
     if (!type) return;
     setSaving(true);
@@ -197,7 +227,7 @@ export default function NewPettyClaimPage() {
         showAlert({ icon: 'warning', title: 'เปิดใบแล้ว แต่มีไฟล์ขึ้นไม่ครบ',
           text: `ไฟล์ที่ไม่ขึ้น: ${failed.join(', ')} — เปิดใบแล้วแนบเพิ่มได้` });
       } else {
-        showAlert({ icon: 'success', title: `เปิดใบ ${claim.form_id} แล้ว`, timer: 1600, showConfirmButton: false });
+        showSuccess(`เปิดใบ ${claim.form_id} แล้ว`);
       }
       router.push('/finance/petty');
     } catch (err) {
@@ -207,56 +237,64 @@ export default function NewPettyClaimPage() {
 
   if (loading || types === null || funds === null) return <MascotLoader />;
 
+  const requester = (
+    <HeaderMeta primary={user ? `${user.firstname} ${user.lastname}` : '-'}
+      secondary={[user?.employee_id, user?.department_th || user?.department, user?.site].filter(Boolean).join(' · ')} />
+  );
+
   if (funds.length === 0) {
     return (
-      <FinanceCanvas title={TITLE}>
-        <FinanceHeading icon={Receipt} title={TITLE} caption={CAPTION} />
-        <Panel title="ยังไม่มีวงเงินสดย่อยที่เปิดใบได้">
-          <p className="text-sm text-ink-600">
-            ยังไม่มีวงเงินสดย่อยในระบบ ให้ผู้ดูแลระบบตั้งวงเงิน (สาขา · แผนก · ผู้อนุมัติ) ที่หน้าตั้งค่าก่อน
-          </p>
-        </Panel>
-      </FinanceCanvas>
+      <PettyPage title={TITLE} aside={requester}>
+        <EmptyState title="ยังไม่มีวงเงินสดย่อยที่เปิดใบได้" text="ให้ผู้ดูแลระบบตั้งวงเงิน (สาขา · แผนก · ผู้อนุมัติ) ที่หน้าตั้งค่าก่อน" />
+      </PettyPage>
     );
   }
 
-  return (
-    <FinanceCanvas title={TITLE}>
-      <FinanceHeading icon={Receipt} title={TITLE} caption={CAPTION} />
+  const visibleHeader = headerFields(spec).filter(f => !f.auto);
+  const needsDd = total >= 500 && !ddNo.trim();
+  const hasFiles = (spec.attachments ?? []).length > 0;
+  // หมวดที่บังคับเฉพาะบางกรณี (เช่น สำเนาบัตรเมื่อโอนเข้าบุคคล) — บอกเงื่อนไขบนช่องแนบเลย
+  const conditionOf = Object.fromEntries(requiredDocs(spec).filter(d => d.condition).map(d => [d.key, d.condition!]));
+  const fileIndex = type && itemBased ? 3 : 2;
 
-      <Panel title="ใบเบิก">
-        <div className="mb-3 rounded-xl bg-gray-50 p-3 sm:p-4">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-gray-400">ผู้เบิกเงิน</p>
-          <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-            <span className="flex min-w-0 items-center gap-2 font-medium text-gray-800">
-              <User className="h-3.5 w-3.5 shrink-0 text-brand-600" />
-              <span className="truncate">{user ? `${user.firstname} ${user.lastname}` : '-'}</span>
-            </span>
-            <span className="flex min-w-0 items-center gap-2 text-gray-600">
-              <IdCard className="h-3.5 w-3.5 shrink-0 text-brand-600" />
-              <span className="truncate">{user?.employee_id ?? '-'}</span>
-            </span>
-            <span className="flex min-w-0 items-center gap-2 text-gray-600">
-              <Building2 className="h-3.5 w-3.5 shrink-0 text-brand-600" />
-              <span className="truncate">{user?.department ?? '-'}</span>
-            </span>
-            <span className="flex min-w-0 items-center gap-2 text-gray-600">
-              <MapPin className="h-3.5 w-3.5 shrink-0 text-brand-600" />
-              <span className="truncate">{user?.site ?? '-'}</span>
-            </span>
-          </div>
+  const footer = type ? (
+    <StickyBar>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-4 gap-y-2.5 sm:flex sm:items-center sm:justify-between sm:gap-6">
+        <label className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+          <span className="shrink-0 text-xs font-medium text-ink-500">เลขที่ใบรับสินค้า (DD)</span>
+          <input value={ddNo} onChange={e => setDdNo(e.target.value)} placeholder="กรอกทีหลังได้"
+            className={`${FIELD} py-2 sm:w-44`} />
+        </label>
+        <div className="text-right sm:ml-auto">
+          <p className="text-xs text-ink-500">ยอดรวม</p>
+          <p className="font-display text-xl font-semibold leading-tight tabular-nums text-ink-900 sm:text-2xl">{baht2(total)}</p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="text-sm">ประเภทการเบิก
-            <select value={typeCode} onChange={e => setTypeCode(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5">
-              <option value="">เลือกประเภท</option>
-              {types.map(t => <option key={t.code} value={t.code}>{t.name_th}</option>)}
-            </select>
-          </label>
-          <label className="text-sm">ศูนย์และแผนก
-            <select value={costCenter} onChange={e => { setCostCenter(e.target.value); setCostCenterPicked(true); }}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5">
+        <div className="col-span-2 flex flex-col gap-1.5 sm:items-end">
+          {requiredMissing
+            ? <p className="text-xs text-ink-500" aria-live="polite">{requiredMissing}</p>
+            : needsDd && <p className="text-xs text-ink-500">ยอดตั้งแต่ 500 ใส่ DD ก่อนส่งบัญชี</p>}
+          <Button tone="primary" size="lg" disabled={saving || !!requiredMissing} onClick={() => void confirmSubmit()}
+            className="w-full sm:w-auto">
+            {saving ? 'กำลังส่ง…' : 'ส่งให้ผู้อนุมัติ'}
+          </Button>
+        </div>
+      </div>
+    </StickyBar>
+  ) : undefined;
+
+  return (
+    <PettyPage title={TITLE} aside={requester} footer={footer}>
+      <Section band index={1} label="ข้อมูลการเบิก">
+        <div className="max-w-xl">
+          <label htmlFor="petty-type" className={LABEL}>ประเภทการเบิก<Req /></label>
+          <ExpenseTypeCombobox id="petty-type" types={types} value={typeCode} onChange={setTypeCode} />
+        </div>
+        {type && <div className="mt-4"><PettyTypeNote spec={spec} typeName={type.name_th} /></div>}
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-3">
+          <label className="block">
+            <span className={LABEL}>ศูนย์และแผนก<Req /></span>
+            <select value={costCenter} onChange={e => { setCostCenter(e.target.value); setCostCenterPicked(true); }} className={FIELD}>
               <option value="">เลือกศูนย์และแผนก</option>
               {ccGroups.map(g => (
                 <optgroup key={g.center} label={g.center}>
@@ -265,123 +303,80 @@ export default function NewPettyClaimPage() {
               ))}
             </select>
             {myCenter && !showAllCenters && (
-              <span className="mt-1 block text-xs text-ink-400">
+              <span className="mt-1 block text-xs text-ink-500">
                 แสดงเฉพาะ {myCenter} ตามศูนย์ของคุณ ·{' '}
-                <button type="button" onClick={() => setShowAllCenters(true)} className="text-brand-600 underline">ดูทุกศูนย์</button>
+                <button type="button" onClick={() => setShowAllCenters(true)} className="font-medium text-ink-700 underline underline-offset-2 hover:text-ink-900">ดูทุกศูนย์</button>
               </span>
             )}
           </label>
-          <label className="text-sm">วงเงินสดย่อย
-            <select value={fundId} onChange={e => { setFundId(e.target.value); setFundPicked(true); }}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5">
+          <label className="block">
+            <span className={LABEL}>วงเงินสดย่อย<Req /></span>
+            <select value={fundId} onChange={e => { setFundId(e.target.value); setFundPicked(true); }} className={FIELD}>
               <option value="">เลือกวงเงินสดย่อย</option>
               {shownFunds.map(f => (
                 <option key={f.id} value={f.id}>{fundLabelWithHolder(f)}</option>
               ))}
             </select>
             {typeCode && shownFunds.length === 0 && (
-              <span className="mt-1 block text-xs text-amber-700">
+              <span className="mt-1 block text-xs text-ink-500">
                 {fundsFiltered ? 'ศูนย์นี้ยังไม่มีวงเงินที่เบิกประเภทนี้ได้' : 'ประเภทนี้ยังไม่มีวงเงินของแผนกที่บัญชีให้เบิกได้'}
               </span>
             )}
             {fundsFiltered && (
-              <span className="mt-1 block text-xs text-ink-400">
+              <span className="mt-1 block text-xs text-ink-500">
                 แสดงเฉพาะวงเงินของศูนย์ที่เลือก ·{' '}
-                <button type="button" onClick={() => setShowAllFunds(true)} className="text-brand-600 underline">ดูทุกวงเงิน</button>
+                <button type="button" onClick={() => setShowAllFunds(true)} className="font-medium text-ink-700 underline underline-offset-2 hover:text-ink-900">ดูทุกวงเงิน</button>
               </span>
             )}
           </label>
-          <label className="text-sm">วันที่ขอเบิก
+          <label className="block">
+            <span className={LABEL}>วันที่ขอเบิก<Req /></span>
             <input type="date" value={String(header.expense_date ?? '')}
               onChange={e => setHeader({ ...header, expense_date: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5" />
+              className={FIELD} />
           </label>
         </div>
 
-        {type && headerFields(spec).filter(f => !f.auto).length > 0 && (
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            {headerFields(spec).filter(f => !f.auto).map(f => (
+        {type && visibleHeader.length > 0 && (
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            {visibleHeader.map(f => (
               <HeaderField key={f.key} field={f} value={header[f.key]} form={header}
                 onChange={patch => setHeader({ ...header, ...patch })} />
             ))}
           </div>
         )}
-
-        {type && itemBased && (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div className="text-sm text-ink-500">
-              ช่วงวันที่ของค่าใช้จ่าย: {period.from ?? '—'} ถึง {period.to ?? '—'}
-              <span className="ml-1 text-xs">(เติมเองจากรายการ)</span>
-            </div>
-          </div>
-        )}
-      </Panel>
-
-      {type && (
-        <div className="mb-4">
-          <DocumentPreset spec={spec} counts={attachedCounts} typeName={type.name_th} />
-        </div>
-      )}
+      </Section>
 
       {type && itemBased && (
-        <Panel title={spec.item_label ?? 'รายการ'}>
+        <Section band index={2} label={spec.item_label ?? 'รายการ'}
+          actions={period.from ? <span className="text-xs text-ink-500">ช่วงวันที่ {formatDate(period.from)} – {formatDate(period.to ?? period.from)}</span> : undefined}>
           <ItemGrid spec={spec} rows={rows} onChange={setRows} onAddMany={() => setAddMany(true)}
             dups={dups} />
-        </Panel>
+        </Section>
       )}
 
-      {type && (spec.attachments ?? []).length > 0 && (
-        <Panel title="หลักฐาน">
-          <div className="grid gap-4 sm:grid-cols-2">
+      {type && hasFiles && (
+        <Section band index={fileIndex} label="หลักฐานประกอบการเบิก">
+          <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
             {(spec.attachments ?? []).map(a => (
-              <div key={a.key}>
-                <p className="mb-1 text-sm">
-                  {a.label}{a.required && !isHolderAttachment(a.key) && <span className="text-rose-500"> *</span>}
-                  {a.max && <span className="ml-1 text-xs text-ink-400">ไม่เกิน {a.max} ไฟล์</span>}
-                </p>
-                <FilePicker files={files[a.key] ?? []}
-                  onChange={list => setFiles({ ...files, [a.key]: a.max ? list.slice(0, a.max) : list })} />
-                {isHolderAttachment(a.key) && (
-                  <p className="mt-1 text-xs text-ink-400">เจ้าของเงินสดแนบตอนอนุมัติจ่าย ถ้ามีสลิปแล้วแนบมาได้เลย</p>
-                )}
-                {a.note && <p className="mt-1 text-xs text-ink-400">{a.note}</p>}
-              </div>
+              <PettyFileDrop key={a.key} label={a.label} required={a.required && !isHolderAttachment(a.key)} max={a.max}
+                note={isHolderAttachment(a.key) ? 'เจ้าของเงินสดแนบตอนอนุมัติจ่าย ถ้ามีสลิปแล้วแนบมาได้เลย' : a.note || conditionOf[a.key]}
+                tag={conditionOf[a.key] && !files[a.key]?.length ? 'มีเงื่อนไข' : undefined}
+                files={files[a.key] ?? []}
+                onChange={list => setFiles({ ...files, [a.key]: a.max ? list.slice(0, a.max) : list })} />
             ))}
           </div>
-        </Panel>
+        </Section>
       )}
 
-      {type && (
-        <Panel title="ส่งใบ">
-          <div className="grid gap-3 sm:grid-cols-3 items-end">
-            <label className="text-sm">เลขที่ใบรับสินค้า (DD)
-              <input value={ddNo} onChange={e => setDdNo(e.target.value)} placeholder="กรอกทีหลังได้"
-                className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5" />
-              <span className="mt-1 block text-xs text-ink-400">
-                ยอดตั้งแต่ 500 บาท ต้องมีเลข DD ก่อนส่งบัญชี แต่ไม่บล็อกการอนุมัติ
-              </span>
-            </label>
-            <div className="text-sm">
-              <span className="text-ink-500">ยอดรวม</span>
-              <div className="text-2xl font-medium tabular-nums">
-                {total.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-              </div>
-            </div>
-            <div className="text-right">
-              {requiredMissing && <p className="mb-1 text-xs text-amber-700">{requiredMissing}</p>}
-              <button type="button" disabled={saving || !!requiredMissing} onClick={() => void submit()}
-                className="rounded-lg bg-brand-600 px-4 py-2 text-white disabled:opacity-40">
-                {saving ? 'กำลังส่ง…' : 'ส่งให้ผู้อนุมัติ'}
-              </button>
-            </div>
-          </div>
-        </Panel>
+      {!type && (
+        <p className="mt-2 text-sm text-ink-500">เลือกประเภทการเบิกก่อน แล้วช่องที่ต้องกรอกจะขึ้นตามประเภท</p>
       )}
 
       {addMany && type && (
         <AddManyTrucksDialog spec={spec} onClose={() => setAddMany(false)}
           onAdd={extra => setRows([...rows, ...extra])} />
       )}
-    </FinanceCanvas>
+    </PettyPage>
   );
 }

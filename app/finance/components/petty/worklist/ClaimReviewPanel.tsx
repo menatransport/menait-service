@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import type { PettyClaim } from '@/app/finance/types-petty';
 import { formatBaht } from '@/lib/finance/status';
-import { confirmReview, showAlert, showSuccess } from '../../../api';
+import { showAlert, showSuccess } from '../../../api';
 import { reviewClaim } from '../../../petty-api';
 import { Panel } from '../../FinanceShell';
 import { PRIMARY_BTN } from './RoundVoucherForm';
+import { pettyReview } from '../petty-confirm';
 
 /**
  * บัญชีตรวจทีละใบ — หน้าตาแบบ ReviewPanel ของ Advance: สรุปยอด · ปุ่มหลักเต็มแถว · เส้นคั่น · เหตุผล + ส่งกลับแก้ไข
@@ -20,7 +21,7 @@ export function ClaimReviewPanel({ claim, needsDd, onSaved }: { claim: PettyClai
   const missingDd = needsDd && !claim.dd_no;
 
   const pass = async () => {
-    if (!(await confirmReview({
+    if (!(await pettyReview({
       title: 'ยืนยันตรวจผ่าน?',
       rows: [['เลขที่ใบเบิก', claim.form_id], ['ยอดเงิน (บาท)', formatBaht(claim.amount)], ['เลขที่ DD', claim.dd_no]],
       warning: missingDd ? 'ใบนี้ยังไม่มีเลข DD' : null,
@@ -41,11 +42,11 @@ export function ClaimReviewPanel({ claim, needsDd, onSaved }: { claim: PettyClai
 
   const sendBack = async () => {
     if (!remark.trim()) return showAlert({ icon: 'warning', title: 'กรุณาระบุเหตุผลที่ส่งกลับ' });
-    if (!(await confirmReview({
+    if (!(await pettyReview({
       title: 'ส่งกลับให้ผู้เปิดใบแก้ไข?',
       rows: [['เลขที่ใบเบิก', claim.form_id], ['เหตุผลที่ส่งกลับ', remark.trim()]],
       note: 'ผู้เปิดใบแก้แล้วส่งกลับมาที่บัญชีได้เลย ไม่ต้องผ่านหัวหน้าอีก',
-      confirmButtonText: 'ยืนยันส่งกลับ',
+      confirmButtonText: 'ยืนยันส่งกลับ', danger: true,
     }))) return;
     setSaving(true);
     try {

@@ -1,20 +1,23 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Settings2 } from 'lucide-react';
 import { MascotLoader } from '@/components/loading';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { canReview } from '@/lib/finance/petty-access';
 import { fundLabel } from '@/lib/finance/petty-fund-label';
-import { fetchJson, showAlert } from '../../api';
-import { FinanceCanvas, FinanceHeading, NoAccess, Panel } from '../../components/FinanceShell';
+import { fetchJson, showAlert, showSuccess } from '../../api';
+import { pettyConfirm, pettyReview } from '../../components/petty/petty-confirm';
+import { Button, EmptyState, FIELD, FIELD_SM, LABEL, LINE, PettyPage, Section, Tag, UnderlineTabs } from '../../components/petty/ui';
 
 const TITLE = 'ตั้งค่าเงินสดย่อย';
-const CAPTION = 'วงเงินสดย่อยของแต่ละสาขา/แผนก และกติกาเอกสารของแต่ละประเภทการเบิก';
+const CAPTION = 'วงเงินของแต่ละสาขา/แผนก และกติกาเอกสารของแต่ละประเภท';
 
 const BLANK_FUND = { branch_code: '', division_code: '', holder_employee_id: '', fund_limit: '' };
+const TABS = [{ key: 'funds', label: 'วงเงินสดย่อย' }, { key: 'types', label: 'ประเภทการเบิก' }];
+const TH = 'px-3 py-2.5 text-left text-xs font-medium text-ink-500 whitespace-nowrap';
+const money = (n: number | null | undefined) => (n == null ? '-' : n.toLocaleString('th-TH', { minimumFractionDigits: 2 }));
+const limitText = (raw: string) => (raw.trim() === '' ? 'ไม่ระบุ' : `${money(Number(raw))} บาท`);
 
 export default function PettyMasterPage() {
   const { user, loading } = useSessionContext();
@@ -42,6 +45,14 @@ export default function PettyMasterPage() {
   useEffect(() => { if (isAdmin || isFinance) { void loadFunds(); void loadTypes(); } }, [isAdmin, isFinance, loadFunds, loadTypes]);
 
   async function saveFund() {
+    const ok = await pettyReview({ title: 'เพิ่มวงเงินสดย่อย',
+      rows: [
+        ['สาขา', draft.branch_code.trim()],
+        ['แผนก', draft.division_code.trim().toUpperCase()],
+        ['เจ้าของเงินสด (รหัส)', draft.holder_employee_id.trim()],
+        ['วงเงิน', limitText(draft.fund_limit)],
+      ], confirmButtonText: 'เพิ่มวงเงิน', cancelButtonText: 'กลับไปแก้ไข' });
+    if (!ok) return;
     setSaving(true);
     try {
       await fetchJson('/api/finance/petty/funds', {
@@ -54,6 +65,7 @@ export default function PettyMasterPage() {
         }),
       });
       setDraft({ ...BLANK_FUND });
+      showSuccess('เพิ่มวงเงินแล้ว');
       await loadFunds();
     } catch (err) {
       showAlert({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: (err as Error).message });
@@ -62,6 +74,16 @@ export default function PettyMasterPage() {
 
   async function saveEdit() {
     if (!editing) return;
+    const fund = funds?.find(f => f.id === editing.id);
+    const ok = await pettyReview({ title: 'แก้ไขวงเงินสดย่อย',
+      rows: [
+        ['วงเงิน', fund ? fundLabel(fund) : `#${editing.id}`],
+        ['เจ้าของเงินสด (รหัส)', fund && fund.holder_employee_id !== editing.holder.trim()
+          ? `${fund.holder_employee_id} → ${editing.holder.trim()}` : editing.holder.trim()],
+        ['ยอดวงเงิน', fund && String(fund.fund_limit ?? '') !== editing.limit.trim()
+          ? `${money(fund.fund_limit)} → ${limitText(editing.limit)}` : limitText(editing.limit)],
+      ], confirmButtonText: 'บันทึก', cancelButtonText: 'กลับไปแก้ไข' });
+    if (!ok) return;
     setSaving(true);
     try {
       await fetchJson(`/api/finance/petty/funds/${editing.id}`, {
@@ -72,6 +94,7 @@ export default function PettyMasterPage() {
         }),
       });
       setEditing(null);
+      showSuccess('บันทึกแล้ว');
       await loadFunds();
     } catch (err) {
       showAlert({ icon: 'error', title: 'แก้ไขไม่สำเร็จ', text: (err as Error).message });
@@ -79,10 +102,18 @@ export default function PettyMasterPage() {
   }
 
   async function toggleFund(fund: PettyFund) {
+    const closing = fund.is_active;
+    const ask = await pettyConfirm({
+      title: closing ? 'ปิดวงเงินนี้?' : 'เปิดใช้วงเงินนี้?',
+      text: `${fundLabel(fund)} · ${fund.holder_name ?? fund.holder_employee_id}`,
+      confirmButtonText: closing ? 'ปิดวงเงิน' : 'เปิดใช้',
+    }, { danger: closing }) as { isConfirmed?: boolean };
+    if (!ask?.isConfirmed) return;
     try {
       await fetchJson(`/api/finance/petty/funds/${fund.id}`, {
         method: 'PUT', body: JSON.stringify({ is_active: !fund.is_active }),
       });
+      showSuccess(closing ? 'ปิดวงเงินแล้ว' : 'เปิดใช้แล้ว');
       await loadFunds();
     } catch (err) { showAlert({ icon: 'error', title: 'แก้ไขไม่สำเร็จ', text: (err as Error).message }); }
   }
@@ -91,6 +122,9 @@ export default function PettyMasterPage() {
     let spec: unknown;
     try { spec = JSON.parse(raw); }
     catch { showAlert({ icon: 'error', title: 'JSON ไม่ถูกต้อง', text: 'ตรวจวงเล็บและเครื่องหมายจุลภาคอีกครั้ง' }); return; }
+    const ask = await pettyConfirm({ title: `บันทึกกติกาของ ${type.name_th}?`,
+      text: 'มีผลกับช่องที่ต้องกรอก เอกสารที่บังคับ และด่านกันซ้ำของใบใหม่ทันที', confirmButtonText: 'บันทึก' }) as { isConfirmed?: boolean };
+    if (!ask?.isConfirmed) return;
     try {
       await fetchJson(`/api/finance/petty/expense-types/${type.code}`, {
         method: 'PUT',
@@ -100,148 +134,179 @@ export default function PettyMasterPage() {
         }),
       });
       await loadTypes();
-      showAlert({ icon: 'success', title: 'บันทึกแล้ว', timer: 1400, showConfirmButton: false });
+      showSuccess('บันทึกแล้ว');
     } catch (err) { showAlert({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: (err as Error).message }); }
   }
 
   if (loading) return <MascotLoader />;
-  if (!isAdmin && !isFinance) return <NoAccess text="หน้านี้สำหรับผู้ดูแลระบบและฝ่ายบัญชีเท่านั้น" />;
+  if (!isAdmin && !isFinance) {
+    return <PettyPage title={TITLE}><EmptyState title="ไม่มีสิทธิ์เข้าถึง" text="หน้านี้สำหรับผู้ดูแลระบบและฝ่ายบัญชีเท่านั้น" /></PettyPage>;
+  }
+
+  const adminBtn = 'rounded px-1 text-xs font-medium text-ink-500 underline-offset-2 hover:text-ink-900 hover:underline';
 
   return (
-    <FinanceCanvas title={TITLE}>
-      <FinanceHeading icon={Settings2} title={TITLE} caption={CAPTION} />
-      <Tabs value={tab} onValueChange={v => setTab(v as 'funds' | 'types')} className="mb-4">
-        <TabsList>
-          <TabsTrigger value="funds">วงเงินสดย่อย</TabsTrigger>
-          <TabsTrigger value="types">ประเภทการเบิก</TabsTrigger>
-        </TabsList>
-      </Tabs>
+    <PettyPage title={TITLE} caption={CAPTION}>
+      <UnderlineTabs tabs={TABS} active={tab} onChange={k => setTab(k as 'funds' | 'types')} label="หมวดตั้งค่า" />
 
       {tab === 'funds' && (
-        <Panel title="วงเงินสดย่อย">
+        <div className="mt-5">
           {funds === null ? <MascotLoader /> : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-ink-500 text-left">
-                  <tr>
-                    <th className="py-2">ชื่อวงเงินสดย่อย</th>
-                    <th className="py-2">สาขา · แผนก</th>
-                    <th className="py-2">เจ้าของเงินสด (ผู้อนุมัติจ่าย)</th>
-                    <th className="py-2 text-right">ยอดวงเงินสดย่อย</th>
-                    <th className="py-2">สถานะ</th><th className="py-2" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {funds.map(f => (
-                    <tr key={f.id} className="border-t border-slate-100">
-                      <td className="py-2 font-medium text-ink-800">{fundLabel(f)}</td>
-                      <td className="py-2 text-ink-500">{f.branch_code} · {f.division_code}</td>
-                      {editing?.id === f.id ? (
-                        <>
-                          <td className="py-2">
-                            <input value={editing.holder} onChange={e => setEditing({ ...editing, holder: e.target.value })}
-                              placeholder="รหัสพนักงาน" aria-label="รหัสเจ้าของเงินสด"
-                              className="w-28 rounded-lg border border-slate-200 px-2 py-1" />
-                          </td>
-                          <td className="py-2 text-right">
-                            <input value={editing.limit} onChange={e => setEditing({ ...editing, limit: e.target.value })}
-                              inputMode="decimal" aria-label="ยอดวงเงิน"
-                              className="w-28 rounded-lg border border-slate-200 px-2 py-1 text-right" />
-                          </td>
-                          <td className="py-2">{f.is_active ? 'เปิดใช้' : 'ปิด'}</td>
-                          <td className="py-2 text-right whitespace-nowrap">
-                            <button type="button" disabled={saving || !editing.holder.trim()} onClick={() => void saveEdit()}
-                              className="rounded-lg bg-brand-600 px-2 py-1 text-xs text-white disabled:opacity-40">บันทึก</button>
-                            <button type="button" onClick={() => setEditing(null)}
-                              className="ml-2 text-xs text-ink-500 hover:underline">ยกเลิก</button>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="py-2">{f.holder_name ?? '-'} <span className="text-xs text-ink-400">{f.holder_employee_id}</span></td>
-                          <td className="py-2 text-right">{f.fund_limit?.toLocaleString('th-TH', { minimumFractionDigits: 2 }) ?? '-'}</td>
-                          <td className="py-2">{f.is_active ? 'เปิดใช้' : 'ปิด'}</td>
-                          <td className="py-2 text-right whitespace-nowrap">
-                            {isAdmin && (
-                              <>
-                                <button type="button"
-                                  onClick={() => setEditing({ id: f.id, holder: f.holder_employee_id, limit: f.fund_limit == null ? '' : String(f.fund_limit) })}
-                                  className="text-xs text-brand-700 hover:underline">แก้ไข</button>
-                                <button type="button" onClick={() => void toggleFund(f)}
-                                  className="ml-3 text-xs text-brand-700 hover:underline">
-                                  {f.is_active ? 'ปิดวงเงิน' : 'เปิดใช้'}
-                                </button>
-                              </>
-                            )}
-                          </td>
-                        </>
-                      )}
+            <>
+              {/* มือถือ */}
+              <ul className={`divide-y ${LINE} sm:hidden`}>
+                {funds.map(f => (
+                  <li key={f.id} className="py-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-ink-900">{fundLabel(f)}</p>
+                        <p className="text-xs text-ink-500">{f.branch_code} · {f.division_code} · {f.holder_name ?? '-'} {f.holder_employee_id}</p>
+                      </div>
+                      <Tag strong={!f.is_active}>{f.is_active ? 'เปิดใช้' : 'ปิด'}</Tag>
+                    </div>
+                    <p className="mt-1 text-xs tabular-nums text-ink-700">วงเงิน {money(f.fund_limit)}</p>
+                    {editing?.id === f.id ? (
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <input value={editing.holder} onChange={e => setEditing({ ...editing, holder: e.target.value })}
+                          placeholder="รหัสพนักงาน" aria-label="รหัสเจ้าของเงินสด" className={FIELD_SM} />
+                        <input value={editing.limit} onChange={e => setEditing({ ...editing, limit: e.target.value })}
+                          inputMode="decimal" aria-label="ยอดวงเงิน" className={`${FIELD_SM} text-right`} />
+                        <Button onClick={() => setEditing(null)}>ยกเลิก</Button>
+                        <Button tone="primary" disabled={saving || !editing.holder.trim()} onClick={() => void saveEdit()}>บันทึก</Button>
+                      </div>
+                    ) : isAdmin && (
+                      <div className="mt-1.5 flex gap-3">
+                        <button type="button" className={adminBtn}
+                          onClick={() => setEditing({ id: f.id, holder: f.holder_employee_id, limit: f.fund_limit == null ? '' : String(f.fund_limit) })}>แก้ไข</button>
+                        <button type="button" className={adminBtn} onClick={() => void toggleFund(f)}>{f.is_active ? 'ปิดวงเงิน' : 'เปิดใช้'}</button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+                {funds.length === 0 && <li className="py-10 text-center text-sm text-ink-500">ยังไม่มีวงเงินสดย่อย</li>}
+              </ul>
+
+              {/* เดสก์ท็อป */}
+              <div className="hidden overflow-x-auto sm:block">
+                <table className="w-full text-sm">
+                  <thead className={`border-b ${LINE}`}>
+                    <tr>
+                      <th className={TH}>ชื่อวงเงินสดย่อย</th>
+                      <th className={TH}>สาขา · แผนก</th>
+                      <th className={TH}>เจ้าของเงินสด (ผู้อนุมัติจ่าย)</th>
+                      <th className={`${TH} text-right`}>ยอดวงเงิน</th>
+                      <th className={TH}>สถานะ</th>
+                      <th className={TH}><span className="sr-only">จัดการ</span></th>
                     </tr>
-                  ))}
-                  {funds.length === 0 && (
-                    <tr><td colSpan={6} className="py-6 text-center text-ink-400">ยังไม่มีวงเงินสดย่อย</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {funds.map(f => (
+                      <tr key={f.id} className="border-b border-[#f3f6fa] text-ink-900 hover:bg-[#f9fbfd]">
+                        <td className="px-3 py-2.5 font-medium">{fundLabel(f)}</td>
+                        <td className="px-3 py-2.5 text-ink-700">{f.branch_code} · {f.division_code}</td>
+                        {editing?.id === f.id ? (
+                          <>
+                            <td className="px-3 py-2">
+                              <input value={editing.holder} onChange={e => setEditing({ ...editing, holder: e.target.value })}
+                                placeholder="รหัสพนักงาน" aria-label="รหัสเจ้าของเงินสด" className={`${FIELD_SM} w-32`} />
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <input value={editing.limit} onChange={e => setEditing({ ...editing, limit: e.target.value })}
+                                inputMode="decimal" aria-label="ยอดวงเงิน" className={`${FIELD_SM} w-32 text-right`} />
+                            </td>
+                            <td className="px-3 py-2.5"><Tag strong={!f.is_active}>{f.is_active ? 'เปิดใช้' : 'ปิด'}</Tag></td>
+                            <td className="whitespace-nowrap px-3 py-2 text-right">
+                              <span className="inline-flex gap-1.5">
+                                <Button size="sm" onClick={() => setEditing(null)}>ยกเลิก</Button>
+                                <Button size="sm" tone="primary" disabled={saving || !editing.holder.trim()} onClick={() => void saveEdit()}>บันทึก</Button>
+                              </span>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-3 py-2.5">{f.holder_name ?? '-'} <span className="text-xs text-ink-500">{f.holder_employee_id}</span></td>
+                            <td className="px-3 py-2.5 text-right tabular-nums">{money(f.fund_limit)}</td>
+                            <td className="px-3 py-2.5"><Tag strong={!f.is_active}>{f.is_active ? 'เปิดใช้' : 'ปิด'}</Tag></td>
+                            <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                              {isAdmin && (
+                                <span className="inline-flex gap-3">
+                                  <button type="button" className={adminBtn}
+                                    onClick={() => setEditing({ id: f.id, holder: f.holder_employee_id, limit: f.fund_limit == null ? '' : String(f.fund_limit) })}>แก้ไข</button>
+                                  <button type="button" className={adminBtn} onClick={() => void toggleFund(f)}>
+                                    {f.is_active ? 'ปิดวงเงิน' : 'เปิดใช้'}
+                                  </button>
+                                </span>
+                              )}
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                    {funds.length === 0 && (
+                      <tr><td colSpan={6} className="py-10 text-center text-ink-500">ยังไม่มีวงเงินสดย่อย</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
           {isAdmin && (
-            <div className="mt-4 grid gap-2 sm:grid-cols-5 items-end">
-              <label className="text-sm">สาขา
-                <input value={draft.branch_code} onChange={e => setDraft({ ...draft, branch_code: e.target.value })}
-                  placeholder="03" className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5" />
-              </label>
-              <label className="text-sm">แผนก
-                <input value={draft.division_code} onChange={e => setDraft({ ...draft, division_code: e.target.value })}
-                  placeholder="B02" className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5" />
-              </label>
-              <label className="text-sm">เจ้าของเงินสด (ผู้อนุมัติจ่าย)
-                <input value={draft.holder_employee_id} onChange={e => setDraft({ ...draft, holder_employee_id: e.target.value })}
-                  placeholder="รหัสพนักงาน" className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5" />
-              </label>
-              <label className="text-sm">วงเงิน
-                <input value={draft.fund_limit} onChange={e => setDraft({ ...draft, fund_limit: e.target.value })}
-                  placeholder="ไม่ระบุก็ได้" className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5" />
-              </label>
-              <button type="button" disabled={saving || !draft.branch_code || !draft.division_code || !draft.holder_employee_id}
-                onClick={() => void saveFund()}
-                className="rounded-lg bg-brand-600 px-3 py-2 text-white disabled:opacity-40">
-                เพิ่มวงเงิน
-              </button>
-            </div>
+            <Section label="เพิ่มวงเงิน" className="mt-6 !border-t !pt-6">
+              <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <label className="block"><span className={LABEL}>สาขา</span>
+                  <input value={draft.branch_code} onChange={e => setDraft({ ...draft, branch_code: e.target.value })}
+                    placeholder="03" className={FIELD} />
+                </label>
+                <label className="block"><span className={LABEL}>แผนก</span>
+                  <input value={draft.division_code} onChange={e => setDraft({ ...draft, division_code: e.target.value })}
+                    placeholder="B02" className={FIELD} />
+                </label>
+                <label className="block"><span className={LABEL}>เจ้าของเงินสด (รหัส)</span>
+                  <input value={draft.holder_employee_id} onChange={e => setDraft({ ...draft, holder_employee_id: e.target.value })}
+                    placeholder="รหัสพนักงาน" className={FIELD} />
+                </label>
+                <label className="block"><span className={LABEL}>วงเงิน</span>
+                  <input value={draft.fund_limit} onChange={e => setDraft({ ...draft, fund_limit: e.target.value })}
+                    placeholder="ไม่ระบุก็ได้" inputMode="decimal" className={`${FIELD} text-right`} />
+                </label>
+                <Button tone="primary" size="lg" disabled={saving || !draft.branch_code || !draft.division_code || !draft.holder_employee_id}
+                  onClick={() => void saveFund()} className="w-full">
+                  เพิ่มวงเงิน
+                </Button>
+              </div>
+            </Section>
           )}
-        </Panel>
+        </div>
       )}
 
       {tab === 'types' && (
-        <div className="grid gap-4">
+        <div className="mt-5">
           {types === null ? <MascotLoader /> : types.map(t => (
-            <Panel key={t.code} title={`${t.name_th} (${t.code})`}>
-              <p className="mb-2 text-xs text-ink-500">
-                กติกานี้คุมทั้งช่องที่ต้องกรอก เอกสารที่บังคับ และด่านกันซ้ำ — แก้ที่นี่ได้เลย ไม่ต้องแก้โค้ด
-              </p>
+            <Section key={t.code}
+              label={<span className="inline-flex items-center gap-2">{t.name_th}<Tag>{t.code}</Tag>{!t.is_active && <Tag strong>ปิด</Tag>}</span>}>
               <SpecEditor value={JSON.stringify(t.spec, null, 2)} onSave={raw => void saveSpec(t, raw)} />
-            </Panel>
+            </Section>
           ))}
+          {types?.length === 0 && <EmptyState title="ยังไม่มีประเภทการเบิก" />}
         </div>
       )}
-    </FinanceCanvas>
+    </PettyPage>
   );
 }
 
 function SpecEditor({ value, onSave }: { value: string; onSave: (raw: string) => void }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => { setDraft(value); }, [value]);
+  const dirty = draft !== value;
   return (
     <div>
-      <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={14} spellCheck={false}
-        className="w-full rounded-lg border border-slate-200 p-3 font-mono text-xs" />
-      <div className="mt-2 flex gap-2">
-        <button type="button" onClick={() => onSave(draft)}
-          className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm text-white">บันทึก</button>
-        <button type="button" onClick={() => setDraft(value)}
-          className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm">ยกเลิกที่แก้</button>
+      <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={14} spellCheck={false} aria-label="กติกา (JSON)"
+        className={`${FIELD} font-mono text-xs leading-relaxed`} />
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <Button tone="primary" onClick={() => onSave(draft)} disabled={!dirty}>บันทึก</Button>
+        <Button onClick={() => setDraft(value)} disabled={!dirty}>ยกเลิกที่แก้</Button>
+        {dirty && <span className="text-xs text-ink-500">มีการแก้ที่ยังไม่บันทึก</span>}
       </div>
     </div>
   );

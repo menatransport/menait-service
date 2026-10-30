@@ -81,10 +81,12 @@ export type ReviewRow = [label: string, value: string | number | null | undefine
  * ป๊อปอัปทบทวนก่อนบันทึก/ส่ง: ตารางสรุปค่าที่จะบันทึกให้ผู้ใช้ตรวจอีกรอบ กดยืนยันแล้วค่อยบันทึกจริง
  * (Bew 26/10/2026: ปุ่มบันทึก/ส่งทุกจุดใน Finance ต้องมีป๊อปอัปทบทวนก่อน)
  */
-export async function confirmReview({ title, rows, note, warning, confirmButtonText = 'ยืนยันบันทึก' }: {
+export async function confirmReview({ title, rows, note, warning, confirmButtonText = 'ยืนยันบันทึก', swal }: {
   title: string; rows: ReviewRow[]; note?: string;
   /** คำเตือนที่ต้องเห็นก่อนยืนยัน เช่น เลขเอกสารซ้ำ — รวมไว้ในป๊อปอัปเดียว ไม่ถามแยกอีกรอบ */
   warning?: string | null; confirmButtonText?: string;
+  /** ตัวเลือก SweetAlert เพิ่มเติม (เช่น ธีมของเงินสดย่อย) — ไม่ส่ง = หน้าตาเดิม */
+  swal?: Record<string, unknown>;
 }): Promise<boolean> {
   const body = rows.map(([label, value]) => {
     const text = value === null || value === undefined || String(value).trim() === '' ? '-' : String(value);
@@ -94,7 +96,7 @@ export async function confirmReview({ title, rows, note, warning, confirmButtonT
   const html = (warning ? `<p style="margin:0 0 12px;padding:8px 12px;border:1px solid #f59e0b;border-radius:6px;font-size:13px;color:#92400e;text-align:left">${escapeHtml(warning)}</p>` : '')
     + `<table style="width:100%;border-collapse:collapse;font-size:14px;text-align:left;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0">${body}</table>`
     + (note ? `<p style="margin:12px 0 0;font-size:12px;color:#64748b;text-align:left">${escapeHtml(note)}</p>` : '');
-  const res = await showConfirm({ icon: warning ? 'warning' : 'question', title, html, confirmButtonText, cancelButtonText: 'กลับไปแก้ไข' });
+  const res = await showConfirm({ icon: warning ? 'warning' : 'question', title, html, confirmButtonText, cancelButtonText: 'กลับไปแก้ไข', ...swal });
   return Boolean(res.isConfirmed);
 }
 

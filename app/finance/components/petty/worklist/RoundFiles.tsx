@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import type { PettyExpenseType, PettyFund, PettyRound } from '@/app/finance/types-petty';
 import { pettyFileProblem } from '@/lib/finance/petty-upload';
 import { displayFileName } from '@/lib/finance/status';
-import { confirmReview, showAlert } from '../../../api';
+import { showAlert } from '../../../api';
 import { listRoundFiles, uploadRoundSlips, type RoundFile } from '../../../petty-api';
 import { FilePicker } from '../../FilePicker';
 import { Panel } from '../../FinanceShell';
 import { printRoundCover } from '../round-actions';
+import { pettyReview } from '../petty-confirm';
 
 /** สลิปโอนของรอบ — หน้าตาเดียวกับ AttachmentPanel ของ Advance (หัวข้อ · รายการไฟล์ · แนบเพิ่ม) */
 function RoundSlips({ round, canUpload, refreshKey }: { round: PettyRound; canUpload: boolean; refreshKey: number }) {
@@ -37,7 +38,7 @@ function RoundSlips({ round, canUpload, refreshKey }: { round: PettyRound; canUp
       showAlert({ icon: 'warning', title: 'แนบไฟล์นี้ไม่ได้', text: bad.map(x => `${x.f.name}: ${x.why}`).join('\n') });
       return;
     }
-    if (!(await confirmReview({
+    if (!(await pettyReview({
       title: 'ยืนยันแนบไฟล์?',
       rows: [['แนบใน', `หลักฐานการจ่ายเงิน · ${round.batch_no}`], ['ไฟล์', pending.map(f => f.name).join('\n')]],
       confirmButtonText: `แนบ ${pending.length} ไฟล์`,
