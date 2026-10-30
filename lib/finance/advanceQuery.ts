@@ -18,6 +18,12 @@ export interface AdvanceSummary {
   counts: Record<string, number>;
   overdue: number;
   outstanding_amount: number;
+  /** outstanding_amount split by status (BE 30/10/2026 on; missing from an older BE) */
+  outstanding_by_status?: Record<string, number>;
+  /** money of the overdue advances, already inside outstanding_amount */
+  overdue_amount?: number;
+  /** overdue tickets and money per status (only AWAITING_CLEARING / SENT_BACK can be overdue; missing from an older BE) */
+  overdue_by_status?: Record<string, { count: number; amount: number }>;
 }
 
 export interface AdvancePage {
@@ -33,6 +39,45 @@ export interface AdvancePage {
 export interface TabFilter {
   status?: string[];
   overdue?: boolean;
+  /** narrows the server rows in the browser (set by combineTabs only; a tab with it must load every page) */
+  match?: (item: AdvanceItem) => boolean;
+}
+
+/** The only statuses the BE can flag overdue (derive_status: fin PAID / SENT_BACK past clear_due_date). */
+export const OVERDUE_STATUSES = ['AWAITING_CLEARING', 'SENT_BACK'];
+
+/** Ticked options ride on their tab's key: 'clear' = the whole tab, 'clear:overdue,review' = only those options. */
+export function parseTabKey(key: string): { tab: string; picks: string[] } {
+  const i = key.indexOf(':');
+  return i < 0 ? { tab: key, picks: [] } : { tab: key.slice(0, i), picks: key.slice(i + 1).split(',').filter(Boolean) };
+}
+
+/** The key after ticking or unticking one option of a tab (options kept in tab order; none or all ticked = the whole tab). */
+export function toggleTabOption(tab: { key: string; options?: { key: string }[] }, activeKey: string, option: string): string {
+  const current = parseTabKey(activeKey);
+  const picked = current.tab === tab.key ? current.picks : [];
+  const next = picked.includes(option) ? picked.filter(k => k !== option) : [...picked, option];
+  const order = (tab.options ?? []).map(o => o.key);
+  const ticked = order.filter(k => next.includes(k));
+  return ticked.length === 0 || ticked.length === order.length ? tab.key : `${tab.key}:${ticked.join(',')}`;
+}
+
+/**
+ * Several picked tabs = every advance in any of them, each once. Each one is a status list or overdue alone.
+ * Overdue is a flag, not a status, so the BE cannot OR it with other statuses: when the picked statuses do not
+ * already cover every overdue advance, ask for those statuses plus the overdue ones and keep the union in the browser.
+ */
+export function combineTabs(picked: TabFilter[]): TabFilter {
+  if (picked.length === 1) return picked[0];
+  if (picked.length === 0 || picked.some(t => !t.status?.length && !t.overdue)) return {};
+  const statuses = [...new Set(picked.flatMap(t => (t.overdue ? [] : t.status ?? [])))];
+  if (!picked.some(t => t.overdue)) return { status: statuses };
+  if (statuses.length === 0) return { overdue: true };
+  if (OVERDUE_STATUSES.every(s => statuses.includes(s))) return { status: statuses };
+  return {
+    status: [...statuses, ...OVERDUE_STATUSES.filter(s => !statuses.includes(s))],
+    match: item => item.overdue || statuses.includes(item.status),
+  };
 }
 
 export interface ScopeFilter {
@@ -115,5 +160,6 @@ export async function fetchAllAdvances(
     if (res.items.length === 0) break;
     page += 1;
   } while (page <= pages && page <= MAX_EXPORT_PAGES);
-  return Array.from(byId.values());
+  const items = Array.from(byId.values());
+  return tab.match ? items.filter(tab.match) : items;
 }

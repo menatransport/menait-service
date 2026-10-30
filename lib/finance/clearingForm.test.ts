@@ -42,7 +42,7 @@ describe('expense claim form (Part 2)', () => {
   test('toClearingData maps header, ศูนย์ from the requester site, payee and items', () => {
     const d = toClearingData(detail());
     expect(d.document_no).toBe('ADV-2026-0001');
-    expect(d.ref_no).toBe('CL-2609-0012');
+    expect(d.ref_no).toBe('ADV-2026-0001'); // REF No. = เลขที่ใบคำขอเบิก ไม่ใช่เลขที่เคลียร์เงิน (29/10/2026)
     expect(d.clear_date).toBe('2026-09-10');
     expect(d.centers).toEqual(['สระบุรี']);
     expect(d.employee).toEqual({ name: 'สุนิสา ทาระเวท', position: 'หัวหน้าแผนกค่าจ้างและสวัสดิการ', department: 'ทรัพยากรบุคคล',
@@ -76,10 +76,12 @@ describe('expense claim form (Part 2)', () => {
   test('html has the title, header, every column header, clause, summary label and signature title (verbatim)', () => {
     const html = buildClearingHtml(toClearingData(detail({ status: 'CLOSED' })), {});
     const t = text(html);
-    for (const s of ['ใบขอเบิกค่าใช้จ่าย/เคลียร์เบิกล่วงหน้า', '(Expense Claim Form)', 'REF No. (โดยแผนกบัญชี)', 'CL-2609-0012', 'วันที่ 10/9/2026',
+    for (const s of ['ใบขอเบิกค่าใช้จ่าย/เคลียร์เบิกล่วงหน้า', '(Expense Claim Form)', 'REF No. ADV-2026-0001', 'วันที่ 10/9/2026',
       'ศูนย์', 'ชื่อ-สกุล', 'ตำแหน่ง', 'แผนก', 'โอนเงินเข้าบัญชีธนาคารเลขที่ 041-3-95456-8', 'ชื่อบัญชี สุนิสา ทาระเวท', 'ธนาคาร กสิกรไทย',
       'เงื่อนไขและข้อตกลง', CLAIM_FOOTNOTE, 'วันที่รับเอกสาร', 'Expense Claim Form (ADV)']) expect(t).toContain(s);
     expect(t).not.toContain('ธนาคาร ธนาคาร');
+    expect(t).not.toContain('CL-2609-0012'); // เลขที่เคลียร์เงินไม่ลงในใบแล้ว
+    expect(t).not.toContain('โดยแผนกบัญชี'); // ป้ายเหลือแค่ REF No. (29/10/2026)
     const headers = CLAIM_COLUMNS.map(([m, sub]) => (sub ? `${m} ${sub}` : m));
     expect(headers).toEqual(['วันที่', 'ทะเบียนรถและประเภท', 'ใบกำกับภาษี/ใบเสร็จรับเงิน Y/N*', 'รายละเอียด', 'ยอดเงิน', 'หัก ณ ที่จ่าย', 'สุทธิ']);
     expect(headers.length).toBe(7);
@@ -161,7 +163,7 @@ describe('expense claim form (Part 2)', () => {
   });
   test('escapes interpolated strings', () => {
     const items = clearItems().map((x, i) => (i === 0 ? { ...x, description: '<script>x</script>', vehicle: '"&' } : x));
-    const html = buildClearingHtml(toClearingData(detail({ requester: { ...detail().requester, name: '<b>n</b>', site_code: null, site: '<i>s</i>' } }, { clear_items: items, clear_doc_no: '<r>' })), {});
+    const html = buildClearingHtml(toClearingData(detail({ form_id: '<r>', requester: { ...detail().requester, name: '<b>n</b>', site_code: null, site: '<i>s</i>' } }, { clear_items: items })), {});
     for (const bad of ['<script>x', '<b>n</b>', '<r>']) expect(html).not.toContain(bad);
     for (const ok of ['&lt;script&gt;x&lt;/script&gt;', '&quot;&amp;', '&lt;b&gt;n&lt;/b&gt;', '&lt;r&gt;']) expect(html).toContain(ok);
   });

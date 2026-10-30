@@ -1,14 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Calendar, FileSpreadsheet, FileText, Filter, Search, User, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Calendar, ChevronDown, FileSpreadsheet, FileText, Filter, Search, User, X } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { MonthRangeFilter, currentMonth, shiftMonths } from '@/components/month-range-filter';
 import { PaginationControls } from '@/components/pagination-controls';
 import { EXPORT_COLUMNS, exportAdvancesXlsx, type ExportColumn } from '@/lib/finance/export';
 import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
 import {
-  ADVANCE_EXPORT_PAGE_SIZE, ADVANCE_PAGE_SIZE, buildAdvanceQuery, fetchAllAdvances, tabCount, totalPages,
+  ADVANCE_EXPORT_PAGE_SIZE, ADVANCE_PAGE_SIZE, buildAdvanceQuery, combineTabs, fetchAllAdvances, parseTabKey, tabCount,
+  toggleTabOption, totalPages,
   type AdvancePage, type AdvanceSummary, type ScopeFilter, type TabFilter,
 } from '@/lib/finance/advanceQuery';
 import {
@@ -73,6 +77,8 @@ const FIN_CELLS: Record<ExportColumn, (item: AdvanceItem, no: number) => ReactNo
 export interface AdvanceListTab extends TabFilter {
   key: string;
   label: string;
+  /** set = one button with a tick menu: the tab shows all of it, ticked options narrow it to their union */
+  options?: AdvanceListTab[];
 }
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -121,6 +127,14 @@ export function AdvanceListView({
   // ตัวกรองรายคอลัมน์ (กรองในเบราว์เซอร์) แผนก/ศูนย์ค่าใช้จ่ายยังใช้ ccFilter/deptFilter ที่ส่งให้ BE
   const [colFilters, setColFilters] = useState<ColumnFilters>({});
   const [debouncedCols, setDebouncedCols] = useState<ColumnFilters>({});
+  // เปลี่ยนแท็บ = เริ่มที่ไม่มีตัวกรองเสมอ (ผู้ใช้สั่ง 29/10/2026) ช่วงเดือนกับการเรียงคงไว้
+  // ปรับ state ระหว่าง render ไม่ใช่ useEffect: fetch แรกของแท็บใหม่ต้องไม่ติดตัวกรองของแท็บเก่า (ค่าที่หน่วงไว้ก็ล้างด้วย)
+  // ติ๊ก/เอาติ๊กออกในเมนูของแท็บก็นับเป็นเปลี่ยนแท็บ
+  const [filtersTab, setFiltersTab] = useState(activeTab);
+  if (filtersTab !== activeTab) {
+    setFiltersTab(activeTab);
+    setSearch(''); setDebouncedQ(''); setCcFilter('all'); setDeptFilter('all'); setColFilters({}); setDebouncedCols({});
+  }
   const [allRows, setAllRows] = useState<{ key: string; items: AdvanceItem[] } | null>(null);
   // page is keyed by the filter signature, so any tab/filter/sort change is page 1 in the same render (one fetch)
   const [pageState, setPageState] = useState<{ key: string; page: number }>({ key: '', page: 1 });
@@ -140,7 +154,14 @@ export function AdvanceListView({
     setEndMonth(e);
   }, []);
 
-  const activeTabDef = tabs.find(t => t.key === activeTab) ?? tabs[0];
+  // แท็บที่มี options (ผู้ใช้สั่ง 30/10/2026): กดปุ่มได้ทั้งกลุ่ม ติ๊กในเมนูเพื่อกรองเหลือบางสถานะ ('clear:overdue,review')
+  const tabKey = useMemo(() => parseTabKey(activeTab), [activeTab]);
+  const activeTabDef = useMemo<AdvanceListTab | undefined>(() => {
+    const tab = tabs.find(t => t.key === tabKey.tab) ?? tabs[0];
+    const picked = tab?.options?.filter(o => tabKey.picks.includes(o.key)) ?? [];
+    if (!tab || picked.length === 0) return tab;
+    return { ...combineTabs(picked), key: activeTab, label: `${tab.label}: ${picked.map(o => o.label).join(' + ')}` };
+  }, [tabs, activeTab, tabKey]);
 
   // search is debounced; any change of search resets to page 1 once it applies
   useEffect(() => {
@@ -152,7 +173,8 @@ export function AdvanceListView({
     return () => clearTimeout(t);
   }, [colFilters]);
   // มีช่องกรองรายคอลัมน์ = ดึงทุกใบในแท็บ/ช่วงเดือนนี้มากรองและแบ่งหน้าเอง (BE กรองให้แค่ค้นหา เดือน แผนก ศูนย์ค่าใช้จ่าย)
-  const clientMode = mode === 'finance' && hasColumnFilters(debouncedCols);
+  // แท็บที่รวมเกินกำหนดกับสถานะอื่น (match) ก็ต้องดึงทุกใบ เพราะ BE รวมสองอย่างนี้ให้ไม่ได้
+  const clientMode = !!activeTabDef?.match || (mode === 'finance' && hasColumnFilters(debouncedCols));
 
   const scope = useMemo<ScopeFilter>(
     () => ({ q: debouncedQ, startMonth, endMonth, costCenter: mode === 'finance' ? ccFilter : 'all', department: mode === 'finance' ? deptFilter : 'all', sort: sortOrder }),
@@ -287,13 +309,24 @@ export function AdvanceListView({
         className={`${FILTER_INPUT} ${filterTone(value.trim() !== '')} ${WIDE_FILTER_COLS.has(col) ? 'min-w-36' : 'min-w-24'}`} />
     );
   };
+  const tabLabel = (t: AdvanceListTab) => {
+    const count = tabCount(t, summary);
+    return `${t.label}${count === null ? '' : ` (${count})`}`;
+  };
+
+  const optionsTabLabel = (t: AdvanceListTab) => {
+    const picked = tabKey.tab === t.key ? (t.options ?? []).filter(o => tabKey.picks.includes(o.key)) : [];
+    if (picked.length === 0) return tabLabel(t);
+    return picked.length === 1 ? `${t.label}: ${tabLabel(picked[0])}` : `${t.label}: ${picked.length} สถานะ`;
+  };
+
   const handleExport = async () => {
     if (!exportFileBase || !activeTabDef || exporting) return;
     setExporting(true);
     try {
       // มีช่องกรองรายคอลัมน์ = ส่งออกเฉพาะใบที่เห็นหลังกรอง
       const all = filteredAll ?? await fetchAllAdvances(q => fetchJson<AdvancePage>(listUrl(q)), scope, activeTabDef);
-      exportAdvancesXlsx(all, `${exportFileBase}-${activeTab}-${todayBkk()}.xlsx`);
+      exportAdvancesXlsx(all, `${exportFileBase}-${activeTab.replace(':', '-').replaceAll(',', '+')}-${todayBkk()}.xlsx`);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ส่งออก Excel ไม่สำเร็จ', text: (err as Error).message });
     } finally {
@@ -305,18 +338,40 @@ export function AdvanceListView({
     <Tabs value={activeTab} onValueChange={onTabChange}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <TabsList className="max-w-full overflow-x-auto justify-start bg-gray-800/50 backdrop-blur-sm p-1 rounded-full">
-          {tabs.map(t => {
-            const count = tabCount(t, summary);
-            return (
-              <TabsTrigger
-                key={t.key}
-                value={t.key}
-                className="shrink-0 px-5 py-2 rounded-full text-white/70 font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-brand-700 data-[state=active]:shadow-md hover:text-white"
-              >
-                {t.label}{count === null ? '' : ` (${count})`}
-              </TabsTrigger>
-            );
-          })}
+          {tabs.map(t => (t.options ? (
+            // เปิดเมนูจากแท็บอื่น = เปิดทั้งกลุ่มด้วย (ใช้ onOpenChange เพราะ Radix กันคลิกหลังเมนูเปิด และครอบคีย์บอร์ดด้วย)
+            <DropdownMenu key={t.key} onOpenChange={open => { if (open && tabKey.tab !== t.key) onTabChange(t.key); }}>
+              <DropdownMenuTrigger asChild>
+                <button type="button"
+                  className={`inline-flex h-[calc(100%-1px)] shrink-0 items-center gap-1 rounded-full border border-transparent px-5 text-sm font-medium whitespace-nowrap transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${tabKey.tab === t.key ? 'bg-white text-brand-700 shadow-md' : 'text-white/70 hover:text-white'}`}>
+                  {optionsTabLabel(t)}
+                  <ChevronDown size={14} aria-hidden="true" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-60 bg-white">
+                {/* onSelect preventDefault = เมนูไม่ปิดหลังติ๊ก เลือกต่อได้หลายอัน */}
+                <DropdownMenuCheckboxItem checked={tabKey.tab === t.key && tabKey.picks.length === 0}
+                  onSelect={e => { e.preventDefault(); onTabChange(t.key); }}>
+                  ทั้งหมดในกลุ่ม{tabCount(t, summary) === null ? '' : ` (${tabCount(t, summary)})`}
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                {t.options.map(o => (
+                  <DropdownMenuCheckboxItem key={o.key} checked={tabKey.tab === t.key && tabKey.picks.includes(o.key)}
+                    onSelect={e => { e.preventDefault(); onTabChange(toggleTabOption(t, activeTab, o.key)); }}>
+                    {tabLabel(o)}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <TabsTrigger
+              key={t.key}
+              value={t.key}
+              className="shrink-0 px-5 py-2 rounded-full text-white/70 font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-brand-700 data-[state=active]:shadow-md hover:text-white"
+            >
+              {tabLabel(t)}
+            </TabsTrigger>
+          )))}
         </TabsList>
 
         <MonthRangeFilter startMonth={startMonth} endMonth={endMonth} onChange={handleMonthRangeChange} compact />
@@ -329,7 +384,7 @@ export function AdvanceListView({
               <div>
                 <h2 className="text-lg lg:text-xl text-white font-semibold">{activeTabDef?.label ?? ''}</h2>
                 <p className="text-white/70 text-xs lg:text-sm mt-0.5">
-                  {filteredAll && allRows ? `${shownTotal} จาก ${allRows.items.length} รายการ` : `${total} รายการ`}
+                  {filteredAll && allRows && hasColumnFilters(debouncedCols) ? `${shownTotal} จาก ${allRows.items.length} รายการ` : `${shownTotal} รายการ`}
                 </p>
               </div>
 

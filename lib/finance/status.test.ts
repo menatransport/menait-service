@@ -85,17 +85,11 @@ describe('clearSlipMissing — สลิปโอนเงินตอนคื�
   });
 });
 
-import { amountError, TEST_MAX_AMOUNT_TEXT } from './status';
+import { amountError } from './status';
 
 describe('amountError — ช่องจำนวนเงินที่ขอเบิก', () => {
   test('มีสตางค์ได้', () => { expect(amountError('1250.50')).toBeNull(); expect(amountError('1,250.5')).toBeNull(); });
   test('ศูนย์หรือติดลบไม่ได้', () => { expect(amountError('0')).toBe('จำนวนเงินต้องมากกว่า 0'); expect(amountError('-5')).toBe('จำนวนเงินต้องมากกว่า 0'); });
   test('ทศนิยมเกิน 2 ตำแหน่ง', () => expect(amountError('12.345')).toBe('ใส่ทศนิยมได้ไม่เกิน 2 ตำแหน่ง'));
-  test('ช่วงทดสอบระบบ เบิกได้พอดี 100,000', () => { expect(amountError('100000')).toBeNull(); expect(amountError('100,000.00')).toBeNull(); });
-  test('ช่วงทดสอบระบบ เกิน 100,000 ไม่ได้ แม้แค่สตางค์เดียว', () => {
-    expect(amountError('100000.01')).toBe(TEST_MAX_AMOUNT_TEXT);
-    expect(amountError('250,000')).toBe(TEST_MAX_AMOUNT_TEXT);
-  });
-  test('ยอดใหญ่จนเกินฐานข้อมูล ก็ขึ้นข้อความช่วงทดสอบ ไม่ใช่เลข 9,999 ล้าน', () => expect(amountError('99999999999999999')).toBe(TEST_MAX_AMOUNT_TEXT));
-  test('ข้อความบอกยอดสูงสุดเป็นตัวเลขจริง', () => expect(TEST_MAX_AMOUNT_TEXT).toContain('100,000'));
+  test('เกินที่ฐานข้อมูลเก็บได้', () => expect(amountError('99999999999999999')).toBe('จำนวนเงินมากเกินไป ใส่ได้ไม่เกิน 9,999,999,999.99 บาท'));
 });
