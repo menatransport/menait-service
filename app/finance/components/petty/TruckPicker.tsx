@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { searchTrucks, type TruckOption } from '@/app/finance/petty-api';
+import { highlightParts, stepIndex } from '@/lib/finance/petty-truck-search';
 
 /** เลือกรถจาก master เท่านั้น — พิมพ์เองไม่ได้ เพราะด่านซ้ำเข้มใช้เบอร์รถ+ทะเบียนเป็นคีย์
- *  ถ้าหาไม่เจอ ให้ไปเพิ่มใน master ก่อน (ใบจริงมี F014/F016 ที่อาจยังไม่มีในระบบ) */
+ *  ค้นแบบ autocomplete: พิมพ์ส่วนไหนของเบอร์รถหรือทะเบียนก็ได้ ไม่ต้องใส่จุด/ขีด (BE จับคู่และเรียงให้)
+ *  รายการลอยอยู่เหนือหน้า (Popover พอร์ทัล) จึงไม่โดนกล่องตารางที่เลื่อนแนวนอนตัดขอบ */
 export function TruckPicker({ code, plate, lineNo, readOnly = false, onPick }: {
   code: string;
   plate: string;
@@ -15,23 +18,41 @@ export function TruckPicker({ code, plate, lineNo, readOnly = false, onPick }: {
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<TruckOption[] | null>(null);
   const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(-1);
+  const input = useRef<HTMLInputElement>(null);
+  const listId = useId();
+  const typed = query.trim();
 
   useEffect(() => {
-    if (query.trim().length < 2) { setOptions(null); return; }
+    setActive(-1);
+    if (typed.length < 2) { setOptions(null); return; }
+    setOptions(null);
     const timer = setTimeout(() => {
-      searchTrucks(query.trim()).then(setOptions).catch(() => setOptions([]));
-    }, 300);
+      searchTrucks(typed).then(setOptions).catch(() => setOptions([]));
+    }, 200);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [typed]);
 
-  useEffect(() => {
-    function away(event: MouseEvent) {
-      if (box.current && !box.current.contains(event.target as Node)) setOpen(false);
+  function pick(truck: TruckOption) {
+    onPick(truck);
+    setOpen(false);
+    setQuery('');
+  }
+
+  function onKey(event: React.KeyboardEvent<HTMLInputElement>) {
+    const list = options ?? [];
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      setOpen(true);
+      setActive(i => stepIndex(i, event.key === 'ArrowDown' ? 1 : -1, list.length));
+    } else if (event.key === 'Enter') {
+      if (!open || list.length === 0) return;
+      event.preventDefault(); // ไม่ให้ Enter ไปส่งฟอร์ม
+      pick(list[active >= 0 ? active : 0]);
+    } else if (event.key === 'Escape') {
+      setOpen(false);
     }
-    document.addEventListener('mousedown', away);
-    return () => document.removeEventListener('mousedown', away);
-  }, []);
+  }
 
   if (readOnly || (code && !open)) {
     return (
@@ -39,43 +60,71 @@ export function TruckPicker({ code, plate, lineNo, readOnly = false, onPick }: {
         <span className="font-medium">{code || '—'}</span>
         {plate && <span className="text-ink-400">({plate})</span>}
         {!readOnly && (
-          <button type="button" onClick={() => { setOpen(true); setQuery(code); }}
+          <button type="button" onClick={() => { setOpen(true); setQuery(code); requestAnimationFrame(() => input.current?.select()); }}
             className="ml-1 text-xs text-brand-700 hover:underline">เปลี่ยน</button>
         )}
       </span>
     );
   }
 
+  const showList = open && typed.length >= 1;
+  const list = options ?? [];
+
   return (
-    <div ref={box} className="relative">
-      <input value={query} onChange={e => { setQuery(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)} placeholder="ค้นเบอร์รถหรือทะเบียน"
-        aria-label={`ค้นรถ แถวที่ ${lineNo}`}
-        className="w-44 rounded-lg border border-slate-200 px-2 py-1" />
-      {open && query.trim().length >= 2 && (
-        <div className="absolute z-20 mt-1 max-h-56 w-64 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
-          {options === null ? (
-            <p className="px-3 py-2 text-sm text-ink-400">กำลังค้น…</p>
-          ) : options.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-ink-500">
-              ไม่พบรถคันนี้ใน master — ให้เพิ่มใน master ก่อน แล้วค้นอีกครั้ง
-            </p>
-          ) : (
-            <ul className="text-sm">
-              {options.map(t => (
-                <li key={`${t.truck_code}-${t.truck_plate}`}>
-                  <button type="button" onClick={() => { onPick(t); setOpen(false); setQuery(''); }}
-                    className="block w-full px-3 py-1.5 text-left hover:bg-slate-50">
-                    <span className="font-medium">{t.truck_code}</span>
-                    {t.truck_plate && <span className="ml-1 text-ink-500">{t.truck_plate}</span>}
-                    {t.truck_type && <span className="ml-1 text-xs text-ink-400">{t.truck_type}</span>}
+    <Popover open={showList} onOpenChange={next => { if (!next) setOpen(false); }}>
+      <PopoverAnchor asChild>
+        <input ref={input} value={query} autoComplete="off"
+          onChange={e => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)} onKeyDown={onKey}
+          placeholder="พิมพ์เบอร์รถหรือทะเบียน"
+          role="combobox" aria-expanded={showList} aria-controls={listId} aria-autocomplete="list"
+          aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
+          aria-label={`ค้นรถ แถวที่ ${lineNo}`}
+          className="w-48 rounded-lg border border-slate-200 px-2 py-1 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100" />
+      </PopoverAnchor>
+      <PopoverContent align="start" sideOffset={4} collisionPadding={12}
+        onOpenAutoFocus={e => e.preventDefault()} onCloseAutoFocus={e => e.preventDefault()}
+        onInteractOutside={e => { if (input.current?.contains(e.target as Node)) e.preventDefault(); }}
+        className="w-80 max-w-[calc(100vw-24px)] overflow-hidden rounded-lg border border-slate-200 bg-white p-0 shadow-lg">
+        {typed.length < 2 ? (
+          <p className="px-3 py-2 text-sm text-ink-500">พิมพ์อย่างน้อย 2 ตัว เบอร์รถหรือทะเบียนส่วนไหนก็ได้ เช่น 1093 หรือ 1325</p>
+        ) : options === null ? (
+          <p className="px-3 py-2 text-sm text-ink-400">กำลังค้น…</p>
+        ) : list.length === 0 ? (
+          <div className="px-3 py-2 text-sm">
+            <p className="text-ink-700">ไม่พบรถที่มี “{typed}” ในเบอร์รถหรือทะเบียน</p>
+            <p className="mt-0.5 text-xs text-ink-400">รถใหม่ที่ยังไม่อยู่ใน master ของ ATMS ต้องเพิ่มที่นั่นก่อน แล้วค้นอีกครั้ง</p>
+          </div>
+        ) : (
+          <>
+            <ul id={listId} role="listbox" aria-label="รถที่ตรงกับคำค้น" className="max-h-64 overflow-auto py-1 text-sm">
+              {list.map((t, i) => (
+                <li key={`${t.truck_code}-${t.truck_plate}`} id={`${listId}-${i}`} role="option" aria-selected={i === active}>
+                  <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => pick(t)}
+                    onMouseEnter={() => setActive(i)}
+                    className={`flex w-full items-baseline gap-2 px-3 py-1.5 text-left ${i === active ? 'bg-brand-50' : 'hover:bg-slate-50'}`}>
+                    <Marked className="min-w-14 font-semibold text-ink-900" text={t.truck_code} query={typed} />
+                    {t.truck_plate && <Marked className="text-ink-700" text={t.truck_plate} query={typed} />}
+                    {t.truck_type && <span className="ml-auto rounded-full bg-slate-100 px-2 text-xs text-ink-500">{t.truck_type}</span>}
                   </button>
                 </li>
               ))}
             </ul>
-          )}
-        </div>
-      )}
-    </div>
+            <p className="border-t border-slate-100 px-3 py-1 text-xs text-ink-400">↑ ↓ เลือก · Enter ใช้คันนี้ · Esc ปิด</p>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** ข้อความที่ส่วนตรงกับคำค้นเป็นตัวหนาสีแบรนด์ */
+function Marked({ text, query, className }: { text: string; query: string; className?: string }) {
+  return (
+    <span className={className}>
+      {highlightParts(text, query).map((part, i) => part.hit
+        ? <mark key={i} className="rounded-sm bg-amber-100 px-0.5 font-semibold text-ink-900">{part.text}</mark>
+        : <span key={i}>{part.text}</span>)}
+    </span>
   );
 }
