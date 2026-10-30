@@ -10,21 +10,20 @@ import { AdvanceListView, type AdvanceListTab } from './components/AdvanceListVi
 import { AdvanceSheet } from './components/AdvanceSheet';
 import { FinanceCanvas, FinanceHeading, NoAccess, SummaryTiles } from './components/FinanceShell';
 import type { AdvanceItem } from './types';
-import { fetchAllAdvances, type AdvancePage, type AdvanceSummary } from '@/lib/finance/advanceQuery';
+import { fetchAllAdvances, splitTabKey, type AdvancePage, type AdvanceSummary } from '@/lib/finance/advanceQuery';
+
+const CLEAR_GROUP = 'สถานะติดตามเคลียร์';
 
 const TABS: AdvanceListTab[] = [
   { key: 'voucher', label: 'รอตั้งเบิก', status: ['AWAITING_VOUCHER'] },
   { key: 'pay', label: 'รอจ่าย', status: ['AWAITING_PAYMENT'] },
-  // ยอดค้างเคลียร์ (ผู้ใช้สั่ง 29/10/2026): ทุกใบที่จ่ายแล้วยังไม่ปิด (ชุดเดียวกับที่การ์ดยอดค้างเคลียร์รวมเงิน
-  // — เกินกำหนดอยู่ในนี้แล้ว) + ตีกลับผู้เบิก ที่ผู้ใช้ขอให้รวม แม้ใบกลุ่มนั้นตีกลับก่อนจ่าย จึงไม่บวกเข้ายอดเงินของการ์ด
-  // แท็บรายสถานะข้างหลังยังแยกเหมือนเดิม
-  { key: 'outstanding', label: 'ยอดค้างเคลียร์', status: ['AWAITING_CLEARING', 'SENT_BACK', 'CLEARING_APPROVAL', 'AWAITING_REVIEW', 'RETURNED'] },
-  { key: 'clearing', label: 'จ่ายแล้วรอเคลียร์', status: ['AWAITING_CLEARING'] },
-  { key: 'overdue', label: 'เกินกำหนด', overdue: true },
-  { key: 'returned', label: 'ตีกลับผู้เบิก', status: ['RETURNED'] },
-  { key: 'clearapprove', label: 'รออนุมัติเคลียร์', status: ['CLEARING_APPROVAL'] },
-  { key: 'review', label: 'รอบัญชีตรวจ', status: ['AWAITING_REVIEW'] },
-  { key: 'sentback', label: 'ส่งกลับแก้ไข', status: ['SENT_BACK'] },
+  // 6 แท็บนี้อยู่กล่องเดียว กดได้หลายอันพร้อมกัน ตารางรวมใบของทุกอันที่เลือก (ผู้ใช้สั่ง 30/10/2026)
+  { key: 'clearing', label: 'จ่ายแล้วรอเคลียร์', status: ['AWAITING_CLEARING'], group: CLEAR_GROUP },
+  { key: 'overdue', label: 'เกินกำหนด', overdue: true, group: CLEAR_GROUP },
+  { key: 'returned', label: 'ตีกลับผู้เบิก', status: ['RETURNED'], group: CLEAR_GROUP },
+  { key: 'clearapprove', label: 'รออนุมัติเคลียร์', status: ['CLEARING_APPROVAL'], group: CLEAR_GROUP },
+  { key: 'review', label: 'รอบัญชีตรวจ', status: ['AWAITING_REVIEW'], group: CLEAR_GROUP },
+  { key: 'sentback', label: 'ส่งกลับแก้ไข', status: ['SENT_BACK'], group: CLEAR_GROUP },
   { key: 'closed', label: 'ปิดแล้ว', status: ['CLOSED'] },
   { key: 'all', label: 'ทั้งหมด' },
 ];
@@ -58,7 +57,7 @@ export default function FinanceQueuePage() {
   const stats = useMemo(() => {
     const n = (status: string) => summary?.counts?.[status] ?? 0;
     return [
-      { label: 'ยอดค้างเคลียร์ (บาท)', value: formatBaht(summary?.outstanding_amount ?? 0), hint: 'กดดูรายการ', onClick: () => setTab('outstanding') },
+      { label: 'ยอดค้างเคลียร์ (บาท)', value: formatBaht(summary?.outstanding_amount ?? 0) },
       { label: 'รอตั้งเบิก', value: n('AWAITING_VOUCHER') },
       { label: 'รอจ่าย', value: n('AWAITING_PAYMENT') },
       { label: 'รออนุมัติเคลียร์', value: n('CLEARING_APPROVAL') },
@@ -151,7 +150,7 @@ export default function FinanceQueuePage() {
         onOpen={handleOpen}
         exportFileBase="advance"
         refreshKey={refreshKey}
-        headerAction={tab === 'overdue' && overdueCount > 0 ? (
+        headerAction={splitTabKey(tab).includes('overdue') && overdueCount > 0 ? (
           <button type="button" onClick={remindAll} disabled={reminding}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white/10 text-white hover:bg-white/20 border border-white/20 transition-all cursor-pointer disabled:opacity-50">
             <BellRing size={14} /> <span>ส่งแจ้งเตือนทั้งหมด ({overdueCount})</span>

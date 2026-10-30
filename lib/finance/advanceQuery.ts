@@ -33,6 +33,50 @@ export interface AdvancePage {
 export interface TabFilter {
   status?: string[];
   overdue?: boolean;
+  /** narrows the server rows in the browser (set by combineTabs only; a tab with it must load every page) */
+  match?: (item: AdvanceItem) => boolean;
+}
+
+/** The only statuses the BE can flag overdue (derive_status: fin PAID / SENT_BACK past clear_due_date). */
+export const OVERDUE_STATUSES = ['AWAITING_CLEARING', 'SENT_BACK'];
+
+/** Tabs picked together in one group share one key, in tab order: 'clearing,sentback'. */
+const KEY_SEP = ',';
+
+export function splitTabKey(key: string): string[] {
+  return key.split(KEY_SEP);
+}
+
+/**
+ * The key after clicking a tab. A tab outside a group, or a group tab while something else is open, opens alone.
+ * Inside the open group a click adds or removes that tab; the last one stays picked.
+ */
+export function nextTabKey(tabs: { key: string; group?: string }[], activeKey: string, clicked: string): string {
+  const tab = tabs.find(t => t.key === clicked);
+  const picked = splitTabKey(activeKey);
+  const groupOpen = !!tab?.group && picked.every(k => tabs.find(t => t.key === k)?.group === tab.group);
+  if (!groupOpen) return clicked;
+  const next = picked.includes(clicked) ? picked.filter(k => k !== clicked) : [...picked, clicked];
+  if (next.length === 0) return activeKey;
+  return tabs.filter(t => next.includes(t.key)).map(t => t.key).join(KEY_SEP);
+}
+
+/**
+ * Several picked tabs = every advance in any of them, each once. Group tabs are a status list or overdue alone.
+ * Overdue is a flag, not a status, so the BE cannot OR it with other statuses: when the picked statuses do not
+ * already cover every overdue advance, ask for those statuses plus the overdue ones and keep the union in the browser.
+ */
+export function combineTabs(picked: TabFilter[]): TabFilter {
+  if (picked.length === 1) return picked[0];
+  if (picked.length === 0 || picked.some(t => !t.status?.length && !t.overdue)) return {};
+  const statuses = [...new Set(picked.flatMap(t => (t.overdue ? [] : t.status ?? [])))];
+  if (!picked.some(t => t.overdue)) return { status: statuses };
+  if (statuses.length === 0) return { overdue: true };
+  if (OVERDUE_STATUSES.every(s => statuses.includes(s))) return { status: statuses };
+  return {
+    status: [...statuses, ...OVERDUE_STATUSES.filter(s => !statuses.includes(s))],
+    match: item => item.overdue || statuses.includes(item.status),
+  };
 }
 
 export interface ScopeFilter {
@@ -115,5 +159,6 @@ export async function fetchAllAdvances(
     if (res.items.length === 0) break;
     page += 1;
   } while (page <= pages && page <= MAX_EXPORT_PAGES);
-  return Array.from(byId.values());
+  const items = Array.from(byId.values());
+  return tab.match ? items.filter(tab.match) : items;
 }

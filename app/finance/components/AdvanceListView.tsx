@@ -1,14 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Calendar, FileSpreadsheet, FileText, Filter, Search, User, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Calendar, Check, FileSpreadsheet, FileText, Filter, Search, User, X } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MonthRangeFilter, currentMonth, shiftMonths } from '@/components/month-range-filter';
 import { PaginationControls } from '@/components/pagination-controls';
 import { EXPORT_COLUMNS, exportAdvancesXlsx, type ExportColumn } from '@/lib/finance/export';
 import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
 import {
-  ADVANCE_EXPORT_PAGE_SIZE, ADVANCE_PAGE_SIZE, buildAdvanceQuery, fetchAllAdvances, tabCount, totalPages,
+  ADVANCE_EXPORT_PAGE_SIZE, ADVANCE_PAGE_SIZE, buildAdvanceQuery, combineTabs, fetchAllAdvances, nextTabKey, splitTabKey,
+  tabCount, totalPages,
   type AdvancePage, type AdvanceSummary, type ScopeFilter, type TabFilter,
 } from '@/lib/finance/advanceQuery';
 import {
@@ -73,6 +74,8 @@ const FIN_CELLS: Record<ExportColumn, (item: AdvanceItem, no: number) => ReactNo
 export interface AdvanceListTab extends TabFilter {
   key: string;
   label: string;
+  /** tabs next to each other with the same group sit in one box and can be picked together (the value is its aria-label) */
+  group?: string;
 }
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -123,7 +126,7 @@ export function AdvanceListView({
   const [debouncedCols, setDebouncedCols] = useState<ColumnFilters>({});
   // เปลี่ยนแท็บ = เริ่มที่ไม่มีตัวกรองเสมอ (ผู้ใช้สั่ง 29/10/2026) ช่วงเดือนกับการเรียงคงไว้
   // ปรับ state ระหว่าง render ไม่ใช่ useEffect: fetch แรกของแท็บใหม่ต้องไม่ติดตัวกรองของแท็บเก่า (ค่าที่หน่วงไว้ก็ล้างด้วย)
-  // ใช้กับทุกทางที่แท็บเปลี่ยน รวมถึงกดการ์ดยอดค้างเคลียร์จากหน้าแม่
+  // กดเพิ่ม/เอาออกสถานะในกลุ่มก็นับเป็นเปลี่ยนแท็บ
   const [filtersTab, setFiltersTab] = useState(activeTab);
   if (filtersTab !== activeTab) {
     setFiltersTab(activeTab);
@@ -148,7 +151,23 @@ export function AdvanceListView({
     setEndMonth(e);
   }, []);
 
-  const activeTabDef = tabs.find(t => t.key === activeTab) ?? tabs[0];
+  // แท็บในกลุ่มเดียวกันเลือกพร้อมกันได้ (ผู้ใช้สั่ง 30/10/2026): key 'clearing,sentback' = ทุกใบในสองแท็บนั้น
+  const pickedKeys = useMemo(() => new Set(splitTabKey(activeTab)), [activeTab]);
+  const activeTabDef = useMemo<AdvanceListTab | undefined>(() => {
+    const picked = tabs.filter(t => pickedKeys.has(t.key));
+    if (picked.length <= 1) return picked[0] ?? tabs[0];
+    return { key: activeTab, label: picked.map(t => t.label).join(' + '), group: picked[0].group, ...combineTabs(picked) };
+  }, [tabs, activeTab, pickedKeys]);
+  // ติดกันและ group เดียวกัน = กล่องเดียว
+  const segments = useMemo(() => {
+    const out: { group?: string; tabs: AdvanceListTab[] }[] = [];
+    for (const t of tabs) {
+      const last = out[out.length - 1];
+      if (t.group && last?.group === t.group) last.tabs.push(t);
+      else out.push({ group: t.group, tabs: [t] });
+    }
+    return out;
+  }, [tabs]);
 
   // search is debounced; any change of search resets to page 1 once it applies
   useEffect(() => {
@@ -160,7 +179,8 @@ export function AdvanceListView({
     return () => clearTimeout(t);
   }, [colFilters]);
   // มีช่องกรองรายคอลัมน์ = ดึงทุกใบในแท็บ/ช่วงเดือนนี้มากรองและแบ่งหน้าเอง (BE กรองให้แค่ค้นหา เดือน แผนก ศูนย์ค่าใช้จ่าย)
-  const clientMode = mode === 'finance' && hasColumnFilters(debouncedCols);
+  // แท็บที่รวมเกินกำหนดกับสถานะอื่น (match) ก็ต้องดึงทุกใบ เพราะ BE รวมสองอย่างนี้ให้ไม่ได้
+  const clientMode = !!activeTabDef?.match || (mode === 'finance' && hasColumnFilters(debouncedCols));
 
   const scope = useMemo<ScopeFilter>(
     () => ({ q: debouncedQ, startMonth, endMonth, costCenter: mode === 'finance' ? ccFilter : 'all', department: mode === 'finance' ? deptFilter : 'all', sort: sortOrder }),
@@ -295,13 +315,18 @@ export function AdvanceListView({
         className={`${FILTER_INPUT} ${filterTone(value.trim() !== '')} ${WIDE_FILTER_COLS.has(col) ? 'min-w-36' : 'min-w-24'}`} />
     );
   };
+  const tabLabel = (t: AdvanceListTab) => {
+    const count = tabCount(t, summary);
+    return `${t.label}${count === null ? '' : ` (${count})`}`;
+  };
+
   const handleExport = async () => {
     if (!exportFileBase || !activeTabDef || exporting) return;
     setExporting(true);
     try {
       // มีช่องกรองรายคอลัมน์ = ส่งออกเฉพาะใบที่เห็นหลังกรอง
       const all = filteredAll ?? await fetchAllAdvances(q => fetchJson<AdvancePage>(listUrl(q)), scope, activeTabDef);
-      exportAdvancesXlsx(all, `${exportFileBase}-${activeTab}-${todayBkk()}.xlsx`);
+      exportAdvancesXlsx(all, `${exportFileBase}-${splitTabKey(activeTab).join('+')}-${todayBkk()}.xlsx`);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ส่งออก Excel ไม่สำเร็จ', text: (err as Error).message });
     } finally {
@@ -313,18 +338,30 @@ export function AdvanceListView({
     <Tabs value={activeTab} onValueChange={onTabChange}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <TabsList className="max-w-full overflow-x-auto justify-start bg-gray-800/50 backdrop-blur-sm p-1 rounded-full">
-          {tabs.map(t => {
-            const count = tabCount(t, summary);
-            return (
-              <TabsTrigger
-                key={t.key}
-                value={t.key}
-                className="shrink-0 px-5 py-2 rounded-full text-white/70 font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-brand-700 data-[state=active]:shadow-md hover:text-white"
-              >
-                {t.label}{count === null ? '' : ` (${count})`}
-              </TabsTrigger>
-            );
-          })}
+          {segments.map(seg => (seg.group ? (
+            // ปุ่มกดสลับ ไม่ใช่ TabsTrigger: Radix เลือกได้ทีละแท็บและเลือกตามโฟกัสลูกศร ซึ่งจะไปสลับสถานะเอง
+            <div key={`group:${seg.group}`} role="group" aria-label={seg.group} title="กดได้หลายสถานะพร้อมกัน"
+              className="flex h-full shrink-0 items-center gap-0.5 rounded-full border border-white/25 bg-white/5 px-0.5">
+              {seg.tabs.map(t => {
+                const on = pickedKeys.has(t.key);
+                return (
+                  <button key={t.key} type="button" aria-pressed={on} onClick={() => onTabChange(nextTabKey(tabs, activeTab, t.key))}
+                    className={`inline-flex h-[calc(100%-2px)] shrink-0 items-center gap-1 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${on ? 'bg-white text-brand-700 shadow-md' : 'text-white/70 hover:text-white'}`}>
+                    {on && <Check size={14} aria-hidden="true" />}
+                    {tabLabel(t)}
+                  </button>
+                );
+              })}
+            </div>
+          ) : seg.tabs.map(t => (
+            <TabsTrigger
+              key={t.key}
+              value={t.key}
+              className="shrink-0 px-5 py-2 rounded-full text-white/70 font-medium transition-all data-[state=active]:bg-white data-[state=active]:text-brand-700 data-[state=active]:shadow-md hover:text-white"
+            >
+              {tabLabel(t)}
+            </TabsTrigger>
+          ))))}
         </TabsList>
 
         <MonthRangeFilter startMonth={startMonth} endMonth={endMonth} onChange={handleMonthRangeChange} compact />
@@ -337,7 +374,7 @@ export function AdvanceListView({
               <div>
                 <h2 className="text-lg lg:text-xl text-white font-semibold">{activeTabDef?.label ?? ''}</h2>
                 <p className="text-white/70 text-xs lg:text-sm mt-0.5">
-                  {filteredAll && allRows ? `${shownTotal} จาก ${allRows.items.length} รายการ` : `${total} รายการ`}
+                  {filteredAll && allRows && hasColumnFilters(debouncedCols) ? `${shownTotal} จาก ${allRows.items.length} รายการ` : `${shownTotal} รายการ`}
                 </p>
               </div>
 
