@@ -134,6 +134,7 @@ export const MENU_GROUPS: MenuGroup[] = [
             { title: 'แดชบอร์ด', description: 'ภาพรวมคำร้องและสถิติ', icon: LayoutDashboard, href: '/dashboard' },
             { title: 'ผู้สร้างฟอร์ม', description: 'สร้างและแก้ไขแบบฟอร์ม', icon: Building, href: '/builder' },
             { title: 'ฐานข้อมูล', description: 'ผู้ใช้ ฝ่าย ตำแหน่ง และสถานที่', icon: Database, href: '/master' },
+            { title: 'จัดการทบทวนสิทธิ์ (IT)', description: 'รอบทบทวน กลุ่มสิทธิ์ และผู้ใช้ ATMS / Winspeed / Email', icon: ShieldCheck, href: '/access-review/admin' },
         ],
     },
 ];
