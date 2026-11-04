@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { latestReturnRemark } from './returnInfo';
+import { latestCancelRemark, latestReturnRemark } from './returnInfo';
 
 describe('latestReturnRemark', () => {
   test('none', () => expect(latestReturnRemark([])).toBe(''));
@@ -17,4 +17,13 @@ describe('latestReturnRemark', () => {
       { action: 'RETURN', remark: 'a', created_at: null },
       { action: 'RETURN', remark: 'b', created_at: null },
     ])).toBe('b'));
+});
+
+describe('latestCancelRemark', () => {
+  test('none', () => expect(latestCancelRemark([])).toBe(''));
+  test('เอาเหตุผลของ CANCEL ไม่ปนกับ RETURN', () =>
+    expect(latestCancelRemark([
+      { action: 'RETURN', remark: 'บัญชีผิด', created_at: '2026-11-01T10:00:00' },
+      { action: 'CANCEL', remark: ' ผู้เบิกไม่ต้องใช้แล้ว ', created_at: '2026-11-04T10:00:00' },
+    ])).toBe('ผู้เบิกไม่ต้องใช้แล้ว'));
 });

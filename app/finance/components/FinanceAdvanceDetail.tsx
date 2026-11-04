@@ -16,7 +16,7 @@ import { PayForm } from './PayForm';
 import { ReviewPanel } from './ReviewPanel';
 import { VoucherForm } from './VoucherForm';
 import { latestReturnRemark } from '@/lib/finance/returnInfo';
-import { PERM, can, canEditDocNumbers, canSendVoucherBack } from '@/lib/finance/permissions';
+import { PERM, can, canCancelAdvance, canEditDocNumbers, canSendVoucherBack } from '@/lib/finance/permissions';
 import { EditDocNumbersButton } from './EditDocNumbersButton';
 import { useFinancePermissions } from '../usePermissions';
 
@@ -56,6 +56,30 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ตีกลับไม่สำเร็จ', text: (err as Error).message });
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  };
+
+  // ตีกลับแบบยกเลิก (ผู้ใช้สั่ง 04/11/2026): จบใบเลย ผู้เบิกแก้/ส่งใหม่ไม่ได้ ใช้กับใบที่ไม่ต้องเบิกแล้วหรือใบตีกลับที่ผู้เบิกไม่ส่งกลับ
+  const cancelRequest = async () => {
+    if (inFlight.current) return;
+    const res = await showConfirm({
+      title: 'ตีกลับแบบยกเลิก?', text: `${detail?.form_id ?? ''} · ยกเลิกแล้วใบนี้จะปิดเลย ผู้เบิกแก้ไขหรือส่งใหม่ไม่ได้ ถ้ายังต้องใช้เงินต้องยื่นใบใหม่`,
+      input: 'textarea', inputPlaceholder: 'เหตุผลที่ยกเลิก (ส่งถึงผู้เบิกทางอีเมล)', inputAttributes: { maxlength: '1000' },
+      inputValidator: (v: string) => (v?.trim() ? undefined : 'กรุณาระบุเหตุผลที่ยกเลิก'),
+      confirmButtonText: 'ยกเลิกใบนี้',
+    });
+    if (!res.isConfirmed) return;
+    inFlight.current = true;
+    setBusy(true);
+    try {
+      const saved = await putAction(formId, 'cancel', { remark: String(res.value).trim() });
+      await showAlert({ icon: 'success', title: 'ยกเลิกคำขอแล้ว', text: 'แจ้งผู้เบิกทางอีเมลพร้อมเหตุผลแล้ว' });
+      onSaved(saved);
+    } catch (err) {
+      showAlert({ icon: 'error', title: 'ยกเลิกไม่สำเร็จ', text: (err as Error).message });
     } finally {
       inFlight.current = false;
       setBusy(false);
@@ -114,6 +138,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
   const canVoucher = atVoucher && can(perms, PERM.voucher);
   const canPay = atPay && can(perms, PERM.pay);
   const canReturn = (atVoucher || detail.status === 'AWAITING_PAYMENT') && can(perms, PERM.return);
+  const canCancel = canCancelAdvance(detail.status, perms);
   const canRemind = can(perms, PERM.overdueRemind);
   const canVoucherBack = canSendVoucherBack(detail.status, perms);
   const canEditDocs = canEditDocNumbers(detail.status, perms);
@@ -136,7 +161,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
           ตีกลับให้ผู้เบิกแก้ไข — รอผู้เบิกแก้ไขและส่งใหม่: {latestReturnRemark(detail.fin_logs) || '-'}
         </p>
       )}
-      {(canReturn || canVoucherBack || canEditDocs) && (
+      {(canReturn || canCancel || canVoucherBack || canEditDocs) && (
         <div className="mb-4 flex flex-wrap gap-2">
           {canEditDocs && <EditDocNumbersButton detail={detail} onSaved={onSaved} />}
           {canVoucherBack && (
@@ -149,6 +174,12 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
             <Button type="button" variant="outline" onClick={returnToRequester} disabled={busy}
               className="border-rose-400 text-rose-600 hover:bg-rose-50 hover:text-rose-700">
               ตีกลับให้ผู้เบิกแก้ไข
+            </Button>
+          )}
+          {canCancel && (
+            <Button type="button" variant="outline" onClick={cancelRequest} disabled={busy}
+              className="border-slate-400 text-ink-700 hover:bg-slate-100">
+              ตีกลับแบบยกเลิก
             </Button>
           )}
         </div>
