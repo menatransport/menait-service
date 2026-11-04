@@ -1,5 +1,5 @@
 import {
-  ShieldCheck, Banknote, CircleCheck, CornerUpLeft, CircleX, FilePen, Hourglass, ReceiptText, SearchCheck, TriangleAlert, Undo2, type LucideIcon } from 'lucide-react';
+  ShieldCheck, Ban, Banknote, CircleCheck, CornerUpLeft, CircleX, FilePen, Hourglass, ReceiptText, SearchCheck, TriangleAlert, Undo2, type LucideIcon } from 'lucide-react';
 import { STATUS_LABELS, STATUS_STYLES, type AdvanceStatus } from '@/lib/finance/status';
 
 const STATUS_ICONS: Record<AdvanceStatus, LucideIcon> = {
@@ -13,6 +13,7 @@ const STATUS_ICONS: Record<AdvanceStatus, LucideIcon> = {
   CLEARING_APPROVAL: ShieldCheck,
   AWAITING_REVIEW: SearchCheck,
   CLOSED: CircleCheck,
+  CANCELLED: Ban,
 };
 
 export function StatusBadge({ status, overdue = false }: { status: AdvanceStatus; overdue?: boolean }) {
