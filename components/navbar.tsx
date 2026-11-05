@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Bell, HomeIcon, Shield, User, ChevronDown, LayoutDashboard, Building, Database, Settings, LogOut, TriangleAlert, ClipboardList, CircleCheck, Wallet, Landmark, ClipboardCheck, BadgeCheck } from "lucide-react";
+import { ArrowLeft, Bell, HomeIcon, Shield, User, ChevronDown, LayoutDashboard, Building, Database, Settings, LogOut, TriangleAlert, ClipboardList, CircleCheck, Wallet, Landmark, ClipboardCheck, BadgeCheck, ShieldCheck } from "lucide-react";
 import { Button } from "./ui/button";
 import { UserAvatar } from "./ui/user-avatar";
 import { useRouter } from 'next/navigation';
@@ -34,6 +34,7 @@ const COMPONENT_ADMIN = [
     { title: 'แดชบอร์ด', href: '/dashboard', style: 'font-semibold text-brand-600 bg-mint-400/10', icon: LayoutDashboard },
     { title: 'ผู้สร้าง', href: '/builder', style: 'font-semibold text-brand-600 bg-mint-400/10', icon: Building },
     { title: 'ฐานข้อมูล', href: '/master', style: 'font-semibold text-brand-600 bg-mint-400/10', icon: Database },
+    { title: 'จัดการทบทวนสิทธิ์ (IT)', href: '/access-review/admin', style: 'font-semibold text-brand-600 bg-mint-400/10', icon: ShieldCheck },
 ] as const;
 
 const COMPONENT_FINANCE = [

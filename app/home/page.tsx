@@ -30,12 +30,32 @@ export default function HomePage() {
     const isClient = !loading;
     const firstName = isClient ? (user?.firstname ?? '') : '';
 
+    // ทบทวนสิทธิ์ needs a live check (GET /access-review/me) — not something the static
+    // menu or the session cookie can decide — so it starts hidden and appears once we know.
+    const [accessReviewVisible, setAccessReviewVisible] = useState(false);
+    useEffect(() => {
+        if (!isClient || !user) return;
+        fetch('/api/access-review/me')
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (data && (data.systems?.length > 0 || data.has_pending_approvals > 0 || data.is_admin)) {
+                    setAccessReviewVisible(true);
+                }
+            })
+            .catch(() => undefined);
+    }, [isClient, user]);
+
     const groups = useMemo(
         () => MENU_GROUPS
             .filter(g => !g.adminOnly || (isClient && user?.role === 'a'))
-            .map(g => ({ ...g, items: g.items.filter(i => !i.financeOnly
-                || (isClient && (user?.is_finance || user?.is_accounting || user?.is_treasury))) })),
-        [isClient, user]
+            .map(g => ({
+                ...g,
+                items: g.items.filter(i =>
+                    (!i.financeOnly || (isClient && (user?.is_finance || user?.is_accounting || user?.is_treasury))) &&
+                    (!i.requiresAccessReview || accessReviewVisible)
+                ),
+            })),
+        [isClient, user, accessReviewVisible]
     );
     // /home?group=finance → a link that shows one group only (no IT search or quick links)
     const focus = useMemo(() => focusGroup(groups, searchParams.get('group')), [groups, searchParams]);

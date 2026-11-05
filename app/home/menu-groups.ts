@@ -1,4 +1,4 @@
-import { BadgeCheck, Building, Calculator, ChartNoAxesCombined, CircleAlert, CircleCheck, ClipboardCheck, ClipboardList, Database, FolderKanban, HandCoins, Landmark, Laptop, LayoutDashboard, Mail, Monitor, Receipt, Route, Settings2, ShieldCheck, TriangleAlert, Truck, UserCheck, Wallet, type LucideIcon } from 'lucide-react';
+import { BadgeCheck, Building, ChartNoAxesCombined, CircleAlert, CircleCheck, ClipboardCheck, ClipboardList, Database, FolderKanban, HandCoins, Landmark, Laptop, LayoutDashboard, Mail, Monitor, Receipt, Settings2, ShieldCheck, TriangleAlert, Truck, UserCheck, Wallet, type LucideIcon } from 'lucide-react';
 
 export type MenuTone = 'blue' | 'sun' | 'mint' | 'ink';
 
@@ -15,6 +15,12 @@ export interface MenuItem {
     children?: MenuItem[];
     /** Only shown to finance staff (user.is_finance) */
     financeOnly?: boolean;
+    /**
+     * Only shown when GET /api/access-review/me says the user has something to review
+     * (systems.length, has_pending_approvals, or is_admin) — gated in app/home/page.tsx
+     * since that check needs a live API call, not something the static menu can decide.
+     */
+    requiresAccessReview?: boolean;
     /** หัวข้อย่อยในกลุ่ม — รายการติดกันที่มี section เดียวกันจะอยู่ใต้หัวข้อเดียวกัน (เช่น Advance / เงินสดย่อย) */
     section?: string;
 }
@@ -74,16 +80,7 @@ export const MENU_GROUPS: MenuGroup[] = [
             { title: 'แจ้งปัญหา', description: 'อุปกรณ์ ระบบ หรือเครือข่ายมีปัญหา', icon: TriangleAlert, href: '/issue' },
             { title: 'ขอบริการ', description: 'ขอสิทธิ์ ขออุปกรณ์ หรือบริการ IT', icon: ClipboardList, href: '/service' },
             { title: 'ติดตามคำร้อง', description: 'ดูสถานะคำร้องทั้งหมดของคุณ', icon: CircleCheck, href: '/mytickets/all' },
-            {
-                title: 'ทบทวนสิทธิ์',
-                description: 'ตรวจสอบและยืนยันสิทธิ์การใช้งานระบบ',
-                icon: ShieldCheck,
-                children: [
-                    { title: 'ทบทวนสิทธิ์ ATMS', description: 'สิทธิ์บัญชีผู้ใช้งานระบบ ATMS', icon: Route },
-                    { title: 'ทบทวนสิทธิ์ Winspeed', description: 'สิทธิ์ผู้ใช้งานระบบบัญชี Winspeed', icon: Calculator },
-                    { title: 'ทบทวนสิทธิ์ Group Mail', description: 'สมาชิกและสิทธิ์ของ Group Mail', icon: Mail },
-                ],
-            },
+            { title: 'ทบทวนสิทธิ์', description: 'ตรวจสอบและยืนยันสิทธิ์ ATMS, Winspeed และ Group Mail ของคุณในหน้าเดียว', icon: ShieldCheck, href: '/access-review', requiresAccessReview: true },
             { title: 'ทรัพย์สินของฉัน', description: 'ดูอุปกรณ์ IT ที่คุณถือครองอยู่', icon: Laptop },
         ],
     },
@@ -149,6 +146,7 @@ export const MENU_GROUPS: MenuGroup[] = [
             { title: 'แดชบอร์ด', description: 'ภาพรวมคำร้องและสถิติ', icon: LayoutDashboard, href: '/dashboard' },
             { title: 'ผู้สร้างฟอร์ม', description: 'สร้างและแก้ไขแบบฟอร์ม', icon: Building, href: '/builder' },
             { title: 'ฐานข้อมูล', description: 'ผู้ใช้ ฝ่าย ตำแหน่ง และสถานที่', icon: Database, href: '/master' },
+            { title: 'จัดการทบทวนสิทธิ์ (IT)', description: 'รอบทบทวน กลุ่มสิทธิ์ และผู้ใช้ ATMS / Winspeed / Email', icon: ShieldCheck, href: '/access-review/admin' },
         ],
     },
 ];
