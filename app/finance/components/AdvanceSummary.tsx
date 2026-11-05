@@ -21,12 +21,22 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
   const rejection = item.status === 'REJECTED'
     ? [...(detail?.approval_logs ?? [])].reverse().find(l => l.action === 'REJECTED') ?? null
     : null;
+  // ใบที่บัญชีตีกลับแบบยกเลิก: บอกใคร เมื่อไหร่ เพราะอะไร ตั้งแต่ด้านบน (ผู้เบิกเห็นด้วย)
+  const cancellation = item.status === 'CANCELLED'
+    ? [...(detail?.fin_logs ?? [])].reverse().find(l => l.action === 'CANCEL') ?? null
+    : null;
   return (
     <>
       {rejection && (
         <p className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
           ไม่อนุมัติโดย {rejection.actor_name ?? '-'}{rejection.action_at ? ` เมื่อ ${formatDate(rejection.action_at)}` : ''}
           {rejection.remark ? ` · เหตุผล: ${rejection.remark}` : ''}
+        </p>
+      )}
+      {cancellation && (
+        <p className="mb-4 rounded-2xl border border-slate-300 bg-slate-100 px-4 py-3 text-sm text-ink-700">
+          บัญชีตีกลับแบบยกเลิกโดย {cancellation.action_by_name ?? cancellation.action_by ?? '-'}{cancellation.created_at ? ` เมื่อ ${formatDate(cancellation.created_at)}` : ''}
+          {cancellation.remark ? ` · เหตุผล: ${cancellation.remark}` : ''} — รายการนี้ปิดแล้ว ถ้ายังต้องใช้เงินให้ยื่นคำขอใหม่
         </p>
       )}
       <Panel title={`คำขอเบิกเงิน ${item.form_id}`} actions={<StatusBadge status={item.status} overdue={item.overdue} />}>

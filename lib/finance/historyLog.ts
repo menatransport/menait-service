@@ -49,14 +49,17 @@ function visibleChanges(changes: FinLog['changes']): FinLog['changes'] {
   return Object.keys(kept).length ? kept : null;
 }
 
+// เครื่องหมายฝั่งอนุมัติ (level 0) ที่ฝั่งการเงินบันทึกเหตุการณ์เดียวกันไว้ด้วย → เก็บแถวการเงิน (มีเหตุผล/รายการที่แก้)
+const MARKER_TWIN: Record<string, string> = { RESUBMITTED: 'RESUBMIT', RETURNED: 'RETURN', CANCELLED: 'CANCEL' };
+
 /**
  * ประวัติทั้งใบในเส้นเวลาเดียว: การอนุมัติเบิก + การเงิน + อนุมัติเคลียร์
- * เครื่องหมาย RESUBMITTED ฝั่งอนุมัติซ้ำกับ RESUBMIT ฝั่งการเงิน (ตัวหลังมีรายการที่แก้) จึงเก็บแค่ตัวหลัง
+ * เครื่องหมาย RESUBMITTED / RETURNED / CANCELLED ฝั่งอนุมัติซ้ำกับแถวฝั่งการเงิน จึงเก็บแค่ฝั่งการเงิน
  */
 export function fullHistory(approvalLogs: ApprovalLog[], finLogs: FinLog[], clearLogs: ClearLog[] | undefined): HistoryRow[] {
-  const hasFinResubmit = finLogs.some(l => l.action === 'RESUBMIT');
+  const finActions = new Set(finLogs.map(l => l.action));
   const approvals: HistoryRow[] = approvalLogs
-    .filter(l => !(hasFinResubmit && l.action === 'RESUBMITTED'))
+    .filter(l => !(MARKER_TWIN[l.action] && finActions.has(MARKER_TWIN[l.action])))
     .map((l, i) => ({ key: `a-${i}`, action: l.action, label: LOG_ACTION_LABELS[l.action] ?? l.action,
       actor: l.actor_name, at: l.action_at, remark: l.remark, changes: null }));
   const fin = financeHistory(finLogs, clearLogs).map(r => ({ ...r, changes: visibleChanges(r.changes) }));

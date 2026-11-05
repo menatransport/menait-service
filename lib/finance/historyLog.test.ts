@@ -78,6 +78,16 @@ describe('fullHistory — อนุมัติ + การเงิน + อน
     );
     expect(rows.map(r => r.label)).toEqual(['อนุมัติ', 'ตั้งเบิกทำจ่าย', 'ตีกลับให้ผู้เบิกแก้ไข', 'ส่งใหม่หลังแก้ไข', 'อนุมัติ']);
   });
+  test('เครื่องหมายฝั่งอนุมัติที่ซ้ำกับฝั่งการเงิน (ตีกลับ/ยกเลิก) โชว์แถวเดียว', () => {
+    const rows = fullHistory(
+      [apv('APPROVED', '2026-11-01T02:00:00Z'), { level_no: 0, action: 'RETURNED', remark: 'บัญชีผิด', action_at: '2026-11-02T01:00:00Z', actor_name: 'บัญชี' },
+        { level_no: 0, action: 'CANCELLED', remark: 'ไม่ใช้แล้ว', action_at: '2026-11-04T01:00:00Z', actor_name: 'บัญชี' }],
+      [{ ...fin('RETURN', '2026-11-02T01:00:00Z'), remark: 'บัญชีผิด' }, { ...fin('CANCEL', '2026-11-04T01:00:00Z'), remark: 'ไม่ใช้แล้ว' }],
+      undefined,
+    );
+    expect(rows.map(r => r.label)).toEqual(['อนุมัติ', 'ตีกลับให้ผู้เบิกแก้ไข', 'ตีกลับแบบยกเลิก']);
+    expect(rows[2].remark).toBe('ไม่ใช้แล้ว');
+  });
   test('ชื่อคนทำแทนรหัสพนักงาน ถ้า BE ส่งชื่อมา', () => {
     const rows = fullHistory([], [{ ...fin('PAY', '2026-10-19T03:00:00Z'), action_by: '610197', action_by_name: 'ณัฐนิชา ใจดี' }], undefined);
     expect(rows[0].actor).toBe('ณัฐนิชา ใจดี');

@@ -24,6 +24,13 @@ export function can(state: PermissionState | null, permission: Permission): bool
   return state.permissions.includes(permission);
 }
 
+/** ตีกลับแบบยกเลิก (ผู้ใช้สั่ง 04/11/2026): สิทธิ์เดียวกับปุ่มตีกลับ กดได้ก่อนจ่ายเงิน และตอนใบค้างอยู่ที่ตีกลับให้ผู้เบิกแก้ไข
+ * (ใบที่ผู้เบิกไม่ส่งกลับมา บัญชีจบใบได้เองโดยไม่ต้องแก้ฐานข้อมูล) · หลังบ้านเช็กสถานะซ้ำ */
+export const CANCELLABLE_STATUSES = ['AWAITING_VOUCHER', 'AWAITING_PAYMENT', 'RETURNED'];
+export function canCancelAdvance(status: string, state: PermissionState | null): boolean {
+  return CANCELLABLE_STATUSES.includes(status) && can(state, PERM.return);
+}
+
 /**
  * การเงินส่งใบที่ตั้งเบิกแล้ว (รอจ่าย) กลับไปให้บัญชีแก้เลข/วันที่ตั้งเบิก — ใบยังอนุมัติอยู่ ไม่ต้องอนุมัติใหม่
  * (ผู้ใช้แจ้ง 26/10/2026) · ปุ่มนี้ของคนจ่ายเงิน หลังบ้านกันซ้ำว่าต้องเป็นฝ่ายการเงิน/บัญชี และสถานะต้องเป็นรอจ่าย

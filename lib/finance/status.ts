@@ -1,6 +1,6 @@
 export type AdvanceStatus =
   | 'PENDING_APPROVAL' | 'REJECTED' | 'AWAITING_VOUCHER' | 'AWAITING_PAYMENT' | 'AWAITING_CLEARING'
-  | 'RETURNED' | 'SENT_BACK' | 'CLEARING_APPROVAL' | 'AWAITING_REVIEW' | 'CLOSED';
+  | 'RETURNED' | 'SENT_BACK' | 'CLEARING_APPROVAL' | 'AWAITING_REVIEW' | 'CLOSED' | 'CANCELLED';
 
 export const STATUS_LABELS: Record<AdvanceStatus, string> = {
   PENDING_APPROVAL: 'รออนุมัติ',
@@ -13,6 +13,7 @@ export const STATUS_LABELS: Record<AdvanceStatus, string> = {
   CLEARING_APPROVAL: 'รออนุมัติเคลียร์',
   AWAITING_REVIEW: 'รอบัญชีตรวจ',
   CLOSED: 'ปิดแล้ว',
+  CANCELLED: 'ยกเลิก', // ตีกลับแบบยกเลิกโดยบัญชี จบใบ (04/11/2026)
 };
 
 // V.2 theme palette (brand / aqua / ink / sun / violet / mint). StatusBadge always pairs
@@ -28,6 +29,7 @@ export const STATUS_STYLES: Record<AdvanceStatus, string> = {
   CLEARING_APPROVAL: 'bg-amber-50 text-amber-700 border-amber-200',
   AWAITING_REVIEW: 'bg-violet-50 text-violet-700 border-violet-200',
   CLOSED: 'bg-emerald-50 text-mint-700 border-emerald-200',
+  CANCELLED: 'bg-slate-100 text-ink-600 border-slate-300',
 };
 
 export const CLEAR_DUE_DAYS = 7;
@@ -81,17 +83,12 @@ export function clearSlipMissing(o: { settle: number | null; newFiles: number; e
 /** ยอดเงินสูงสุดที่คอลัมน์ Numeric(12,2) ของ BE เก็บได้ */
 export const MAX_AMOUNT = 9_999_999_999.99;
 
-/** ช่วงทดสอบระบบ (27/10/2026): เบิกได้ไม่เกินใบละ 100,000 บาท เปิดใช้เต็มเมื่อไหร่ ลบสองค่านี้กับบรรทัดที่ใช้ใน amountError และหน้าขอเบิก */
-export const TEST_MAX_AMOUNT = 100_000;
-export const TEST_MAX_AMOUNT_TEXT = 'ช่วงทดสอบระบบ เบิกได้ไม่เกินใบละ 100,000 บาท';
-
 /** ตรวจช่องจำนวนเงินที่ขอเบิก คืนข้อความภาษาไทย หรือ null ถ้าใช้ได้ */
 export function amountError(raw: string | number | null | undefined): string | null {
   const text = typeof raw === 'number' ? String(raw) : (raw ?? '').replace(/,/g, '').trim();
   const n = parseAmount(text);
   if (n === null || n <= 0) return 'จำนวนเงินต้องมากกว่า 0';
   if (/\.\d{3,}$/.test(text)) return 'ใส่ทศนิยมได้ไม่เกิน 2 ตำแหน่ง';
-  if (n > TEST_MAX_AMOUNT) return TEST_MAX_AMOUNT_TEXT;
   if (n > MAX_AMOUNT) return 'จำนวนเงินมากเกินไป ใส่ได้ไม่เกิน 9,999,999,999.99 บาท';
   return null;
 }

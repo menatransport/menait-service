@@ -1,5 +1,7 @@
 import { expect, test } from 'bun:test';
-import { LIST_PARAMS, buildAdvanceQuery, pickListParams, fetchAllAdvances, monthEnd, tabCount, type AdvancePage } from './advanceQuery';
+import {
+  LIST_PARAMS, buildAdvanceQuery, combineTabs, pickListParams, fetchAllAdvances, monthEnd, parseTabKey, tabCount, toggleTabOption, type AdvancePage,
+} from './advanceQuery';
 import type { AdvanceItem } from '@/app/finance/types';
 
 const summary = { counts: { AWAITING_CLEARING: 3, SENT_BACK: 2, CLOSED: 5 }, overdue: 4, outstanding_amount: 100 };
@@ -88,4 +90,56 @@ test('fetchAllAdvances hands back the first page (summary + options) for the col
     return { items: [mk(`P${page}`)], total: 2, page, page_size: 1, summary, options: opts } as AdvancePage;
   }, {}, {}, 1, res => seen.push(res.page));
   expect(seen).toEqual([1]);
+});
+
+// ปุ่มติดตามเคลียร์ในหน้าการเงิน: กดแล้วได้ทั้งกลุ่ม ติ๊กในเมนูเพื่อกรองเหลือบางสถานะ
+const CLEAR_TAB = { key: 'clear', options: [{ key: 'clearing' }, { key: 'overdue' }, { key: 'review' }, { key: 'sentback' }] };
+
+test('parseTabKey splits the tab from its ticked options', () => {
+  expect(parseTabKey('clear')).toEqual({ tab: 'clear', picks: [] });
+  expect(parseTabKey('clear:overdue,review')).toEqual({ tab: 'clear', picks: ['overdue', 'review'] });
+  expect(parseTabKey('clear:')).toEqual({ tab: 'clear', picks: [] });
+});
+
+test('toggleTabOption ticks in tab order and unticks; none or all ticked = the whole tab', () => {
+  expect(toggleTabOption(CLEAR_TAB, 'clear', 'sentback')).toBe('clear:sentback');
+  expect(toggleTabOption(CLEAR_TAB, 'clear:sentback', 'clearing')).toBe('clear:clearing,sentback');
+  expect(toggleTabOption(CLEAR_TAB, 'clear:clearing,sentback', 'clearing')).toBe('clear:sentback');
+  expect(toggleTabOption(CLEAR_TAB, 'clear:sentback', 'sentback')).toBe('clear');
+  expect(toggleTabOption(CLEAR_TAB, 'clear:clearing,overdue,review', 'sentback')).toBe('clear');
+  expect(toggleTabOption(CLEAR_TAB, 'pay', 'review')).toBe('clear:review');
+});
+
+test('combineTabs: statuses merge into one server filter', () => {
+  expect(combineTabs([{ status: ['AWAITING_CLEARING'] }, { status: ['SENT_BACK'] }])).toEqual({ status: ['AWAITING_CLEARING', 'SENT_BACK'] });
+  expect(combineTabs([{ overdue: true }])).toEqual({ overdue: true });
+});
+
+test('combineTabs: overdue already covered by รอเคลียร์ + ส่งกลับแก้ไข needs no browser filter', () => {
+  const t = combineTabs([{ status: ['AWAITING_CLEARING'] }, { overdue: true }, { status: ['SENT_BACK'] }]);
+  expect(t).toEqual({ status: ['AWAITING_CLEARING', 'SENT_BACK'] });
+});
+
+test('combineTabs: overdue + another status = union, each advance once', () => {
+  const t = combineTabs([{ overdue: true }, { status: ['AWAITING_REVIEW'] }]);
+  expect(t.status).toEqual(['AWAITING_REVIEW', 'AWAITING_CLEARING', 'SENT_BACK']);
+  expect(t.overdue).toBeUndefined();
+  const it = (status: string, overdue: boolean) => ({ status, overdue }) as AdvanceItem;
+  expect([it('AWAITING_REVIEW', false), it('AWAITING_CLEARING', true), it('AWAITING_CLEARING', false), it('SENT_BACK', true)]
+    .filter(t.match!).map(i => `${i.status}:${i.overdue}`)).toEqual(['AWAITING_REVIEW:false', 'AWAITING_CLEARING:true', 'SENT_BACK:true']);
+});
+
+test('fetchAllAdvances applies the tab match after loading every page', async () => {
+  const rows = [
+    { form_id: 'A', status: 'AWAITING_REVIEW', overdue: false },
+    { form_id: 'B', status: 'AWAITING_CLEARING', overdue: true },
+    { form_id: 'C', status: 'AWAITING_CLEARING', overdue: false },
+  ] as AdvanceItem[];
+  let status = '';
+  const res = await fetchAllAdvances(async query => {
+    status = new URLSearchParams(query).get('status') ?? '';
+    return { items: rows, total: 3, page: 1, page_size: 200, summary } as AdvancePage;
+  }, {}, combineTabs([{ overdue: true }, { status: ['AWAITING_REVIEW'] }]));
+  expect(status).toBe('AWAITING_REVIEW,AWAITING_CLEARING,SENT_BACK');
+  expect(res.map(i => i.form_id)).toEqual(['A', 'B']);
 });

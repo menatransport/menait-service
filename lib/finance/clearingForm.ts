@@ -58,7 +58,7 @@ export interface ClearingSignature { name: string; date: string; esign?: ESign }
 export interface ClearingFormData {
   /** form_id: Document Control ref and the Ref on every e-Signature stamp. */
   document_no: string;
-  /** REF No. (โดยแผนกบัญชี) = fin.clear_doc_no */
+  /** REF No. = เลขที่ใบคำขอเบิก (form_id) — ผู้ใช้สั่ง 29/10/2026 (เดิม "REF No. (โดยแผนกบัญชี)" = fin.clear_doc_no ซึ่งยังโชว์ในหน้าจอ/Excel) */
   ref_no: string;
   /** 'YYYY-MM-DD' */
   clear_date: string;
@@ -118,7 +118,7 @@ export function toClearingData(detail: AdvanceDetail): ClearingFormData {
       amount_before_vat: num(fin?.amount_actual), vat_amount: null, wht_amount: null }];
   return {
     document_no: detail.form_id,
-    ref_no: fin?.clear_doc_no ?? '',
+    ref_no: detail.form_id ?? '',
     clear_date: toBkkDate(fin?.clear_date),
     centers: center.centers,
     employee: {
@@ -282,7 +282,7 @@ export function clearingBody(data: ClearingFormData, opts: { logoUrl?: string; b
 
   return `<section class="doc-part cf">${opts.band ? '<div class="doc-band"></div>' : ''}
 <header class="head">${logo}<div><div class="t1">${CLAIM_TITLE}</div><div class="t2">${CLAIM_SUBTITLE}</div></div>
-<div class="meta"><div><span>REF No. (โดยแผนกบัญชี)</span><b>${esc(data.ref_no)}</b></div><div class="date"><span>วันที่</span><b>${esc(dmy(data.clear_date))}</b></div></div></header>
+<div class="meta"><div><span>REF No.</span><b>${esc(data.ref_no)}</b></div><div class="date"><span>วันที่</span><b>${esc(dmy(data.clear_date))}</b></div></div></header>
 
 <div class="who">
 <div class="cbs"><span class="lbl">ศูนย์</span>${centerCheckboxesHtml(data.centers)}</div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { PERM, can, canEditDocNumbers, canSendVoucherBack, type PermissionState } from './permissions';
+import { PERM, can, canCancelAdvance, canEditDocNumbers, canSendVoucherBack, type PermissionState } from './permissions';
 
 const bow: PermissionState = { permissions: [PERM.pay, PERM.return] };
 
@@ -50,4 +50,18 @@ describe('canEditDocNumbers — การเงินแก้เลขที่
   it('ไม่มีสิทธิ์จ่ายเงิน ไม่เห็นปุ่ม', () => {
     expect(canEditDocNumbers('CLOSED', { permissions: [PERM.voucher, PERM.close] })).toBe(false);
   });
+});
+
+describe('canCancelAdvance — ตีกลับแบบยกเลิก (04/11/2026)', () => {
+  const acc: PermissionState = { permissions: [PERM.voucher, PERM.return] };
+  const fin: PermissionState = { permissions: [PERM.pay] };
+  it('บัญชี (สิทธิ์ตีกลับ) ยกเลิกได้ตอนรอตั้งเบิก รอจ่าย และตอนใบค้างตีกลับ', () => {
+    for (const s of ['AWAITING_VOUCHER', 'AWAITING_PAYMENT', 'RETURNED']) expect(canCancelAdvance(s, acc)).toBe(true);
+  });
+  it('หลังจ่ายแล้วหรือจบใบแล้ว ยกเลิกไม่ได้', () => {
+    for (const s of ['PENDING_APPROVAL', 'REJECTED', 'AWAITING_CLEARING', 'SENT_BACK', 'CLEARING_APPROVAL', 'AWAITING_REVIEW', 'CLOSED', 'CANCELLED'])
+      expect(canCancelAdvance(s, acc)).toBe(false);
+  });
+  it('คนจ่ายเงินที่ไม่มีสิทธิ์ตีกลับ ไม่เห็นปุ่ม', () => expect(canCancelAdvance('AWAITING_VOUCHER', fin)).toBe(false));
+  it('สิทธิ์ยังโหลดไม่เสร็จ ไม่ซ่อน', () => expect(canCancelAdvance('RETURNED', null)).toBe(true));
 });
