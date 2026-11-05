@@ -1,7 +1,7 @@
 'use client';
 import { Ticket } from "@/app/mytickets/[id]/page";
 import { useRouter, useParams } from "next/navigation";
-import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, ArrowUpDown, AlertTriangle, Filter, Search, X, Star, ExternalLink, Computer, Laptop, Copy, ClipboardCheck, Pencil, PanelRight, Maximize2, UserMinus, UserPlus, RefreshCcw, Trophy, Check, Mail } from "lucide-react";
+import { FileSpreadsheet, User, Calendar, Eye, FileText, Loader2, Clock, CheckCircle, XCircle, CircleIcon, ArrowUp, ArrowDown, ArrowUpDown, AlertTriangle, Filter, Search, X, Star, ExternalLink, Computer, Laptop, Copy, ClipboardCheck, Pencil, PanelRight, Maximize2, UserMinus, UserPlus, RefreshCcw, Trophy, Check, Mail, FileDown } from "lucide-react";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -14,6 +14,7 @@ import { renderFormField, buildSubmitValues, prefillFormValues, formatDatetime }
 import { SelectStatus } from "@/components/ui/selectstatus"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { UserAvatar as SharedUserAvatar } from "@/components/ui/user-avatar"
+import { openTicketReport } from "@/lib/ticketReport";
 
 const showSwal = (options: any) => import('sweetalert2').then(({ default: Swal }) => Swal.fire(options));
 import { useSessionContext } from "@/app/context/SessionContext";
@@ -1747,6 +1748,51 @@ export const Viewer = ({
 
     const isDialog = mode === 'dialog';
 
+    const handleExportPdf = () => {
+        if (!ticket) return;
+        const opened = openTicketReport({
+            ticket,
+            detail: selectTicketBack,
+            questions: formStructure?.questions ?? [],
+            formValues,
+            logs: formlog,
+            imageUrls,
+            adminComment,
+        });
+        if (!opened) showSwal({ icon: 'warning', title: 'เบราว์เซอร์บล็อกหน้าต่างใหม่', text: 'กรุณาอนุญาต Pop-up สำหรับเว็บไซต์นี้ แล้วลองอีกครั้ง' });
+    };
+
+    const headerActions = (
+        <div className="flex items-center gap-2 mr-5 shrink-0">
+            {/* Button Survey-it */}
+            {ticket?.status == "Done" && (
+                <a
+                    href={`https://menait-service.vercel.app/survey-it/${ticket?.form_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-2 py-2.5 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:from-brand-700 hover:to-brand-600 transition-all duration-300 hover:scale-[1.02] shrink-0 group"
+                >
+                    <Star size={16} className="fill-yellow-300 text-yellow-300 group-hover:animate-pulse" />
+                    <span className="hidden sm:inline">ให้คะแนนประเมิน</span>
+                    <ExternalLink size={14} className="opacity-60 group-hover:opacity-100 transition-opacity" />
+                </a>
+            )}
+            {/* Export PDF report */}
+            {ticket?.status == "Done" && (
+                <button
+                    type="button"
+                    onClick={handleExportPdf}
+                    disabled={!ticket || isLoadingForm || !formStructure}
+                    title="ส่งออกรายงานคำร้อง (PDF)"
+                    className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 hover:border-brand-600/50 hover:text-brand-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                >
+                    {isLoadingForm ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
+                    PDF
+                </button>
+            )}
+        </div>
+    );
+
 
     const viewerContent = (
         <>
@@ -2165,19 +2211,7 @@ export const Viewer = ({
                                     <SheetTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</SheetTitle>
                                     <SheetDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</SheetDescription>
                                 </div>
-                                {/* Button Survey-it */}
-                                {ticket?.status == "Done" && (
-                                    <a
-                                        href={`https://menait-service.vercel.app/survey-it/${ticket?.form_id}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 px-2 py-2.5 mr-5 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:from-brand-700 hover:to-brand-600 transition-all duration-300 hover:scale-[1.02] shrink-0 group"
-                                    >
-                                        <Star size={16} className="fill-yellow-300 text-yellow-300 group-hover:animate-pulse" />
-                                        <span className="hidden sm:inline">ให้คะแนนประเมิน</span>
-                                        <ExternalLink size={14} className="opacity-60 group-hover:opacity-100 transition-opacity" />
-                                    </a>
-                                )}
+                                {headerActions}
                             </div>
                         </DialogHeader>
                         {viewerContent}
@@ -2199,19 +2233,7 @@ export const Viewer = ({
                                 <SheetTitle className="text-xl font-bold text-gray-800">รายละเอียดคำร้อง</SheetTitle>
                                 <SheetDescription>ข้อมูลคำร้องและสถานะการดำเนินการ</SheetDescription>
                             </div>
-                            {/* Button Survey-it */}
-                            {ticket?.status == "Done" && (
-                                <a
-                                    href={`https://menait-service.vercel.app/survey-it/${ticket?.form_id}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 px-2 py-2.5 mr-5 rounded-xl bg-linear-to-r from-brand-600 to-brand-500 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:from-brand-700 hover:to-brand-600 transition-all duration-300 hover:scale-[1.02] shrink-0 group"
-                                >
-                                    <Star size={16} className="fill-yellow-300 text-yellow-300 group-hover:animate-pulse" />
-                                    <span className="hidden sm:inline">ให้คะแนนประเมิน</span>
-                                    <ExternalLink size={14} className="opacity-60 group-hover:opacity-100 transition-opacity" />
-                                </a>
-                            )}
+                            {headerActions}
                         </div>
                     </SheetHeader>
                     {viewerContent}
