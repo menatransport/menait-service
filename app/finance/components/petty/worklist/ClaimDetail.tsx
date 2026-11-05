@@ -225,7 +225,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
       )}
 
       {/* หัวหน้าของผู้ขอเบิก: อนุมัติก่อนเจ้าของเงินสดโอน (flow v3) — เจ้าของเงินสดที่เป็นหัวหน้าด้วยใช้แผงอนุมัติจ่ายข้างล่าง */}
-      {claim.status === 'PENDING_HEAD' && claim.can_head_approve && !isHolder && (
+      {claim.status === 'PENDING_HEAD' && claim.can_head_approve && (!isHolder || user?.is_petty_super) && (
         <Panel title="หัวหน้าอนุมัติ">
           <div className="space-y-3">
             <p className="text-sm text-ink-700">อนุมัติแล้วใบไปที่เจ้าของเงินสด เพื่ออนุมัติจ่ายและโอนเงิน</p>
@@ -239,7 +239,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
           </div>
         </Panel>
       )}
-      {claim.status === 'PENDING_HEAD' && isHolder && (
+      {claim.status === 'PENDING_HEAD' && isHolder && !user?.is_petty_super && (
         <p className="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
           ใบนี้รอหัวหน้าของผู้ขอเบิกอนุมัติก่อน หัวหน้าอนุมัติแล้วคุณถึงอนุมัติจ่ายได้
         </p>

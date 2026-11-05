@@ -14,12 +14,15 @@ type U = {
   is_finance?: boolean | null;
   is_accounting?: boolean | null;
   is_treasury?: boolean | null;
+  /** ผู้ดูแลทดสอบ (env PETTY_SUPERUSERS เฉพาะเครื่องทดสอบ) ทำได้เหมือนเจ้าของเงินสดทุกวงเงิน */
+  is_petty_super?: boolean | null;
 };
 type F = { id: number; holder_employee_id: string };
 
 /** ผู้อนุมัติคือผู้ถือกองทุนคนเดียว — การเป็นการเงินไม่ทำให้อนุมัติแทนได้ (spec §4.1) */
 export function canApprove(user: U | null | undefined, fund: F | null | undefined): boolean {
-  return !!user?.employee_id && !!fund && user.employee_id === fund.holder_employee_id;
+  if (!user?.employee_id || !fund) return false;
+  return user.is_petty_super === true || user.employee_id === fund.holder_employee_id;
 }
 
 /** บัญชี/การเงินเห็นใบตั้งแต่หัวหน้าอนุมัติเคลียร์ส่งถึงบัญชีเป็นต้นไป ไม่ใช่ตั้งแต่เปิดใบ */

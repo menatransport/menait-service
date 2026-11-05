@@ -88,7 +88,7 @@ function PettyApprovals() {
         // ทุกหน้า ไม่ใช่แค่ 200 ใบแรก — กรองประเภทแล้วตัวเลขในแถบจะได้ครบ และรู้ว่ารอบไหนมีใบประเภทอะไร
         getFunds(), listAllClaims({ view: 'approvals' }), getExpenseTypes(), listRounds('mine'),
       ]);
-      const mine = f.filter(x => x.holder_employee_id === user?.employee_id);
+      const mine = user?.is_petty_super ? f : f.filter(x => x.holder_employee_id === user?.employee_id);
       setFunds(mine); setClaims(page.items); setTypes(t); setRounds(r);
       setFundId(id => id ?? mine[0]?.id ?? null);
     } catch (err) {

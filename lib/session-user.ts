@@ -1,11 +1,11 @@
 import type { UserInfo } from '@/app/context/SessionContext';
-import { accountingConfig, financeConfig, isAccountingUser, isFinanceUser, isTreasuryUser } from '@/lib/finance/role';
+import { accountingConfig, financeConfig, isAccountingUser, isFinanceUser, isTreasuryUser, parseIdList } from '@/lib/finance/role';
 
 /** role "a" (admin): IT department or a named employee — same rule login always used. */
 export const ADMIN_DEPARTMENT_IDS = [21];
 export const ADMIN_EMPLOYEE_IDS = ['680043', '670108'];
 
-type BackendUser = Omit<UserInfo, 'role' | 'is_finance' | 'is_accounting' | 'is_treasury'> & Record<string, unknown>;
+type BackendUser = Omit<UserInfo, 'role' | 'is_finance' | 'is_accounting' | 'is_treasury' | 'is_petty_super'> & Record<string, unknown>;
 
 /**
  * The session user signed into the cookie: the BE user (POST /auth/login, GET /auth/session-user/{id})
@@ -25,6 +25,8 @@ export function buildSessionUser(beUser: BackendUser, env: Record<string, string
     is_finance: isFinanceUser(beUser, finance.deptIds, finance.employeeIds),
     is_accounting: isAccountingUser(beUser, backOffice),
     is_treasury: isTreasuryUser(beUser, backOffice),
+    // ผู้ดูแลทดสอบเงินสดย่อย — ตั้ง PETTY_SUPERUSERS เฉพาะเครื่องทดสอบ (BE มี env ชื่อเดียวกัน) บน prod ไม่ตั้ง = false
+    is_petty_super: parseIdList(env.PETTY_SUPERUSERS).includes(beUser.employee_id),
   } as UserInfo;
 }
 

@@ -23,6 +23,8 @@ export interface UserInfo {
   /** บัญชี (ตรวจเอกสาร) และการเงิน (ปิดรอบคืนยอด) แยกกันในโมดูลเงินสดย่อย */
   is_accounting?: boolean;
   is_treasury?: boolean;
+  /** ผู้ดูแลทดสอบเงินสดย่อย (env PETTY_SUPERUSERS เฉพาะเครื่องทดสอบ): เห็นทุกวงเงิน กดได้ทุกขั้น */
+  is_petty_super?: boolean;
   employee_status?: string | null;
   /** โครงสร้างองค์กร (ncacdb build_user_response) — สายงาน / ฝ่าย / แผนก · ไม่มีใน token ที่เซ็นก่อนเปิดใช้ */
   /** สายงาน — ตามฝ่าย (divisions.path_id) */
