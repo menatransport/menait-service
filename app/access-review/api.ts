@@ -2,7 +2,7 @@
 
 import type {
     AdminRemovalRow, AdminReviewsResponse, AdminRole, AdminRoleItem, AdminSystem, AdminUserRole, AdminUserRolesResponse,
-    ApiErrorBody, DecisionAction, HistoryItem, ImportReport, ItemsResponse, MailPreview, MeResponse, PendingApprovalItem,
+    ApiErrorBody, CatalogResponse, CatalogRolesResponse, DecisionAction, HistoryItem, ImportReport, ItemsResponse, MailPreview, MeResponse, PendingApprovalItem,
     ReviewChanges, ReviewDetail, ReviewLineInput, SystemCode,
 } from './types';
 
@@ -51,6 +51,14 @@ export const getMe = () => http<MeResponse>('/api/access-review/me');
 /** All of my roles' full item lists in one call — used to render the one-page checklist. */
 export const getMyItems = () => http<ItemsResponse>('/api/access-review/me/items');
 
+/** Menus a requester can ask to add ("ต้องการเพิ่มสิทธิ์") — every distinct item of that system's roles. */
+export const getCatalog = (system: SystemCode) =>
+    http<CatalogResponse>(`/api/access-review/catalog${qs({ system })}`);
+
+/** Whole roles a requester can ask to join ("ต้องการเพิ่มอีเมลกลุ่ม") — every active role of that system. */
+export const getCatalogRoles = (system: SystemCode) =>
+    http<CatalogRolesResponse>(`/api/access-review/catalog/roles${qs({ system })}`);
+
 /** IT-only, read-only: the /me + /me/items an employee would get — powers the admin "ดูหน้าตา Dialog" preview. */
 export const adminPreviewMe = (employeeId: string) =>
     http<MeResponse>(`/api/access-review/admin/preview/${encodeURIComponent(employeeId)}`);
@@ -60,11 +68,12 @@ export const adminPreviewItems = (employeeId: string) =>
 /** Same shape, for viewing/approving someone else's submitted review. */
 export const getReviewItems = (id: number) => http<ItemsResponse>(`/api/access-review/${id}/items`);
 
-export const saveLines = (lines: ReviewLineInput[], requesterNote?: string | null) =>
-    http<MeResponse>('/api/access-review/me/lines', json('PUT', { lines, requester_note: requesterNote ?? undefined }));
+/** requestedRoleIds: whole roles to join (Email groups); undefined = leave the stored set as is. */
+export const saveLines = (lines: ReviewLineInput[], requesterNote?: string | null, requestedRoleIds?: number[]) =>
+    http<MeResponse>('/api/access-review/me/lines', json('PUT', { lines, requester_note: requesterNote ?? undefined, requested_role_ids: requestedRoleIds }));
 
-export const submitReview = (lines: ReviewLineInput[], requesterNote?: string | null) =>
-    http<ReviewDetail>('/api/access-review/me/submit', json('POST', { lines, requester_note: requesterNote ?? undefined }));
+export const submitReview = (lines: ReviewLineInput[], requesterNote?: string | null, requestedRoleIds?: number[]) =>
+    http<ReviewDetail>('/api/access-review/me/submit', json('POST', { lines, requester_note: requesterNote ?? undefined, requested_role_ids: requestedRoleIds }));
 
 export const getPending = () => http<PendingApprovalItem[]>('/api/access-review/pending');
 

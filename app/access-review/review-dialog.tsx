@@ -12,7 +12,7 @@ import {
 } from './api';
 import { Checklist, type ChecklistSystemData } from './checklist';
 import { Field, InlineConfirm, ReviewStatusPill, formatThaiDateTime } from './components';
-import type { Decision, MeResponse, ReviewDetail, ReviewLineInput } from './types';
+import type { CatalogRole, Decision, ItemsResponse, MeResponse, ReviewDetail, ReviewLineInput, RoleItem } from './types';
 
 const showAlert = (opts: Record<string, unknown>) => import('sweetalert2').then(({ default: Swal }) => Swal.fire({ confirmButtonText: 'ตกลง', ...opts }));
 const showSuccess = (title: string) => import('sweetalert2').then(({ default: Swal }) => Swal.fire({ icon: 'success', title, timer: 1500, showConfirmButton: false }));
@@ -20,16 +20,30 @@ const showSuccess = (title: string) => import('sweetalert2').then(({ default: Sw
 interface TickState {
     unchecked: Map<number, Set<number>>;
     decisions: Map<number, Decision>;
+    /** user_role_id → items asked to be ADDED ("ต้องการเพิ่มสิทธิ์") */
+    requested: Map<number, RoleItem[]>;
 }
 
-function initTicks(roles: { user_role_id: number; unchecked_item_ids?: number[]; decision: Decision | null }[]): TickState {
+function initTicks(
+    roles: { user_role_id: number; unchecked_item_ids?: number[]; decision: Decision | null }[],
+    requested: Map<number, RoleItem[]>,
+): TickState {
     const unchecked = new Map<number, Set<number>>();
     const decisions = new Map<number, Decision>();
     for (const r of roles) {
         unchecked.set(r.user_role_id, new Set(r.unchecked_item_ids ?? []));
         decisions.set(r.user_role_id, r.decision ?? 'keep');
     }
-    return { unchecked, decisions };
+    return { unchecked, decisions, requested };
+}
+
+const requestedMap = (res: ItemsResponse) =>
+    new Map(res.roles.filter(r => r.requested_items?.length).map(r => [r.user_role_id, r.requested_items!]));
+
+function countRequested(ticks: TickState): number {
+    let n = 0;
+    for (const items of ticks.requested.values()) n += items.length;
+    return n;
 }
 
 function countRemovals(systems: ChecklistSystemData[], ticks: TickState): number {
@@ -48,7 +62,11 @@ function toLines(systems: ChecklistSystemData[], ticks: TickState): ReviewLineIn
     for (const sys of systems) {
         for (const role of sys.roles) {
             if (role.items.length > 0) {
-                lines.push({ user_role_id: role.user_role_id, unchecked_item_ids: Array.from(ticks.unchecked.get(role.user_role_id) ?? []) });
+                lines.push({
+                    user_role_id: role.user_role_id,
+                    unchecked_item_ids: Array.from(ticks.unchecked.get(role.user_role_id) ?? []),
+                    requested_item_ids: (ticks.requested.get(role.user_role_id) ?? []).map(i => i.id),
+                });
             } else {
                 lines.push({ user_role_id: role.user_role_id, unchecked_item_ids: [], decision: ticks.decisions.get(role.user_role_id) ?? 'keep' });
             }
@@ -134,8 +152,10 @@ export function ReviewDialog({ dialogId, onClose, onChanged, previewEmployee }: 
     const [me, setMe] = useState<MeResponse | null>(null);
     const [detail, setDetail] = useState<ReviewDetail | null>(null);
     const [systems, setSystems] = useState<ChecklistSystemData[]>([]);
-    const [ticks, setTicks] = useState<TickState>({ unchecked: new Map(), decisions: new Map() });
+    const [ticks, setTicks] = useState<TickState>({ unchecked: new Map(), decisions: new Map(), requested: new Map() });
     const [requesterNote, setRequesterNote] = useState('');
+    /** "ต้องการเพิ่มอีเมลกลุ่ม" — whole roles to join */
+    const [requestedRoles, setRequestedRoles] = useState<CatalogRole[]>([]);
     const [approverComment, setApproverComment] = useState('');
     const [saving, setSaving] = useState(false);
 
@@ -150,8 +170,9 @@ export function ReviewDialog({ dialogId, onClose, onChanged, previewEmployee }: 
             setTicks(initTicks(sys.flatMap(s => s.roles).map(r => {
                 const line = meRes.systems.flatMap(s => s.roles).find(x => x.user_role_id === r.user_role_id);
                 return { user_role_id: r.user_role_id, unchecked_item_ids: line?.unchecked_item_ids ?? [], decision: line?.decision ?? null };
-            })));
+            }), requestedMap(itemsRes)));
             setRequesterNote(meRes.requester_note ?? '');
+            setRequestedRoles(meRes.requested_roles ?? []);
             setMode('mine');
         }).catch(err => {
             setErrorText(err instanceof Error ? err.message : 'โหลดข้อมูลไม่สำเร็จ');
@@ -172,10 +193,11 @@ export function ReviewDialog({ dialogId, onClose, onChanged, previewEmployee }: 
                 return;
             }
             setDetail(d);
+            setRequestedRoles(d.requested_roles ?? []);
             getReviewItems(numId).then(itemsRes => {
                 const sys = buildReviewSystems(d, itemsMap(itemsRes));
                 setSystems(sys);
-                setTicks(initTicks(d.lines.map(l => ({ user_role_id: l.user_role_id, unchecked_item_ids: l.unchecked_item_ids ?? [], decision: l.decision }))));
+                setTicks(initTicks(d.lines.map(l => ({ user_role_id: l.user_role_id, unchecked_item_ids: l.unchecked_item_ids ?? [], decision: l.decision })), requestedMap(itemsRes)));
                 setMode('review');
             }).catch(err => { setErrorText(err instanceof Error ? err.message : 'โหลดรายละเอียดสิทธิ์ไม่สำเร็จ'); setMode('error'); });
         }).catch(err => {
@@ -186,6 +208,7 @@ export function ReviewDialog({ dialogId, onClose, onChanged, previewEmployee }: 
     }, [dialogId]);
 
     const removalCount = useMemo(() => countRemovals(systems, ticks), [systems, ticks]);
+    const requestedCount = useMemo(() => countRequested(ticks) + requestedRoles.length, [ticks, requestedRoles]);
 
     const toggleItem = (userRoleId: number, itemId: number) => setTicks(prev => {
         const next = new Set(prev.unchecked.get(userRoleId) ?? []);
@@ -203,6 +226,12 @@ export function ReviewDialog({ dialogId, onClose, onChanged, previewEmployee }: 
         return { ...prev, unchecked };
     });
 
+    const setRequested = (userRoleId: number, items: RoleItem[]) => setTicks(prev => {
+        const requested = new Map(prev.requested);
+        requested.set(userRoleId, items);
+        return { ...prev, requested };
+    });
+
     const setDecision = (userRoleId: number, decision: Decision) => setTicks(prev => {
         const decisions = new Map(prev.decisions);
         decisions.set(userRoleId, decision);
@@ -217,7 +246,7 @@ export function ReviewDialog({ dialogId, onClose, onChanged, previewEmployee }: 
     const saveDraft = async () => {
         setSaving(true);
         try {
-            const data = await saveLines(toLines(systems, ticks), requesterNote);
+            const data = await saveLines(toLines(systems, ticks), requesterNote, requestedRoles.map(r => r.id));
             setMe(data);
             await showSuccess('บันทึกร่างแล้ว');
         } catch (err) {
@@ -229,7 +258,7 @@ export function ReviewDialog({ dialogId, onClose, onChanged, previewEmployee }: 
 
     const submit = async () => {
         try {
-            await submitReview(toLines(systems, ticks), requesterNote);
+            await submitReview(toLines(systems, ticks), requesterNote, requestedRoles.map(r => r.id));
             await showSuccess(me?.review?.status === 'rejected' ? 'ส่งทบทวนใหม่แล้ว' : 'ยืนยันสิทธิ์แล้ว');
             onChanged();
             onClose();
@@ -312,6 +341,10 @@ export function ReviewDialog({ dialogId, onClose, onChanged, previewEmployee }: 
                                 onToggleItem={editable ? toggleItem : undefined}
                                 onToggleMany={editable ? toggleMany : undefined}
                                 onDecision={editable ? setDecision : undefined}
+                                requested={ticks.requested}
+                                onRequestChange={editable ? setRequested : undefined}
+                                requestedRoles={requestedRoles}
+                                onRequestRolesChange={editable ? setRequestedRoles : undefined}
                             />
                             <div className="shrink-0 border-t border-gray-100 px-5 py-3 space-y-2.5 bg-white">
                                 <label className="block text-xs font-medium text-gray-500">ข้อเสนอแนะ (ผู้แจ้ง)
@@ -331,7 +364,7 @@ export function ReviewDialog({ dialogId, onClose, onChanged, previewEmployee }: 
                                         <InlineConfirm
                                             label={<><CheckCircle2 className="size-4" /> ยืนยัน</>}
                                             confirmLabel="ยืนยันส่ง"
-                                            summary={<>จะยกเลิกสิทธิ์ {removalCount} รายการ · {approverText}</>}
+                                            summary={<>จะยกเลิกสิทธิ์ {removalCount} รายการ{requestedCount > 0 && <> · ขอเพิ่ม {requestedCount} รายการ</>} · {approverText}</>}
                                             onConfirm={submit}
                                             className="!bg-linear-to-r !from-mint-600 !to-mint-500 hover:!from-mint-700 hover:!to-mint-600 rounded-full px-6"
                                         />
@@ -362,6 +395,8 @@ export function ReviewDialog({ dialogId, onClose, onChanged, previewEmployee }: 
                             readOnly
                             unchecked={ticks.unchecked}
                             decisions={ticks.decisions}
+                            requested={ticks.requested}
+                            requestedRoles={requestedRoles}
                         />
                         {detail.can_decide && (
                             <div className="shrink-0 border-t border-gray-100 px-5 py-3 space-y-2.5 bg-white">

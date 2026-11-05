@@ -49,6 +49,7 @@ function ChangeCell({ row }: { row: AdminReviewRow }) {
                     {[roles > 0 && `ถอด ${roles} กลุ่ม`, items > 0 && `${roles > 0 ? '' : 'ถอด '}${items} รายการ`].filter(Boolean).join(' · ')}
                 </span>
             )}
+            {!!row.requested_count && <span className="block text-mint-700">ขอเพิ่ม {row.requested_count} รายการ</span>}
             <span className="block text-[11px] text-gray-400">จาก {row.total_lines} กลุ่มสิทธิ์</span>
         </span>
     );

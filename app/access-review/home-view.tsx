@@ -260,7 +260,7 @@ function RequestRow({ row, meta, onOpen }: { row: ApprovalRow; meta: string; onO
                     {row.requester.department ? ` · ${row.requester.department}` : ''}
                 </p>
                 <p className="mt-0.5 truncate text-xs text-gray-500">
-                    {row.total_lines} สิทธิ์{notUsed > 0 ? <span className="text-rose-600"> · ไม่ใช้ {notUsed}</span> : ''} · {meta}
+                    {row.total_lines} สิทธิ์{notUsed > 0 ? <span className="text-rose-600"> · ไม่ใช้ {notUsed}</span> : ''}{row.requested_count ? <span className="text-mint-700"> · ขอเพิ่ม {row.requested_count}</span> : ''} · {meta}
                 </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">

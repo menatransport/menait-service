@@ -3,7 +3,8 @@
 import { memo, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ListChecks, Search, Warehouse } from 'lucide-react';
 import { SYSTEM_META, SystemIcon } from './components';
-import type { Decision, RoleItem, SystemCode } from './types';
+import { GroupRequestCard, RequestCard } from './request-card';
+import type { CatalogRole, Decision, RoleItem, SystemCode } from './types';
 
 /**
  * The "ยืนยันสิทธิ์การเข้าถึง" checklist — every system on one scrollable page (no tabs), grouped
@@ -19,6 +20,8 @@ export interface ChecklistRoleData {
     item_count: number;
     items: RoleItem[];
 }
+
+const NO_ITEMS: RoleItem[] = [];
 
 export interface ChecklistSystemData {
     code: SystemCode;
@@ -36,7 +39,16 @@ interface ChecklistProps {
     /** For item-less roles (item_count === 0) — a single whole-role tick */
     decisions: Map<number, Decision>;
     onDecision?: (userRoleId: number, decision: Decision) => void;
+    /** user_role_id → items the requester asked to ADD ("ต้องการเพิ่มสิทธิ์") */
+    requested?: Map<number, RoleItem[]>;
+    onRequestChange?: (userRoleId: number, items: RoleItem[]) => void;
+    /** Whole Email groups the requester asked to join ("ต้องการเพิ่มอีเมลกลุ่ม") */
+    requestedRoles?: CatalogRole[];
+    onRequestRolesChange?: (roles: CatalogRole[]) => void;
 }
+
+/** The section the "ต้องการเพิ่มอีเมลกลุ่ม" picker lives in — shown even when the requester has no group yet. */
+const GROUP_SYSTEM: SystemCode = 'EMAIL';
 
 // A handful of V2 gradient tiles cycled per category box — keeps the prototype's colourful feel
 // without hardcoding hex (CLAUDE: tokens only).
@@ -55,9 +67,11 @@ const menuLabel = (it: RoleItem) => it.item ? `${it.category} · ${it.item}` : i
  * (ATMS menus are one item per category, so a box per category was mostly headers).
  */
 function AtmsRoleBody({
-    items, userRoleId, uncheckedSet, readOnly, onlyUnchecked, search, onToggleItem, onToggleMany,
+    items, userRoleId, uncheckedSet, readOnly, onlyUnchecked, search, onToggleItem, onToggleMany, requested, onRequestChange,
 }: {
     items: RoleItem[];
+    requested: RoleItem[];
+    onRequestChange?: (userRoleId: number, items: RoleItem[]) => void;
     userRoleId: number;
     uncheckedSet: Set<number>;
     readOnly: boolean;
@@ -72,7 +86,18 @@ function AtmsRoleBody({
     return (
         <div className="px-3 pb-3 grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start">
             <ItemPanel {...shared} title="คลังสินค้า" icon={Warehouse} items={warehouses} labelOf={warehouseLabel} />
-            <ItemPanel {...shared} title="เมนูสิทธิ์" icon={ListChecks} items={menus} labelOf={menuLabel} />
+            <div className="space-y-3 min-w-0">
+                <RequestCard
+                    system="ATMS"
+                    ownItems={items}
+                    requested={requested}
+                    readOnly={readOnly}
+                    excludeCategory={ATMS_WAREHOUSE_CATEGORY}
+                    labelOf={menuLabel}
+                    onChange={next => onRequestChange?.(userRoleId, next)}
+                />
+                <ItemPanel {...shared} title="เมนูสิทธิ์" icon={ListChecks} items={menus} labelOf={menuLabel} />
+            </div>
         </div>
     );
 }
@@ -236,7 +261,10 @@ function CategoryBox({
 
 const RoleBlock = memo(({
     role, systemCode, readOnly, uncheckedSet, decision, onlyUnchecked, search, expanded, onToggleExpand, onToggleItem, onToggleMany, onDecision,
+    requested, onRequestChange,
 }: {
+    requested: RoleItem[];
+    onRequestChange?: (userRoleId: number, items: RoleItem[]) => void;
     role: ChecklistRoleData;
     systemCode: SystemCode;
     readOnly: boolean;
@@ -300,6 +328,11 @@ const RoleBlock = memo(({
                     <p className="text-sm font-semibold text-ink-900 truncate">{role.role_name}</p>
                     {role.account_name && <p className="text-[11px] text-gray-400 font-mono truncate">{role.account_name}</p>}
                 </div>
+                {requested.length > 0 && (
+                    <span className="shrink-0 text-xs font-medium tabular-nums rounded-full px-2 py-0.5 bg-emerald-50 text-mint-700">
+                        ขอเพิ่ม {requested.length}
+                    </span>
+                )}
                 <span className={`shrink-0 text-xs font-medium tabular-nums rounded-full px-2 py-0.5 ${tickedCount === role.items.length ? 'bg-emerald-50 text-mint-700' : 'bg-rose-50 text-rose-700'}`}>
                     ติ๊กอยู่ {tickedCount} / {role.items.length}
                 </span>
@@ -314,6 +347,8 @@ const RoleBlock = memo(({
                     search={search}
                     onToggleItem={onToggleItem}
                     onToggleMany={onToggleMany}
+                    requested={requested}
+                    onRequestChange={onRequestChange}
                 />
             )}
             {expanded && systemCode !== 'ATMS' && (
@@ -340,13 +375,24 @@ const RoleBlock = memo(({
 });
 RoleBlock.displayName = 'RoleBlock';
 
-export function Checklist({ systems, readOnly, unchecked, onToggleItem, onToggleMany, decisions, onDecision }: ChecklistProps) {
+export function Checklist({
+    systems, readOnly, unchecked, onToggleItem, onToggleMany, decisions, onDecision, requested, onRequestChange,
+    requestedRoles = [], onRequestRolesChange,
+}: ChecklistProps) {
     const [search, setSearch] = useState('');
     const [onlyUnchecked, setOnlyUnchecked] = useState(false);
     const [collapsedAll, setCollapsedAll] = useState(false);
     const [manualExpanded, setManualExpanded] = useState<Map<number, boolean>>(new Map());
 
     const totalItems = systems.reduce((n, s) => n + s.roles.reduce((m, r) => m + r.items.length, 0), 0);
+    const groupPickerOn = !readOnly && Boolean(onRequestRolesChange);
+    const showGroups = groupPickerOn || requestedRoles.length > 0;
+    const shownSystems = useMemo(
+        () => showGroups && !systems.some(s => s.code === GROUP_SYSTEM)
+            ? [...systems, { code: GROUP_SYSTEM, name: 'Email Group', roles: [] }]
+            : systems,
+        [systems, showGroups],
+    );
 
     return (
         <div className="flex flex-col h-full min-h-0">
@@ -380,7 +426,7 @@ export function Checklist({ systems, readOnly, unchecked, onToggleItem, onToggle
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 space-y-5">
-                {systems.map(sys => (
+                {shownSystems.map(sys => (
                     <div key={sys.code} className="space-y-2.5">
                         <div className="flex items-center gap-2">
                             <span className="v2-tile-blue size-7 rounded-xl flex items-center justify-center shrink-0">
@@ -389,6 +435,15 @@ export function Checklist({ systems, readOnly, unchecked, onToggleItem, onToggle
                             <h3 className="text-sm font-bold text-ink-900">{SYSTEM_META[sys.code]?.label ?? sys.name}</h3>
                         </div>
                         <div className="space-y-2.5">
+                            {sys.code === GROUP_SYSTEM && showGroups && (
+                                <GroupRequestCard
+                                    system={GROUP_SYSTEM}
+                                    heldRoleIds={sys.roles.map(r => r.role_id)}
+                                    requested={requestedRoles}
+                                    readOnly={!groupPickerOn}
+                                    onChange={onRequestRolesChange}
+                                />
+                            )}
                             {sys.roles.map(role => (
                                 <RoleBlock
                                     key={role.user_role_id}
@@ -408,6 +463,8 @@ export function Checklist({ systems, readOnly, unchecked, onToggleItem, onToggle
                                     onToggleItem={onToggleItem}
                                     onToggleMany={onToggleMany}
                                     onDecision={onDecision}
+                                    requested={requested?.get(role.user_role_id) ?? NO_ITEMS}
+                                    onRequestChange={onRequestChange}
                                 />
                             ))}
                         </div>

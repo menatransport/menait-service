@@ -18,6 +18,8 @@ export interface AccountRoleLine {
     item_count: number;
     /** Items NOT granted — everything else starts (and defaults to) ticked/granted */
     unchecked_item_ids: number[];
+    /** Additive — items of other roles (same system) the requester asked to ADD ("ต้องการเพิ่มสิทธิ์") */
+    requested_item_ids?: number[];
     /** "keep" when no line has been saved yet; only meaningful on its own for item-less roles */
     decision: Decision;
     note: string | null;
@@ -68,6 +70,8 @@ export interface MeResponse {
     route_preview: RoutePreview;
     /** The requester's own saved note, prefilled into "ข้อเสนอแนะ (ผู้แจ้ง)" */
     requester_note: string | null;
+    /** Additive — whole roles asked for ("ต้องการเพิ่มอีเมลกลุ่ม") */
+    requested_roles?: RequestedRole[];
 }
 
 export interface RoleItem {
@@ -86,10 +90,33 @@ export interface ItemsRole {
     role_name: string;
     system_code: SystemCode;
     items: RoleItem[];
+    /** Additive — what the requester asked to add to this role */
+    requested_items?: RoleItem[];
 }
 
 export interface ItemsResponse {
     roles: ItemsRole[];
+}
+
+/** A whole role (Email group) — GET /catalog/roles rows, and what a review asked to join */
+export interface CatalogRole {
+    id: number;
+    name: string;
+}
+
+export interface RequestedRole extends CatalogRole {
+    system_code: SystemCode;
+}
+
+export interface CatalogRolesResponse {
+    system_code: SystemCode;
+    roles: CatalogRole[];
+}
+
+/** GET /catalog?system= — every distinct item of the system's roles (one per category/item/permission label) */
+export interface CatalogResponse {
+    system_code: SystemCode;
+    items: RoleItem[];
 }
 
 export interface ReviewLineInput {
@@ -98,6 +125,8 @@ export interface ReviewLineInput {
     unchecked_item_ids: number[];
     /** Only honoured for item-less (Email) roles */
     decision?: Decision;
+    /** Items to ADD to this role. Replaces the stored set; omit to leave it as is. */
+    requested_item_ids?: number[];
 }
 
 export interface RequesterInfo {
@@ -119,6 +148,8 @@ export interface ApprovalRow {
     remove_count: number;
     /** Unticked items on roles that were otherwise kept */
     unchecked_count: number;
+    /** Additive — items + whole roles asked to be added */
+    requested_count?: number;
     route: RoutePreview;
     status: ReviewStatus;
     next_approver_names: string[];
@@ -143,6 +174,9 @@ export interface ReviewLineDetail {
     item_count: number;
     unchecked_item_ids: number[];
     unchecked_count: number;
+    /** Additive */
+    requested_item_ids?: number[];
+    requested_count?: number;
 }
 
 export interface ReviewApprover {
@@ -158,6 +192,8 @@ export interface ReviewDetail {
     cycle: { id: number; name: string };
     requester: RequesterInfo;
     lines: ReviewLineDetail[];
+    /** Additive — whole roles asked for */
+    requested_roles?: RequestedRole[];
     approvers: ReviewApprover[];
     can_decide: boolean;
     submitted_at: string | null;
@@ -290,6 +326,8 @@ export interface AdminReviewRow {
     review_id: number | null;
     /** Additive — unticked items on otherwise-kept roles */
     unchecked_count?: number;
+    /** Additive — items asked to be added ("ต้องการเพิ่มสิทธิ์") */
+    requested_count?: number;
     /** Additive — who decides next while pending (["ผู้ดูแลระบบ IT"] for the IT queue) */
     next_approver_names?: string[];
     /** Additive — who approved / rejected */
@@ -347,6 +385,8 @@ export interface ReviewChangeLine {
     before_count: number;
     after_count: number;
     removed: RoleItem[];
+    /** Additive — "ต้องการเพิ่มสิทธิ์": menus the requester asked to add to this role */
+    requested?: RoleItem[];
     /** Items added to the role after submit — the requester never reviewed them */
     added_since: RoleItem[];
     /** Items in "before" that have since been removed from the source system */
@@ -366,4 +406,6 @@ export interface ReviewChanges {
     comment: string | null;
     has_snapshot: boolean;
     lines: ReviewChangeLine[];
+    /** Additive — whole roles asked for ("ต้องการเพิ่มอีเมลกลุ่ม") */
+    requested_roles?: RequestedRole[];
 }
