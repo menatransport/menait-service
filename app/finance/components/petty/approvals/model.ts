@@ -127,7 +127,7 @@ export function pendingHint(docs: DocsState | null): { text: string; attachFolde
   if (docs.fromClerk.length > 0) {
     return { text: 'เอกสารยังไม่ครบ ให้คนเปิดใบแนบเพิ่มก่อน หรือกดตีกลับพร้อมบอกว่าขาดอะไร', attachFolder: null };
   }
-  return { text: 'โอนเงินแล้วแนบสลิปโอนก่อน แล้วค่อยกดอนุมัติจ่าย', attachFolder: docs.slipFolder };
+  return { text: 'โอนเงินแล้วกด อนุมัติจ่าย แนบสลิปในกล่องยืนยันได้เลย', attachFolder: docs.slipFolder };
 }
 
 /** ช่อง "เอกสาร" บนการ์ด — ขาดแค่สลิปโอนของเจ้าของเงินสดไม่ใช่ความผิดของใบ จึงเป็นสีเตือน ไม่ใช่สีแดง */

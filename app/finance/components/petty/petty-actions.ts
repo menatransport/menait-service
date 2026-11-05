@@ -5,8 +5,9 @@ import { ApiError } from '@/lib/finance/api-error';
 import { DEBT_DOC_MAX, debtDocProblem, needsDebtDoc } from '@/lib/finance/petty-debt';
 import { bangkokDate } from '@/lib/finance/petty-doc';
 import { transferCalc } from '@/lib/finance/petty-transfer';
+import { pettyFileProblem } from '@/lib/finance/petty-upload';
 import { showAlert } from '../../api';
-import { countAttachments, getBalance, postAction, type PettyAction } from '../../petty-api';
+import { countAttachments, getBalance, postAction, uploadPettyFiles, type PettyAction } from '../../petty-api';
 import { pettyConfirm, pettyReview } from './petty-confirm';
 
 type Prompt = { isConfirmed?: boolean; value?: string };
@@ -19,8 +20,15 @@ export type PettyActionDeps = {
   post: typeof postAction;
   countAttachments: typeof countAttachments;
   getBalance: typeof getBalance;
+  /** อัปโหลดสลิปโอนจากกล่องอนุมัติจ่าย (ไม่ส่งมา = ตัวจริง) */
+  upload?: typeof uploadPettyFiles;
 };
-const LIVE: PettyActionDeps = { confirm: pettyConfirm, alert: showAlert, post: postAction, countAttachments, getBalance };
+const LIVE: PettyActionDeps = { confirm: pettyConfirm, alert: showAlert, post: postAction, countAttachments, getBalance, upload: uploadPettyFiles };
+
+/** หมวดไฟล์สลิปโอนของเจ้าของเงินสด (ตรงกับ isHolderAttachment ใน petty-spec) */
+const SLIP_FOLDER = 'transfer';
+/** ค่าที่กล่องอนุมัติจ่ายคืนมา: วันที่จ่าย + สลิปที่เพิ่งเลือก (ว่างได้ถ้าแนบไว้แล้ว) */
+export type ApproveFormValue = { transfer_date: string; files: File[] };
 
 /**
  * เปลี่ยนสถานะใบหนึ่งใบจากปุ่มลัดในตารางหรือแผงรายละเอียด — ถามสิ่งที่ต้องกรอก (เหตุผล วันที่จ่าย เลข DD เลขรับสภาพหนี้)
@@ -37,19 +45,33 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
   const baht = claim.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 });
 
   if (action === 'approve') {
-    // flow v2: อนุมัติ = จ่ายเงินในจังหวะเดียวกัน — ถามวันที่จ่าย (สลิปโอนอยู่ในด่านเอกสารอยู่แล้ว)
+    // อนุมัติ = จ่ายเงินในจังหวะเดียวกัน: กล่องเดียวถามวันที่จ่าย + แนบสลิปโอน แล้วกดยืนยันทีเดียว (ผู้ใช้สั่ง 5/11/2026
+    // "แนบสลิปและอนุมัติทำเป็นขั้นตอนเดียวกัน") · แนบไว้ก่อนจากการ์ดก็ได้ กล่องจะบอกว่ามีแล้วกี่ไฟล์
     const [counts, balance] = await Promise.all([
       countAttachments(claim.form_id), getBalance(claim.fund_id).catch(() => null),
     ]);
-    body.attachments = counts;
+    const slips = counts[SLIP_FOLDER] ?? 0;
+    const ids = approveFormIds(claim.form_id);
     // ใบมี พจร. ไม่ถามเลขรับสภาพหนี้ตรงนี้แล้ว — เจ้าของเงินสดใส่หลังโอนเงิน (action debt-doc) ก่อนติ๊กเข้ารอบ (ผู้ใช้สั่ง 29/10/2026)
     // หน้าตาเดียวกับกล่อง "ยืนยันอนุมัติคำขอเบิกเงิน Advance" (หัวเรื่อง + ฟอร์ม + ยืนยัน/ยกเลิก) แล้วเติมตัวเลขของเงินสดย่อย
     const res = await showConfirm({ title: 'ยืนยันอนุมัติจ่ายเงินสดย่อย',
-      html: approveDialogHtml(claim, balance),
-      input: 'date', inputLabel: 'วันที่จ่ายเงิน', inputValue: bangkokDate(new Date().toISOString()),
-      inputValidator: (v: string) => (!v ? 'กรุณาระบุวันที่จ่าย' : null) }) as Prompt;
+      html: approveDialogHtml(claim, balance) + approveFormHtml(ids, slips),
+      focusConfirm: false,
+      preConfirm: () => readApproveForm(ids, slips) }) as { isConfirmed?: boolean; value?: ApproveFormValue | string };
     if (!res?.isConfirmed) return false;
-    body.transfer_date = res.value;
+    // เทสต์/กล่องเก่าส่ง value เป็นวันที่ล้วน ๆ ก็ยังรับ
+    const form: ApproveFormValue = typeof res.value === 'string' ? { transfer_date: res.value, files: [] } : (res.value ?? { transfer_date: '', files: [] });
+    if (form.files.length) {
+      const failed = await (deps.upload ?? uploadPettyFiles)(claim.form_id, SLIP_FOLDER, form.files);
+      if (failed.length) {
+        showAlert({ icon: 'error', title: 'แนบสลิปไม่สำเร็จ', text: `ไฟล์ที่ไม่ขึ้น: ${failed.join(', ')} ลองใหม่อีกครั้ง ใบยังไม่ถูกอนุมัติ` });
+        return false;
+      }
+      body.attachments = await countAttachments(claim.form_id);
+    } else {
+      body.attachments = counts;
+    }
+    body.transfer_date = form.transfer_date;
   }
 
   if (action === 'head-approve') {
@@ -149,6 +171,48 @@ function headApproveHtml(claim: PettyClaim, who: string, baht: string): string {
     + `<div style="text-align:left;font-size:14px;line-height:1.7">${row('ผู้ขอเบิก', who)}${row('จ่ายให้', claim.payee_name ?? '-')}`
     + `${row('ยอดเบิก', `${baht} บาท`)}`
     + `<div style="margin-top:8px;font-size:12px;color:#6b7f9e">อนุมัติแล้วใบไปที่เจ้าของเงินสด เพื่ออนุมัติจ่ายและโอนเงิน</div></div>`;
+}
+
+/** id ของช่องในกล่องอนุมัติจ่าย (ต่อใบ กันชนกันเมื่อเปิดซ้อน) */
+export function approveFormIds(formId: string): { date: string; file: string } {
+  const key = formId.replace(/[^A-Za-z0-9]/g, '');
+  return { date: `petty-pay-date-${key}`, file: `petty-pay-slip-${key}` };
+}
+
+/** ฟอร์มท้ายกล่องอนุมัติจ่าย: วันที่จ่าย + แนบสลิปโอน — สองอย่างนี้กับปุ่มยืนยันคือขั้นเดียวกัน */
+export function approveFormHtml(ids: { date: string; file: string }, slipsAttached: number): string {
+  const today = bangkokDate(new Date().toISOString());
+  const slipNote = slipsAttached > 0
+    ? `แนบไว้แล้ว ${slipsAttached} ไฟล์ จะแนบเพิ่มหรือไม่แนบก็ได้`
+    : 'โอนเงินแล้วแนบสลิปตรงนี้ แล้วกดยืนยันทีเดียว (รูปหรือ PDF ไม่เกิน 10 MB)';
+  const label = 'display:block;font-size:13px;color:#5a6a80;margin:0 0 4px;text-align:left';
+  return `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #edf1f7;text-align:left">`
+    + `<label for="${ids.date}" style="${label}">วันที่จ่ายเงิน</label>`
+    + `<input id="${ids.date}" type="date" value="${today}" style="display:block;width:100%;box-sizing:border-box;height:40px;margin:0 0 12px;padding:0 10px;border:1px solid #dbe4f3;border-radius:10px;font-size:14px;color:#10233f">`
+    + `<label for="${ids.file}" style="${label}">สลิปโอนเงิน${slipsAttached > 0 ? '' : ' <span style="color:#be123c">*</span>'}</label>`
+    + `<input id="${ids.file}" type="file" multiple accept="image/*,application/pdf" style="display:block;width:100%;font-size:13px;color:#10233f">`
+    + `<div style="font-size:12px;color:#6b7f9e;margin-top:4px">${slipNote}</div></div>`;
+}
+
+/**
+ * อ่านค่าจากฟอร์มในกล่อง (preConfirm ของ SweetAlert): วันที่ต้องมี · สลิปต้องมีถ้ายังไม่เคยแนบ · ไฟล์ต้องผ่านกติกาขนาด/ชนิด
+ * คืน false = ยังปิดกล่องไม่ได้ พร้อมข้อความใต้ปุ่ม
+ */
+export async function readApproveForm(ids: { date: string; file: string }, slipsAttached: number): Promise<ApproveFormValue | false> {
+  const dateEl = document.getElementById(ids.date) as HTMLInputElement | null;
+  const fileEl = document.getElementById(ids.file) as HTMLInputElement | null;
+  const transfer_date = dateEl?.value ?? '';
+  const files = Array.from(fileEl?.files ?? []);
+  const fail = async (msg: string) => {
+    const { default: Swal } = await import('sweetalert2');
+    Swal.showValidationMessage(msg);
+    return false as const;
+  };
+  if (!transfer_date) return fail('กรุณาระบุวันที่จ่าย');
+  if (!files.length && slipsAttached === 0) return fail('แนบสลิปโอนเงินก่อนยืนยัน');
+  const bad = files.map(f => ({ f, why: pettyFileProblem(f.name, f.size) })).find(x => x.why);
+  if (bad) return fail(`${bad.f.name}: ${bad.why}`);
+  return { transfer_date, files };
 }
 
 /** เนื้อหากล่องยืนยันอนุมัติจ่าย: บรรทัด "ฟอร์ม …" แบบ Advance แล้วตามด้วยตัวเลขของเงินสดย่อย */

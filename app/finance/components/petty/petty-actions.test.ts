@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettyClaim } from '@/app/finance/types-petty';
-import { approveDialogHtml, runPettyAction, type PettyActionDeps } from './petty-actions';
+import { approveDialogHtml, approveFormHtml, runPettyAction, type PettyActionDeps } from './petty-actions';
 
 const claim = (over: Partial<PettyClaim> = {}): PettyClaim => ({
   id: 1, form_id: 'LB-B02-2610-001', fund_id: 1, expense_type: 'TIRE', expense_date: '2026-10-20',
@@ -69,7 +69,10 @@ describe('runPettyAction approve — ไม่ถามเลขรับสภ�
     const { deps, dialogs, posts } = fakeDeps([{ isConfirmed: true, value: '2026-10-29' }]);
     expect(await runPettyAction(claim({ items: PJR_ITEMS }), 'approve', {}, deps)).toBe(true);
     expect(dialogs).toHaveLength(1);
-    expect(dialogs[0].input).toBe('date');
+    // วันที่จ่ายกับสลิปโอนอยู่ในกล่องเดียวกับปุ่มยืนยัน (ขั้นเดียว)
+    expect(String(dialogs[0].html)).toContain('วันที่จ่ายเงิน');
+    expect(String(dialogs[0].html)).toContain('สลิปโอนเงิน');
+    expect(typeof dialogs[0].preConfirm).toBe('function');
     expect(JSON.stringify(dialogs)).not.toContain('กรอกเลขที่ใบรับสภาพหนี้');
     expect(posts).toHaveLength(1);
     expect(posts[0].action).toBe('approve');
@@ -80,6 +83,39 @@ describe('runPettyAction approve — ไม่ถามเลขรับสภ�
     const { deps, posts } = fakeDeps([{ isConfirmed: false }]);
     expect(await runPettyAction(claim({ items: PJR_ITEMS }), 'approve', {}, deps)).toBe(false);
     expect(posts).toHaveLength(0);
+  });
+  test('สลิปที่เลือกในกล่องถูกอัปโหลดก่อน แล้วค่อยยิง approve ด้วยจำนวนไฟล์ที่นับใหม่', async () => {
+    const file = new File(['x'], 'slip.png', { type: 'image/png' });
+    const { deps, posts } = fakeDeps([{ isConfirmed: true, value: { transfer_date: '2026-11-05', files: [file] } as never }]);
+    const uploads: { formId: string; folder: string; n: number }[] = [];
+    let counted = 0;
+    deps.countAttachments = async () => { counted += 1; return { transfer: counted > 1 ? 1 : 0 }; };
+    deps.upload = async (formId, folder, files) => { uploads.push({ formId, folder, n: files.length }); return []; };
+    expect(await runPettyAction(claim({ form_id: 'LB-B02-2611-221' }), 'approve', {}, deps)).toBe(true);
+    expect(uploads).toEqual([{ formId: 'LB-B02-2611-221', folder: 'transfer', n: 1 }]);
+    expect(posts[0].body.transfer_date).toBe('2026-11-05');
+    expect(posts[0].body.attachments).toEqual({ transfer: 1 });
+  });
+  test('อัปโหลดสลิปไม่สำเร็จ = แจ้งและไม่อนุมัติ', async () => {
+    const file = new File(['x'], 'slip.png', { type: 'image/png' });
+    const { deps, posts, dialogs } = fakeDeps([{ isConfirmed: true, value: { transfer_date: '2026-11-05', files: [file] } as never }]);
+    deps.upload = async () => ['slip.png'];
+    expect(await runPettyAction(claim(), 'approve', {}, deps)).toBe(false);
+    expect(posts).toHaveLength(0);
+    expect(JSON.stringify(dialogs)).toContain('แนบสลิปไม่สำเร็จ');
+  });
+});
+
+describe('approveFormHtml — ฟอร์มวันที่จ่าย + สลิปในกล่องเดียว', () => {
+  test('ยังไม่มีสลิป: ช่องสลิปบังคับ · มีแล้ว: บอกจำนวนและไม่บังคับ', () => {
+    const ids = { date: 'd1', file: 'f1' };
+    const none = approveFormHtml(ids, 0);
+    expect(none).toContain('id="f1"');
+    expect(none).toContain('โอนเงินแล้วแนบสลิปตรงนี้');
+    expect(none).toContain('color:#be123c">*');
+    const some = approveFormHtml(ids, 2);
+    expect(some).toContain('แนบไว้แล้ว 2 ไฟล์');
+    expect(some).not.toContain('color:#be123c">*');
   });
 });
 

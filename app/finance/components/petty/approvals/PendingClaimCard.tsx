@@ -102,8 +102,9 @@ export function PendingClaimCard({ claim, typeName, spec, files, highlight, proc
                 onChange={e => { void attachSlip(e.target.files); e.target.value = ''; }} />
             </>
           )}
-          <button type="button" disabled={processing || docs === null || !docs.ready} onClick={onApprove} className={BTN_APPROVE}
-            title={docs && !docs.ready ? (docs.fromClerk.length ? 'เอกสารยังไม่ครบ' : 'แนบสลิปโอนก่อน') : undefined}>
+          {/* สลิปโอนไม่ต้องแนบก่อน — กล่องอนุมัติจ่ายให้แนบพร้อมยืนยันทีเดียว (ผู้ใช้สั่ง 5/11/2026) · กดไม่ได้เฉพาะเอกสารของคนเปิดใบยังไม่ครบ */}
+          <button type="button" disabled={processing || docs === null || docs.fromClerk.length > 0} onClick={onApprove} className={BTN_APPROVE}
+            title={docs && docs.fromClerk.length ? 'เอกสารยังไม่ครบ' : undefined}>
             <Check className="h-4 w-4" /> {processing ? 'กำลังทำ…' : 'อนุมัติจ่าย'}
           </button>
         </div>

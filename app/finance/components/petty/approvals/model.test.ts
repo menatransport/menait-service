@@ -174,7 +174,7 @@ describe('pendingHint (line above the buttons on the holder\'s pending card)', (
   });
   test('only the holder slip missing: tell the holder to pay, attach the slip, then approve — with an attach button', () => {
     expect(pendingHint(docsState(DD_SPEC, { receipt: 1 }))).toEqual({
-      text: 'โอนเงินแล้วแนบสลิปโอนก่อน แล้วค่อยกดอนุมัติจ่าย', attachFolder: 'transfer',
+      text: 'โอนเงินแล้วกด อนุมัติจ่าย แนบสลิปในกล่องยืนยันได้เลย', attachFolder: 'transfer',
     });
   });
   test('clerk files missing: keep the old message, no attach button (even if the slip is missing too)', () => {

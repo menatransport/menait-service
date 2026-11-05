@@ -148,7 +148,8 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
   const typeName = type?.name_th ?? claim.expense_type;
   const canUpload = canUploadPettyFile({ user: user ?? { employee_id: null }, claim, fund });
   const counts = files.reduce<Record<string, number>>((acc, f) => { const k = f.folder ?? 'request'; acc[k] = (acc[k] ?? 0) + 1; return acc; }, {});
-  const blocked = (gate?.missing.length ?? 0) > 0 || (gate?.holderMissing.length ?? 0) > 0 || (gate?.hard.length ?? 0) > 0;
+  // สลิปโอน (holderMissing) ไม่กั้นปุ่มแล้ว — แนบในกล่องอนุมัติจ่ายพร้อมยืนยัน (ผู้ใช้สั่ง 5/11/2026)
+  const blocked = (gate?.missing.length ?? 0) > 0 || (gate?.hard.length ?? 0) > 0;
   const usesDd = (spec.prints ?? []).includes('DD');
   const debtLabel = debtDocButton(claim);
   const isClerk = !!user?.employee_id && user.employee_id === claim.created_by;
