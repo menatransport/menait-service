@@ -294,13 +294,22 @@ export default function NewPettyClaimPage() {
   return (
     <PettyPage title={TITLE} aside={requester} footer={footer}>
       <Section band index={1} label="ข้อมูลการเบิก">
-        <div className="max-w-xl">
-          <label htmlFor="petty-type" className={LABEL}>ประเภทการเบิก<Req /></label>
-          <ExpenseTypeCombobox id="petty-type" types={types} value={typeCode} onChange={setTypeCode} />
+        {/* ทุกช่องอยู่บนกริด 3 คอลัมน์เดียวกัน กล่องสูงเท่ากันทุกใบ (FIELD h-11) ช่องที่ข้อความยาวกิน 2 คอลัมน์ ไม่มีช่องกว้างลอย ๆ (ผู้ใช้สั่ง 5/11/2026) */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="sm:col-span-2">
+            <label htmlFor="petty-type" className={LABEL}>ประเภทการเบิก<Req /></label>
+            <ExpenseTypeCombobox id="petty-type" types={types} value={typeCode} onChange={setTypeCode} />
+          </div>
+          <label className="block">
+            <span className={LABEL}>วันที่ขอเบิก<Req /></span>
+            <input type="date" value={String(header.expense_date ?? '')}
+              onChange={e => setHeader({ ...header, expense_date: e.target.value })}
+              className={FIELD} />
+          </label>
         </div>
         {type && <div className="mt-4"><PettyTypeNote spec={spec} typeName={type.name_th} /></div>}
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-3">
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <label className="block">
             <span className={LABEL}>ศูนย์และแผนก<Req /></span>
             <select value={costCenter} onChange={e => { setCostCenter(e.target.value); setCostCenterPicked(true); }} className={FIELD}>
@@ -318,7 +327,7 @@ export default function NewPettyClaimPage() {
               </span>
             )}
           </label>
-          <label className="block">
+          <label className="block sm:col-span-2">
             <span className={LABEL}>วงเงินสดย่อย<Req /></span>
             <select value={fundId} onChange={e => { setFundId(e.target.value); setFundPicked(true); }} className={FIELD}>
               <option value="">เลือกวงเงินสดย่อย</option>
@@ -337,12 +346,6 @@ export default function NewPettyClaimPage() {
                 <button type="button" onClick={() => setShowAllFunds(true)} className="font-medium text-ink-700 underline underline-offset-2 hover:text-ink-900">ดูทุกวงเงิน</button>
               </span>
             )}
-          </label>
-          <label className="block">
-            <span className={LABEL}>วันที่ขอเบิก<Req /></span>
-            <input type="date" value={String(header.expense_date ?? '')}
-              onChange={e => setHeader({ ...header, expense_date: e.target.value })}
-              className={FIELD} />
           </label>
         </div>
 

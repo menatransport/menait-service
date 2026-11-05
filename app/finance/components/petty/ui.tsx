@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
  */
 
 export const LINE = 'border-[#edf1f7]';
-export const FIELD = 'w-full rounded-[10px] border border-[#dbe4f3] bg-white px-3 py-2.5 text-sm text-ink-900 placeholder:text-ink-300 transition-colors focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/15 disabled:bg-[#f7f9fc] disabled:text-ink-500';
+export const FIELD = 'h-11 w-full rounded-[10px] border border-[#dbe4f3] bg-white px-3 py-2.5 text-sm text-ink-900 placeholder:text-ink-300 transition-colors focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/15 disabled:bg-[#f7f9fc] disabled:text-ink-500';
 export const FIELD_SM = 'rounded-lg border border-[#dbe4f3] bg-white px-2.5 py-1.5 text-sm text-ink-900 placeholder:text-ink-300 transition-colors focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/15 disabled:bg-[#f7f9fc]';
 export const LABEL = 'mb-1.5 block text-xs font-medium text-ink-500';
 
@@ -53,12 +53,18 @@ export function PettyPage({ title, caption, aside, children, footer, width = 'ma
   );
 }
 
-/** ข้อความหนึ่งบรรทัดบนพื้นน้ำเงิน (ชื่อ · รหัส · แผนก · สาขา) */
+/** การ์ดผู้เบิกบนพื้นน้ำเงิน: วงกลมอักษรแรก + ชื่อ + รหัส · แผนก · สาขา (ผู้ใช้ขอให้เด่นกว่าข้อความลอย 5/11/2026) */
 export function HeaderMeta({ primary, secondary }: { primary: ReactNode; secondary?: ReactNode }) {
+  const initial = typeof primary === 'string' ? primary.trim().charAt(0) : '';
   return (
-    <div className="min-w-0 text-left leading-tight sm:text-right">
-      <p className="truncate text-sm font-semibold text-white">{primary}</p>
-      {secondary && <p className="mt-0.5 truncate text-xs text-white/75">{secondary}</p>}
+    <div className="flex min-w-0 items-center gap-3 rounded-2xl bg-white/15 px-3.5 py-2 ring-1 ring-white/30 backdrop-blur-sm sm:px-4 sm:py-2.5">
+      {initial && (
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white text-base font-semibold text-brand-700" aria-hidden>{initial}</span>
+      )}
+      <div className="min-w-0 leading-tight">
+        <p className="truncate text-sm font-semibold text-white sm:text-[15px]">{primary}</p>
+        {secondary && <p className="mt-0.5 truncate text-xs text-white/85">{secondary}</p>}
+      </div>
     </div>
   );
 }

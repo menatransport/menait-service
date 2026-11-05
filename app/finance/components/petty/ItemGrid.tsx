@@ -18,7 +18,14 @@ const TH = 'px-3 py-2.5 text-left text-xs font-medium text-ink-500 whitespace-no
 /** มือถือ: แถวกลายเป็นการ์ดซ้อน (grid 2 คอลัมน์) · จอใหญ่: ตารางปกติ — DOM ชุดเดียว */
 const CELL = 'sm:table-cell sm:px-3 sm:py-2 sm:align-middle';
 const MOBILE_LABEL = 'mb-1 block text-[11px] font-medium text-ink-500 sm:hidden';
-const CELL_LABEL = 'mb-1 block text-[11px] font-medium text-ink-500';
+const CELL_LABEL = 'mb-1 block overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-medium text-ink-500';
+/** สัดส่วนความกว้างของช่องตามชนิด เมื่อทั้งแถวอยู่บรรทัดเดียว (จอ md ขึ้นไป) — minmax(0, …) ให้ช่องบีบตามกรอบ ไม่ล้นออกนอกการ์ด */
+const cellTrack = (type: string) =>
+  type === 'money' || type === 'number' ? 'minmax(0,0.8fr)'
+  : type === 'select' ? 'minmax(0,0.9fr)'
+  : type === 'date' ? 'minmax(0,1.05fr)'
+  : type === 'tire_positions' ? 'minmax(0,1.2fr)'
+  : 'minmax(0,1fr)';
 
 /**
  * รายการของใบเบิก
@@ -165,9 +172,11 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
                     </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-3 p-3.5 md:grid-cols-4 xl:grid-cols-6">
+                {/* จอ md ขึ้นไป: ทุกช่องของแถวอยู่บรรทัดเดียวเสมอและบีบให้พอดีกรอบ ไม่มีช่องหลุดออกนอกการ์ด (ผู้ใช้สั่ง 5/11/2026) · มือถือยังเรียง 2 คอลัมน์ */}
+                <div className="grid grid-cols-2 gap-x-3 gap-y-3 p-3.5 md:[grid-template-columns:var(--row-cols)]"
+                  style={{ '--row-cols': [...(truckField ? ['minmax(0,1.5fr)'] : []), ...fields.map(f => cellTrack(f.type))].join(' ') } as React.CSSProperties}>
                   {truckField && (
-                    <div className="col-span-2">
+                    <div className="col-span-2 min-w-0 md:col-span-1">
                       <span className={CELL_LABEL}>รถ{truckField.required && <Req />}</span>
                       <TruckPicker lineNo={index + 1}
                         code={String(row.truck_code ?? '')} plate={String(row.truck_plate ?? '')}

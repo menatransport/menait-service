@@ -60,27 +60,35 @@ export function HeaderField({ field, value, form, onChange }: {
             {tab('bank', 'บัญชีธนาคาร')}{tab('promptpay', 'พร้อมเพย์')}
           </div>
         </div>
-        <div className="grid gap-2.5 sm:grid-cols-3">
-          <input value={String(value ?? '')} className={FIELD} aria-label="ชื่อผู้รับเงิน"
-            placeholder="ชื่อ นามสกุล" autoComplete="off"
-            onChange={e => onChange({ payee_name: e.target.value })} />
+        {/* ป้ายเหนือทุกช่องและกล่องสูงเท่ากัน เหมือนช่องอื่นของหัวใบ (ผู้ใช้สั่ง 5/11/2026) */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <label className="block">
+            <span className={LABEL}>ชื่อผู้รับเงิน</span>
+            <input value={String(value ?? '')} className={FIELD} aria-label="ชื่อผู้รับเงิน"
+              placeholder="ชื่อ นามสกุล" autoComplete="off"
+              onChange={e => onChange({ payee_name: e.target.value })} />
+          </label>
           {type === 'bank' && (
-            <select value={String(form.payee_bank ?? '')} className={FIELD}
-              aria-label="ชื่อธนาคาร"
-              onChange={e => onChange({ payee_bank: e.target.value })}>
-              <option value="">ชื่อธนาคาร</option>
-              {Object.entries(BANKS).map(([code, bank]) => <option key={code} value={code}>{bank.label}</option>)}
-            </select>
+            <label className="block">
+              <span className={LABEL}>ธนาคาร</span>
+              <select value={String(form.payee_bank ?? '')} className={FIELD}
+                aria-label="ชื่อธนาคาร"
+                onChange={e => onChange({ payee_bank: e.target.value })}>
+                <option value="">ชื่อธนาคาร</option>
+                {Object.entries(BANKS).map(([code, bank]) => <option key={code} value={code}>{bank.label}</option>)}
+              </select>
+            </label>
           )}
-          <div className={type === 'promptpay' ? 'sm:col-span-2' : undefined}>
+          <label className={`block ${type === 'promptpay' ? 'sm:col-span-2' : ''}`}>
+            <span className={LABEL}>{type === 'promptpay' ? 'เบอร์พร้อมเพย์' : 'เลขบัญชี'}</span>
             <input value={String(form.payee_account_no ?? '')}
               className={`${FIELD} ${hint ? '!border-rose-400' : ''}`}
               placeholder={noPlaceholder} inputMode="numeric" autoComplete="off"
               aria-label={type === 'promptpay' ? 'เบอร์พร้อมเพย์' : 'เลขบัญชีธนาคาร'}
               aria-invalid={Boolean(hint)}
               onChange={e => onChange({ payee_account_no: e.target.value })} />
-            {hint && <p className="mt-1 text-xs text-rose-700">{hint}</p>}
-          </div>
+            {hint && <span className="mt-1 block text-xs text-rose-700">{hint}</span>}
+          </label>
         </div>
       </div>
     );
