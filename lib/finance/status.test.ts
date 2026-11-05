@@ -8,6 +8,7 @@ describe('labels', () => {
   test('awaiting clearing label', () => expect(STATUS_LABELS.AWAITING_CLEARING).toBe('จ่ายแล้วรอเคลียร์'));
   test('returned label', () => expect(STATUS_LABELS.RETURNED).toBe('ตีกลับให้ผู้เบิกแก้ไข'));
   test('awaiting review label', () => expect(STATUS_LABELS.AWAITING_REVIEW).toBe('รอบัญชีตรวจ'));
+  test('cancelled label (ตีกลับแบบยกเลิก)', () => expect(STATUS_LABELS.CANCELLED).toBe('ยกเลิก'));
 });
 
 describe('addDays', () => {

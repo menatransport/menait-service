@@ -1,6 +1,6 @@
 export type AdvanceStatus =
   | 'PENDING_APPROVAL' | 'REJECTED' | 'AWAITING_VOUCHER' | 'AWAITING_PAYMENT' | 'AWAITING_CLEARING'
-  | 'RETURNED' | 'SENT_BACK' | 'CLEARING_APPROVAL' | 'AWAITING_REVIEW' | 'CLOSED';
+  | 'RETURNED' | 'SENT_BACK' | 'CLEARING_APPROVAL' | 'AWAITING_REVIEW' | 'CLOSED' | 'CANCELLED';
 
 export const STATUS_LABELS: Record<AdvanceStatus, string> = {
   PENDING_APPROVAL: 'รออนุมัติ',
@@ -13,6 +13,7 @@ export const STATUS_LABELS: Record<AdvanceStatus, string> = {
   CLEARING_APPROVAL: 'รออนุมัติเคลียร์',
   AWAITING_REVIEW: 'รอบัญชีตรวจ',
   CLOSED: 'ปิดแล้ว',
+  CANCELLED: 'ยกเลิก', // ตีกลับแบบยกเลิกโดยบัญชี จบใบ (04/11/2026)
 };
 
 // V.2 theme palette (brand / aqua / ink / sun / violet / mint). StatusBadge always pairs
@@ -28,6 +29,7 @@ export const STATUS_STYLES: Record<AdvanceStatus, string> = {
   CLEARING_APPROVAL: 'bg-amber-50 text-amber-700 border-amber-200',
   AWAITING_REVIEW: 'bg-violet-50 text-violet-700 border-violet-200',
   CLOSED: 'bg-emerald-50 text-mint-700 border-emerald-200',
+  CANCELLED: 'bg-slate-100 text-ink-600 border-slate-300',
 };
 
 export const CLEAR_DUE_DAYS = 7;

@@ -17,7 +17,7 @@ const TABS: AdvanceListTab[] = [
   { key: 'returned', label: 'ต้องแก้ไข', status: ['RETURNED'] },
   { key: 'clearapprove', label: 'รออนุมัติเคลียร์', status: ['CLEARING_APPROVAL'] },
   { key: 'review', label: 'รอบัญชีตรวจ', status: ['AWAITING_REVIEW'] },
-  { key: 'closed', label: 'ปิดแล้ว', status: ['CLOSED', 'REJECTED'] },
+  { key: 'closed', label: 'ปิดแล้ว', status: ['CLOSED', 'REJECTED', 'CANCELLED'] },
 ];
 
 export default function MyAdvancesPage() {

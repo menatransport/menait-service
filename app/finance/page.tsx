@@ -29,7 +29,7 @@ const TABS: AdvanceListTab[] = [
   { key: 'voucher', label: 'รอตั้งเบิก', status: ['AWAITING_VOUCHER'] },
   { key: 'pay', label: 'รอจ่าย', status: ['AWAITING_PAYMENT'] },
   { key: 'clear', label: 'ติดตามเคลียร์', ...combineTabs(CLEAR_OPTIONS), options: CLEAR_OPTIONS },
-  { key: 'closed', label: 'ปิดแล้ว', status: ['CLOSED'] },
+  { key: 'closed', label: 'ปิดแล้ว', status: ['CLOSED', 'CANCELLED'] },
   { key: 'all', label: 'ทั้งหมด' },
 ];
 

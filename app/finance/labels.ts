@@ -16,7 +16,7 @@ export const LOG_ACTION_LABELS: Record<string, string> = {
   PAY: 'บันทึกการจ่ายเงิน', PAY_EDIT: 'แก้ไขข้อมูลการจ่าย', CLEAR_SUBMIT: 'ส่งเคลียร์เงิน',
   CLEAR_EDIT: 'แก้ไขข้อมูลเคลียร์', SEND_BACK: 'ส่งกลับแก้ไข', CONFIRM: 'ยืนยันปิดรายการ',
   VOUCHER_REJECT: 'ส่งกลับให้บัญชีแก้ตั้งเบิก', DOC_NO_EDIT: 'แก้ไขเลขที่เอกสาร',
-  RETURN: 'ตีกลับให้ผู้เบิกแก้ไข', RETURNED: 'ตีกลับให้ผู้เบิกแก้ไข', RESUBMITTED: 'ส่งใหม่หลังแก้ไข', RESUBMIT: 'ส่งใหม่หลังแก้ไข',
+  RETURN: 'ตีกลับให้ผู้เบิกแก้ไข', RETURNED: 'ตีกลับให้ผู้เบิกแก้ไข', CANCEL: 'ตีกลับแบบยกเลิก', CANCELLED: 'ตีกลับแบบยกเลิก', RESUBMITTED: 'ส่งใหม่หลังแก้ไข', RESUBMIT: 'ส่งใหม่หลังแก้ไข',
   APPROVED: 'อนุมัติ', REJECTED: 'ไม่อนุมัติ',
   OVERDUE_REMIND: 'แจ้งเตือนเกินกำหนด',
   CLEAR_REJECT: 'ไม่อนุมัติการเคลียร์',
