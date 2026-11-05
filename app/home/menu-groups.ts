@@ -13,6 +13,8 @@ export interface MenuItem {
     href?: string;
     /** Sub-items — the item becomes a group (accordion on desktop, bottom sheet on mobile) */
     children?: MenuItem[];
+    /** คำหลังตัวเลขบนป้ายจำนวนเมนูย่อย เช่น "3 ระบบ" (ไม่ใส่ = "เมนู") */
+    countLabel?: string;
     /** Only shown to finance staff (user.is_finance) */
     financeOnly?: boolean;
     /** หัวข้อย่อยในกลุ่ม — รายการติดกันที่มี section เดียวกันจะอยู่ใต้หัวข้อเดียวกัน (เช่น Advance / เงินสดย่อย) */
@@ -39,6 +41,21 @@ export function focusGroup(groups: readonly MenuGroup[], id: string | null | und
 
 /** An item with a link or with sub-items can be opened; anything else is "เร็ว ๆ นี้". */
 export const isMenuItemReady = (item: MenuItem) => Boolean(item.href || item.children?.length);
+
+/**
+ * ตัดรายการที่คนนี้ไม่มีสิทธิ์เห็น (financeOnly) ทั้งชั้นบนและในเมนูย่อย
+ * กลุ่มที่เมนูย่อยถูกตัดจนหมดจะหายไปทั้งกลุ่ม — คนทั่วไปเห็นเงินสดย่อย 4 เมนู บัญชี/การเงินเห็น 7
+ */
+export function visibleItems(items: readonly MenuItem[], canSeeFinance: boolean): MenuItem[] {
+    const out: MenuItem[] = [];
+    for (const item of items) {
+        if (item.financeOnly && !canSeeFinance) continue;
+        if (!item.children) { out.push(item); continue; }
+        const children = visibleItems(item.children, canSeeFinance);
+        if (children.length) out.push({ ...item, children });
+    }
+    return out;
+}
 
 export interface MenuGroup {
     id: string;
@@ -78,6 +95,7 @@ export const MENU_GROUPS: MenuGroup[] = [
                 title: 'ทบทวนสิทธิ์',
                 description: 'ตรวจสอบและยืนยันสิทธิ์การใช้งานระบบ',
                 icon: ShieldCheck,
+                countLabel: 'ระบบ',
                 children: [
                     { title: 'ทบทวนสิทธิ์ ATMS', description: 'สิทธิ์บัญชีผู้ใช้งานระบบ ATMS', icon: Route },
                     { title: 'ทบทวนสิทธิ์ Winspeed', description: 'สิทธิ์ผู้ใช้งานระบบบัญชี Winspeed', icon: Calculator },
@@ -123,18 +141,29 @@ export const MENU_GROUPS: MenuGroup[] = [
         tagline: 'การเงินและบัญชี',
         icon: Wallet,
         tone: 'mint',
+        // 2 กลุ่มย่อยพับไว้ก่อน (autohide) กดชื่อกลุ่มค่อยกาง เปิดได้ทีละกลุ่ม (ผู้ใช้สั่ง 5/11/2026) — เดิมเป็นรายการยาว 11 แถวคั่นด้วยหัวข้อ
         items: [
-            { title: 'เบิกเงิน Advance', description: 'ขอเบิกเงินทดรองจ่ายล่วงหน้า', icon: HandCoins, href: '/finance/advance/new', section: ADVANCE },
-            { title: 'ติดตามคำขอ Advance', description: 'ดูสถานะ จ่ายเงิน และเคลียร์เงินทดรอง', icon: ClipboardCheck, href: '/finance/advance', section: ADVANCE },
-            { title: 'อนุมัติเบิกเงิน Advance', description: 'คำขอเบิกเงินที่รอคุณอนุมัติ', icon: BadgeCheck, href: '/finance/approvals', section: ADVANCE },
-            { title: 'งานเบิกเงิน Advance', description: 'ตั้งเบิก จ่ายเงิน และตรวจเคลียร์ (ฝ่ายการเงิน)', icon: Landmark, href: '/finance', financeOnly: true, section: ADVANCE },
-            { title: 'เบิกเงินสดย่อย', description: 'เปิดใบเบิกแทน พจส. ตามประเภทค่าใช้จ่าย', icon: Receipt, href: '/finance/petty/new', section: PETTY },
-            { title: 'ติดตามใบเบิกเงินสดย่อย', description: 'ดูสถานะใบที่คุณเปิด และแก้ใบที่ถูกตีกลับ', icon: ClipboardCheck, href: '/finance/petty', section: PETTY },
-            { title: 'อนุมัติเบิกเงินสดย่อย', description: 'อนุมัติจ่าย แล้วส่งเคลียร์เป็นรอบพร้อมใบปะหน้า (เจ้าของเงินสด)', icon: BadgeCheck, href: '/finance/petty/approvals', section: PETTY },
-            { title: 'หัวหน้าอนุมัติเงินสดย่อย', description: 'ใบเบิกของลูกทีมก่อนโอน และรอบเคลียร์ที่เจ้าของเงินสดส่งมา', icon: UserCheck, href: '/finance/petty/clear', section: PETTY },
-            { title: 'งานเงินสดย่อย', description: 'ตรวจใบ ตั้งเบิก และจ่ายเงินคืนเจ้าของเงินสด (บัญชี การเงิน)', icon: Landmark, href: '/finance/petty/accounting', financeOnly: true, section: PETTY },
-            { title: 'ยอดกองทุนเงินสดย่อย', description: 'ทุกกองทุน: Advance คงเหลือ ใบที่ยังไม่คืนยอด พร้อมอนุมัติ', icon: Wallet, href: '/finance/petty/funds', financeOnly: true, section: PETTY },
-            { title: 'ตั้งค่าเงินสดย่อย', description: 'กองทุน ผู้ถือเงิน วงเงิน และประเภทการเบิก', icon: Settings2, href: '/finance/petty/master', financeOnly: true, section: PETTY },
+            {
+                title: ADVANCE, description: 'เบิก ติดตาม อนุมัติ และงานการเงินของเงินทดรองจ่าย', icon: HandCoins,
+                children: [
+                    { title: 'เบิกเงิน Advance', description: 'ขอเบิกเงินทดรองจ่ายล่วงหน้า', icon: HandCoins, href: '/finance/advance/new' },
+                    { title: 'ติดตามคำขอ Advance', description: 'ดูสถานะ จ่ายเงิน และเคลียร์เงินทดรอง', icon: ClipboardCheck, href: '/finance/advance' },
+                    { title: 'อนุมัติเบิกเงิน Advance', description: 'คำขอเบิกเงินที่รอคุณอนุมัติ', icon: BadgeCheck, href: '/finance/approvals' },
+                    { title: 'งานเบิกเงิน Advance', description: 'ตั้งเบิก จ่ายเงิน และตรวจเคลียร์ (ฝ่ายการเงิน)', icon: Landmark, href: '/finance', financeOnly: true },
+                ],
+            },
+            {
+                title: PETTY, description: 'เปิดใบ อนุมัติ รวมรอบ ตรวจ และตั้งค่าเงินสดย่อย', icon: Receipt,
+                children: [
+                    { title: 'เบิกเงินสดย่อย', description: 'เปิดใบเบิกแทน พจส. ตามประเภทค่าใช้จ่าย', icon: Receipt, href: '/finance/petty/new' },
+                    { title: 'ติดตามใบเบิกเงินสดย่อย', description: 'ดูสถานะใบที่คุณเปิด และแก้ใบที่ถูกตีกลับ', icon: ClipboardCheck, href: '/finance/petty' },
+                    { title: 'อนุมัติเบิกเงินสดย่อย', description: 'อนุมัติจ่าย แล้วส่งเคลียร์เป็นรอบพร้อมใบปะหน้า (เจ้าของเงินสด)', icon: BadgeCheck, href: '/finance/petty/approvals' },
+                    { title: 'หัวหน้าอนุมัติเงินสดย่อย', description: 'ใบเบิกของลูกทีมก่อนโอน และรอบเคลียร์ที่เจ้าของเงินสดส่งมา', icon: UserCheck, href: '/finance/petty/clear' },
+                    { title: 'งานเงินสดย่อย', description: 'ตรวจใบ ตั้งเบิก และจ่ายเงินคืนเจ้าของเงินสด (บัญชี การเงิน)', icon: Landmark, href: '/finance/petty/accounting', financeOnly: true },
+                    { title: 'ยอดกองทุนเงินสดย่อย', description: 'ทุกกองทุน: Advance คงเหลือ ใบที่ยังไม่คืนยอด พร้อมอนุมัติ', icon: Wallet, href: '/finance/petty/funds', financeOnly: true },
+                    { title: 'ตั้งค่าเงินสดย่อย', description: 'กองทุน ผู้ถือเงิน วงเงิน และประเภทการเบิก', icon: Settings2, href: '/finance/petty/master', financeOnly: true },
+                ],
+            },
         ],
     },
     {

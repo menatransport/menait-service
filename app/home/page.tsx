@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Mascot } from "@/components/mascot";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { MENU_GROUPS, QUICK_LINKS, focusGroup, isMenuItemReady, sectionHeadingAt, type MenuGroup, type MenuItem, type MenuTone } from "./menu-groups";
+import { MENU_GROUPS, QUICK_LINKS, focusGroup, isMenuItemReady, sectionHeadingAt, visibleItems, type MenuGroup, type MenuItem, type MenuTone } from "./menu-groups";
 
 const TONE = {
     blue: { tile: 'v2-tile-blue', soft: 'bg-[#eaf4ff]', text: 'text-brand-700', ring: 'border-[#cfe4ff]' },
@@ -33,8 +33,7 @@ export default function HomePage() {
     const groups = useMemo(
         () => MENU_GROUPS
             .filter(g => !g.adminOnly || (isClient && user?.role === 'a'))
-            .map(g => ({ ...g, items: g.items.filter(i => !i.financeOnly
-                || (isClient && (user?.is_finance || user?.is_accounting || user?.is_treasury))) })),
+            .map(g => ({ ...g, items: visibleItems(g.items, isClient && !!(user?.is_finance || user?.is_accounting || user?.is_treasury)) })),
         [isClient, user]
     );
     // /home?group=finance → a link that shows one group only (no IT search or quick links)
@@ -219,6 +218,8 @@ function OrganizationShortcut({ onNavigate, className }: { onNavigate: (href?: s
 function GroupColumn({ group, index, onNavigate }: { group: MenuGroup; index: number; onNavigate: (href?: string) => void }) {
     const tone = TONE[group.tone];
     const GroupIcon = group.icon;
+    // เมนูย่อยพับไว้ตั้งแต่โหลด และกางได้ทีละกลุ่ม: เปิดกลุ่มใหม่ กลุ่มเดิมพับเอง (autohide)
+    const [openTitle, setOpenTitle] = useState<string | null>(null);
     return (
         <section
             className="max-h-full min-h-0 rounded-[28px] bg-white border border-border shadow-soft p-[clamp(14px,2.2vh,24px)] flex flex-col gap-[clamp(8px,1.2vh,12px)] v2-card-in"
@@ -249,7 +250,9 @@ function GroupColumn({ group, index, onNavigate }: { group: MenuGroup; index: nu
                         return (
                             <div key={item.title} className="contents">
                                 {heading && <SectionHeading label={heading} tone={group.tone} first={i === 0} />}
-                                <MenuRow item={item} tone={group.tone} onNavigate={onNavigate} />
+                                <MenuRow item={item} tone={group.tone} onNavigate={onNavigate}
+                                    open={openTitle === item.title}
+                                    onToggle={() => setOpenTitle(o => (o === item.title ? null : item.title))} />
                             </div>
                         );
                     })}
@@ -287,8 +290,11 @@ function GuideButton({ guide, tone, onNavigate }: { guide: NonNullable<MenuGroup
     );
 }
 
-function MenuRow({ item, tone, onNavigate }: { item: MenuItem; tone: MenuTone; onNavigate: (href?: string) => void }) {
-    const [open, setOpen] = useState(false);
+function MenuRow({ item, tone, onNavigate, open, onToggle }: {
+    item: MenuItem; tone: MenuTone; onNavigate: (href?: string) => void;
+    /** กลุ่มนี้กางอยู่ไหม — การ์ดเป็นคนถือ state เพื่อให้เปิดได้ทีละกลุ่ม */
+    open: boolean; onToggle: () => void;
+}) {
     const panelId = useId();
     const panelRef = useRef<HTMLDivElement>(null);
     const t = TONE[tone];
@@ -314,7 +320,7 @@ function MenuRow({ item, tone, onNavigate }: { item: MenuItem; tone: MenuTone; o
         <button
             type="button"
             disabled={!ready}
-            onClick={() => (isGroup ? setOpen(o => !o) : onNavigate(item.href))}
+            onClick={() => (isGroup ? onToggle() : onNavigate(item.href))}
             aria-expanded={isGroup ? open : undefined}
             aria-controls={isGroup ? panelId : undefined}
             className={cn(
@@ -332,7 +338,7 @@ function MenuRow({ item, tone, onNavigate }: { item: MenuItem; tone: MenuTone; o
             </span>
             {isGroup ? (
                 <span className="flex items-center gap-1.5 shrink-0">
-                    <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full', t.soft, t.text)}>{children.length} ระบบ</span>
+                    <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full', t.soft, t.text)}>{children.length} {item.countLabel ?? 'เมนู'}</span>
                     <ChevronDown className={cn('w-[18px] h-[18px] text-ink-300 transition-transform duration-300', open && 'rotate-180 text-brand-600')} />
                 </span>
             ) : ready ? (
