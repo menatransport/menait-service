@@ -25,7 +25,7 @@ export function ClaimReviewPanel({ claim, needsDd, onSaved }: { claim: PettyClai
       title: 'ยืนยันตรวจผ่าน?',
       rows: [['เลขที่ใบเบิก', claim.form_id], ['ยอดเงิน (บาท)', formatBaht(claim.amount)], ['เลขที่ DD', claim.dd_no]],
       warning: missingDd ? 'ใบนี้ยังไม่มีเลข DD' : null,
-      note: 'ผ่านครบทุกใบในรอบแล้ว รอบจะไปรอตั้งเบิก',
+      note: 'ผ่านครบทุกใบแล้ว ตั้งเบิกได้ในหน้ารอบ (กล่องตรวจและตั้งเบิก)',
       confirmButtonText: 'ยืนยันตรวจผ่าน',
     }))) return;
     setSaving(true);

@@ -17,7 +17,7 @@ import { RoundClearPanel } from './RoundClearPanel';
 import { RoundDocNumbersButton } from './RoundDocNumbersButton';
 import { RoundFiles } from './RoundFiles';
 import { RoundPayForm } from './RoundPayForm';
-import { RoundVoucherForm } from './RoundVoucherForm';
+import { RoundReviewVoucherPanel } from './RoundReviewVoucherPanel';
 import { ClaimBadge, RoundBadge } from './StatusBadges';
 
 const TH = 'px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap';
@@ -131,7 +131,7 @@ export function RoundDetail({ roundId, onChanged, onOpenClaim, onLoaded }: {
       </Panel>
       <Panel title={`ใบในรอบ (${claims.length})`}>
         {round.status === 'AWAITING_REVIEW' && notPassed > 0 && (
-          <p className="mb-3 text-xs text-ink-500">ยังเหลือ {notPassed} ใบที่บัญชียังไม่ผ่าน ผ่านครบทุกใบแล้วรอบจะไปรอตั้งเบิก</p>
+          <p className="mb-3 text-xs text-ink-500">ยังเหลือ {notPassed} ใบที่บัญชียังไม่ผ่าน ตรวจและตั้งเบิกได้ในกล่อง "ตรวจและตั้งเบิก" ด้านล่าง</p>
         )}
         <RoundClaims claims={claims} typeName={typeName} onOpen={onOpenClaim} />
       </Panel>
@@ -139,7 +139,10 @@ export function RoundDetail({ roundId, onChanged, onOpenClaim, onLoaded }: {
       <div className="flex flex-wrap gap-2 empty:hidden">
         <RoundDocNumbersButton key={`doc-${refreshKey}`} round={round} onSaved={onSaved} />
       </div>
-      {round.status === 'REVIEWED' && perms.voucher && <RoundVoucherForm key={`v-${refreshKey}`} round={round} onSaved={onSaved} />}
+      {/* ตรวจและตั้งเบิกเป็นขั้นเดียว (5/11/2026): รอบที่ถึงบัญชีแล้วใช้กล่องเดียวตั้งแต่ใบแรกจนตั้งเบิก */}
+      {(round.status === 'AWAITING_REVIEW' || round.status === 'REVIEWED') && (perms.review || perms.voucher) && (
+        <RoundReviewVoucherPanel key={`rv-${refreshKey}`} round={round} perms={perms} onSaved={onSaved} onOpenClaim={onOpenClaim} />
+      )}
       {round.status === 'VOUCHERED' && perms.pay && <RoundPayForm key={`pay-${refreshKey}`} round={round} onSaved={onSaved} />}
       {round.status === 'CLEAR_PENDING' && round.can_clear && <RoundClearPanel key={`ca-${refreshKey}`} round={round} onSaved={onSaved} />}
       {round.status === 'CLEAR_PENDING' && !round.can_clear && (

@@ -13,7 +13,7 @@ import { costCenterLabel } from './petty-cost-centers';
 // ---------------------------------------------------------------- แถบ
 
 export type WorklistKind = 'claim' | 'round';
-export type WorklistTabKey = 'review' | 'sentback' | 'voucher' | 'pay' | 'closed' | 'all';
+export type WorklistTabKey = 'review' | 'sentback' | 'pay' | 'closed' | 'all';
 export type WorklistTab = {
   key: WorklistTabKey; label: string; kind: WorklistKind;
   claimStatuses?: PettyStatus[];
@@ -25,9 +25,9 @@ export type WorklistTab = {
 export const WORKLIST_ROUND_STATUSES: PettyRoundStatus[] = ['AWAITING_REVIEW', 'REVIEWED', 'VOUCHERED', 'CLOSED'];
 
 export const WORKLIST_TABS: WorklistTab[] = [
-  { key: 'review', label: 'รอบัญชีตรวจ', kind: 'claim', claimStatuses: ['AWAITING_REVIEW'] },
+  // ตรวจกับตั้งเบิกเป็นขั้นเดียว (ผู้ใช้สั่ง 5/11/2026): แถวเป็นรอบ เปิดรอบแล้วผ่านทีละใบหรือผ่านที่เหลือทั้งหมด + ตั้งเบิกในกล่องเดียว
+  { key: 'review', label: 'รอตรวจและตั้งเบิก', kind: 'round', roundStatuses: ['AWAITING_REVIEW', 'REVIEWED'] },
   { key: 'sentback', label: 'ส่งกลับแก้ไข', kind: 'claim', claimStatuses: ['SENT_BACK'] },
-  { key: 'voucher', label: 'รอตั้งเบิก', kind: 'round', roundStatuses: ['REVIEWED'] },
   { key: 'pay', label: 'รอจ่าย', kind: 'round', roundStatuses: ['VOUCHERED'] },
   { key: 'closed', label: 'ปิดแล้ว', kind: 'round', roundStatuses: ['CLOSED'] },
   { key: 'all', label: 'ทั้งหมด', kind: 'round' },
@@ -44,11 +44,10 @@ export function resolveTab(raw: string | null | undefined, fallback: WorklistTab
   return WORKLIST_TABS.some(t => t.key === raw) ? raw as WorklistTabKey : fallback;
 }
 
-/** บัญชี (และแอดมิน) เริ่มที่ รอบัญชีตรวจ · การเงินล้วนเริ่มที่ รอจ่าย */
+/** บัญชี (และแอดมิน) เริ่มที่ รอตรวจและตั้งเบิก · การเงินล้วนเริ่มที่ รอจ่าย */
 export function defaultTab(perms: { review: boolean; voucher: boolean; pay: boolean }): WorklistTabKey {
-  if (perms.review) return 'review';
-  if (perms.pay) return 'pay';
-  return perms.voucher ? 'voucher' : 'all';
+  if (perms.review || perms.voucher) return 'review';
+  return perms.pay ? 'pay' : 'all';
 }
 
 export type WorklistRows = { kind: 'claim'; rows: PettyClaim[] } | { kind: 'round'; rows: PettyRound[] };
@@ -108,15 +107,14 @@ export function typeNeedsDd(types: readonly PettyExpenseType[], code: string): b
 
 export function worklistStats(claims: readonly PettyClaim[], rounds: readonly PettyRound[], types: readonly PettyExpenseType[]): WorklistStat[] {
   const waiting = claims.filter(c => c.status === 'AWAITING_REVIEW');
-  const toVoucher = rounds.filter(r => r.status === 'REVIEWED');
+  const toWork = rounds.filter(r => r.status === 'AWAITING_REVIEW' || r.status === 'REVIEWED');
   const toPay = rounds.filter(r => r.status === 'VOUCHERED');
   const owed = rounds.filter(r => r.status === 'AWAITING_REVIEW' || r.status === 'REVIEWED' || r.status === 'VOUCHERED');
   const baht = (n: number) => `${formatBaht(n)} บาท`;
   return [
     { label: 'ยอดรอจ่ายคืน (บาท)', value: formatBaht(sum(owed.map(r => r.total_amount))), hint: `${owed.length} รอบ` },
-    { label: 'รอบัญชีตรวจ', value: waiting.length, hint: baht(sum(waiting.map(c => c.amount))) },
+    { label: 'รอตรวจและตั้งเบิก', value: toWork.length, hint: `${waiting.length} ใบรอตรวจ · ${baht(sum(toWork.map(r => r.total_amount)))}` },
     { label: 'ส่งกลับแก้ไข', value: claims.filter(c => c.status === 'SENT_BACK').length },
-    { label: 'รอตั้งเบิก', value: toVoucher.length, hint: baht(sum(toVoucher.map(r => r.total_amount))) },
     { label: 'รอจ่าย', value: toPay.length, hint: baht(sum(toPay.map(r => r.total_amount))) },
     { label: 'ยังไม่มีเลข DD', value: waiting.filter(c => !c.dd_no && typeNeedsDd(types, c.expense_type)).length, alert: true, hint: 'ในใบรอบัญชีตรวจ' },
   ];

@@ -41,11 +41,11 @@ const ctx: WorklistCtx = {
 };
 
 describe('WORKLIST_TABS', () => {
-  test('six tabs in the agreed order, Advance words', () => {
-    expect(WORKLIST_TABS.map(t => t.label)).toEqual(['รอบัญชีตรวจ', 'ส่งกลับแก้ไข', 'รอตั้งเบิก', 'รอจ่าย', 'ปิดแล้ว', 'ทั้งหมด']);
+  test('five tabs: ตรวจกับตั้งเบิกรวมเป็นแถบเดียว (5/11/2026)', () => {
+    expect(WORKLIST_TABS.map(t => t.label)).toEqual(['รอตรวจและตั้งเบิก', 'ส่งกลับแก้ไข', 'รอจ่าย', 'ปิดแล้ว', 'ทั้งหมด']);
   });
-  test('the first two tabs list claims, the rest list rounds', () => {
-    expect(WORKLIST_TABS.map(t => tabKind(t.key))).toEqual(['claim', 'claim', 'round', 'round', 'round', 'round']);
+  test('only ส่งกลับแก้ไข lists claims, the rest list rounds', () => {
+    expect(WORKLIST_TABS.map(t => tabKind(t.key))).toEqual(['round', 'claim', 'round', 'round', 'round']);
   });
 });
 
@@ -53,12 +53,14 @@ describe('resolveTab / defaultTab', () => {
   test('a known ?tab= wins', () => expect(resolveTab('pay', 'review')).toBe('pay'));
   test('an unknown or empty ?tab= falls back', () => {
     expect(resolveTab('nope', 'review')).toBe('review');
-    expect(resolveTab(null, 'voucher')).toBe('voucher');
+    expect(resolveTab(null, 'pay')).toBe('pay');
+    expect(resolveTab('voucher', 'review')).toBe('review'); // แถบเดิมถูกรวมแล้ว ลิงก์เก่าตกไปแถบตรวจและตั้งเบิก
   });
-  test('accounting lands on รอบัญชีตรวจ, treasury on รอจ่าย, admin on รอบัญชีตรวจ', () => {
+  test('accounting lands on รอตรวจและตั้งเบิก, treasury on รอจ่าย, admin on รอตรวจและตั้งเบิก', () => {
     expect(defaultTab({ review: true, voucher: true, pay: false })).toBe('review');
     expect(defaultTab({ review: false, voucher: false, pay: true })).toBe('pay');
     expect(defaultTab({ review: true, voucher: true, pay: true })).toBe('review');
+    expect(defaultTab({ review: false, voucher: false, pay: false })).toBe('all');
   });
 });
 
@@ -66,12 +68,11 @@ describe('rowsForTab', () => {
   const claims = [claim('AWAITING_REVIEW'), claim('SENT_BACK'), claim('AWAITING_REVIEW')];
   const rounds = [round(1, 'CLEAR_PENDING'), round(2, 'AWAITING_REVIEW'), round(3, 'REVIEWED'), round(4, 'VOUCHERED'),
     round(5, 'CLOSED'), round(6, 'CLEAR_REJECTED')];
-  test('claim tabs filter claims by status', () => {
-    expect(rowsForTab('review', claims, rounds)).toEqual({ kind: 'claim', rows: [claims[0], claims[2]] });
+  test('ส่งกลับแก้ไข lists claims · รอตรวจและตั้งเบิก lists rounds waiting for review or voucher', () => {
+    expect(rowsForTab('review', claims, rounds)).toEqual({ kind: 'round', rows: [rounds[1], rounds[2]] });
     expect(rowsForTab('sentback', claims, rounds)).toEqual({ kind: 'claim', rows: [claims[1]] });
   });
   test('round tabs filter rounds by status', () => {
-    expect(rowsForTab('voucher', claims, rounds)).toEqual({ kind: 'round', rows: [rounds[2]] });
     expect(rowsForTab('pay', claims, rounds)).toEqual({ kind: 'round', rows: [rounds[3]] });
     expect(rowsForTab('closed', claims, rounds)).toEqual({ kind: 'round', rows: [rounds[4]] });
   });
@@ -79,22 +80,23 @@ describe('rowsForTab', () => {
     expect(rowsForTab('all', claims, rounds).rows.map(r => r.id)).toEqual([2, 3, 4, 5]);
   });
   test('counts follow the same rules', () => {
-    expect(worklistCounts(claims, rounds)).toEqual({ review: 2, sentback: 1, voucher: 1, pay: 1, closed: 1, all: 4 });
+    expect(worklistCounts(claims, rounds)).toEqual({ review: 2, sentback: 1, pay: 1, closed: 1, all: 4 });
   });
 });
 
 describe('worklistStats', () => {
-  test('six tiles: money owed back, then each queue, then claims missing DD', () => {
+  test('five tiles: money owed back, ตรวจ+ตั้งเบิก as one queue, then claims missing DD', () => {
     const claims = [claim('AWAITING_REVIEW', { amount: 640 }), claim('AWAITING_REVIEW', { amount: 100, dd_no: 'LBDD1' }),
       claim('AWAITING_REVIEW', { expense_type: 'TRIP', amount: 50 }), claim('SENT_BACK')];
     const rounds = [round(2, 'AWAITING_REVIEW', { total_amount: 790 }), round(3, 'REVIEWED', { total_amount: 1883 }),
       round(4, 'VOUCHERED', { total_amount: 2200 }), round(5, 'CLOSED', { total_amount: 5100 }), round(1, 'CLEAR_PENDING', { total_amount: 9 })];
     const stats = worklistStats(claims, rounds, types);
-    expect(stats.map(s => s.label)).toEqual(['ยอดรอจ่ายคืน (บาท)', 'รอบัญชีตรวจ', 'ส่งกลับแก้ไข', 'รอตั้งเบิก', 'รอจ่าย', 'ยังไม่มีเลข DD']);
+    expect(stats.map(s => s.label)).toEqual(['ยอดรอจ่ายคืน (บาท)', 'รอตรวจและตั้งเบิก', 'ส่งกลับแก้ไข', 'รอจ่าย', 'ยังไม่มีเลข DD']);
     expect(stats[0].value).toBe('4,873.00');
-    expect(stats.slice(1).map(s => s.value)).toEqual([3, 1, 1, 1, 1]);
+    expect(stats.slice(1).map(s => s.value)).toEqual([2, 1, 1, 1]);
+    expect(stats[1].hint).toContain('3 ใบรอตรวจ');
     // only types that print a DD need one — the TRIP claim is not counted
-    expect(stats[5].alert).toBe(true);
+    expect(stats[4].alert).toBe(true);
   });
 });
 
