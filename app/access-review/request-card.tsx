@@ -37,11 +37,33 @@ interface PickerCopy {
     readOnlyNote: string;
 }
 
+type IconType = React.ComponentType<{ className?: string; strokeWidth?: number }>;
+
+/** A labelled section of the picker (e.g. ATMS: คลังสินค้า / สิทธิ์) — options are routed by `groupOf`. */
+export interface PickerGroup {
+    key: string;
+    label: string;
+    icon: IconType;
+}
+
+interface Section<T> {
+    group: PickerGroup | null;
+    items: T[];
+}
+
+/** Splits a list by group (in `groups` order, empty groups dropped); ungrouped pickers get one headerless section. */
+function sectionize<T>(list: T[], groups?: PickerGroup[], groupOf?: (opt: T) => string): Section<T>[] {
+    if (!groups || !groupOf) return [{ group: null, items: list }];
+    return groups
+        .map(group => ({ group, items: list.filter(o => groupOf(o) === group.key) }))
+        .filter(s => s.items.length > 0);
+}
+
 function RequestPicker<T extends { id: number }>({
-    copy, icon: Icon, load, exclude, picked, readOnly, labelOf, tagOf, onChange,
+    copy, icon: Icon, load, exclude, picked, readOnly, labelOf, tagOf, groups, groupOf, onChange,
 }: {
     copy: PickerCopy;
-    icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+    icon: IconType;
     load: () => Promise<T[]>;
     /** Options the requester already has — not offered */
     exclude: (opt: T) => boolean;
@@ -49,6 +71,8 @@ function RequestPicker<T extends { id: number }>({
     readOnly: boolean;
     labelOf: (opt: T) => string;
     tagOf?: (opt: T) => string | null;
+    groups?: PickerGroup[];
+    groupOf?: (opt: T) => string;
     onChange?: (next: T[]) => void;
 }) {
     const [open, setOpen] = useState(false);
@@ -72,6 +96,9 @@ function RequestPicker<T extends { id: number }>({
         return options.filter(o => norm(labelOf(o)).includes(term) || norm(tagOf?.(o) ?? '').includes(term));
     }, [options, search, labelOf, tagOf]);
 
+    const visibleSections = useMemo(() => sectionize(visible, groups, groupOf), [visible, groups, groupOf]);
+    const pickedSections = useMemo(() => sectionize(picked, groups, groupOf), [picked, groups, groupOf]);
+
     const pickedIds = useMemo(() => new Set(picked.map(p => p.id)), [picked]);
     const toggle = (opt: T) => onChange?.(pickedIds.has(opt.id) ? picked.filter(p => p.id !== opt.id) : [...picked, opt]);
     const close = () => { setOpen(false); setSearch(''); };
@@ -91,29 +118,40 @@ function RequestPicker<T extends { id: number }>({
                             {picked.length} {copy.unit}
                         </span>
                     </div>
-                    <ul className="divide-y divide-mint-300/30">
-                        {picked.map(opt => {
-                            const label = labelOf(opt);
-                            const tag = tagOf?.(opt);
-                            return (
-                                <li key={opt.id} className="flex items-center gap-2 px-3 py-1.5 text-[13px]">
-                                    <Plus className="size-3.5 shrink-0 text-mint-600" strokeWidth={2.5} />
-                                    <span className="flex-1 min-w-0 truncate text-gray-800" title={label}>{label}</span>
-                                    {tag && <span className="shrink-0 rounded bg-white px-1.5 py-px text-[10px] font-medium text-gray-500">{tag}</span>}
-                                    {!readOnly && (
-                                        <button
-                                            type="button"
-                                            onClick={() => toggle(opt)}
-                                            aria-label={`เอา ${label} ออก`}
-                                            className="shrink-0 rounded-full p-0.5 text-gray-400 hover:bg-white hover:text-rose-600 cursor-pointer"
-                                        >
-                                            <X className="size-3.5" />
-                                        </button>
-                                    )}
-                                </li>
-                            );
-                        })}
-                    </ul>
+                    {pickedSections.map(({ group, items }) => (
+                        <div key={group?.key ?? ''} className="border-b border-mint-300/30 last:border-b-0">
+                            {group && (
+                                <p className="flex items-center gap-1.5 px-3 pt-2 pb-1 text-[11px] font-semibold text-mint-700">
+                                    <group.icon className="size-3.5" />
+                                    {group.label}
+                                    <span className="font-normal tabular-nums text-mint-600/80">({items.length})</span>
+                                </p>
+                            )}
+                            <ul className="divide-y divide-mint-300/30">
+                                {items.map(opt => {
+                                    const label = labelOf(opt);
+                                    const tag = tagOf?.(opt);
+                                    return (
+                                        <li key={opt.id} className="flex items-center gap-2 px-3 py-1.5 text-[13px]">
+                                            <Plus className="size-3.5 shrink-0 text-mint-600" strokeWidth={2.5} />
+                                            <span className="flex-1 min-w-0 truncate text-gray-800" title={label}>{label}</span>
+                                            {tag && <span className="shrink-0 rounded bg-white px-1.5 py-px text-[10px] font-medium text-gray-500">{tag}</span>}
+                                            {!readOnly && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggle(opt)}
+                                                    aria-label={`เอา ${label} ออก`}
+                                                    className="shrink-0 rounded-full p-0.5 text-gray-400 hover:bg-white hover:text-rose-600 cursor-pointer"
+                                                >
+                                                    <X className="size-3.5" />
+                                                </button>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                    ))}
                     {readOnly && <p className="px-3 py-1.5 text-[11px] text-mint-700 border-t border-mint-300/30">{copy.readOnlyNote}</p>}
                 </div>
             )}
@@ -164,26 +202,43 @@ function RequestPicker<T extends { id: number }>({
                     ) : visible.length === 0 ? (
                         <p className="px-3 py-4 text-center text-xs text-gray-400">{options.length === 0 ? copy.allTaken : 'ไม่พบรายการที่ค้นหา'}</p>
                     ) : (
-                        <ul id={listId} role="listbox" aria-multiselectable className="max-h-64 overflow-y-auto overscroll-contain py-1">
-                            {visible.map(opt => {
-                                const on = pickedIds.has(opt.id);
-                                const label = labelOf(opt);
-                                const tag = tagOf?.(opt);
+                        <div id={listId} role="listbox" aria-multiselectable className="max-h-72 overflow-y-auto overscroll-contain pb-1">
+                            {visibleSections.map(({ group, items }) => {
+                                const totalInGroup = group ? options.filter(o => groupOf?.(o) === group.key).length : options.length;
                                 return (
-                                    <li key={opt.id} role="option" aria-selected={on}>
-                                        {/* relative: keeps the sr-only checkbox inside the row, so focusing it doesn't scroll the dialog */}
-                                        <label className={`relative flex items-center gap-2 px-3 py-1.5 text-[13px] cursor-pointer transition-colors ${on ? 'bg-brand-50' : 'hover:bg-gray-50'}`}>
-                                            <input type="checkbox" checked={on} onChange={() => toggle(opt)} className="sr-only" />
-                                            <span className={`size-4 shrink-0 rounded-[5px] border grid place-items-center transition-colors ${on ? 'bg-brand-600 border-brand-600 text-white' : 'border-gray-300 text-transparent'}`}>
-                                                <Check className="size-3" strokeWidth={3} />
-                                            </span>
-                                            <span className="flex-1 min-w-0 truncate text-gray-700" title={label}>{label}</span>
-                                            {tag && <span className="shrink-0 rounded bg-gray-100 px-1.5 py-px text-[10px] font-medium text-gray-500">{tag}</span>}
-                                        </label>
-                                    </li>
+                                    <div key={group?.key ?? ''} role="group" aria-label={group?.label}>
+                                        {group && (
+                                            // sticky: the group name stays visible while scrolling a long list (warehouses run to dozens)
+                                            <div className="sticky top-0 z-10 flex items-center gap-1.5 border-b border-gray-100 bg-gray-50/95 px-3 py-1.5 text-[11px] font-semibold text-gray-600 backdrop-blur-sm">
+                                                <group.icon className="size-3.5 text-brand-600" />
+                                                <span className="flex-1">{group.label}</span>
+                                                <span className="font-normal tabular-nums text-gray-400">{items.length} / {totalInGroup}</span>
+                                            </div>
+                                        )}
+                                        <ul className={group ? '' : 'pt-1'}>
+                                            {items.map(opt => {
+                                                const on = pickedIds.has(opt.id);
+                                                const label = labelOf(opt);
+                                                const tag = tagOf?.(opt);
+                                                return (
+                                                    <li key={opt.id} role="option" aria-selected={on}>
+                                                        {/* relative: keeps the sr-only checkbox inside the row, so focusing it doesn't scroll the dialog */}
+                                                        <label className={`relative flex items-center gap-2 px-3 py-1.5 text-[13px] cursor-pointer transition-colors ${on ? 'bg-brand-50' : 'hover:bg-gray-50'}`}>
+                                                            <input type="checkbox" checked={on} onChange={() => toggle(opt)} className="sr-only" />
+                                                            <span className={`size-4 shrink-0 rounded-[5px] border grid place-items-center transition-colors ${on ? 'bg-brand-600 border-brand-600 text-white' : 'border-gray-300 text-transparent'}`}>
+                                                                <Check className="size-3" strokeWidth={3} />
+                                                            </span>
+                                                            <span className="flex-1 min-w-0 truncate text-gray-700" title={label}>{label}</span>
+                                                            {tag && <span className="shrink-0 rounded bg-gray-100 px-1.5 py-px text-[10px] font-medium text-gray-500">{tag}</span>}
+                                                        </label>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </div>
                                 );
                             })}
-                        </ul>
+                        </div>
                     )}
                     {catalog && (
                         <div className="flex items-center justify-between border-t border-gray-100 px-3 py-1.5 text-[11px] text-gray-400">
@@ -201,39 +256,40 @@ const labelKey = (it: RoleItem) => `${it.category}\u0000${it.item ?? ''}\u0000${
 const itemTag = (it: RoleItem) => it.permission;
 
 const ITEM_COPY: PickerCopy = {
-    title: 'สิทธิ์ที่ต้องการเพิ่ม',
-    trigger: 'ต้องการเพิ่มสิทธิ์?',
-    triggerMore: 'เลือกสิทธิ์เพิ่มอีก',
-    hint: 'เลือกเมนูที่ยังไม่มี',
-    placeholder: 'ค้นหาเมนูหรือสิทธิ์...',
-    allTaken: 'มีสิทธิ์ครบทุกเมนูแล้ว',
+    title: 'สิทธิ์และคลังสินค้าที่ต้องการเพิ่ม',
+    trigger: 'ต้องการเพิ่มสิทธิ์และคลังสินค้า?',
+    triggerMore: 'เลือกสิทธิ์หรือคลังสินค้าเพิ่มอีก',
+    hint: 'เลือกรายการที่ยังไม่มี',
+    placeholder: 'ค้นหาคลังสินค้า เมนู หรือสิทธิ์...',
+    allTaken: 'มีสิทธิ์และคลังสินค้าครบทุกรายการแล้ว',
     unit: 'รายการ',
     readOnlyNote: 'ผู้แจ้งขอเพิ่มสิทธิ์เหล่านี้ในกลุ่มนี้',
 };
 
-/** Menus to add to one role (ATMS: shown above เมนูสิทธิ์). */
+/** Menus/warehouses to add to one role (ATMS: shown above เมนูสิทธิ์ปัจจุบัน). */
 export function RequestCard({
-    system, ownItems, requested, readOnly, excludeCategory, labelOf, onChange,
+    system, ownItems, requested, readOnly, labelOf, groups, groupOf, onChange,
 }: {
     system: SystemCode;
     /** The role's own items — anything with the same label is not offered */
     ownItems: RoleItem[];
     requested: RoleItem[];
     readOnly: boolean;
-    /** e.g. ATMS warehouses — only menus are requested here */
-    excludeCategory?: string;
     labelOf: (it: RoleItem) => string;
+    /** Optional sections for the picker and the picked card (ATMS: คลังสินค้า / สิทธิ์) */
+    groups?: PickerGroup[];
+    groupOf?: (it: RoleItem) => string;
     onChange?: (items: RoleItem[]) => void;
 }) {
     const load = useMemo(() => () => cached(itemCatalog, system, () => getCatalog(system).then(r => r.items)), [system]);
     const exclude = useMemo(() => {
         const own = new Set(ownItems.map(labelKey));
-        return (it: RoleItem) => it.category === excludeCategory || own.has(labelKey(it));
-    }, [ownItems, excludeCategory]);
+        return (it: RoleItem) => own.has(labelKey(it));
+    }, [ownItems]);
     return (
         <RequestPicker
             copy={ITEM_COPY} icon={Plus} load={load} exclude={exclude} picked={requested} readOnly={readOnly}
-            labelOf={labelOf} tagOf={itemTag} onChange={onChange}
+            labelOf={labelOf} tagOf={itemTag} groups={groups} groupOf={groupOf} onChange={onChange}
         />
     );
 }

@@ -3,7 +3,7 @@
 import { memo, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ListChecks, Search, Warehouse } from 'lucide-react';
 import { SYSTEM_META, SystemIcon } from './components';
-import { GroupRequestCard, RequestCard } from './request-card';
+import { GroupRequestCard, RequestCard, type PickerGroup } from './request-card';
 import type { CatalogRole, Decision, RoleItem, SystemCode } from './types';
 
 /**
@@ -50,17 +50,33 @@ interface ChecklistProps {
 /** The section the "ต้องการเพิ่มอีเมลกลุ่ม" picker lives in — shown even when the requester has no group yet. */
 const GROUP_SYSTEM: SystemCode = 'EMAIL';
 
+/** Checklist-only section names ("what you hold now"); badges/admin keep SYSTEM_META's label. */
+const SECTION_TITLE: Partial<Record<SystemCode, string>> = { EMAIL: 'กลุ่มอีเมล์สิทธิ์ปัจจุบัน' };
+
 // A handful of V2 gradient tiles cycled per category box — keeps the prototype's colourful feel
 // without hardcoding hex (CLAUDE: tokens only).
 const CATEGORY_TILES = ['v2-tile-mint', 'v2-tile-blue', 'v2-tile-sun'] as const;
 
 const norm = (s: string) => s.toLowerCase();
 
-/** ATMS imports put warehouses under this category; every other ATMS category is a menu/module. */
+/**
+ * ATMS imports put warehouses under this category (item = warehouse name). Rows with no item are the
+ * คลังสินค้า MENU's own permissions (แก้ไข/ค้นหา/บันทึก/แสดง) and belong with the other menus.
+ */
 const ATMS_WAREHOUSE_CATEGORY = 'คลังสินค้า';
 
+const isWarehouse = (it: RoleItem) => it.category === ATMS_WAREHOUSE_CATEGORY && !!it.item;
 const warehouseLabel = (it: RoleItem) => it.item ?? it.category;
 const menuLabel = (it: RoleItem) => it.item ? `${it.category} · ${it.item}` : it.category;
+
+/** "ต้องการเพิ่มสิทธิ์และคลังสินค้า" sections — warehouses first, matching the left/right panels below. */
+const ATMS_REQUEST_GROUPS: PickerGroup[] = [
+    { key: 'warehouse', label: 'คลังสินค้า', icon: Warehouse },
+    { key: 'menu', label: 'สิทธิ์', icon: ListChecks },
+];
+const atmsRequestGroup = (it: RoleItem) => isWarehouse(it) ? 'warehouse' : 'menu';
+// Inside the คลังสินค้า section the category prefix is redundant — show just the warehouse name.
+const atmsRequestLabel = (it: RoleItem) => isWarehouse(it) ? warehouseLabel(it) : menuLabel(it);
 
 /**
  * ATMS role body: warehouses on the left, every menu permission in one compact list on the right
@@ -80,23 +96,24 @@ function AtmsRoleBody({
     onToggleItem?: (userRoleId: number, itemId: number) => void;
     onToggleMany?: (userRoleId: number, itemIds: number[], checked: boolean) => void;
 }) {
-    const warehouses = useMemo(() => items.filter(it => it.category === ATMS_WAREHOUSE_CATEGORY), [items]);
-    const menus = useMemo(() => items.filter(it => it.category !== ATMS_WAREHOUSE_CATEGORY), [items]);
+    const warehouses = useMemo(() => items.filter(isWarehouse), [items]);
+    const menus = useMemo(() => items.filter(it => !isWarehouse(it)), [items]);
     const shared = { userRoleId, uncheckedSet, readOnly, onlyUnchecked, search, onToggleItem, onToggleMany };
     return (
         <div className="px-3 pb-3 grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start">
-            <ItemPanel {...shared} title="คลังสินค้า" icon={Warehouse} items={warehouses} labelOf={warehouseLabel} />
+            <ItemPanel {...shared} title="คลังสินค้าปัจจุบัน" icon={Warehouse} items={warehouses} labelOf={warehouseLabel} />
             <div className="space-y-3 min-w-0">
                 <RequestCard
                     system="ATMS"
                     ownItems={items}
                     requested={requested}
                     readOnly={readOnly}
-                    excludeCategory={ATMS_WAREHOUSE_CATEGORY}
-                    labelOf={menuLabel}
+                    labelOf={atmsRequestLabel}
+                    groups={ATMS_REQUEST_GROUPS}
+                    groupOf={atmsRequestGroup}
                     onChange={next => onRequestChange?.(userRoleId, next)}
                 />
-                <ItemPanel {...shared} title="เมนูสิทธิ์" icon={ListChecks} items={menus} labelOf={menuLabel} />
+                <ItemPanel {...shared} title="เมนูสิทธิ์ปัจจุบัน" icon={ListChecks} items={menus} labelOf={menuLabel} />
             </div>
         </div>
     );
@@ -432,7 +449,7 @@ export function Checklist({
                             <span className="v2-tile-blue size-7 rounded-xl flex items-center justify-center shrink-0">
                                 <SystemIcon code={sys.code} className="size-3.5" />
                             </span>
-                            <h3 className="text-sm font-bold text-ink-900">{SYSTEM_META[sys.code]?.label ?? sys.name}</h3>
+                            <h3 className="text-sm font-bold text-ink-900">{SECTION_TITLE[sys.code] ?? SYSTEM_META[sys.code]?.label ?? sys.name}</h3>
                         </div>
                         <div className="space-y-2.5">
                             {sys.code === GROUP_SYSTEM && showGroups && (

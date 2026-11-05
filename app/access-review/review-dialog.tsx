@@ -286,7 +286,7 @@ export function ReviewDialog({ dialogId, onClose, onChanged, previewEmployee }: 
 
     return (
         <Dialog open onOpenChange={v => !v && onClose()}>
-            <DialogContent showCloseButton={false} className="max-w-3xl sm:max-w-3xl w-[calc(100%-1.5rem)] sm:w-full h-[92dvh] sm:h-auto sm:max-h-[88vh] p-0 gap-0 rounded-2xl sm:rounded-3xl overflow-hidden flex flex-col">
+            <DialogContent showCloseButton={false} className="max-w-3xl sm:max-w-3xl w-[calc(100%-1.5rem)] sm:w-full h-[92dvh] sm:h-[90vh] p-0 gap-0 rounded-2xl sm:rounded-3xl overflow-hidden flex flex-col">
                 {mode === 'loading' && (
                     <>
                         <DialogHero title="ยืนยันสิทธิ์การเข้าถึง" sub="กำลังโหลดข้อมูล..." onClose={onClose} />
