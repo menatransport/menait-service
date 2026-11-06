@@ -37,6 +37,7 @@ export function MailPreviewDialog({ reviewId, open, onOpenChange }: { reviewId: 
                 ) : (
                     <div className="space-y-2">
                         <p className="text-xs text-gray-500">ถึง: <span className="text-gray-700">{data.to.join(', ')}</span></p>
+                        {data.cc?.length ? <p className="text-xs text-gray-500">สำเนา (CC): <span className="text-gray-700">{data.cc.join(', ')}</span></p> : null}
                         <p className="text-sm font-medium text-gray-800">{data.subject}</p>
                         <iframe
                             title="mail-preview"

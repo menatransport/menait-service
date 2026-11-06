@@ -33,8 +33,12 @@ export default function HomePage() {
     // ทบทวนสิทธิ์ needs a live check (GET /access-review/me) — not something the static
     // menu or the session cookie can decide — so it starts hidden and appears once we know.
     const [accessReviewVisible, setAccessReviewVisible] = useState(false);
+    // ช่วงนี้เปิดเฉพาะฝ่ายไอที (division 26 / code IT) — token เก่าที่ยังไม่มี division ใช้แผนก IT (21) แทน
+    const isItDivision = user?.division
+        ? user.division.division_id === 26 || user.division.division_code === 'IT'
+        : user?.department_id === 21;
     useEffect(() => {
-        if (!isClient || !user) return;
+        if (!isClient || !user || !isItDivision) return;
         fetch('/api/access-review/me')
             .then(r => r.ok ? r.json() : null)
             .then(data => {
@@ -43,7 +47,7 @@ export default function HomePage() {
                 }
             })
             .catch(() => undefined);
-    }, [isClient, user]);
+    }, [isClient, user, isItDivision]);
 
     const groups = useMemo(
         () => MENU_GROUPS

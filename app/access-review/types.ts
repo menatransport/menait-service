@@ -210,6 +210,8 @@ export type DecisionAction = 'approve' | 'reject';
 
 export interface MailPreview {
     to: string[];
+    /** Other approvers + the requester + itcenter@; missing on older API versions */
+    cc?: string[];
     subject: string;
     html: string;
 }
