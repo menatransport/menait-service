@@ -7,9 +7,9 @@ import { GroupRequestCard, RequestCard, type PickerGroup } from './request-card'
 import type { CatalogRole, Decision, RoleItem, SystemCode } from './types';
 
 /**
- * The "ยืนยันสิทธิ์การเข้าถึง" checklist — every system on one scrollable page (no tabs), grouped
- * system → role → category, matching the Apps Script prototype (gas-modal.png). Everything starts
- * ticked; an unticked row is what gets removed.
+ * The "ยืนยันสิทธิ์การเข้าถึง" checklist — one tab per system, each grouped role → category,
+ * matching the Apps Script prototype (gas-modal.png). Everything starts ticked; an unticked row is
+ * what gets removed.
  */
 
 export interface ChecklistRoleData {
@@ -45,6 +45,11 @@ interface ChecklistProps {
     /** Whole Email groups the requester asked to join ("ต้องการเพิ่มอีเมลกลุ่ม") */
     requestedRoles?: CatalogRole[];
     onRequestRolesChange?: (roles: CatalogRole[]) => void;
+    /** Controlled tab (optional — uncontrolled when omitted) */
+    activeTab?: SystemCode;
+    onTabChange?: (code: SystemCode) => void;
+    /** Tabs the user hasn't opened yet — marked with a dot */
+    unseenTabs?: SystemCode[];
 }
 
 /** The section the "ต้องการเพิ่มอีเมลกลุ่ม" picker lives in — shown even when the requester has no group yet. */
@@ -52,6 +57,16 @@ const GROUP_SYSTEM: SystemCode = 'EMAIL';
 
 /** Checklist-only section names ("what you hold now"); badges/admin keep SYSTEM_META's label. */
 const SECTION_TITLE: Partial<Record<SystemCode, string>> = { EMAIL: 'กลุ่มอีเมล์สิทธิ์ปัจจุบัน' };
+
+export const sectionTitle = (sys: { code: SystemCode; name: string }) =>
+    SECTION_TITLE[sys.code] ?? SYSTEM_META[sys.code]?.label ?? sys.name;
+
+/** The tabs the checklist shows — the user's systems, plus the Email group picker tab when it's on. */
+export function checklistSections(systems: ChecklistSystemData[], showGroups: boolean): ChecklistSystemData[] {
+    return showGroups && !systems.some(s => s.code === GROUP_SYSTEM)
+        ? [...systems, { code: GROUP_SYSTEM, name: 'Email Group', roles: [] }]
+        : systems;
+}
 
 // A handful of V2 gradient tiles cycled per category box — keeps the prototype's colourful feel
 // without hardcoding hex (CLAUDE: tokens only).
@@ -394,22 +409,30 @@ RoleBlock.displayName = 'RoleBlock';
 
 export function Checklist({
     systems, readOnly, unchecked, onToggleItem, onToggleMany, decisions, onDecision, requested, onRequestChange,
-    requestedRoles = [], onRequestRolesChange,
+    requestedRoles = [], onRequestRolesChange, activeTab, onTabChange, unseenTabs,
 }: ChecklistProps) {
     const [search, setSearch] = useState('');
     const [onlyUnchecked, setOnlyUnchecked] = useState(false);
     const [collapsedAll, setCollapsedAll] = useState(false);
     const [manualExpanded, setManualExpanded] = useState<Map<number, boolean>>(new Map());
+    const [ownTab, setOwnTab] = useState<SystemCode | null>(null);
 
     const totalItems = systems.reduce((n, s) => n + s.roles.reduce((m, r) => m + r.items.length, 0), 0);
     const groupPickerOn = !readOnly && Boolean(onRequestRolesChange);
     const showGroups = groupPickerOn || requestedRoles.length > 0;
-    const shownSystems = useMemo(
-        () => showGroups && !systems.some(s => s.code === GROUP_SYSTEM)
-            ? [...systems, { code: GROUP_SYSTEM, name: 'Email Group', roles: [] }]
-            : systems,
-        [systems, showGroups],
-    );
+    const shownSystems = useMemo(() => checklistSections(systems, showGroups), [systems, showGroups]);
+
+    const wanted = activeTab ?? ownTab;
+    const current = shownSystems.find(s => s.code === wanted) ?? shownSystems[0];
+    const selectTab = (code: SystemCode) => { setOwnTab(code); onTabChange?.(code); };
+
+    /** Unticked (to-be-removed) rows per tab — shown as a badge so nothing hides behind a tab. */
+    const removalsOf = (sys: ChecklistSystemData) => sys.roles.reduce((n, r) => n + (r.items.length > 0
+        ? unchecked.get(r.user_role_id)?.size ?? 0
+        : (decisions.get(r.user_role_id) ?? 'keep') === 'remove' ? 1 : 0), 0);
+    const requestsOf = (sys: ChecklistSystemData) =>
+        sys.roles.reduce((n, r) => n + (requested?.get(r.user_role_id)?.length ?? 0), 0)
+        + (sys.code === GROUP_SYSTEM ? requestedRoles.length : 0);
 
     return (
         <div className="flex flex-col h-full min-h-0">
@@ -442,14 +465,47 @@ export function Checklist({
                 {!readOnly && <p className="w-full sm:w-auto sm:ml-auto text-[11px] text-gray-400 shrink-0">รายการที่ไม่ได้ติ๊ก = ไม่ได้รับสิทธิ์</p>}
             </div>
 
+            {shownSystems.length > 0 && (
+                <div role="tablist" className="flex gap-1.5 overflow-x-auto border-b border-gray-100 px-4 sm:px-6 py-2 shrink-0 bg-white">
+                    {shownSystems.map(sys => {
+                        const active = sys.code === current?.code;
+                        const unseen = !active && unseenTabs?.includes(sys.code);
+                        const removals = removalsOf(sys);
+                        const requests = requestsOf(sys);
+                        return (
+                            <button
+                                key={sys.code}
+                                type="button"
+                                role="tab"
+                                aria-selected={active}
+                                onClick={() => selectTab(sys.code)}
+                                className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${active
+                                    ? 'bg-brand-600 text-white shadow-sm'
+                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+                            >
+                                <SystemIcon code={sys.code} className="size-3.5" />
+                                {sectionTitle(sys)}
+                                {removals > 0 && (
+                                    <span className={`rounded-full px-1.5 text-[10px] tabular-nums ${active ? 'bg-white/20 text-white' : 'bg-rose-50 text-rose-700'}`}>-{removals}</span>
+                                )}
+                                {requests > 0 && (
+                                    <span className={`rounded-full px-1.5 text-[10px] tabular-nums ${active ? 'bg-white/20 text-white' : 'bg-emerald-50 text-mint-700'}`}>+{requests}</span>
+                                )}
+                                {unseen && <span aria-label="ยังไม่ได้เปิดดู" className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-amber-500 ring-2 ring-white" />}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+
             <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 space-y-5">
-                {shownSystems.map(sys => (
+                {current && [current].map(sys => (
                     <div key={sys.code} className="space-y-2.5">
                         <div className="flex items-center gap-2">
                             <span className="v2-tile-blue size-7 rounded-xl flex items-center justify-center shrink-0">
                                 <SystemIcon code={sys.code} className="size-3.5" />
                             </span>
-                            <h3 className="text-sm font-bold text-ink-900">{SECTION_TITLE[sys.code] ?? SYSTEM_META[sys.code]?.label ?? sys.name}</h3>
+                            <h3 className="text-sm font-bold text-ink-900">{sectionTitle(sys)}</h3>
                         </div>
                         <div className="space-y-2.5">
                             {sys.code === GROUP_SYSTEM && showGroups && (

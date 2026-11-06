@@ -82,8 +82,14 @@ export const getHistory = () => http<HistoryItem[]>('/api/access-review/history'
 
 export const getReview = (id: number) => http<ReviewDetail>(`/api/access-review/${id}`);
 
-export const decideReview = (id: number, action: DecisionAction, comment?: string) =>
-    http<ReviewDetail>(`/api/access-review/${id}/decision`, json('POST', { action, comment }));
+/**
+ * `edits` (approve only): the approver's version of the requester's ticks / add-requests — sent in full,
+ * the backend saves them then approves, and marks the comment "[ผู้อนุมัติแก้ไขสิทธิ์]" when anything changed.
+ */
+export const decideReview = (
+    id: number, action: DecisionAction, comment?: string,
+    edits?: { lines: ReviewLineInput[]; requested_role_ids: number[] },
+) => http<ReviewDetail>(`/api/access-review/${id}/decision`, json('POST', { action, comment, ...edits }));
 
 export const getMailPreview = (id: number) => http<MailPreview>(`/api/access-review/${id}/mail-preview`);
 

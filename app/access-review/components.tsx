@@ -171,7 +171,7 @@ export function formatThaiDateTime(value?: string | null): string {
  * or modal dialog. Collapses back on cancel, success, or failure (the caller shows its own error).
  */
 export function InlineConfirm({
-    label, confirmLabel = 'ยืนยัน', summary, tone = 'primary', disabled, onConfirm, className = '',
+    label, confirmLabel = 'ยืนยัน', summary, tone = 'primary', disabled, onConfirm, onBeforeOpen, className = '',
 }: {
     label: ReactNode;
     confirmLabel?: string;
@@ -179,6 +179,8 @@ export function InlineConfirm({
     tone?: 'primary' | 'danger';
     disabled?: boolean;
     onConfirm: () => Promise<void> | void;
+    /** Runs before the confirm panel opens — return false to keep it closed (e.g. after a warning). */
+    onBeforeOpen?: () => boolean | Promise<boolean>;
     className?: string;
 }) {
     const [open, setOpen] = useState(false);
@@ -189,7 +191,7 @@ export function InlineConfirm({
             <Button
                 type="button"
                 disabled={disabled}
-                onClick={() => setOpen(true)}
+                onClick={async () => { if (!onBeforeOpen || await onBeforeOpen()) setOpen(true); }}
                 variant={tone === 'danger' ? 'outline' : 'default'}
                 className={tone === 'danger'
                     ? `border-rose-300 text-rose-600 hover:bg-rose-50 ${className}`
