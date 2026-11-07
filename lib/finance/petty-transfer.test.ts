@@ -25,3 +25,17 @@ describe('transferCalc — ยอดที่ต้องโอนจริง �
     for (const t of ['บุคคล/ร้านเงินสด', 'นิติบุคคล', null]) expect(transferCalc(2000, t).note.length).toBeGreaterThan(10);
   });
 });
+
+
+describe('ยอดหักที่ผู้เบิกใส่เอง (ข้อ 12 ผู้ใช้สั่ง 7/11/2026) เป็นค่าหลัก', () => {
+  test('ใส่ 49.20 → โอน 1,590.80 ไม่สนประเภทผู้รับเงิน', () => {
+    const c = transferCalc(1640, 'บุคคล/ร้านเงินสด', 49.2);
+    expect([c.kind, c.tax, c.transfer]).toEqual(['withhold', 49.2, 1590.8]);
+    expect(c.note).toContain('ผู้เบิกระบุ');
+  });
+  test('ใส่ 0 = ไม่หัก โอนเต็ม แม้เป็นนิติบุคคลเกิน 1,000', () => {
+    const c = transferCalc(1640, 'นิติบุคคล', 0);
+    expect([c.kind, c.transfer]).toEqual(['none', 1640]);
+  });
+  test('ใบเก่าไม่มีค่า → สูตรเดิม', () => expect(transferCalc(1200, 'นิติบุคคล', undefined).tax).toBe(36));
+});

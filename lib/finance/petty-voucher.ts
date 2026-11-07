@@ -82,6 +82,13 @@ function periodText(claim: PettyClaim): string {
 }
 
 /** วันที่หัวใบ = วันที่โอนเงินจริง (ผู้ใช้สั่ง 7/11/2026 "PDF ยึดตามวันที่จ่าย") · ยังไม่โอน = วันที่อนุมัติ/วันที่ขอเบิก */
+/** หัก ณ ที่จ่ายที่ผู้เบิกระบุ + ยอดจ่ายสุทธิ (ข้อ 12) — ไม่หัก = ไม่พิมพ์ */
+function whtLines(claim: PettyClaim, total: number): string {
+  const wht = Number(claim.wht_amount ?? 0);
+  if (!(wht > 0)) return '';
+  return field('หัก ณ ที่จ่าย', `${money(wht)} บาท`) + field('ยอดจ่ายสุทธิ', `${money(total - wht)} บาท`);
+}
+
 function voucherDate(claim: PettyClaim): string {
   if (claim.transfer_date) return thaiDate(claim.transfer_date);
   return thaiDate(claim.approved_at ? bangkokDate(claim.approved_at) : claim.expense_date);
@@ -122,7 +129,8 @@ ${sec(2, 'รายการ', 'Items')}
 <th class="c" style="width:22mm">จำนวน (หน่วย)</th><th class="a" style="width:24mm">จำนวนเงิน</th><th style="width:34mm">หมายเหตุ</th></tr></thead>
 <tbody>${rows.join('')}</tbody></table>
 <div class="sum"><div class="dates">${field('วันที่โอน', thaiDate(claim.transfer_date))}
-${field('ช่วงวันที่ค่าใช้จ่าย', periodText(claim))}${field('หมายเหตุ', claim.dup_override_reason ?? '')}</div>
+${field('ช่วงวันที่ค่าใช้จ่าย', periodText(claim))}${field('หมายเหตุ', claim.dup_override_reason ?? '')}
+${whtLines(claim, total)}</div>
 ${totalBox('รวมทั้งสิ้น', money(total), bahtText(total))}</div>
 
 ${signBlock(3, 'ลงนามและอนุมัติ', 'Signatures', [

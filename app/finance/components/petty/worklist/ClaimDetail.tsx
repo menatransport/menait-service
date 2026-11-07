@@ -166,7 +166,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
   const usesDd = (spec.prints ?? []).includes('DD');
   const debtLabel = debtDocButton(claim);
   const isClerk = !!user?.employee_id && user.employee_id === claim.created_by;
-  const calc = transferCalc(claim.amount, typeof claim.detail?.payee_type === 'string' ? claim.detail.payee_type : null);
+  const calc = transferCalc(claim.amount, typeof claim.detail?.payee_type === 'string' ? claim.detail.payee_type : null, claim.wht_amount);
   const payeeBank = payeeBankText(claim.detail);
   const roundLink = claim.batch_id === null ? null : onOpenRound ? (
     <button type="button" onClick={() => onOpenRound(claim.batch_id!)} className="text-brand-600 hover:underline">ดูรอบส่งเคลียร์</button>
@@ -186,7 +186,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
           <Field label="ยอดเงิน" value={`${formatBaht(claim.amount)} บาท`} />
           <Field label="ยอดที่ต้องโอนจริง" value={(
             <span title={calc.note}>{formatBaht(calc.transfer)} บาท{calc.kind !== 'none' && (
-              <span className="ml-1 text-xs font-normal text-ink-500">({calc.kind === 'withhold' ? `หัก 3% ${formatBaht(calc.tax)}` : `บริษัทออกภาษีให้ ${formatBaht(calc.tax)}`})</span>
+              <span className="ml-1 text-xs font-normal text-ink-500">({calc.kind === 'withhold' ? `หัก ณ ที่จ่าย ${formatBaht(calc.tax)}` : `บริษัทออกภาษีให้ ${formatBaht(calc.tax)}`})</span>
             )}</span>
           )} />
           <Field label="ช่วงวันที่ค่าใช้จ่าย" value={claim.period_from && claim.period_to ? `${formatDate(claim.period_from)} – ${formatDate(claim.period_to)}` : formatDate(claim.expense_date)} />

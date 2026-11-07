@@ -22,7 +22,8 @@ import {
 import { requiredDocs } from '@/lib/finance/petty-preset';
 import { formatDate } from '@/lib/finance/status';
 import { showAlert, showSuccess } from '../../api';
-import { checkDuplicate, createClaim, getExpenseTypes, getFunds, previewRoute, uploadPettyFiles, type RoutePreview } from '../../petty-api';
+import { checkDuplicate, createClaim, getExpenseTypes, getFunds, payeeMonth, previewRoute, uploadPettyFiles, type RoutePreview } from '../../petty-api';
+import { WHT_RATES, netAmount, payeeWarning, whtFromRate, whtProblem, type PayeeMonth } from '@/lib/finance/petty-wht';
 import { AddManyTrucksDialog } from '../../components/petty/AddManyTrucksDialog';
 import { ExpenseTypeCombobox } from '../../components/petty/ExpenseTypeCombobox';
 import { HeaderField } from '../../components/petty/HeaderField';
@@ -67,6 +68,9 @@ export default function NewPettyClaimPage() {
   const [route, setRoute] = useState<RoutePreview | null>(null);
   // รหัสใบสำคัญจ่าย (ข้อ 8): ระบบเสนอจาก พจส./พจร.+ฟลีทในใบ แก้เองได้ · '' = ใช้รหัสแผนกผู้เบิก
   const [expenseCode, setExpenseCode] = useState('');
+  // หัก ณ ที่จ่าย (ข้อ 12): ผู้เบิกใส่ยอดเอง ปุ่ม 1%/3% ช่วยคำนวณ · เจ้าที่จ่ายบ่อย (ข้อ 13) เตือนจากยอดเดือนนี้
+  const [wht, setWht] = useState('');
+  const [payeeInfo, setPayeeInfo] = useState<PayeeMonth | null>(null);
   const [expenseCodePicked, setExpenseCodePicked] = useState(false);
 
   const type = useMemo(() => types?.find(t => t.code === typeCode) ?? null, [types, typeCode]);
@@ -77,6 +81,18 @@ export default function NewPettyClaimPage() {
     Object.entries(files).map(([key, list]) => [key, list.length]),
   );
   const total = itemBased ? claimTotal(rows) : claimTotal(itemsFrom(header));
+  const whtAmount = Number(wht) || 0;
+  const whtError = whtProblem(wht, total);
+  const payeeName = String(header.payee_name ?? '').trim();
+  useEffect(() => {
+    const month = String(header.expense_date ?? '').slice(0, 7);
+    if (!payeeName || payeeName.length < 2 || !month) { setPayeeInfo(null); return; }
+    const timer = setTimeout(() => {
+      payeeMonth(payeeName, month).then(setPayeeInfo).catch(() => setPayeeInfo(null));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [payeeName, header.expense_date]);
+  const payeeNote = payeeWarning(payeeInfo, total, whtAmount);
   const codeRows = itemBased ? rows : [header];
   const suggestedCode = expenseCodeFor(costCenter, codeRows);
   useEffect(() => {
@@ -193,6 +209,7 @@ export default function NewPettyClaimPage() {
     }
     const cap = claimCapProblem(total);
     if (cap) return cap;
+    if (whtError) return whtError;
     const role = itemBased ? singleDriverRoleProblem(type.code, rows) : null;
     if (role) return role;
     // สลิปโอนเป็นของเจ้าของเงินสด แนบตอนอนุมัติจ่าย — ตอนเปิดใบไม่บังคับ
@@ -222,11 +239,12 @@ export default function NewPettyClaimPage() {
         ...(payee ? [['จ่ายให้', bank ? `${payee}\n${bank}` : payee] as [string, string]] : []),
         ...(itemBased ? [['รายการ', `${rows.length} รายการ`] as [string, string]] : []),
         ['ยอดรวม', `${baht2(total)} บาท`],
+        ...(whtAmount > 0 ? [['หัก ณ ที่จ่าย', `${baht2(whtAmount)} บาท · โอนจริง ${baht2(netAmount(total, whtAmount))} บาท`] as [string, string]] : []),
         ['ไฟล์แนบ', `${fileCount} ไฟล์`],
         ['เลข DD', ddNo.trim() || 'กรอกทีหลัง'],
         ['ส่งไปที่', routeHint(route)],
       ],
-      warning: soft.length ? `มี ${soft.length} แถวที่อาจซ้ำ — ผู้อนุมัติจะเห็นคำเตือนนี้` : null,
+      warning: [soft.length ? `มี ${soft.length} แถวที่อาจซ้ำ — ผู้อนุมัติจะเห็นคำเตือนนี้` : '', whtAmount > 0 ? '' : (payeeNote ?? '')].filter(Boolean).join(' · ') || null,
       confirmButtonText: 'ส่งให้ผู้อนุมัติ',
       cancelButtonText: 'กลับไปแก้ไข',
     });
@@ -249,6 +267,8 @@ export default function NewPettyClaimPage() {
         dd_no: ddNo.trim() || null,
         cost_center: costCenter,
         expense_code: expenseCode || null,
+        wht_amount: whtAmount,
+        wht_applicable: whtAmount > 0,
         detail: header,
       }, items);
 
@@ -417,6 +437,26 @@ export default function NewPettyClaimPage() {
                   : suggestedCode ? `ระบบเสนอ ${expenseCodeReason(codeRows)}` : 'ระบบจะเสนอให้เมื่อเลือกคนขับ/รถ (พจส. โม่ → บริการ · พจร. → รถร่วม)'}
               </span>
             </label>
+            <div className="sm:col-span-2">
+              <label className="block">
+                <span className={LABEL}>หัก ณ ที่จ่าย (บาท)</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input value={wht} onChange={e => setWht(e.target.value)} inputMode="decimal" placeholder="0.00"
+                    aria-label="ยอดหัก ณ ที่จ่าย" className={`${FIELD} w-36 text-right tabular-nums`} />
+                  {WHT_RATES.map(r => (
+                    <button key={r.rate} type="button" onClick={() => setWht(whtFromRate(total, r.rate).toFixed(2))} disabled={total <= 0}
+                      className="h-11 rounded-[10px] border border-[#dbe4f3] bg-white px-3 text-sm text-ink-700 hover:bg-[#f3f7fd] disabled:text-ink-300">
+                      {r.label}
+                    </button>
+                  ))}
+                  {!!wht && <button type="button" onClick={() => setWht('')} className="text-xs text-ink-500 underline underline-offset-2">ไม่หัก</button>}
+                  {whtAmount > 0 && !whtError && <span className="text-sm text-ink-700">โอนจริง <b className="tabular-nums">{baht2(netAmount(total, whtAmount))}</b> บาท</span>}
+                </div>
+              </label>
+              <span className={`mt-1 block text-xs ${whtError ? 'text-rose-600' : payeeNote && whtAmount <= 0 ? 'text-sun-700' : 'text-ink-500'}`}>
+                {whtError ?? payeeNote ?? 'พิมพ์ยอดเองได้ หรือกด 1% / 3% ให้คำนวณจากยอดรวม · คนจ่ายจะเห็นยอดโอนจริงในกล่องอนุมัติ'}
+              </span>
+            </div>
           </div>
         )}
 

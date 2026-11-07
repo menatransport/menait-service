@@ -7,7 +7,8 @@ import { bangkokDate } from '@/lib/finance/petty-doc';
 import { transferCalc } from '@/lib/finance/petty-transfer';
 import { pettyFileProblem } from '@/lib/finance/petty-upload';
 import { showAlert } from '../../api';
-import { countAttachments, getBalance, postAction, uploadPettyFiles, type PettyAction } from '../../petty-api';
+import { countAttachments, getBalance, payeeMonth, postAction, uploadPettyFiles, type PettyAction } from '../../petty-api';
+import { payeeWarning } from '@/lib/finance/petty-wht';
 import { pettyConfirm, pettyReview } from './petty-confirm';
 
 type Prompt = { isConfirmed?: boolean; value?: string };
@@ -22,8 +23,10 @@ export type PettyActionDeps = {
   getBalance: typeof getBalance;
   /** อัปโหลดสลิปโอนจากกล่องอนุมัติจ่าย (ไม่ส่งมา = ตัวจริง) */
   upload?: typeof uploadPettyFiles;
+  /** ยอดเดือนนี้ของผู้รับเงิน — เตือนควรหัก ณ ที่จ่าย (ข้อ 13) · ไม่ส่งมา = ไม่เตือน */
+  payeeMonth?: typeof payeeMonth;
 };
-const LIVE: PettyActionDeps = { confirm: pettyConfirm, alert: showAlert, post: postAction, countAttachments, getBalance, upload: uploadPettyFiles };
+const LIVE: PettyActionDeps = { confirm: pettyConfirm, alert: showAlert, post: postAction, countAttachments, getBalance, upload: uploadPettyFiles, payeeMonth };
 
 /** หมวดไฟล์สลิปโอนของเจ้าของเงินสด (ตรงกับ isHolderAttachment ใน petty-spec) */
 const SLIP_FOLDER = 'transfer';
@@ -47,15 +50,20 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
   if (action === 'approve') {
     // อนุมัติ = จ่ายเงินในจังหวะเดียวกัน: กล่องเดียวถามวันที่จ่าย + แนบสลิปโอน แล้วกดยืนยันทีเดียว (ผู้ใช้สั่ง 5/11/2026
     // "แนบสลิปและอนุมัติทำเป็นขั้นตอนเดียวกัน") · แนบไว้ก่อนจากการ์ดก็ได้ กล่องจะบอกว่ามีแล้วกี่ไฟล์
-    const [counts, balance] = await Promise.all([
+    const [counts, balance, payeeInfo] = await Promise.all([
       countAttachments(claim.form_id), getBalance(claim.fund_id).catch(() => null),
+      claim.payee_name && deps.payeeMonth
+        ? deps.payeeMonth(claim.payee_name, claim.expense_date.slice(0, 7), claim.id).catch(() => null) : Promise.resolve(null),
     ]);
+    const payeeNote = payeeWarning(payeeInfo, claim.amount, claim.wht_amount ?? 0);
     const slips = counts[SLIP_FOLDER] ?? 0;
     const ids = approveFormIds(claim.form_id);
     // ใบมี พจร. ไม่ถามเลขรับสภาพหนี้ตรงนี้แล้ว — เจ้าของเงินสดใส่หลังโอนเงิน (action debt-doc) ก่อนติ๊กเข้ารอบ (ผู้ใช้สั่ง 29/10/2026)
     // หน้าตาเดียวกับกล่อง "ยืนยันอนุมัติคำขอเบิกเงิน Advance" (หัวเรื่อง + ฟอร์ม + ยืนยัน/ยกเลิก) แล้วเติมตัวเลขของเงินสดย่อย
     const res = await showConfirm({ title: 'ยืนยันอนุมัติจ่ายเงินสดย่อย',
-      html: approveDialogHtml(claim, balance) + approveFormHtml(ids, slips),
+      html: approveDialogHtml(claim, balance) + (payeeNote && !(claim.wht_amount && claim.wht_amount > 0)
+        ? `<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:12px;text-align:left">${escapeHtml(payeeNote)} · เจ้าหน้าที่แก้ยอดหักในใบได้ก่อนคุณอนุมัติ</div>` : '')
+        + approveFormHtml(ids, slips),
       focusConfirm: false,
       preConfirm: () => readApproveForm(ids, slips) }) as { isConfirmed?: boolean; value?: ApproveFormValue | string };
     if (!res?.isConfirmed) return false;
@@ -230,7 +238,7 @@ export function approveDialogHtml(claim: PettyClaim, balance: { available: numbe
 export function approveSummaryHtml(claim: PettyClaim,
   balance: { available: number } | null, debtDocNo: string | null | undefined = claim.debt_doc_no): string {
   const payeeType = typeof claim.detail?.payee_type === 'string' ? claim.detail.payee_type : null;
-  const calc = transferCalc(claim.amount, payeeType);
+  const calc = transferCalc(claim.amount, payeeType, claim.wht_amount);
   const rows: string[] = [];
   if (balance) {
     const after = balance.available - claim.amount;

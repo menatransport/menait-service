@@ -2,6 +2,7 @@ import type { PettyBalance, PettyClaim, PettyExpenseType, PettyFund, PettyRound 
 import { roundDuplicateText, type RoundDocField, type RoundDupField } from '@/lib/finance/petty-worklist';
 import { fetchAllClaimPages } from '@/lib/finance/petty-type-filter';
 import { uniqueFileName } from '@/lib/finance/status';
+import type { PayeeMonth } from '@/lib/finance/petty-wht';
 import { fetchJson } from './api';
 
 export const getExpenseTypes = () =>
@@ -204,6 +205,13 @@ export type RoutePreview = {
 export function previewRoute(fundId: number | string, amount: number | string) {
   const qs = new URLSearchParams({ fund_id: String(fundId), amount: String(amount) });
   return fetchJson<RoutePreview>(`/api/finance/petty/claims/route-preview?${qs.toString()}`);
+}
+
+/** ยอดที่จ่ายให้เจ้านี้ในเดือน (ข้อ 13) */
+export function payeeMonth(payeeName: string, month: string, excludeClaimId?: number | null) {
+  const qs = new URLSearchParams({ payee_name: payeeName, month });
+  if (excludeClaimId) qs.set('exclude_claim_id', String(excludeClaimId));
+  return fetchJson<PayeeMonth>(`/api/finance/petty/claims/payee-month?${qs.toString()}`);
 }
 
 export type TruckOption = { truck_code: string; truck_plate: string; truck_type: string };

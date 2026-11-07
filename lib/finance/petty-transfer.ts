@@ -29,9 +29,19 @@ export type TransferCalc = {
 
 const baht = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export function transferCalc(amount: number, payeeType: string | null | undefined): TransferCalc {
+/**
+ * whtAmount = ยอดหัก ณ ที่จ่ายที่ผู้เบิกใส่ไว้ในใบ (ผู้ใช้สั่ง 7/11/2026 ข้อ 12 "ให้เขาใส่มูลค่าเองได้ เป็นค่าหลัก")
+ * ใบใหม่ทุกใบมีค่านี้ (0 = ไม่หัก) → ใช้ค่านี้เสมอ · ใบเก่าที่ไม่มีค่า (undefined) ถอยไปสูตรเดิมตามประเภทผู้รับเงิน
+ */
+export function transferCalc(amount: number, payeeType: string | null | undefined, whtAmount?: number | null): TransferCalc {
   const bill = round2(Number(amount) || 0);
   const none = (note: string): TransferCalc => ({ kind: 'none', bill, transfer: bill, base: bill, tax: 0, note });
+  if (whtAmount !== undefined && whtAmount !== null) {
+    const tax = round2(Number(whtAmount) || 0);
+    if (tax <= 0) return none('ผู้เบิกไม่ได้ใส่หัก ณ ที่จ่าย โอนตามยอดบิล');
+    return { kind: 'withhold', bill, transfer: round2(bill - tax), base: bill, tax,
+      note: `หัก ณ ที่จ่าย ${baht(tax)} บาท (ผู้เบิกระบุ) โอน ${baht(round2(bill - tax))} บาท` };
+  }
   if (payeeType === PAYEE_COMPANY_OLD) payeeType = PAYEE_COMPANY;
   if (payeeType !== PAYEE_INDIVIDUAL && payeeType !== PAYEE_COMPANY) {
     return none('ประเภทนี้ไม่มีหัก ณ ที่จ่าย โอนตามยอดบิล');
