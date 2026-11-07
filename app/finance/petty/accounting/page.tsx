@@ -15,6 +15,7 @@ import {
 import { showAlert } from '../../api';
 import { getExpenseTypes, getFunds, listAllClaims, listRounds } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, SummaryTiles } from '../../components/FinanceShell';
+import { PettyReportButton } from '../../components/petty/PettyReportButton';
 import { PettySheet } from '../../components/petty/PettySheet';
 import { TypeFilter, usePettyTypeFilter } from '../../components/petty/TypeFilter';
 import { useRoundTypeTally } from '../../components/petty/useRoundTypeTally';
@@ -137,10 +138,14 @@ function PettyWork() {
     <FinanceCanvas title={TITLE}>
       <FinanceHeading icon={Landmark} title={TITLE} caption="ตรวจใบ ตั้งเบิก และจ่ายเงินคืนเจ้าของเงินสด"
         actions={(
-          <Link href="/finance/petty/funds" className="v2-glass inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-ink-900 transition-shadow hover:shadow-md">
-            <Wallet className="size-4" />
-            ยอดกองทุนเงินสดย่อย
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* รายงาน Excel: Summary ประเภท × ประเภทรถ + Detail รายใบ ยึดวันที่โอน (ข้อ 14 ผู้ใช้สั่ง 7/11/2026) */}
+            <PettyReportButton types={types} funds={funds} />
+            <Link href="/finance/petty/funds" className="v2-glass inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-ink-900 transition-shadow hover:shadow-md">
+              <Wallet className="size-4" />
+              ยอดกองทุนเงินสดย่อย
+            </Link>
+          </div>
         )}
       />
       <SummaryTiles items={stats} />
