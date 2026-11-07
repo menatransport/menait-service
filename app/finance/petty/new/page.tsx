@@ -7,6 +7,7 @@ import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { claimTotal, periodOf, type PettyItemDraft } from '@/lib/finance/petty-items';
 import { PETTY_CLAIM_CAP, claimCapProblem, routeHint, singleDriverRoleProblem } from '@/lib/finance/petty-rules';
+import { EXPENSE_CODES, expenseCodeFor, expenseCodeLabel, expenseCodeReason } from '@/lib/finance/petty-expense-code';
 import {
   blankHeader, claimPayload, dupCheckParams, headerFields, isHolderAttachment, isItemBased, itemsFrom, missingAtCreate,
 } from '@/lib/finance/petty-spec';
@@ -16,6 +17,7 @@ import { fundsForExpenseType } from '@/lib/finance/petty-account-code';
 import { bangkokToday } from '@/lib/finance/petty-doc';
 import {
   COST_CENTER_GROUPS, centerOfSite, costCenterGroupsForSite, defaultCostCenterForUser, fundForCostCenter, fundsInCenter,
+  lockedFundFor,
 } from '@/lib/finance/petty-cost-centers';
 import { requiredDocs } from '@/lib/finance/petty-preset';
 import { formatDate } from '@/lib/finance/status';
@@ -63,6 +65,9 @@ export default function NewPettyClaimPage() {
   const [dups, setDups] = useState<DupHint[]>([]);
   const [saving, setSaving] = useState(false);
   const [route, setRoute] = useState<RoutePreview | null>(null);
+  // รหัสใบสำคัญจ่าย (ข้อ 8): ระบบเสนอจาก พจส./พจร.+ฟลีทในใบ แก้เองได้ · '' = ใช้รหัสแผนกผู้เบิก
+  const [expenseCode, setExpenseCode] = useState('');
+  const [expenseCodePicked, setExpenseCodePicked] = useState(false);
 
   const type = useMemo(() => types?.find(t => t.code === typeCode) ?? null, [types, typeCode]);
   const spec = type?.spec ?? {};
@@ -72,6 +77,11 @@ export default function NewPettyClaimPage() {
     Object.entries(files).map(([key, list]) => [key, list.length]),
   );
   const total = itemBased ? claimTotal(rows) : claimTotal(itemsFrom(header));
+  const codeRows = itemBased ? rows : [header];
+  const suggestedCode = expenseCodeFor(costCenter, codeRows);
+  useEffect(() => {
+    if (!expenseCodePicked) setExpenseCode(suggestedCode);
+  }, [suggestedCode, expenseCodePicked]);
 
   // ใบนี้จะไปหาใคร (TOA): เจ้าของเงินสดอนุมัติเองได้ → ไม่มีขั้นหัวหน้า · ถามใหม่เมื่อวงเงินหรือยอดเปลี่ยน (7/11/2026)
   useEffect(() => {
@@ -115,13 +125,20 @@ export default function NewPettyClaimPage() {
   }, [funds, showAllFunds, costCenter, user?.site, typeCode]);
   const fundsFiltered = !showAllFunds && !!funds && fundsInCenter(funds, costCenter, user?.site).length < funds.length;
 
-  // ที่เลือกเองแล้วและยังอยู่ในรายการ = คงไว้ · ไม่งั้นเลือกวงเงินของแผนกนั้น หรือวงเดียวที่มี · ไม่มี = ว่าง
+  // วงเงินล็อกตามแผนก+สาขาของศูนย์และแผนกที่เลือก ไม่มีใช้วงเงินฝ่ายบัญชีสาขาเดียวกัน (ผู้ใช้สั่ง 7/11/2026)
+  // superadmin ของเครื่องทดสอบยังเลือกเองได้ (ทดสอบทุกวงเงิน)
+  const canPickFund = !!user?.is_petty_super;
+  const locked = useMemo(() => lockedFundFor(funds ?? [], costCenter, typeCode), [funds, costCenter, typeCode]);
   useEffect(() => {
-    setFundId(id => {
-      if (fundPicked && shownFunds.some(f => String(f.id) === id)) return id;
-      return fundForCostCenter(shownFunds, costCenter) || (shownFunds.length === 1 ? String(shownFunds[0].id) : '');
-    });
-  }, [shownFunds, costCenter, fundPicked]);
+    if (canPickFund) {
+      setFundId(id => {
+        if (fundPicked && shownFunds.some(f => String(f.id) === id)) return id;
+        return fundForCostCenter(shownFunds, costCenter) || (shownFunds.length === 1 ? String(shownFunds[0].id) : '');
+      });
+      return;
+    }
+    setFundId(locked.fund ? String(locked.fund.id) : '');
+  }, [shownFunds, costCenter, fundPicked, canPickFund, locked]);
 
   // เตือนซ้ำขณะกรอก — ด่านจริงอยู่ที่ BE ตอนอนุมัติ ตรงนี้ให้เห็นก่อนจะส่ง
   useEffect(() => {
@@ -199,6 +216,7 @@ export default function NewPettyClaimPage() {
       rows: [
         ['ประเภท', type.name_th],
         ['ศูนย์และแผนก', costCenter],
+        ['รหัสใบสำคัญจ่าย', expenseCode ? expenseCodeLabel(expenseCode) : 'ตามแผนกผู้เบิก'],
         ['วงเงินสดย่อย', fund ? fundLabelWithHolder(fund) : '-'],
         ['วันที่ขอเบิก', formatDate(String(header.expense_date ?? '')) || String(header.expense_date ?? '')],
         ...(payee ? [['จ่ายให้', bank ? `${payee}\n${bank}` : payee] as [string, string]] : []),
@@ -230,6 +248,7 @@ export default function NewPettyClaimPage() {
         receipt_no: (header.receipt_no as string) ?? null,
         dd_no: ddNo.trim() || null,
         cost_center: costCenter,
+        expense_code: expenseCode || null,
         detail: header,
       }, items);
 
@@ -296,10 +315,12 @@ export default function NewPettyClaimPage() {
           <p className="font-display text-xl font-semibold leading-tight tabular-nums text-ink-900 sm:text-2xl">{baht2(total)}</p>
         </div>
         <div className="col-span-2 flex flex-col gap-1.5 sm:items-end">
+          {/* บรรทัดบอกทางของใบ (TOA) เห็นตั้งแต่มียอด ไม่ต้องรอกรอกครบ */}
+          {total > 0 && !!fundId && <p className="text-xs text-ink-500">{routeHint(route)}</p>}
           {requiredMissing
             ? <p className="text-xs text-ink-500" aria-live="polite">{requiredMissing}</p>
             : <p className="text-xs text-ink-500">
-                {needsDd ? 'ยอดตั้งแต่ 500 ใส่ DD ก่อนส่งบัญชี · ' : ''}{routeHint(route)} · ไม่เกิน {PETTY_CLAIM_CAP.toLocaleString('th-TH')} บาทต่อใบ
+                {needsDd ? 'ยอดตั้งแต่ 500 ใส่ DD ก่อนส่งบัญชี · ' : ''}ไม่เกิน {PETTY_CLAIM_CAP.toLocaleString('th-TH')} บาทต่อใบ
               </p>}
           <Button tone="primary" size="lg" disabled={saving || !!requiredMissing} onClick={() => void confirmSubmit()}
             className="w-full sm:w-auto">
@@ -346,33 +367,64 @@ export default function NewPettyClaimPage() {
               </span>
             )}
           </label>
-          <label className="block sm:col-span-2">
-            <span className={LABEL}>วงเงินสดย่อย<Req /></span>
-            <select value={fundId} onChange={e => { setFundId(e.target.value); setFundPicked(true); }} className={FIELD}>
-              <option value="">เลือกวงเงินสดย่อย</option>
-              {shownFunds.map(f => (
-                <option key={f.id} value={f.id}>{fundLabelWithHolder(f)}</option>
-              ))}
-            </select>
-            {typeCode && shownFunds.length === 0 && (
+          {canPickFund ? (
+            <label className="block sm:col-span-2">
+              <span className={LABEL}>วงเงินสดย่อย<Req /></span>
+              <select value={fundId} onChange={e => { setFundId(e.target.value); setFundPicked(true); }} className={FIELD}>
+                <option value="">เลือกวงเงินสดย่อย</option>
+                {shownFunds.map(f => (
+                  <option key={f.id} value={f.id}>{fundLabelWithHolder(f)}</option>
+                ))}
+              </select>
+              {typeCode && shownFunds.length === 0 && (
+                <span className="mt-1 block text-xs text-ink-500">
+                  {fundsFiltered ? 'ศูนย์นี้ยังไม่มีวงเงินที่เบิกประเภทนี้ได้' : 'ประเภทนี้ยังไม่มีวงเงินของแผนกที่บัญชีให้เบิกได้'}
+                </span>
+              )}
+              {fundsFiltered && (
+                <span className="mt-1 block text-xs text-ink-500">
+                  แสดงเฉพาะวงเงินของศูนย์ที่เลือก ·{' '}
+                  <button type="button" onClick={() => setShowAllFunds(true)} className="font-medium text-ink-700 underline underline-offset-2 hover:text-ink-900">ดูทุกวงเงิน</button>
+                </span>
+              )}
+            </label>
+          ) : (
+            <div className="block sm:col-span-2">
+              <span className={LABEL}>วงเงินสดย่อย</span>
+              {/* ล็อกตามแผนกและสาขา เลือกเองไม่ได้ (ผู้ใช้สั่ง 7/11/2026) */}
+              <div className={`${FIELD} flex items-center bg-[#f5f7fb] text-ink-900`} aria-readonly="true">
+                {locked.fund ? fundLabelWithHolder(locked.fund) : <span className="text-ink-500">{costCenter ? 'ไม่มีวงเงินให้เบิกประเภทนี้' : 'เลือกศูนย์และแผนกก่อน'}</span>}
+              </div>
               <span className="mt-1 block text-xs text-ink-500">
-                {fundsFiltered ? 'ศูนย์นี้ยังไม่มีวงเงินที่เบิกประเภทนี้ได้' : 'ประเภทนี้ยังไม่มีวงเงินของแผนกที่บัญชีให้เบิกได้'}
+                {locked.via === 'department' && 'วงเงินของแผนกคุณ ระบบล็อกให้ตามแผนกและสาขา'}
+                {locked.via === 'accounting' && 'แผนกคุณไม่มีวงเงินสดย่อย ใช้วงเงินของฝ่ายบัญชีสาขาเดียวกัน'}
+                {!locked.fund && costCenter && typeCode && 'สาขานี้ไม่มีวงเงินของแผนกคุณและไม่มีวงเงินบัญชีที่เบิกประเภทนี้ได้ ติดต่อฝ่ายบัญชี'}
               </span>
-            )}
-            {fundsFiltered && (
-              <span className="mt-1 block text-xs text-ink-500">
-                แสดงเฉพาะวงเงินของศูนย์ที่เลือก ·{' '}
-                <button type="button" onClick={() => setShowAllFunds(true)} className="font-medium text-ink-700 underline underline-offset-2 hover:text-ink-900">ดูทุกวงเงิน</button>
-              </span>
-            )}
-          </label>
+            </div>
+          )}
         </div>
+
+        {type && (
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <label className="block">
+              <span className={LABEL}>รหัสใบสำคัญจ่าย</span>
+              <select value={expenseCode} onChange={e => { setExpenseCode(e.target.value); setExpenseCodePicked(true); }} className={FIELD}>
+                <option value="">ตามแผนกผู้เบิก ({costCenter || '-'})</option>
+                {EXPENSE_CODES.map(code => <option key={code} value={code}>{expenseCodeLabel(code)}</option>)}
+              </select>
+              <span className="mt-1 block text-xs text-ink-500">
+                {expenseCodePicked ? <>เลือกเอง · <button type="button" className="underline underline-offset-2" onClick={() => setExpenseCodePicked(false)}>กลับไปใช้ที่ระบบเสนอ</button></>
+                  : suggestedCode ? `ระบบเสนอ ${expenseCodeReason(codeRows)}` : 'ระบบจะเสนอให้เมื่อเลือกคนขับ/รถ (พจส. โม่ → บริการ · พจร. → รถร่วม)'}
+              </span>
+            </label>
+          </div>
+        )}
 
         {type && visibleHeader.length > 0 && (
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
             {visibleHeader.map(f => (
               <HeaderField key={f.key} field={f} value={header[f.key]} form={header}
-                onChange={patch => setHeader({ ...header, ...patch })} />
+                onChange={patch => setHeader(h => ({ ...h, ...patch }))} />
             ))}
           </div>
         )}

@@ -52,12 +52,14 @@ export function resubmitClaim(claim: PettyClaim) {
     truck_type: i.truck_type ?? null, ref_no: i.ref_no ?? null, qty: i.qty, rate: i.rate,
     remark: i.remark ?? null, driver_name: i.driver_name ?? null,
     driver_role: i.driver_role ?? null, tire_position: i.tire_position ?? null,
+    fleet: i.fleet ?? null, driver_code: i.driver_code ?? null,
   }));
   return updateClaim(claim.form_id, {
     fund_id: claim.fund_id, expense_type: claim.expense_type, expense_date: claim.expense_date,
     driver_employee_id: claim.driver_employee_id, driver_name: claim.driver_name, payee_name: claim.payee_name,
     detail: claim.detail ?? {}, dd_no: claim.dd_no, receipt_no: claim.receipt_no,
-    wht_applicable: claim.wht_applicable ?? false, cost_center: claim.cost_center ?? null, items,
+    wht_applicable: claim.wht_applicable ?? false, wht_amount: claim.wht_amount ?? 0, cost_center: claim.cost_center ?? null,
+    expense_code: claim.expense_code ?? null, items,
   });
 }
 
@@ -205,6 +207,26 @@ export function previewRoute(fundId: number | string, amount: number | string) {
 }
 
 export type TruckOption = { truck_code: string; truck_plate: string; truck_type: string };
+
+/** คนขับจากรายงานรถประจำวัน ATMS ณ วันใกล้วันทำรายการ — ค่าแนะนำ พจส./พจร. ฟลีท และรถที่ขับ (ผู้ใช้สั่ง 7/11/2026) */
+export type DriverOption = {
+  driver_code: string | null; driver_name: string | null; driver_role: string;
+  fleet: string; truck_code: string | null; truck_plate: string | null; truck_type: string;
+  customer_fleet?: string | null; date: string | null;
+};
+
+export function searchDrivers(q: string, date?: string | null) {
+  const qs = new URLSearchParams({ q });
+  if (date) qs.set('date', date);
+  return fetchJson<DriverOption[]>(`/api/finance/petty/drivers?${qs.toString()}`);
+}
+
+/** ฟลีทของรถ/คนขับ ณ วันทำรายการ · ไม่พบ = null (รถไม่วิ่ง 45 วัน หรือ ATMS ไม่มี) */
+export function fleetAt(params: { truck_code?: string | null; truck_plate?: string | null; driver_code?: string | null; date?: string | null }) {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v) qs.set(k, String(v));
+  return fetchJson<DriverOption | null>(`/api/finance/petty/fleet?${qs.toString()}`);
+}
 
 /** ค้นรถจาก master — เลือกแล้วเติมทะเบียนให้เอง ด่านซ้ำเข้มจึงเชื่อถือทะเบียนได้ */
 export function searchTrucks(q: string) {

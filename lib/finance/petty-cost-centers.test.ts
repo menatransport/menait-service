@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   COST_CENTERS, COST_CENTER_GROUPS, centerOfSite, claimCostCenterLine, costCenterGroupsForSite, costCenterLabel,
-  defaultCostCenterForUser, fundCostCenterLine, fundForCostCenter, fundsInCenter, isCostCenter,
+  defaultCostCenterForUser, fundCostCenterLine, fundForCostCenter, fundsInCenter, isCostCenter, lockedFundFor,
 } from './petty-cost-centers';
 
 describe('รายการศูนย์และแผนก (จากผู้ใช้ 29/10/2026)', () => {
@@ -104,4 +104,25 @@ describe('วงเงินสดย่อยกรองตามศูนย�
   test('3A04 → วงเงินบัญชีลาดกระบัง (12)', () => expect(fundForCostCenter(funds, '3A04')).toBe('12'));
   test('ไม่มีวงเงินของแผนกนั้น (1B06) → ว่าง ให้เลือกเอง', () => expect(fundForCostCenter(funds, '1B06')).toBe(''));
   test('รหัสแบบไม่มีฝ่าย (3500) → ว่าง', () => expect(fundForCostCenter(funds, '3500')).toBe(''));
+});
+
+
+describe('lockedFundFor — ล็อกวงเงินตามแผนก+สาขา สำรองวงเงินบัญชี (ผู้ใช้สั่ง 7/11/2026)', () => {
+  const funds = [
+    { id: 1, branch_code: '03', division_code: 'B02' },
+    { id: 12, branch_code: '03', division_code: 'A04' },
+    { id: 14, branch_code: '03', division_code: 'B04' },
+    { id: 10, branch_code: '01', division_code: 'A04' },
+  ];
+  test('แผนกมีวงเงินของตัวเอง → ใช้วงนั้น', () =>
+    expect(lockedFundFor(funds, '3B02', 'TOLL')).toEqual({ fund: funds[0], via: 'department' }));
+  test('แผนกไม่มีวงเงิน → วงเงินบัญชีสาขาเดียวกัน', () =>
+    expect(lockedFundFor(funds, '3B01', 'TOLL')).toEqual({ fund: funds[1], via: 'accounting' }));
+  test('สาขาที่ไม่มีวงเงินบัญชีและไม่มีวงแผนก → ไม่มีวงให้เปิด', () =>
+    expect(lockedFundFor(funds, '2B02', 'TOLL')).toEqual({ fund: null, via: null }));
+  test('ประเภทที่บัญชีจำกัดแผนก (ค่ายาง = B02) แผนกอื่นไม่ได้วงบัญชีมาแทน', () =>
+    expect(lockedFundFor(funds, '3B04', 'TIRE')).toEqual({ fund: null, via: null }));
+  test('ค่าชั่งจากแผนกความปลอดภัย (B04 เบิกได้) → วงเงินแผนกตัวเอง', () =>
+    expect(lockedFundFor(funds, '3B04', 'WEIGH')).toEqual({ fund: funds[2], via: 'department' }));
+  test('ยังไม่เลือกศูนย์และแผนก → ว่าง', () => expect(lockedFundFor(funds, '', 'TOLL')).toEqual({ fund: null, via: null }));
 });

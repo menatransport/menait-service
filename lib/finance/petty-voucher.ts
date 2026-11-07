@@ -5,6 +5,7 @@ import {
   bangkokDate, checkboxes, docHead, field, PETTY_DOC_CSS, sec, signBlock, thaiDate, totalBox,
 } from '@/lib/finance/petty-doc';
 import { claimCostCenterLine } from '@/lib/finance/petty-cost-centers';
+import { claimExpenseCode, expenseCodeLabel } from '@/lib/finance/petty-expense-code';
 import { fundPlaceWithHolder } from '@/lib/finance/petty-fund-label';
 import { payeeBankText, type PayeeBank } from '@/lib/finance/petty-payee';
 import { documentControlFooter, esc, money, printedNow, wrapDocument, type ESign } from '@/lib/finance/printShared';
@@ -114,7 +115,7 @@ ${docHead({ title: 'ใบสำคัญจ่ายเงินสดย่อ
 ${sec(1, 'ข้อมูลการจ่าย', 'Payment')}
 <div class="grid">${field('จ่ายให้', payeeLine(claim))}${field('วงเงินสดย่อย', fundPlaceWithHolder(fund))}
 ${field('รหัสค่าใช้จ่ายของผู้เบิก (บัญชี)', claimCostCenterLine(claim, fund))}${field('ประเภทการเบิก', typeName)}
-${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}</div>
+${field('รหัสใบสำคัญจ่าย', expenseCodeLabel(claimExpenseCode(claim)))}${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}</div>
 
 ${sec(2, 'รายการ', 'Items')}
 <table class="items"><thead><tr><th class="c" style="width:9mm">ลำดับ</th><th>รายการ</th>

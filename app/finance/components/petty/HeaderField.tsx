@@ -3,6 +3,9 @@
 import type { PettySpecField } from '@/app/finance/types-petty';
 import { BANKS } from '@/lib/finance/bank';
 import { payeeAccountHint, payeeAccountType, type PayeeAccountType } from '@/lib/finance/petty-payee';
+import { fleetAt } from '@/app/finance/petty-api';
+import { applyDriver, applyFleet } from '@/lib/finance/petty-driver-fill';
+import { DriverPicker } from './DriverPicker';
 import { TruckPicker } from './TruckPicker';
 import { FIELD, LABEL, Req } from './ui';
 
@@ -26,11 +29,35 @@ export function HeaderField({ field, value, form, onChange }: {
         <span className={LABEL}>{label}</span>
         <TruckPicker lineNo={0} block
           code={String(form.truck_code ?? '')} plate={String(form.truck_plate ?? '')}
-          onPick={truck => onChange({
-            truck_code: truck.truck_code,
-            truck_plate: truck.truck_plate,
-            truck_type: truck.truck_type || form.truck_type,
-          })} />
+          onPick={truck => {
+            onChange({ truck_code: truck.truck_code, truck_plate: truck.truck_plate,
+              truck_type: truck.truck_type || form.truck_type, fleet: null });
+            // ฟลีท ณ วันทำรายการจาก ATMS (ข้อ 10) — ช้า/ไม่พบ ก็เปิดใบได้
+            fleetAt({ truck_code: truck.truck_code, truck_plate: truck.truck_plate, date: String(form.event_date ?? '') || null })
+              .then(info => {
+                const next = applyFleet({ ...form, truck_code: truck.truck_code, truck_plate: truck.truck_plate }, info);
+                onChange({ fleet: next.fleet, truck_type: next.truck_type, driver: form.driver || info?.driver_name || form.driver,
+                  driver_code: next.driver_code, driver_role: next.driver_role });
+              })
+              .catch(() => {});
+          }} />
+        {!!form.fleet && <span className="mt-1 block text-xs text-ink-500">ฟลีท ณ วันทำรายการ: {String(form.fleet)}</span>}
+      </div>
+    );
+  }
+
+  // คนขับในหัวใบ (ค่าทางด่วน): ค้นจาก master คนขับ เลือกแล้วเติม พจส./พจร. ฟลีท และรถที่ยังว่าง (ข้อ 7)
+  if (field.type === 'employee' && field.key === 'driver') {
+    return (
+      <div>
+        <span className={LABEL}>{label}</span>
+        <DriverPicker value={String(value ?? '')} date={String(form.event_date ?? '') || null} lineNo={0} block
+          onChange={text => onChange({ driver: text, driver_code: null })}
+          onPick={driver => {
+            const next = applyDriver({ ...form, driver_name: form.driver }, driver);
+            onChange({ driver: next.driver_name, driver_code: next.driver_code, driver_role: next.driver_role, fleet: next.fleet,
+              truck_code: next.truck_code, truck_plate: next.truck_plate, truck_type: next.truck_type });
+          }} />
       </div>
     );
   }

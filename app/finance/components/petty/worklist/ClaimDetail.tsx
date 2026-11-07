@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyClaim, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
+import { expenseCodeLabel } from '@/lib/finance/petty-expense-code';
 import { claimCostCenterLine } from '@/lib/finance/petty-cost-centers';
 import { canApprove, canReview } from '@/lib/finance/petty-access';
 import { needsDebtDoc } from '@/lib/finance/petty-debt';
@@ -193,6 +194,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
           <Field label="เจ้าหน้าที่ผู้เปิดใบ" value={claim.created_by_name ?? claim.created_by} />
           <Field label="วงเงินสดย่อย" value={fund ? fundLabelWithHolder(fund) : '-'} />
           <Field label="รหัสค่าใช้จ่ายของผู้เบิก (บัญชี)" value={claimCostCenterLine(claim, fund) || '-'} />
+          <Field label="รหัสใบสำคัญจ่าย" value={claim.expense_code ? expenseCodeLabel(claim.expense_code) : 'ตามแผนกผู้เบิก'} />
           <Field label="หัวหน้าผู้อนุมัติ" value={headApproverText(claim)} />
           <Field label="เจ้าของเงินสด (ผู้อนุมัติจ่าย)" value={claim.approved_by_name ?? claim.approved_by ?? '-'} />
           <Field label="วันที่จ่าย" value={claim.transfer_date ? formatDate(claim.transfer_date) : '-'} />

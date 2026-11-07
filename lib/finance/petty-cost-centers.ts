@@ -1,5 +1,5 @@
 import type { PettyClaim, PettyFund } from '@/app/finance/types-petty';
-import { accountCodeLine } from '@/lib/finance/petty-account-code';
+import { accountCodeLine, divisionAllowed } from '@/lib/finance/petty-account-code';
 
 /**
  * ศูนย์และแผนกของผู้เบิก — รายการจากผู้ใช้ 29/10/2026 (ชื่อคงตามที่ส่งมา รวมจุดหลังชื่อศูนย์บางตัว)
@@ -179,4 +179,27 @@ export function fundForCostCenter(
   if (!branch || !costCenter) return '';
   const hits = funds.filter(f => f.branch_code === branch && f.division_code === costCenter.slice(1));
   return hits.length === 1 ? String(hits[0].id) : '';
+}
+
+
+/** ฝ่ายบัญชีและการเงิน — วงเงินสำรองของสาขา เมื่อแผนกผู้เบิกไม่มีวงเงินของตัวเอง */
+export const ACCOUNTING_DIVISION = 'A04';
+
+export type LockedFund<T> = { fund: T | null; via: 'department' | 'accounting' | null };
+
+/** วงเงินที่ล็อกให้ผู้เบิก (ผู้ใช้สั่ง 7/11/2026 "Lock master ตามแผนกกับผู้ถือวงเงิน ยกเว้นที่ไม่มี ใช้วงเงินของบัญชี ยึดแผนกและสาขา")
+ *  1) วงเงินสาขาเดียวกัน แผนกเดียวกับศูนย์และแผนกที่เลือก (ต้องเบิกประเภทนี้ได้)
+ *  2) ไม่มี → วงเงินฝ่ายบัญชี (A04) สาขาเดียวกัน (ถ้าเบิกประเภทนี้ได้)
+ *  3) ไม่มีทั้งคู่ → null ให้หน้าจอบอกว่าเปิดไม่ได้ */
+export function lockedFundFor<T extends Pick<PettyFund, 'id' | 'branch_code' | 'division_code'>>(
+  funds: readonly T[], costCenter: string | null | undefined, expenseType: string | null | undefined,
+): LockedFund<T> {
+  const branch = branchOfCostCenter(costCenter);
+  if (!branch || !costCenter) return { fund: null, via: null };
+  const inBranch = funds.filter(f => f.branch_code === branch && divisionAllowed(expenseType, f.division_code));
+  const own = inBranch.find(f => f.division_code === costCenter.slice(1));
+  if (own) return { fund: own, via: 'department' };
+  const acc = inBranch.find(f => f.division_code === ACCOUNTING_DIVISION);
+  if (acc) return { fund: acc, via: 'accounting' };
+  return { fund: null, via: null };
 }

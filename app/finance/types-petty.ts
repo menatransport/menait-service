@@ -41,6 +41,10 @@ export type PettyClaimItem = {
   driver_role?: string | null;
   /** ใบยาง: รหัสตำแหน่งแบบ WMS คั่นด้วย , */
   tire_position?: string | null;
+  /** ฟลีท ณ วันทำรายการจาก ATMS: Mixer L / Mixer S / Trailer / Side curtain (ผู้ใช้สั่ง 7/11/2026) */
+  fleet?: string | null;
+  /** รหัสคนขับจาก master (พจส. = รหัสพนักงาน · พจร. = รหัส MTMxxx) */
+  driver_code?: string | null;
 };
 export type PettyClaim = {
   id: number; form_id: string; fund_id: number; expense_type: string;
@@ -50,7 +54,12 @@ export type PettyClaim = {
   detail?: Record<string, unknown>;
   amount: number; dd_no: string | null; receipt_no: string | null;
   /** หักภาษี ณ ที่จ่าย — ส่งกลับไปตอน "ส่งอีกครั้ง" ไม่งั้นค่าหาย */
+  /** รหัสใบสำคัญจ่าย 2100/2500/3200/3300/3500 จาก พจส./พจร.+ฟลีท (ข้อ 8) · null = ใช้ cost_center */
+  expense_code?: string | null;
   wht_applicable?: boolean;
+  /** ยอดหัก ณ ที่จ่าย (บาท) ผู้เบิกใส่เอง · net_amount = amount − wht_amount คือยอดที่โอนจริง (ผู้ใช้สั่ง 7/11/2026) */
+  wht_amount?: number;
+  net_amount?: number;
   status: import('@/lib/finance/petty-status').PettyStatus;
   created_by: string; approved_by: string | null; approved_at: string | null;
   /** เวลาเปิดใบ — ตรา e-Signature ช่องผู้ขอเบิกบนใบสำคัญจ่าย (BE เก่าไม่ส่ง = ไม่มีตรา) */

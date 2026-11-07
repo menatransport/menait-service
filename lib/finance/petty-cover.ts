@@ -5,6 +5,7 @@ import { bangkokDate, docHead, field, PETTY_LANDSCAPE_CSS, sec, signBlock, thaiD
 import { printableDocs, requiredDocs } from '@/lib/finance/petty-preset';
 import { documentControlFooter, esc, money, printedNow, wrapDocument } from '@/lib/finance/printShared';
 import { fundCostCenterLine } from '@/lib/finance/petty-cost-centers';
+import { claimExpenseCode, expenseCodeLabel } from '@/lib/finance/petty-expense-code';
 
 export type ClerkGroup = { clerk: string; claims: PettyClaim[]; total: number };
 
@@ -39,8 +40,21 @@ export function clerkNameOf(group: ClerkGroup): string {
 
 export type CoverRow = {
   no: number; formId: string; typeName: string; payee: string; ddNo: string;
-  period: string; amount: number;
+  period: string; amount: number; code: string;
 };
+
+/** สรุปยอดตามรหัสใบสำคัญจ่าย (ข้อ 8 ผู้ใช้สั่ง 7/11/2026 "ใบสำคัญจ่ายแยกตามรหัส") — บัญชีลงบัญชีแยกกอง */
+export function codeSummary(group: ClerkGroup): { code: string; label: string; count: number; amount: number }[] {
+  const buckets = new Map<string, { code: string; label: string; count: number; amount: number }>();
+  for (const claim of group.claims) {
+    const code = claimExpenseCode(claim) || '-';
+    const row = buckets.get(code) ?? { code, label: expenseCodeLabel(code) || 'ไม่ระบุรหัส', count: 0, amount: 0 };
+    row.count += 1;
+    row.amount = round2(row.amount + claim.amount);
+    buckets.set(code, row);
+  }
+  return [...buckets.values()].sort((a, b) => a.code.localeCompare(b.code));
+}
 
 export function coverRows(group: ClerkGroup, types: readonly PettyExpenseType[]): CoverRow[] {
   return group.claims.map((claim, index) => ({
@@ -53,6 +67,7 @@ export function coverRows(group: ClerkGroup, types: readonly PettyExpenseType[])
       ? `${thaiDate(claim.period_from)} – ${thaiDate(claim.period_to)}`
       : thaiDate(claim.period_from ?? claim.expense_date),
     amount: claim.amount,
+    code: claimExpenseCode(claim),
   }));
 }
 
@@ -84,6 +99,7 @@ export function coverSheetHtml(opts: {
   now?: Date;
 }): string {
   const rows = coverRows(opts.group, opts.types);
+  const codes = codeSummary(opts.group);  // แยกตามรหัสใบสำคัญจ่าย (ข้อ 8)
   const isRound = opts.mode === 'round';
   const ref = opts.batchNo ?? opts.group.claims[0]?.form_id ?? '-';
   const today = thaiDate(bangkokDate((opts.now ?? new Date()).toISOString()));
@@ -98,10 +114,12 @@ ${field('สาขา · แผนก', fundCostCenterLine({ branch_code: opts.b
 
 ${sec(2, 'ใบเบิกที่ส่งมาด้วย', 'Documents')}
 <table class="items"><thead><tr><th class="c" style="width:8mm">#</th><th style="width:34mm">เลขที่ใบเบิก</th><th>ประเภท</th>
-<th>จ่ายให้</th><th style="width:36mm">ช่วงวันที่</th><th style="width:28mm">เลขที่ DD</th><th class="a" style="width:26mm">จำนวนเงิน</th></tr></thead>
+<th>จ่ายให้</th><th style="width:36mm">ช่วงวันที่</th><th style="width:22mm">รหัส</th><th style="width:28mm">เลขที่ DD</th><th class="a" style="width:26mm">จำนวนเงิน</th></tr></thead>
 <tbody>${rows.map(r => `<tr><td class="c">${r.no}</td><td class="nw">${esc(r.formId)}</td><td>${esc(r.typeName)}</td><td>${esc(r.payee)}</td>` +
-    `<td>${esc(r.period)}</td><td>${esc(r.ddNo)}</td><td class="a">${money(r.amount)}</td></tr>`).join('')}</tbody></table>
-<div class="sum"><div class="dates">${field('จำนวนใบ', `${rows.length} ใบ`)}</div>
+    `<td>${esc(r.period)}</td><td class="nw">${esc(r.code || '-')}</td><td>${esc(r.ddNo)}</td><td class="a">${money(r.amount)}</td></tr>`).join('')}</tbody></table>
+<div class="sum"><div class="dates" style="grid-template-columns:1fr">
+<table class="items" style="margin-top:0"><thead><tr><th>รหัสใบสำคัญจ่าย</th><th class="c" style="width:18mm">จำนวนใบ</th><th class="a" style="width:30mm">จำนวนเงิน</th></tr></thead>
+<tbody>${codes.map(c => `<tr><td>${esc(c.label)}</td><td class="c">${c.count}</td><td class="a">${money(c.amount)}</td></tr>`).join('')}</tbody></table></div>
 ${totalBox('รวมทั้งสิ้น', money(opts.group.total), bahtText(opts.group.total))}</div>
 
 ${sec(3, 'รายการเอกสารที่ต้องรวบรวม', 'Checklist')}

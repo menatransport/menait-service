@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { clerkNameOf, coverRows, coverSheetHtml, groupByClerk, roundGroup } from './petty-cover';
+import { clerkNameOf, codeSummary, coverRows, coverSheetHtml, groupByClerk, roundGroup } from './petty-cover';
 import type { PettyClaim } from '@/app/finance/types-petty';
 
 const CLAIMS = [
@@ -161,6 +161,23 @@ describe('ใบปะหน้าของรอบส่งเคลียร�
     const clerk = coverSheetHtml({ group: groupByClerk(CLAIMS)[0], types: TYPES, clerkName: 'x', branchCode: '03', divisionCode: 'B02' });
     expect(clerk).toContain('เจ้าหน้าที่ผู้เปิดใบ');
     expect(clerk).not.toContain('หัวหน้าอนุมัติเคลียร์');
+  });
+});
+
+describe('สรุปตามรหัสใบสำคัญจ่าย (ข้อ 8 ผู้ใช้สั่ง 7/11/2026)', () => {
+  test('รวมยอดและนับใบตามรหัส ใบที่ไม่มีรหัสใช้รหัสแผนกผู้เบิก', () => {
+    const group = roundGroup({ holder_employee_id: 'h', claims: [
+      { ...CLAIMS[0], expense_code: '3200', amount: 100 },
+      { ...CLAIMS[0], form_id: 'X2', expense_code: '3200', amount: 50 },
+      { ...CLAIMS[0], form_id: 'X3', expense_code: null, cost_center: '3B01', amount: 20 },
+    ] as PettyClaim[] });
+    expect(codeSummary(group)).toEqual([
+      { code: '3200', label: '3200 ศลบ - บริการ', count: 2, amount: 150 },
+      { code: '3B01', label: '3B01 ศลบ - จัดส่ง', count: 1, amount: 20 },
+    ]);
+    const html = coverSheetHtml({ group, types: TYPES, clerkName: 'x', branchCode: '03', divisionCode: 'B02', mode: 'round' });
+    expect(html).toContain('รหัสใบสำคัญจ่าย');
+    expect(html).toContain('3200 ศลบ - บริการ');
   });
 });
 

@@ -88,6 +88,9 @@ export function singleItemFrom(form: Record<string, unknown>): PettyItemDraft {
     qty: 1,
     rate: form.rate as number,
     remark: (form.remark as string) ?? null,
+    // ฟลีท/คนขับของหัวใบ (ค่าทางด่วน ค่าเดินทาง) ลงแถวรายการด้วย จะได้ออกรายงานฟลีทได้ทุกประเภท (7/11/2026)
+    fleet: (form.fleet as string) ?? null,
+    driver_code: (form.driver_code as string) ?? null,
   };
 }
 

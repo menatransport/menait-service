@@ -1,9 +1,13 @@
 'use client';
 
+import { useRef } from 'react';
 import { Plus, Trash2, Truck } from 'lucide-react';
 import type { PettySpec } from '@/app/finance/types-petty';
 import { claimTotal, lineAmount, type PettyItemDraft } from '@/lib/finance/petty-items';
 import { blankItem, itemFields } from '@/lib/finance/petty-spec';
+import { fleetAt } from '@/app/finance/petty-api';
+import { applyDriver, applyFleet } from '@/lib/finance/petty-driver-fill';
+import { DriverPicker } from './DriverPicker';
 import { TirePositionPicker } from './TirePositionPicker';
 import { TruckPicker } from './TruckPicker';
 import { Button, FIELD_SM, Req } from './ui';
@@ -47,9 +51,24 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
   const truckField = itemFields(spec).find(f => f.key === 'truck');
   const hasTruck = !!truckField;
   const total = claimTotal(rows);
+  // แถวล่าสุดสำหรับ callback ที่มาช้า (ถามฟลีทจาก ATMS) — ไม่งั้นเขียนทับด้วยแถวเก่าที่ยังไม่มีรถ
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
 
   function setCell(index: number, key: string, value: unknown) {
     onChange(rows.map((r, i) => (i === index ? { ...r, [key]: value } : r)));
+  }
+
+  // เลือกรถแล้วถามฟลีท ณ วันทำรายการจาก ATMS (Mixer L/S · Trailer · Side curtain) เติมลงแถว + ประเภทรถ/คนขับที่ยังว่าง (ข้อ 10)
+  // ตอบช้า/ไม่พบ = แถวยังใช้ได้ ฟลีทว่าง · ใช้แถวล่าสุดจาก rowsRef และเช็กว่ารถในแถวยังเป็นคันเดิมก่อนเขียน
+  function lookupFleet(index: number, truck: { truck_code: string; truck_plate: string }, eventDate: unknown) {
+    fleetAt({ truck_code: truck.truck_code, truck_plate: truck.truck_plate, date: String(eventDate ?? '') || null })
+      .then(info => {
+        const latest = rowsRef.current;
+        if (String(latest[index]?.truck_code ?? '') !== truck.truck_code) return;
+        onChange(latest.map((r, i) => (i === index ? applyFleet(r, info) : r)));
+      })
+      .catch(() => { /* ไม่รู้ฟลีทก็เปิดใบได้ */ });
   }
 
   function hintFor(lineNo: number) {
@@ -80,6 +99,7 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
                     <span className={MOBILE_LABEL}>รถ</span>
                     <TruckPicker lineNo={index + 1} readOnly code={String(row.truck_code ?? '')}
                       plate={String(row.truck_plate ?? '')} onPick={() => {}} />
+                    {!!row.fleet && <span className="ml-1.5 text-xs text-ink-500">{String(row.fleet)}</span>}
                   </td>
                 )}
                 {fields.map(f => {
@@ -129,6 +149,13 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
     if (f.type === 'tire_positions') {
       return <TirePositionPicker value={value} qty={row.qty as number | string | null | undefined}
         label={label} onChange={next => setCell(index, f.key, next)} />;
+    }
+    if (f.key === 'driver_name') {
+      return (
+        <DriverPicker value={value} date={String(row.event_date ?? '') || null} lineNo={index + 1}
+          onChange={text => onChange(rows.map((r, i) => (i === index ? { ...r, driver_name: text, driver_code: null } : r)))}
+          onPick={driver => onChange(rows.map((r, i) => (i === index ? applyDriver(r, driver) : r)))} />
+      );
     }
     if (f.type === 'select') {
       return (
@@ -181,10 +208,14 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
                       <span className={CELL_LABEL}>รถ{truckField.required && <Req />}</span>
                       <TruckPicker lineNo={index + 1}
                         code={String(row.truck_code ?? '')} plate={String(row.truck_plate ?? '')}
-                        onPick={truck => onChange(rows.map((r, i) => i === index
-                          ? { ...r, truck_code: truck.truck_code, truck_plate: truck.truck_plate,
-                              truck_type: truck.truck_type || r.truck_type }
-                          : r))} />
+                        onPick={truck => {
+                          onChange(rows.map((r, i) => i === index
+                            ? { ...r, truck_code: truck.truck_code, truck_plate: truck.truck_plate,
+                                truck_type: truck.truck_type || r.truck_type, fleet: null }
+                            : r));
+                          lookupFleet(index, truck, row.event_date);
+                        }} />
+                      {!!row.fleet && <span className="mt-0.5 block truncate text-[11px] text-ink-500">ฟลีท {String(row.fleet)}</span>}
                     </div>
                   )}
                   {fields.map(f => (
