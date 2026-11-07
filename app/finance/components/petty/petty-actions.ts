@@ -187,8 +187,8 @@ export function approveFormHtml(ids: { date: string; file: string }, slipsAttach
     : 'โอนเงินแล้วแนบสลิปตรงนี้ แล้วกดยืนยันทีเดียว (รูปหรือ PDF ไม่เกิน 10 MB)';
   const label = 'display:block;font-size:13px;color:#5a6a80;margin:0 0 4px;text-align:left';
   return `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #edf1f7;text-align:left">`
-    + `<label for="${ids.date}" style="${label}">วันที่จ่ายเงิน</label>`
-    + `<input id="${ids.date}" type="date" value="${today}" style="display:block;width:100%;box-sizing:border-box;height:40px;margin:0 0 12px;padding:0 10px;border:1px solid #dbe4f3;border-radius:10px;font-size:14px;color:#10233f">`
+    + `<label for="${ids.date}" style="${label}">วันที่จ่ายเงิน <span style="color:#6b7f9e">(โอนไปก่อนแล้วใส่วันจริงย้อนหลังได้ รายงานยึดวันนี้)</span></label>`
+    + `<input id="${ids.date}" type="date" value="${today}" max="${today}" style="display:block;width:100%;box-sizing:border-box;height:40px;margin:0 0 12px;padding:0 10px;border:1px solid #dbe4f3;border-radius:10px;font-size:14px;color:#10233f">`
     + `<label for="${ids.file}" style="${label}">สลิปโอนเงิน${slipsAttached > 0 ? '' : ' <span style="color:#be123c">*</span>'}</label>`
     + `<input id="${ids.file}" type="file" multiple accept="image/*,application/pdf" style="display:block;width:100%;font-size:13px;color:#10233f">`
     + `<div style="font-size:12px;color:#6b7f9e;margin-top:4px">${slipNote}</div></div>`;
@@ -209,6 +209,7 @@ export async function readApproveForm(ids: { date: string; file: string }, slips
     return false as const;
   };
   if (!transfer_date) return fail('กรุณาระบุวันที่จ่าย');
+  if (transfer_date > bangkokDate(new Date().toISOString())) return fail('วันที่จ่ายเป็นวันข้างหน้าไม่ได้ ใส่วันที่โอนจริง');
   if (!files.length && slipsAttached === 0) return fail('แนบสลิปโอนเงินก่อนยืนยัน');
   const bad = files.map(f => ({ f, why: pettyFileProblem(f.name, f.size) })).find(x => x.why);
   if (bad) return fail(`${bad.f.name}: ${bad.why}`);

@@ -80,8 +80,15 @@ function periodText(claim: PettyClaim): string {
   return from === to ? from : `${from} – ${to}`;
 }
 
+/** วันที่หัวใบ = วันที่โอนเงินจริง (ผู้ใช้สั่ง 7/11/2026 "PDF ยึดตามวันที่จ่าย") · ยังไม่โอน = วันที่อนุมัติ/วันที่ขอเบิก */
 function voucherDate(claim: PettyClaim): string {
+  if (claim.transfer_date) return thaiDate(claim.transfer_date);
   return thaiDate(claim.approved_at ? bangkokDate(claim.approved_at) : claim.expense_date);
+}
+
+/** วันที่ขอเบิก (วันเปิดใบ) อยู่ใต้ Ref เพื่ออ้างอิงคู่กับวันที่จ่าย */
+function requestedDate(claim: PettyClaim): string {
+  return thaiDate(claim.created_at ? bangkokDate(claim.created_at) : claim.expense_date);
 }
 
 /** ใบสำคัญจ่ายเงินสดย่อย — ช่องและลำดับตามฟอร์มกระดาษของบริษัท โครงและสไตล์เดียวกับใบ Advance */
@@ -101,7 +108,7 @@ export function pettyVoucherHtml(opts: VoucherOpts): string {
 
   const body = `<section class="doc-part">
 ${docHead({ title: 'ใบสำคัญจ่ายเงินสดย่อย', english: '(Petty Cash Voucher)', logoUrl: opts.logoUrl,
-    meta: [['เลขที่', claim.form_id], ['วันที่', voucherDate(claim)]] })}
+    meta: [['เลขที่', claim.form_id], ['วันที่', voucherDate(claim)], ['วันที่ขอเบิก', requestedDate(claim)]] })}
 <p class="t2" style="margin-top:4px">${esc(COMPANY)}</p>
 
 ${sec(1, 'ข้อมูลการจ่าย', 'Payment')}
@@ -308,7 +315,7 @@ export function itemSummaryHtml(opts: VoucherOpts & {
 
   const body = `<section class="doc-part">
 ${docHead({ title: `ใบสรุปรายการ ${typeName}`, english: '(Item Summary)', logoUrl: opts.logoUrl,
-    meta: [['เลขที่', claim.form_id], ['วันที่', voucherDate(claim)]] })}
+    meta: [['เลขที่', claim.form_id], ['วันที่', voucherDate(claim)], ['วันที่ขอเบิก', requestedDate(claim)]] })}
 
 ${sec(1, 'ข้อมูลใบเบิก', 'Claim')}
 <div class="grid">${field('จ่ายให้', claim.payee_name)}${field('วงเงินสดย่อย', fundPlaceWithHolder(fund))}

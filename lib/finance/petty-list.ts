@@ -58,10 +58,11 @@ export function quickAction(claim: PettyClaim, role: PettyRole): QuickAction | n
   return null;
 }
 
-/** ขั้นตอนหลักของใบ ซ้าย→ขวา (flow v3) — ตีกลับคือ "หลุดราง" อยู่ที่ขั้นที่ต้องทำซ้ำ */
+/** ขั้นตอนหลักของใบ ซ้าย→ขวา (flow v3.2) — ตีกลับคือ "หลุดราง" อยู่ที่ขั้นที่ต้องทำซ้ำ
+ * ขั้น "หัวหน้าอนุมัติ" มีเฉพาะเมื่อยอดเกินอำนาจเจ้าของเงินสดตาม TOA (7/11/2026) ใบที่ข้ามจะเห็นเป็นผ่านแล้ว */
 export const FLOW_STEPS: { status: PettyStatus; label: string }[] = [
   { status: 'PENDING_HEAD', label: 'ขออนุมัติ' },
-  { status: 'PENDING_APPROVAL', label: 'หัวหน้าอนุมัติ' },
+  { status: 'PENDING_APPROVAL', label: 'หัวหน้าอนุมัติ (ถ้าเกิน TOA)' },
   { status: 'APPROVED', label: 'เจ้าของเงินสดอนุมัติ' },
   { status: 'CLEAR_PENDING', label: 'หัวหน้าอนุมัติเคลียร์' },
   { status: 'AWAITING_REVIEW', label: 'บัญชีตรวจ' },

@@ -6,6 +6,7 @@ import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { claimTotal, periodOf, type PettyItemDraft } from '@/lib/finance/petty-items';
+import { PETTY_CLAIM_CAP, claimCapProblem, routeHint, singleDriverRoleProblem } from '@/lib/finance/petty-rules';
 import {
   blankHeader, claimPayload, dupCheckParams, headerFields, isHolderAttachment, isItemBased, itemsFrom, missingAtCreate,
 } from '@/lib/finance/petty-spec';
@@ -19,7 +20,7 @@ import {
 import { requiredDocs } from '@/lib/finance/petty-preset';
 import { formatDate } from '@/lib/finance/status';
 import { showAlert, showSuccess } from '../../api';
-import { checkDuplicate, createClaim, getExpenseTypes, getFunds, uploadPettyFiles } from '../../petty-api';
+import { checkDuplicate, createClaim, getExpenseTypes, getFunds, previewRoute, uploadPettyFiles, type RoutePreview } from '../../petty-api';
 import { AddManyTrucksDialog } from '../../components/petty/AddManyTrucksDialog';
 import { ExpenseTypeCombobox } from '../../components/petty/ExpenseTypeCombobox';
 import { HeaderField } from '../../components/petty/HeaderField';
@@ -61,6 +62,7 @@ export default function NewPettyClaimPage() {
   const [addMany, setAddMany] = useState(false);
   const [dups, setDups] = useState<DupHint[]>([]);
   const [saving, setSaving] = useState(false);
+  const [route, setRoute] = useState<RoutePreview | null>(null);
 
   const type = useMemo(() => types?.find(t => t.code === typeCode) ?? null, [types, typeCode]);
   const spec = type?.spec ?? {};
@@ -70,6 +72,15 @@ export default function NewPettyClaimPage() {
     Object.entries(files).map(([key, list]) => [key, list.length]),
   );
   const total = itemBased ? claimTotal(rows) : claimTotal(itemsFrom(header));
+
+  // ใบนี้จะไปหาใคร (TOA): เจ้าของเงินสดอนุมัติเองได้ → ไม่มีขั้นหัวหน้า · ถามใหม่เมื่อวงเงินหรือยอดเปลี่ยน (7/11/2026)
+  useEffect(() => {
+    if (!fundId || total <= 0) { setRoute(null); return; }
+    const timer = setTimeout(() => {
+      previewRoute(fundId, total.toFixed(2)).then(setRoute).catch(() => setRoute(null));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [fundId, total]);
 
   useEffect(() => {
     (async () => {
@@ -163,6 +174,10 @@ export default function NewPettyClaimPage() {
     } else if (!String(header.rate ?? '').trim()) {
       return 'ยังไม่กรอกจำนวนเงิน';
     }
+    const cap = claimCapProblem(total);
+    if (cap) return cap;
+    const role = itemBased ? singleDriverRoleProblem(type.code, rows) : null;
+    if (role) return role;
     // สลิปโอนเป็นของเจ้าของเงินสด แนบตอนอนุมัติจ่าย — ตอนเปิดใบไม่บังคับ
     const fileProblem = missingAtCreate(spec, attachedCounts);
     if (fileProblem) return fileProblem;
@@ -191,6 +206,7 @@ export default function NewPettyClaimPage() {
         ['ยอดรวม', `${baht2(total)} บาท`],
         ['ไฟล์แนบ', `${fileCount} ไฟล์`],
         ['เลข DD', ddNo.trim() || 'กรอกทีหลัง'],
+        ['ส่งไปที่', routeHint(route)],
       ],
       warning: soft.length ? `มี ${soft.length} แถวที่อาจซ้ำ — ผู้อนุมัติจะเห็นคำเตือนนี้` : null,
       confirmButtonText: 'ส่งให้ผู้อนุมัติ',
@@ -227,7 +243,8 @@ export default function NewPettyClaimPage() {
         showAlert({ icon: 'warning', title: 'เปิดใบแล้ว แต่มีไฟล์ขึ้นไม่ครบ',
           text: `ไฟล์ที่ไม่ขึ้น: ${failed.join(', ')} — เปิดใบแล้วแนบเพิ่มได้` });
       } else {
-        showSuccess(`เปิดใบ ${claim.form_id} แล้ว`);
+        showSuccess(`เปิดใบ ${claim.form_id} แล้ว`,
+          claim.status === 'PENDING_APPROVAL' ? 'ยอดอยู่ในอำนาจเจ้าของเงินสด ใบไปรอเจ้าของเงินสดอนุมัติจ่ายเลย' : 'ใบไปรอหัวหน้าอนุมัติก่อน');
       }
       router.push('/finance/petty');
     } catch (err) {
@@ -281,7 +298,9 @@ export default function NewPettyClaimPage() {
         <div className="col-span-2 flex flex-col gap-1.5 sm:items-end">
           {requiredMissing
             ? <p className="text-xs text-ink-500" aria-live="polite">{requiredMissing}</p>
-            : needsDd && <p className="text-xs text-ink-500">ยอดตั้งแต่ 500 ใส่ DD ก่อนส่งบัญชี</p>}
+            : <p className="text-xs text-ink-500">
+                {needsDd ? 'ยอดตั้งแต่ 500 ใส่ DD ก่อนส่งบัญชี · ' : ''}{routeHint(route)} · ไม่เกิน {PETTY_CLAIM_CAP.toLocaleString('th-TH')} บาทต่อใบ
+              </p>}
           <Button tone="primary" size="lg" disabled={saving || !!requiredMissing} onClick={() => void confirmSubmit()}
             className="w-full sm:w-auto">
             {saving ? 'กำลังส่ง…' : 'ส่งให้ผู้อนุมัติ'}

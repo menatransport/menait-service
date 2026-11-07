@@ -19,6 +19,12 @@ table.items td.nw { white-space: nowrap; }
 .kv { display: grid; grid-template-columns: 1fr 1fr; column-gap: 22px; row-gap: 5px; }
 `;
 
+/** ใบปะหน้าพิมพ์แนวนอน (ผู้ใช้สั่ง 7/11/2026) — @page ทับของ CASH_ADVANCE_CSS · หน้าสูง 210mm − หัว 12mm − Document Control ~38mm = 160mm */
+export const PETTY_LANDSCAPE_CSS = PETTY_DOC_CSS + `
+@page { size: A4 landscape; margin: 0 0 9mm; }
+.doc-part { min-height: 160mm; }
+`;
+
 export type PettySignature = {
   title: string; name?: string | null; esign?: ESign | null;
   /** ตรา "รับเงินโอน" แทน e-Signature — ผู้รับเงินได้เงินทางโอน ไม่ได้เซ็นในระบบ · date = 'YYYY-MM-DD' */

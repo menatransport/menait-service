@@ -63,6 +63,8 @@ export type PettyClaim = {
   head_approved_by?: string | null; head_approved_by_name?: string | null; head_approved_at?: string | null;
   /** คนที่เปิดดูกดอนุมัติขั้นหัวหน้าได้ไหม (BE คิดจากสายงาน) — มีเฉพาะใบที่รอหัวหน้า */
   can_head_approve?: boolean;
+  /** TOA ให้เจ้าของเงินสดอนุมัติเอง ไม่มีขั้นหัวหน้า (7/11/2026) — อนุมัติแล้วชื่อหัวหน้าผู้อนุมัติ = เจ้าของเงินสด */
+  head_skipped?: boolean;
   /** คิวหัวหน้า: true = รอฉันอนุมัติ (ได้อีเมล) · false = อนุมัติแทนได้ */
   is_primary?: boolean;
   transfer_date: string | null; review_remark: string | null; return_reason: string | null;

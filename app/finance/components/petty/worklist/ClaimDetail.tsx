@@ -45,6 +45,15 @@ const OUTLINE_BTN = 'h-11 rounded-xl';
  * กล่องทำงาน: เจ้าของเงินสด (อนุมัติจ่าย/ตีกลับ/เลข DD/เลขรับสภาพหนี้) · ผู้เปิดใบ (ส่งอีกครั้ง) · บัญชี (ตรวจผ่าน/ส่งกลับแก้ไข)
  * · สิทธิ์จริงตัดสินที่ BE
  */
+/** ช่อง "หัวหน้าผู้อนุมัติ": ใบที่ TOA ให้เจ้าของเงินสดอนุมัติเอง ไม่มีขั้นหัวหน้า (7/11/2026) */
+export function headApproverText(claim: PettyClaim): string {
+  if (claim.head_skipped) {
+    const who = claim.approved_by_name ?? claim.approved_by;
+    return who ? `${who} (เจ้าของเงินสด อนุมัติเองตาม TOA)` : 'ไม่ต้องผ่านหัวหน้า (ยอดอยู่ในอำนาจเจ้าของเงินสดตาม TOA)';
+  }
+  return claim.head_approved_by_name ?? claim.head_approved_by ?? (claim.status === 'PENDING_HEAD' ? 'รออนุมัติ' : '-');
+}
+
 export function ClaimDetail({ formId, onChanged, onOpenRound }: {
   formId: string;
   onChanged?: () => void;
@@ -119,8 +128,11 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
   async function resubmit() {
     if (!claim) return;
     const toAccounting = claim.status === 'SENT_BACK';
-    const res = await pettyConfirm({ title: toAccounting ? 'ส่งกลับให้บัญชีตรวจอีกครั้ง?' : 'ส่งให้หัวหน้าอนุมัติอีกครั้ง?',
-      text: `ใบ ${claim.form_id} · แนบเอกสารที่ขาดครบแล้วใช่ไหม`, confirmButtonText: 'ส่ง' }) as { isConfirmed?: boolean };
+    // ตีกลับผู้เบิก → เริ่มอนุมัติใหม่: TOA ให้เจ้าของเงินสดอนุมัติเองได้ → ไปเจ้าของเงินสดเลย ไม่งั้นรอหัวหน้า (ระบบตัดสินตอนส่ง)
+    const res = await pettyConfirm({ title: toAccounting ? 'ส่งกลับให้บัญชีตรวจอีกครั้ง?' : 'ส่งขออนุมัติอีกครั้ง?',
+      text: toAccounting ? `ใบ ${claim.form_id} · แนบเอกสารที่ขาดครบแล้วใช่ไหม`
+        : `ใบ ${claim.form_id} · แก้ครบแล้วใช่ไหม ใบจะไปหาเจ้าของเงินสด หรือหัวหน้าก่อนถ้ายอดเกินอำนาจเจ้าของเงินสด`,
+      confirmButtonText: 'ส่ง' }) as { isConfirmed?: boolean };
     if (!res?.isConfirmed) return;
     setBusy('resubmit');
     try {
@@ -181,7 +193,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
           <Field label="เจ้าหน้าที่ผู้เปิดใบ" value={claim.created_by_name ?? claim.created_by} />
           <Field label="วงเงินสดย่อย" value={fund ? fundLabelWithHolder(fund) : '-'} />
           <Field label="รหัสค่าใช้จ่ายของผู้เบิก (บัญชี)" value={claimCostCenterLine(claim, fund) || '-'} />
-          <Field label="หัวหน้าผู้อนุมัติ" value={claim.head_approved_by_name ?? claim.head_approved_by ?? (claim.status === 'PENDING_HEAD' ? 'รออนุมัติ' : '-')} />
+          <Field label="หัวหน้าผู้อนุมัติ" value={headApproverText(claim)} />
           <Field label="เจ้าของเงินสด (ผู้อนุมัติจ่าย)" value={claim.approved_by_name ?? claim.approved_by ?? '-'} />
           <Field label="วันที่จ่าย" value={claim.transfer_date ? formatDate(claim.transfer_date) : '-'} />
           {(claim.debt_doc_no || needsDebtDoc(claim)) && (
@@ -242,7 +254,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
       )}
       {claim.status === 'PENDING_HEAD' && isHolder && !user?.is_petty_super && (
         <p className="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
-          ใบนี้รอหัวหน้าของผู้ขอเบิกอนุมัติก่อน หัวหน้าอนุมัติแล้วคุณถึงอนุมัติจ่ายได้
+          ใบนี้ยอดเกินอำนาจอนุมัติของคุณตาม TOA ต้องรอหัวหน้าของผู้ขอเบิกอนุมัติก่อน แล้วคุณถึงอนุมัติจ่ายได้
         </p>
       )}
 
@@ -296,7 +308,7 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
       {isClerk && (claim.status === 'RETURNED' || claim.status === 'SENT_BACK') && (
         <Panel title="ส่งอีกครั้ง">
           <Button type="button" onClick={() => void resubmit()} disabled={busy !== null} className={PRIMARY_BTN}>
-            {busy === 'resubmit' ? 'กำลังส่ง...' : claim.status === 'SENT_BACK' ? 'ส่งกลับให้บัญชี' : 'ส่งให้เจ้าของเงินสดอีกครั้ง'}
+            {busy === 'resubmit' ? 'กำลังส่ง...' : claim.status === 'SENT_BACK' ? 'ส่งกลับให้บัญชี' : 'ส่งขออนุมัติอีกครั้ง'}
           </Button>
         </Panel>
       )}

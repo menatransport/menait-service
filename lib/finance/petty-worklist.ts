@@ -386,9 +386,9 @@ export const ROUND_LOG_LABELS: Record<string, string> = {
 };
 
 export const CLAIM_LOG_LABELS: Record<string, string> = {
-  CREATE: 'เปิดใบ', UPDATE: 'แก้ไขใบ', RESUBMIT: 'ส่งให้เจ้าของเงินสดอีกครั้ง', RESUBMIT_ACC: 'ส่งกลับให้บัญชี',
+  CREATE: 'เปิดใบ', UPDATE: 'แก้ไขใบ', RESUBMIT: 'ส่งขออนุมัติอีกครั้ง', RESUBMIT_ACC: 'ส่งกลับให้บัญชี',
   APPROVE: 'อนุมัติจ่าย', RETURN: 'ตีกลับผู้เบิก', SET_DD: 'ใส่เลข DD', SUBMIT_ROUND: 'ส่งเคลียร์',
-  CLEAR_APPROVE: 'หัวหน้าอนุมัติเคลียร์', CLEAR_REJECT: 'หัวหน้าไม่อนุมัติเคลียร์', ACC_PASS: 'บัญชีตรวจผ่าน',
+  HEAD_SKIP_TOA: 'ข้ามขั้นหัวหน้า (เจ้าของเงินสดมีอำนาจตาม TOA)', CLEAR_APPROVE: 'หัวหน้าอนุมัติเคลียร์', CLEAR_REJECT: 'หัวหน้าไม่อนุมัติเคลียร์', ACC_PASS: 'บัญชีตรวจผ่าน',
   SEND_BACK: 'ส่งกลับแก้ไข', PAY_CLOSE: 'จ่ายเงิน ปิดใบ', EDIT_DOC_NUMBERS: 'แก้ไขเลขที่เอกสารของรอบ',
 };
 

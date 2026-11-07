@@ -1,7 +1,7 @@
 import type { PettyClaim, PettyExpenseType } from '@/app/finance/types-petty';
 import { bahtText } from '@/lib/finance/bahtText';
 import { round2 } from '@/lib/finance/status';
-import { bangkokDate, docHead, field, PETTY_DOC_CSS, sec, signBlock, thaiDate, totalBox } from '@/lib/finance/petty-doc';
+import { bangkokDate, docHead, field, PETTY_LANDSCAPE_CSS, sec, signBlock, thaiDate, totalBox } from '@/lib/finance/petty-doc';
 import { printableDocs, requiredDocs } from '@/lib/finance/petty-preset';
 import { documentControlFooter, esc, money, printedNow, wrapDocument } from '@/lib/finance/printShared';
 import { fundCostCenterLine } from '@/lib/finance/petty-cost-centers';
@@ -121,7 +121,7 @@ ${signBlock(4, 'ลงนาม', 'Signatures', isRound
 
   return wrapDocument({
     title: `ใบปะหน้าเงินสดย่อย ${opts.clerkName}`,
-    body, extraCss: PETTY_DOC_CSS, fontCss: true,
+    body, extraCss: PETTY_LANDSCAPE_CSS, fontCss: true,  // แนวนอน (ผู้ใช้สั่ง 7/11/2026)
     footerHtml: documentControlFooter({
       ref, name: 'Petty Cash Cover Sheet (PC)', owner: opts.clerkName,
       approvedBy: '', approvedDate: '', printed: printedNow(),

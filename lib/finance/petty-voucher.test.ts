@@ -122,8 +122,10 @@ describe('จ่ายให้ มีธนาคารและเลขบั
 });
 
 describe('ของที่เจอตอนพิมพ์จริง 2026-10-13', () => {
-  test('วันที่บนหัวใบเป็นวันที่ไทย ไม่ใช่วัน UTC (อนุมัติ 13/10 05:25 น. ต้องขึ้น 13/10)', () => {
-    const lateNight = { ...claim, approved_at: '2026-10-12T22:25:51+00:00' } as PettyClaim;
+  test('วันที่บนหัวใบ = วันที่โอน (7/11/2026) · ไม่มีวันที่โอนใช้วันอนุมัติเป็นวันไทย ไม่ใช่วัน UTC', () => {
+    const paid = { ...claim, transfer_date: '2026-10-09', approved_at: '2026-10-12T22:25:51+00:00' } as PettyClaim;
+    expect(pettyVoucherHtml({ claim: paid, fund, typeName: 'ค่าชั่งน้ำหนัก' })).toContain('<span>วันที่</span><b>09/10/2026</b>');
+    const lateNight = { ...claim, transfer_date: null, approved_at: '2026-10-12T22:25:51+00:00' } as PettyClaim;
     expect(pettyVoucherHtml({ claim: lateNight, fund, typeName: 'ค่าชั่งน้ำหนัก' }))
       .toContain('<span>วันที่</span><b>13/10/2026</b>');
   });

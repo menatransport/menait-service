@@ -163,3 +163,11 @@ describe('ใบปะหน้าของรอบส่งเคลียร�
     expect(clerk).not.toContain('หัวหน้าอนุมัติเคลียร์');
   });
 });
+
+describe('ใบปะหน้าแนวนอน (ผู้ใช้สั่ง 7/11/2026)', () => {
+  test('@page เป็น A4 landscape และหน้าสูง 160mm', () => {
+    const html = coverSheetHtml({ group: groupByClerk(CLAIMS)[0], types: TYPES, clerkName: 'สมชาย', branchCode: '03', divisionCode: 'B02' });
+    expect(html).toContain('size: A4 landscape');
+    expect(html).toContain('min-height: 160mm');
+  });
+});

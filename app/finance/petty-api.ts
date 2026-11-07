@@ -192,6 +192,18 @@ export function checkDuplicate(params: {
   return fetchJson<DupResult>(`/api/finance/petty/claims/duplicate-check?${qs.toString()}`);
 }
 
+/** ใบนี้จะไปหาใคร (ตาม TOA): head_required=false = เจ้าของเงินสดอนุมัติเองได้ ไม่มีขั้นหัวหน้า (ผู้ใช้สั่ง 7/11/2026) */
+export type RoutePreview = {
+  head_required: boolean; required_level: number | null;
+  holder_employee_id: string | null; holder_name: string | null;
+  over_cap: boolean; cap: number;
+};
+
+export function previewRoute(fundId: number | string, amount: number | string) {
+  const qs = new URLSearchParams({ fund_id: String(fundId), amount: String(amount) });
+  return fetchJson<RoutePreview>(`/api/finance/petty/claims/route-preview?${qs.toString()}`);
+}
+
 export type TruckOption = { truck_code: string; truck_plate: string; truck_type: string };
 
 /** ค้นรถจาก master — เลือกแล้วเติมทะเบียนให้เอง ด่านซ้ำเข้มจึงเชื่อถือทะเบียนได้ */
