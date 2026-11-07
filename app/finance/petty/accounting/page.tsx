@@ -13,6 +13,7 @@ import {
   WORKLIST_ROUND_STATUSES, defaultTab, resolveTab, worklistStats, type WorklistCtx, type WorklistTabKey,
 } from '@/lib/finance/petty-worklist';
 import { showAlert } from '../../api';
+import { useFinancePermissions } from '../../usePermissions';
 import { getExpenseTypes, getFunds, listAllClaims, listRounds } from '../../petty-api';
 import { FinanceCanvas, FinanceHeading, SummaryTiles } from '../../components/FinanceShell';
 import { PettyReportButton } from '../../components/petty/PettyReportButton';
@@ -43,7 +44,8 @@ function PettyWork() {
   const { user, loading } = useSessionContext();
   const searchParams = useSearchParams();
   const allowed = canSeePettyWorklist(user);
-  const perms = worklistPerms(user);
+  const fin = useFinancePermissions();
+  const perms = useMemo(() => worklistPerms(user, fin), [user, fin]);
   const [tab, setTab] = useState<WorklistTabKey | null>(null);
   const [claims, setClaims] = useState<PettyClaim[]>([]);
   const [rounds, setRounds] = useState<PettyRound[]>([]);

@@ -19,6 +19,7 @@ import { RoundFiles } from './RoundFiles';
 import { RoundPayForm } from './RoundPayForm';
 import { RoundReviewVoucherPanel } from './RoundReviewVoucherPanel';
 import { ClaimBadge, RoundBadge } from './StatusBadges';
+import { useFinancePermissions } from '../../../usePermissions';
 
 const TH = 'px-3 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap';
 const TD = 'px-3 py-2 text-sm whitespace-nowrap align-top';
@@ -72,6 +73,7 @@ export function RoundDetail({ roundId, onChanged, onOpenClaim, onLoaded }: {
   onLoaded?: (round: PettyRound) => void;
 }) {
   const { user } = useSessionContext();
+  const fin = useFinancePermissions();  // การเงิน 2 สาย: ปุ่มทำจ่ายเฉพาะสายจ่าย
   const [round, setRound] = useState<PettyRound | null>(null);
   const [types, setTypes] = useState<PettyExpenseType[]>([]);
   const [funds, setFunds] = useState<PettyFund[]>([]);
@@ -95,7 +97,7 @@ export function RoundDetail({ roundId, onChanged, onOpenClaim, onLoaded }: {
   if (error) return <NoAccess text={error} />;
   if (!round) return <Panel title="รอบส่งเคลียร์"><div className="py-8"><MascotLoader text="กำลังโหลดรายละเอียด" size={80} /></div></Panel>;
 
-  const perms = worklistPerms(user);
+  const perms = worklistPerms(user, fin);
   const claims = round.claims ?? [];
   const typeName = (code: string) => types.find(t => t.code === code)?.name_th ?? code;
   const notPassed = claims.filter(c => c.status !== 'REVIEWED' && c.status !== 'CLOSED').length;

@@ -8,6 +8,8 @@ export const PERM = {
   close: 'close',
   payeeAdmin: 'payee_admin',
   overdueRemind: 'overdue_remind',
+  /** สายการเงินรับ (ผู้ใช้สั่ง 7/11/2026 แยกการเงิน 2 สายจากชื่อตำแหน่งใน /master) — รับเงินคืน/ปิดรายการ */
+  receive: 'receive',
 } as const;
 
 export type Permission = (typeof PERM)[keyof typeof PERM];

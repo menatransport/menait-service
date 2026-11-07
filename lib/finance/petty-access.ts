@@ -88,9 +88,12 @@ export function canSeePettyWorklist(user: U | null | undefined): boolean {
   return canReview(user) || canCloseBatch(user);
 }
 
-/** ปุ่มที่คนนี้เห็นในหน้างาน: บัญชี = ตรวจ + ตั้งเบิก · การเงิน = จ่ายเงิน · แอดมิน = ทุกปุ่ม */
-export function worklistPerms(user: U | null | undefined): { review: boolean; voucher: boolean; pay: boolean } {
-  return { review: canReview(user), voucher: canVoucher(user), pay: canCloseBatch(user) };
+/** ปุ่มที่คนนี้เห็นในหน้างาน: บัญชี = ตรวจ + ตั้งเบิก · การเงิน = จ่ายเงิน · แอดมิน = ทุกปุ่ม
+ *  fin = สิทธิ์จาก /permissions/me (การเงิน 2 สาย 7/11/2026): ทำจ่ายรอบ = สิทธิ์ pay (สายจ่าย) · ยังโหลดไม่เสร็จ/ล่ม = ไม่ซ่อน BE กันเอง */
+export function worklistPerms(user: U | null | undefined, fin?: { permissions: string[]; unavailable?: boolean } | null):
+  { review: boolean; voucher: boolean; pay: boolean } {
+  const payLine = !fin || fin.unavailable || user?.role === 'a' || user?.is_petty_super === true || fin.permissions.includes('pay');
+  return { review: canReview(user), voucher: canVoucher(user), pay: canCloseBatch(user) && payLine };
 }
 
 /** เลขรอบส่งเคลียร์ เช่น LB-B02-2610-B7 / 04-A04-2610-B1 — ใช้เป็นชื่อโฟลเดอร์ S3 ของสลิปโอน จึงคุมเข้ม ไม่มี / หรือ .. */

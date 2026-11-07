@@ -186,3 +186,15 @@ describe('งานเงินสดย่อย (worklist) permissions', () =>
     expect(roundDocNumbersAllowed(acc, null)).toBe(false);
   });
 });
+
+describe('worklistPerms กับการเงิน 2 สาย (ผู้ใช้สั่ง 7/11/2026)', () => {
+  const fin = { employee_id: '1', is_finance: true, is_treasury: true } as Parameters<typeof worklistPerms>[0];
+  test('สายจ่ายเห็นปุ่มทำจ่าย สายรับไม่เห็น', () => {
+    expect(worklistPerms(fin, { permissions: ['pay', 'payee_admin'] }).pay).toBe(true);
+    expect(worklistPerms(fin, { permissions: ['receive', 'close'] }).pay).toBe(false);
+  });
+  test('ยังโหลดสิทธิ์ไม่เสร็จ/หลังบ้านล่ม ไม่ซ่อน (BE กันเอง)', () => {
+    expect(worklistPerms(fin, null).pay).toBe(true);
+    expect(worklistPerms(fin, { permissions: [], unavailable: true }).pay).toBe(true);
+  });
+});
