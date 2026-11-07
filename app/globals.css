@@ -11,17 +11,19 @@
   --font-title: var(--font-plex-thai), var(--font-noto-thai), sans-serif;
   --font-mono: var(--font-geist-mono);
 
-  /* ── menaIT V.2 palette (derived from MENA ATMS theme) ── */
-  --color-brand-50: #f0faff;
-  --color-brand-100: #d9f3ff;
-  --color-brand-200: #b9e9fb;
-  --color-brand-300: #6fd0ff;
-  --color-brand-400: #3da5ff;
-  --color-brand-500: #2584f7;
-  --color-brand-600: #1c6ef2;
-  --color-brand-700: #1556c9;
-  --color-brand-800: #0f3f99;
-  --color-brand-900: #0f2748;
+  /* ── menaIT V.2 palette (derived from MENA ATMS theme) ──
+     brand-* ชี้ไปที่ตัวแปร --brand-* ใน :root (น้ำเงิน) จะได้สลับเป็นธีมเขียวใต้ .theme-petty ได้ (ผู้ใช้สั่ง 7/11/2026
+     "วงเงินสดย่อยเป็นสีเขียว เบิก Advance น้ำเงินเหมือนเดิม กันสับสน") */
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
   --color-aqua-50: #ebfaff;
   --color-aqua-100: #c9f1fe;
   --color-aqua-200: #9be6fc;
@@ -85,6 +87,16 @@
 }
 
 :root {
+  --brand-50: #f0faff;
+  --brand-100: #d9f3ff;
+  --brand-200: #b9e9fb;
+  --brand-300: #6fd0ff;
+  --brand-400: #3da5ff;
+  --brand-500: #2584f7;
+  --brand-600: #1c6ef2;
+  --brand-700: #1556c9;
+  --brand-800: #0f3f99;
+  --brand-900: #0f2748;
   --radius: 1rem;
   --background: #f0faff;
   --foreground: #0f2748;
@@ -473,3 +485,28 @@
 
 /* SweetAlert เปิดทับ Radix Dialog: Radix ตั้ง pointer-events:none ที่ body ทำให้กดปุ่มยืนยันไม่ได้ (20/10/2026) */
 .swal2-container { pointer-events: auto; }
+
+
+/* ธีมเงินสดย่อย = เขียว (ผู้ใช้สั่ง 7/11/2026) — ครอบทุกหน้า /finance/petty ผ่าน app/finance/petty/layout.tsx
+   เฉดเดียวกับ WMS (#1B8C4B) ไล่ระดับให้ตัดกับข้อความขาว/เข้มเท่าของเดิม · ink-900 ยังเป็นน้ำเงินเข้ม (ตัวหนังสือ) ไม่เปลี่ยน */
+.theme-petty {
+  --brand-50: #effaf3;
+  --brand-100: #d7f3e2;
+  --brand-200: #b1e6c8;
+  --brand-300: #7ed4a6;
+  --brand-400: #46ba7e;
+  --brand-500: #27a164;
+  --brand-600: #1b8c4b;
+  --brand-700: #15703c;
+  --brand-800: #115a31;
+  --brand-900: #0b3d22;
+}
+.theme-petty .v2-shell {
+  background: linear-gradient(140deg, #15703c 0%, #1b8c4b 55%, #46ba7e 100%);
+}
+.theme-petty .v2-btn {
+  background: linear-gradient(135deg, #27a164 0%, #1b8c4b 100%);
+  box-shadow: 0 8px 18px -8px rgba(27, 140, 75, .8);
+}
+.theme-petty .v2-btn:hover { box-shadow: 0 12px 24px -8px rgba(27, 140, 75, .85); }
+.theme-petty .v2-canvas { background: linear-gradient(180deg, #d7f3e2 0%, #effaf3 45%, #f7fbf8 100%); }

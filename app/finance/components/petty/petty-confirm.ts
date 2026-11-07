@@ -10,7 +10,7 @@ import { confirmReview, showConfirm, type ReviewRow } from '../../api';
 export function pettySwalTheme(danger = false): Record<string, unknown> {
   return {
     customClass: { popup: danger ? 'petty-swal petty-swal--danger' : 'petty-swal' },
-    confirmButtonColor: danger ? '#be123c' : '#1c6ef2',
+    confirmButtonColor: danger ? '#be123c' : '#1b8c4b',  // เขียวธีมเงินสดย่อย
     cancelButtonColor: '#ffffff',
     iconColor: '#6b7f9e',
     reverseButtons: true,
