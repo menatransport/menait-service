@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { PERM, can, canCancelAdvance, canEditDocNumbers, canSendVoucherBack, type PermissionState } from './permissions';
+import { PERM, can, canCancelAdvance, canEditDocNumbers, canEditUseDate, canSendVoucherBack, type PermissionState } from './permissions';
 
 const bow: PermissionState = { permissions: [PERM.pay, PERM.return] };
 
@@ -64,4 +64,17 @@ describe('canCancelAdvance — ตีกลับแบบยกเลิก (04
   });
   it('คนจ่ายเงินที่ไม่มีสิทธิ์ตีกลับ ไม่เห็นปุ่ม', () => expect(canCancelAdvance('AWAITING_VOUCHER', fin)).toBe(false));
   it('สิทธิ์ยังโหลดไม่เสร็จ ไม่ซ่อน', () => expect(canCancelAdvance('RETURNED', null)).toBe(true));
+});
+
+describe('canEditUseDate', () => {
+  const accounting: PermissionState = { permissions: [PERM.voucher] };
+  it('บัญชีแก้วันที่ใช้เงินได้เฉพาะตอนรอตั้งเบิก', () => {
+    expect(canEditUseDate('AWAITING_VOUCHER', accounting)).toBe(true);
+    for (const s of ['PENDING_APPROVAL', 'AWAITING_PAYMENT', 'AWAITING_CLEARING', 'RETURNED', 'CLOSED', 'CANCELLED']) {
+      expect(canEditUseDate(s, accounting)).toBe(false);
+    }
+  });
+  it('ไม่มีสิทธิ์ตั้งเบิก ไม่เห็นปุ่ม', () => {
+    expect(canEditUseDate('AWAITING_VOUCHER', bow)).toBe(false);
+  });
 });
