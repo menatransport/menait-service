@@ -111,7 +111,7 @@ export default function IssuePage() {
                 confirmButtonText: 'ตกลง',
             });
         }
-    }, []);
+    }, [user, router]);
 
     return (
         <Navbar isHome={false} title="แจ้งปัญหาการใช้งานระบบ อุปกรณ์ หรือโปรแกรม">
