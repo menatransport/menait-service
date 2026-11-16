@@ -209,3 +209,12 @@ describe('dupCheckParams (live duplicate hint while typing)', () => {
     expect(dupCheckParams('', { ...row, ref_no: '001' }, 'ร้าน ก.')).toBeNull();
   });
 });
+
+describe('ใบยอดเดียว: คนขับ/ฟลีทหัวใบลงแถว (16/11/2026)', () => {
+  test('singleItemFrom ส่ง fleet driver_code driver_role driver_name', async () => {
+    const { singleItemFrom } = await import('./petty-spec');
+    const row = singleItemFrom({ event_date: '2026-11-13', truck_code: 'T-0043', truck_plate: 'สบ.72-5616', rate: 185,
+      fleet: 'Side curtain', driver_code: '650167', driver_role: 'พจส.', driver: 'กมล อ่อนทวี' });
+    expect(row).toMatchObject({ fleet: 'Side curtain', driver_code: '650167', driver_role: 'พจส.', driver_name: 'กมล อ่อนทวี' });
+  });
+});

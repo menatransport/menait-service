@@ -12,6 +12,7 @@ export const PETTY_DOC_CSS = CASH_ADVANCE_CSS + `
 .doc-part { display: flex; flex-direction: column; min-height: 247mm; }
 .sign-block { margin-top: auto; padding-top: 6mm; break-inside: avoid; }
 table.items td.nw { white-space: nowrap; }
+table.items.dense th, table.items.dense td { font-size: 9.5px; padding-left: 4px; padding-right: 4px; }
 table.items th.c, table.items td.c { text-align: center; }
 table.items td.sub { background: var(--mint); font-weight: 600; }
 table.items td.sub.a { text-align: right; }
@@ -26,9 +27,26 @@ export const PETTY_LANDSCAPE_CSS = PETTY_DOC_CSS + `
    ไม่บังคับความสูง ให้ลงนามตามท้ายเนื้อหา · ย่อระยะ/ช่องเซ็นให้ใบปะหน้า 3–4 ใบจบหน้าเดียว */
 .doc-part { min-height: 0; }
 .sign-block { margin-top: 0; padding-top: 2mm; }
-.sec { margin: 7px 0 4px; }
-table.items td { padding-top: 3px; padding-bottom: 3px; }
-table.sig td.space { height: 19mm; padding: 2px; }
+.sec { margin: 5px 0 3px; }
+table.items td { padding-top: 2px; padding-bottom: 2px; font-size: 11px; }
+table.items th { padding-top: 3px; padding-bottom: 3px; }
+table.sig td.space { height: 15mm; padding: 1px; }
+table.sig .esign { font-size: 8.5px; line-height: 1.1; padding: 1px 8px; }
+/* ชื่อกับวันที่อยู่บรรทัดเดียวกันในช่องลงนาม */
+table.sig td:not(.space) { white-space: nowrap; }
+table.sig .row { display: inline-flex; width: 58%; margin-top: 3px; vertical-align: top; }
+table.sig .row + .row { width: 40%; margin-left: 2%; }
+.esign-note { margin-top: 2px; }
+table.sig .esign-title { font-size: 9px; }
+table.sig th { padding-top: 3px; padding-bottom: 3px; }
+/* หัวกระดาษ/กล่องยอดเตี้ยลง ให้ลงนามพร้อมตรายังอยู่หน้าเดียวกับรายการ */
+.head .logo { height: 34px; }
+.t1 { font-size: 18px; }
+.head { padding-bottom: 0; }
+.sum { margin-top: 4px; gap: 10px; }
+.tot { padding: 4px 10px; }
+.tot .amt { font-size: 18px; }
+table.sig td { padding-bottom: 3px; }
 /* หน้ากว้าง: ข้อมูลผู้ส่ง 4 ช่องอยู่แถวเดียว */
 .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 `;

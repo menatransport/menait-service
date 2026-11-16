@@ -91,6 +91,9 @@ export function singleItemFrom(form: Record<string, unknown>): PettyItemDraft {
     // ฟลีท/คนขับของหัวใบ (ค่าทางด่วน ค่าเดินทาง) ลงแถวรายการด้วย จะได้ออกรายงานฟลีทได้ทุกประเภท (7/11/2026)
     fleet: (form.fleet as string) ?? null,
     driver_code: (form.driver_code as string) ?? null,
+    // พจส./พจร. กับชื่อคนขับของหัวใบลงแถวด้วย — รหัสใบสำคัญจ่ายและรายงานอ่านจากแถว ไม่ให้แถวกับหัวใบขัดกัน (16/11/2026)
+    driver_role: (form.driver_role as string) || null,
+    driver_name: ((form.driver ?? form.driver_name) as string) || null,
   };
 }
 

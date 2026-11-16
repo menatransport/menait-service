@@ -70,7 +70,8 @@ function footer(claim: PettyClaim, docName: string): string {
     name: docName,
     owner: claim.payee_name ?? 'ฝ่ายบัญชีและการเงิน',
     approvedBy: approverName(claim),
-    approvedDate: claim.approved_at ? bangkokDate(claim.approved_at) : '',
+    // วันที่รูปแบบเดียวกับทั้งใบ (dd/mm/yyyy) — เดิมเป็น 2026-11-16 (16/11/2026)
+    approvedDate: claim.approved_at ? thaiDate(bangkokDate(claim.approved_at)) : '',
     printed: printedNow(),
   });
 }
@@ -270,7 +271,7 @@ function columnsFromSpec(fields: PettySpecField[], unit: string): Column[] {
       continue;
     }
     if (f.key === 'event_date') { cols.push({ head: f.label, cell: i => esc(thaiDate(i.event_date)), cls: 'c' }); continue; }
-    if (f.key === 'driver' || f.key === 'driver_name') { cols.push({ head: f.label, cell: i => esc(i.driver_name || '-') }); continue; }
+    if (f.key === 'driver' || f.key === 'driver_name') { cols.push({ head: f.label, cell: i => esc(i.driver_name || '-'), cls: 'nw' }); continue; }
     const key = f.key as keyof PettyClaim['items'][number];
     // เลขอ้างอิง (บัตรชั่ง/ใบเสร็จ) ไม่ตัดกลางเลข
     cols.push({ head: f.label, cell: i => esc((i[key] as string | null | undefined) || '-'), cls: f.key === 'ref_no' ? 'nw' : undefined });
@@ -313,7 +314,9 @@ export function itemSummaryHtml(opts: VoucherOpts & {
       bodyRows.push(`<tr><td class="sub" colspan="${cols.length + 1}">รวม ${esc(thaiDate(date))} · ${items.length} รายการ</td>` +
         `<td class="sub a">${money(sub)}</td></tr>`);
     }
-    content = `<table class="items"><thead><tr>${heads}</tr></thead><tbody>${bodyRows.join('')}</tbody></table>` +
+    // คอลัมน์เยอะ (ยาง/ซ่อม) ตัวเล็กลงให้ชื่อคนขับไม่หักกลางคำ
+    const dense = cols.length > 8 ? ' dense' : '';
+    content = `<table class="items${dense}"><thead><tr>${heads}</tr></thead><tbody>${bodyRows.join('')}</tbody></table>` +
       `<div class="sum"><div class="dates">${field('รวมทั้งสิ้น', `${claim.items.length} รายการ`)}${field('ช่วงวันที่', periodText(claim))}</div>` +
       `${totalBox('รวมทั้งสิ้น', money(Number(claim.amount)), bahtText(Number(claim.amount)))}</div>`;
   } else {
@@ -351,7 +354,8 @@ ${sec(2, 'รายการ', 'Items')}
 ${content}
 
 ${signBlock(3, 'ลงนาม', 'Signatures', [
-    { title: 'ผู้เปิดใบ', name: clerkName(claim) },
+    // ตราผู้เปิดใบเหมือนใบสำคัญจ่าย ไม่ให้สองใบของใบเบิกเดียวกันขัดกัน (16/11/2026)
+    { title: 'ผู้เปิดใบ', name: clerkName(claim), esign: requesterEsign(claim) },
     { title: 'ผู้อนุมัติ', name: approverName(claim), esign: approverEsign(claim) },
   ])}
 </section>${opts.attachmentsHtml ?? ''}`;

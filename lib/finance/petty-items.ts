@@ -11,6 +11,8 @@ export type PettyItemDraft = {
   remark?: string | null;
   fleet?: string | null;
   driver_code?: string | null;
+  driver_role?: string | null;
+  driver_name?: string | null;
 };
 
 /** ทะเบียน/รหัสรถให้เทียบกันได้ — ด่านซ้ำเข้มใช้ค่านี้เป็นคีย์ '71 4285' จึงต้องเท่ากับ '71-4285' */
