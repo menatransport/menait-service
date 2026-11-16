@@ -36,6 +36,8 @@ import { Button, EmptyState, FIELD, HeaderMeta, LABEL, PettyPage, Req, Section, 
 type Row = PettyItemDraft & Record<string, unknown>;
 
 const TITLE = 'เปิดใบเบิกเงินสดย่อย';
+/** เลือกวงเงินเองได้ ไม่ล็อกตามแผนก — ตรงกับ permission_logic.SUPERADMIN_EMPLOYEE_IDS หลังบ้าน */
+const PETTY_FUND_PICK_IDS = ['670108'];
 
 export default function NewPettyClaimPage() {
   const { user, loading } = useSessionContext();
@@ -142,8 +144,8 @@ export default function NewPettyClaimPage() {
   const fundsFiltered = !showAllFunds && !!funds && fundsInCenter(funds, costCenter, user?.site).length < funds.length;
 
   // วงเงินล็อกตามแผนก+สาขาของศูนย์และแผนกที่เลือก ไม่มีใช้วงเงินฝ่ายบัญชีสาขาเดียวกัน (ผู้ใช้สั่ง 7/11/2026)
-  // superadmin ของเครื่องทดสอบยังเลือกเองได้ (ทดสอบทุกวงเงิน)
-  const canPickFund = !!user?.is_petty_super;
+  // superadmin ของเครื่องทดสอบ และ superadmin ตัวจริง (670108) เลือกวงเงินเองได้ (ผู้ใช้สั่ง 16/11/2026 "ยกเว้นฉันที่เป็น superadmin")
+  const canPickFund = !!user?.is_petty_super || PETTY_FUND_PICK_IDS.includes(String(user?.employee_id ?? ''));
   const locked = useMemo(() => lockedFundFor(funds ?? [], costCenter, typeCode), [funds, costCenter, typeCode]);
   useEffect(() => {
     if (canPickFund) {
