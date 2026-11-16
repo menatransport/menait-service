@@ -349,6 +349,8 @@ export default function NewPettyClaimPage() {
   const rowsDone = rows.length > 0 && rows.every(row => (spec.item_fields ?? []).every(f =>
     !f.required || (f.key === 'truck' ? !!String(row.truck_code ?? '').trim() : String(row[f.key] ?? '').trim() !== '')));
   const payeeDone = !!payeeName && !payeeBankProblem(spec, header);
+  // ค่าชั่งปน พจส./พจร. — เตือนที่ส่วนรายการทันที ไม่ต้องรอกรอกช่องอื่นครบ (16/11/2026)
+  const roleMix = itemBased ? singleDriverRoleProblem(type?.code ?? '', rows) : null;
 
   return (
     <PettyPage title={TITLE} aside={requester} footer={footer}>
@@ -439,7 +441,8 @@ export default function NewPettyClaimPage() {
         )}
 
         {itemBased && (
-          <StepSection index={next()} label={spec.item_label ?? 'รายการ'} done={rowsDone}
+          <StepSection index={next()} label={spec.item_label ?? 'รายการ'} done={rowsDone && !roleMix}
+            hint={roleMix ? <span className="font-medium text-rose-700">{roleMix}</span> : undefined}
             actions={period.from ? <span className="text-xs text-ink-500">ช่วงวันที่ {formatDate(period.from)} – {formatDate(period.to ?? period.from)}</span> : undefined}>
             <ItemGrid spec={spec} rows={rows} onChange={setRows} onAddMany={() => setAddMany(true)}
               dups={dups} />
