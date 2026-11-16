@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Mascot } from "@/components/mascot";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { AccessReviewReminder } from "./access-review-reminder";
 import { MENU_GROUPS, QUICK_LINKS, focusGroup, isMenuItemReady, sectionHeadingAt, type MenuGroup, type MenuItem, type MenuTone } from "./menu-groups";
 
 const TONE = {
@@ -30,36 +31,16 @@ export default function HomePage() {
     const isClient = !loading;
     const firstName = isClient ? (user?.firstname ?? '') : '';
 
-    // ทบทวนสิทธิ์ needs a live check (GET /access-review/me) — not something the static
-    // menu or the session cookie can decide — so it starts hidden and appears once we know.
-    const [accessReviewVisible, setAccessReviewVisible] = useState(false);
-    // ช่วงนี้เปิดเฉพาะฝ่ายไอที (division 26 / code IT) — token เก่าที่ยังไม่มี division ใช้แผนก IT (21) แทน
-    const isItDivision = user?.division
-        ? user.division.division_id === 26 || user.division.division_code === 'IT'
-        : user?.department_id === 21;
-    useEffect(() => {
-        if (!isClient || !user || !isItDivision) return;
-        fetch('/api/access-review/me')
-            .then(r => r.ok ? r.json() : null)
-            .then(data => {
-                if (data && (data.systems?.length > 0 || data.has_pending_approvals > 0 || data.is_admin)) {
-                    setAccessReviewVisible(true);
-                }
-            })
-            .catch(() => undefined);
-    }, [isClient, user, isItDivision]);
-
     const groups = useMemo(
         () => MENU_GROUPS
             .filter(g => !g.adminOnly || (isClient && user?.role === 'a'))
             .map(g => ({
                 ...g,
                 items: g.items.filter(i =>
-                    (!i.financeOnly || (isClient && (user?.is_finance || user?.is_accounting || user?.is_treasury))) &&
-                    (!i.requiresAccessReview || accessReviewVisible)
+                    !i.financeOnly || (isClient && (user?.is_finance || user?.is_accounting || user?.is_treasury))
                 ),
             })),
-        [isClient, user, accessReviewVisible]
+        [isClient, user]
     );
     // /home?group=finance → a link that shows one group only (no IT search or quick links)
     const focus = useMemo(() => focusGroup(groups, searchParams.get('group')), [groups, searchParams]);
@@ -90,6 +71,7 @@ export default function HomePage() {
         <div className="h-dvh overflow-hidden">
             <DesktopHome firstName={firstName} groups={shown} focus={focus} onNavigate={navigate} />
             <MobileHome firstName={firstName} groups={shown} focus={focus} onNavigate={navigate} />
+            <AccessReviewReminder enabled={isClient && Boolean(user)} />
         </div>
     );
 }

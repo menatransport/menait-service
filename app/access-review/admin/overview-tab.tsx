@@ -4,12 +4,12 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronRight, Eye, FileSpreadsheet, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/ui/loading';
-import { adminGetReviews, adminGetRemovals, adminListCycles } from '../api';
+import { adminGetReviews, adminListCycles } from '../api';
 import { ReviewStatusPill, formatThaiDate, formatThaiDateTime } from '../components';
 import { MailPreviewDialog } from './mail-preview-dialog';
 import { ReviewChangesPanel } from './review-changes';
 import { ReviewDialog } from '../review-dialog';
-import { exportToExcel } from '@/lib/exportExcel';
+import { exportCycleMaster, exportPersonMaster } from './master-export';
 import type { AdminReviewRow, AdminReviewRowStatus, Cycle } from '../types';
 
 interface OrgLookup { divisions: { division_id: number; division_th: string | null; division_eng: string | null }[] }
@@ -63,7 +63,7 @@ export function OverviewTab() {
     const [divisions, setDivisions] = useState<OrgLookup['divisions']>([]);
     const [summary, setSummary] = useState<import('../types').AdminReviewSummaryCounts | null>(null);
     const [rows, setRows] = useState<AdminReviewRow[] | null>(null);
-    const [exporting, setExporting] = useState(false);
+    const [exporting, setExporting] = useState<'summary' | 'person' | null>(null);
     const [includePending, setIncludePending] = useState(false);
     const [expanded, setExpanded] = useState<string | null>(null);
     const [mailFor, setMailFor] = useState<number | null>(null);
@@ -103,36 +103,17 @@ export function OverviewTab() {
         ['ไม่อนุมัติ', summary.rejected],
     ] as const : [], [summary]);
 
-    const handleExport = async () => {
-        setExporting(true);
+    const cycle = cycles.find(c => c.id === cycleId) ?? null;
+
+    const handleExport = async (kind: 'summary' | 'person') => {
+        if (!cycle) return;
+        setExporting(kind);
         try {
-            const removals = await adminGetRemovals({ cycle_id: cycleId ?? undefined, include_pending: includePending || undefined });
-            exportToExcel({
-                data: removals,
-                fileName: 'access-review-removals',
-                sheetName: 'ถอดสิทธิ์',
-                columns: [
-                    { header: 'สถานะ', key: r => r.status === 'pending' ? 'รออนุมัติ' : 'อนุมัติแล้ว', width: 12 },
-                    { header: 'รหัสพนักงาน', key: 'employee_id', width: 16 },
-                    { header: 'ชื่อ-สกุล', key: 'name', width: 26 },
-                    { header: 'แผนก', key: 'department', width: 22 },
-                    { header: 'ระบบ', key: 'system_code', width: 12 },
-                    { header: 'กลุ่มสิทธิ์', key: 'role_name', width: 26 },
-                    { header: 'บัญชี', key: 'account_name', width: 22 },
-                    { header: 'ประเภทการถอด', key: r => r.removal_type === 'role' ? 'ถอดทั้งกลุ่มสิทธิ์' : 'ถอดเฉพาะสิทธิ์', width: 18 },
-                    { header: 'หมวด', key: r => r.category ?? '-', width: 18 },
-                    { header: 'รายการที่ถอด', key: r => r.item ?? '(ทั้งกลุ่มสิทธิ์)', width: 26 },
-                    { header: 'สิทธิ์', key: r => r.permission ?? '-', width: 14 },
-                    { header: 'ข้อเสนอแนะ (ผู้แจ้ง)', key: r => r.requester_note ?? '', width: 28 },
-                    { header: 'หมายเหตุ', key: r => r.note ?? '', width: 26 },
-                    { header: 'วันที่อนุมัติ', key: r => formatThaiDate(r.decided_at), width: 16 },
-                    { header: 'ผู้อนุมัติ', key: r => r.decided_by_name ?? '-', width: 20 },
-                    // Only a whole-role removal can be tracked (ar_user_roles.is_active); single items have no done flag.
-                    { header: 'ปิดทั้งกลุ่มแล้ว (IT)', key: r => r.removal_type !== 'role' ? '-' : r.user_role_active ? 'ยังไม่ปิด' : 'ปิดแล้ว', width: 18 },
-                ],
-            });
+            await (kind === 'summary' ? exportCycleMaster : exportPersonMaster)(cycle, includePending);
+        } catch (e) {
+            alert(e instanceof Error ? e.message : 'Export ไม่สำเร็จ');
         } finally {
-            setExporting(false);
+            setExporting(null);
         }
     };
 
@@ -165,8 +146,12 @@ export function OverviewTab() {
                     <input type="checkbox" checked={includePending} onChange={e => setIncludePending(e.target.checked)} className="size-3.5 accent-brand-600" />
                     รวมรออนุมัติ
                 </label>
-                <Button type="button" size="sm" variant="outline" disabled={exporting} onClick={handleExport} className="gap-1.5">
-                    <FileSpreadsheet className="size-3.5" /> Export รายการที่ต้องถอดสิทธิ์
+                <Button type="button" size="sm" variant="outline" disabled={exporting != null || !cycle} onClick={() => handleExport('summary')} className="gap-1.5">
+                    <FileSpreadsheet className="size-3.5" /> {exporting === 'summary' ? 'กำลังสร้างไฟล์…' : 'Excel Summary'}
+                </Button>
+                <Button type="button" size="sm" variant="outline" disabled={exporting != null || !cycle} onClick={() => handleExport('person')} className="gap-1.5"
+                    title="สิทธิ์ทุกรายการของทุกคนหลังทบทวน (1 แถว = คน × สิทธิ์)">
+                    <FileSpreadsheet className="size-3.5" /> {exporting === 'person' ? 'กำลังสร้างไฟล์…' : 'Master รายคน'}
                 </Button>
             </div>
 

@@ -15,12 +15,6 @@ export interface MenuItem {
     children?: MenuItem[];
     /** Only shown to finance staff (user.is_finance) */
     financeOnly?: boolean;
-    /**
-     * Only shown when GET /api/access-review/me says the user has something to review
-     * (systems.length, has_pending_approvals, or is_admin) — gated in app/home/page.tsx
-     * since that check needs a live API call, not something the static menu can decide.
-     */
-    requiresAccessReview?: boolean;
     /** หัวข้อย่อยในกลุ่ม — รายการติดกันที่มี section เดียวกันจะอยู่ใต้หัวข้อเดียวกัน (เช่น Advance / เงินสดย่อย) */
     section?: string;
 }
@@ -80,7 +74,7 @@ export const MENU_GROUPS: MenuGroup[] = [
             { title: 'แจ้งปัญหา', description: 'อุปกรณ์ ระบบ หรือเครือข่ายมีปัญหา', icon: TriangleAlert, href: '/issue' },
             { title: 'ขอบริการ', description: 'ขอสิทธิ์ ขออุปกรณ์ หรือบริการ IT', icon: ClipboardList, href: '/service' },
             { title: 'ติดตามคำร้อง', description: 'ดูสถานะคำร้องทั้งหมดของคุณ', icon: CircleCheck, href: '/mytickets/all' },
-            { title: 'ทบทวนสิทธิ์', description: 'ตรวจสอบและยืนยันสิทธิ์ ATMS, Winspeed และ Group Mail ของคุณในหน้าเดียว', icon: ShieldCheck, href: '/access-review', requiresAccessReview: true },
+            { title: 'ทบทวนสิทธิ์', description: 'ตรวจสอบและยืนยันสิทธิ์ ATMS, Winspeed และ Group Mail ของคุณในหน้าเดียว', icon: ShieldCheck, href: '/access-review' },
             { title: 'ทรัพย์สินของฉัน', description: 'ดูอุปกรณ์ IT ที่คุณถือครองอยู่', icon: Laptop },
         ],
     },
