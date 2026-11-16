@@ -81,7 +81,7 @@ describe('cash advance form', () => {
       approval_logs: [{ level_no: 2, action: 'APPROVED', action_at: '2026-08-14T05:00:00+00:00', actor_name: 'ผู้จัดการ หนึ่ง', remark: null }],
     };
     const d = toCashAdvanceData(detail);
-    expect(d.centers).toEqual(['ขอนแก่น']);
+    expect(d.centers).toEqual(['กรุงเทพ']); // follows cost_center สกท, not site ศขก
     expect(d.employee.bank_name).toBe('กสิกรไทย');
     expect(d.employee.bank_account_no).toBe('123-4-56789-0');
     expect(d.employee.position).toBe('เจ้าหน้าที่');
@@ -90,10 +90,10 @@ describe('cash advance form', () => {
     expect(d.request_date).toBe('2026-08-13');
     expect(d.signatures.approver.name).toBe('ผู้จัดการ หนึ่ง');
     expect(d.signatures.approver.date).toBe('14/8/2026');
-    const o = toCashAdvanceData({ ...detail, requester: { ...detail.requester, site: 'ศูนย์บางปะกง', site_code: 'ศบก.' }, fin: { voucher_date: '2026-08-14', transfer_date: null } });
-    expect(o.centers).toEqual(['บางปะกง']);
-    const u = toCashAdvanceData({ ...detail, requester: { ...detail.requester, site: 'สำนักงานใหม่', site_code: null } });
-    expect(u.centers).toEqual([]); // unmapped site → no box
+    const o = toCashAdvanceData({ ...detail, request: { ...detail.request, cost_center: null }, requester: { ...detail.requester, site: 'ศูนย์บางปะกง', site_code: 'ศบก.' }, fin: { voucher_date: '2026-08-14', transfer_date: null } });
+    expect(o.centers).toEqual(['บางปะกง']); // no cost_center → requester site
+    const u = toCashAdvanceData({ ...detail, request: { ...detail.request, cost_center: null }, requester: { ...detail.requester, site: 'สำนักงานใหม่', site_code: null } });
+    expect(u.centers).toEqual([]); // nothing mapped → no box
   });
   test.each([
     ['สกท.', ['กรุงเทพ'], ''],
@@ -104,13 +104,21 @@ describe('cash advance form', () => {
     ['ศบก.', ['บางปะกง'], ''],
     ['สขข.', [], ''],
     [null, [], ''],
-  ])('requester site %s maps to centers (cost_center is ignored)', (code, centers) => {
+  ])('cost_center %s maps to centers (requester site is only a fallback)', (code, centers) => {
     const d = toCashAdvanceData({
       status: 'AWAITING_PAYMENT', created_at: '2026-08-13T03:00:00+00:00',
-      requester: { employee_id: '1', name: 'x', site: 'สาขาทดสอบ', site_code: code }, request: { purpose: 'p', amount: 1, cost_center: 'สกท' },
+      requester: { employee_id: '1', name: 'x', site: 'สาขาทดสอบ', site_code: null }, request: { purpose: 'p', amount: 1, cost_center: code },
       fin: null, approval_logs: [],
     } as any);
     expect(d.centers).toEqual(centers as string[]);
+  });
+  test('ADV-2611-037 case: site ศลบ. + cost_center สสบ → สระบุรี box', () => {
+    const d = toCashAdvanceData({
+      status: 'AWAITING_PAYMENT', created_at: '2026-11-12T03:00:00+00:00',
+      requester: { employee_id: '1', name: 'x', site: 'ศูนย์ลาดกระบัง', site_code: 'ศลบ.' }, request: { purpose: 'p', amount: 150000, cost_center: 'สสบ' },
+      fin: null, approval_logs: [],
+    } as any);
+    expect(d.centers).toEqual(['สระบุรี']);
   });
   test('formatBkkDateTime', () => {
     expect(formatBkkDateTime('2026-09-16T07:03:10+00:00')).toEqual({ date: '16/09/2026', time: '14:03:10' });
