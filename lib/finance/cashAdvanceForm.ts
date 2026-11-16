@@ -1,7 +1,7 @@
 import type { AdvanceDetail } from '@/app/finance/types';
 import { bahtText } from './bahtText';
 import { bankLabel, formatAccountNo } from './bank';
-import { centerCheckboxesHtml, centerFromSite } from './centers';
+import { centerCheckboxesHtml, centerForAdvance } from './centers';
 import { toBkkDate } from './dates';
 import { documentControlFooter, esc, formatBkkDateTime, money, printedNow, stampHtml, wrapDocument, type DocumentControl } from './printShared';
 
@@ -209,7 +209,7 @@ export function payeeFields(r: AdvanceDetail['request']): { bank_account_no: str
 
 export function toCashAdvanceData(detail: AdvanceDetail): CashAdvanceFormData {
   const r = detail.request;
-  const center = centerFromSite(detail.requester.site_code);
+  const center = centerForAdvance(detail.request.cost_center, detail.requester.site_code);
   const approved = [...(detail.approval_logs ?? [])].reverse().find(l => l.action === 'APPROVED');
   // Two-step chain: step-1 stamp -> unit head, step-2 stamp -> approver. One step (or old BE): stamp -> approver.
   const stepApprovals = detail.approval?.step_approvals ?? [];

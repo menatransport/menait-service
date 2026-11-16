@@ -1,6 +1,6 @@
 import type { AdvanceDetail, ClearItem } from '@/app/finance/types';
 import { cashAdvanceBody, cashAdvanceFooter, CASH_ADVANCE_CSS, dmy, payeeFields, thaiShortDate, type CashAdvanceFormData } from './cashAdvanceForm';
-import { centerCheckboxesHtml, centerFromSite } from './centers';
+import { centerCheckboxesHtml, centerForAdvance } from './centers';
 import { rowTotals, sumItems } from './clearItems';
 import { toBkkDate } from './dates';
 import { documentControlFooter, esc, formatBkkDateTime, money, printedNow, stampHtml, wrapDocument, wrapSegments, type DocumentControl, type ESign } from './printShared';
@@ -115,7 +115,7 @@ export function toClearingData(detail: AdvanceDetail): ClearingFormData {
   const fin = detail.fin;
   const name = detail.requester.name ?? '';
   const closed = detail.status === 'CLOSED' && fin?.closed_at;
-  const center = centerFromSite(detail.requester.site_code);
+  const center = centerForAdvance(detail.request.cost_center, detail.requester.site_code);
   const items: ClaimRow[] = fin?.clear_items?.length
     ? [...fin.clear_items].sort((a, b) => a.line_no - b.line_no).map(toRow)
     // Old clearings (before line items): one row, purpose + the stored ยอดใช้จริง as A.
