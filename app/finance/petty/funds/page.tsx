@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
-import type { PettyBalance, PettyFund } from '@/app/finance/types-petty';
+import type { PettyBalance, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { canSeeAllClaims } from '@/lib/finance/petty-access';
 import { fundSummaryRows, grandTotals, type FundSummaryRow } from '@/lib/finance/petty-funds';
 import { showAlert } from '../../api';
-import { getBalance, getFunds } from '../../petty-api';
+import { getBalance, getExpenseTypes, getFunds } from '../../petty-api';
+import { FundMapTable } from '../../components/petty/FundMapTable';
 import { EmptyState, LINE, PettyPage, StatRow } from '../../components/petty/ui';
 
 const TITLE = 'ยอดกองทุนเงินสดย่อย';
@@ -17,12 +18,16 @@ const baht = (n: number | null) => n === null ? '-' : n.toLocaleString('th-TH', 
 export default function PettyFundsPage() {
   const { user, loading } = useSessionContext();
   const [rows, setRows] = useState<FundSummaryRow[] | null>(null);
+  const [funds, setFunds] = useState<PettyFund[]>([]);
+  const [types, setTypes] = useState<PettyExpenseType[]>([]);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       try {
         const funds: PettyFund[] = await getFunds(true);
+        setFunds(funds);
+        getExpenseTypes().then(setTypes).catch(() => setTypes([]));
         const balances: Record<number, PettyBalance | undefined> = {};
         await Promise.all(funds.map(async f => {
           try { balances[f.id] = await getBalance(f.id); } catch { balances[f.id] = undefined; }
@@ -117,6 +122,7 @@ export default function PettyFundsPage() {
         </table>
       </div>
       <p className="mt-4 text-xs text-ink-500">พร้อมอนุมัติ = Advance คงเหลือ − ใบที่อนุมัติแล้วแต่ยังไม่ทำจ่ายคืน · ติดลบได้ แต่ควรเร่งส่งเคลียร์</p>
+      <FundMapTable funds={funds} types={types} />
     </PettyPage>
   );
 }
