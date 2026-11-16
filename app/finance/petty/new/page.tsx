@@ -389,7 +389,7 @@ export default function NewPettyClaimPage() {
         </StepSection>
 
         <StepSection index={next()} label="วงเงินสดย่อย" done={!!fundId}
-          hint={total > 0 && !!fundId ? routeHint(route) : 'ระบบเลือกวงเงินให้ตามแผนกและสาขา'}>
+          hint={total > 0 && !!fundId ? routeHint(route) : canPickFund ? 'คุณเป็น superadmin เลือกวงเงินเองได้ ไม่ล็อกตามแผนก' : 'ระบบเลือกวงเงินให้ตามแผนกและสาขา'}>
           {canPickFund ? (
             <label className="block">
               <span className={LABEL}>วงเงินสดย่อย<Req /></span>
