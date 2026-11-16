@@ -28,7 +28,7 @@ export function HeaderField({ field, value, form, onChange }: {
       <div>
         <span className={LABEL}>{label}</span>
         <TruckPicker lineNo={0} block
-          code={String(form.truck_code ?? '')} plate={String(form.truck_plate ?? '')}
+          code={String(form.truck_code ?? '')} plate={String(form.truck_plate ?? '')} fleet={form.fleet ? String(form.fleet) : null}
           onPick={truck => {
             onChange({ truck_code: truck.truck_code, truck_plate: truck.truck_plate,
               truck_type: truck.truck_type || form.truck_type, fleet: null });
@@ -41,7 +41,6 @@ export function HeaderField({ field, value, form, onChange }: {
               })
               .catch(() => {});
           }} />
-        {!!form.fleet && <span className="mt-1 block text-xs text-ink-500">ฟลีท ณ วันทำรายการ: {String(form.fleet)}</span>}
       </div>
     );
   }

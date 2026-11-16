@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
+import { PencilLine } from 'lucide-react';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { searchTrucks, type TruckOption } from '@/app/finance/petty-api';
 import { highlightParts, stepIndex } from '@/lib/finance/petty-truck-search';
@@ -9,9 +10,11 @@ import { FIELD, FIELD_SM } from './ui';
 /** เลือกรถจาก master เท่านั้น — พิมพ์เองไม่ได้ เพราะด่านซ้ำเข้มใช้เบอร์รถ+ทะเบียนเป็นคีย์
  *  ค้นแบบ autocomplete: พิมพ์ส่วนไหนของเบอร์รถหรือทะเบียนก็ได้ ไม่ต้องใส่จุด/ขีด (BE จับคู่และเรียงให้)
  *  รายการลอยอยู่เหนือหน้า (Popover พอร์ทัล) จึงไม่โดนกล่องตารางที่เลื่อนแนวนอนตัดขอบ */
-export function TruckPicker({ code, plate, lineNo, readOnly = false, block = false, onPick }: {
+export function TruckPicker({ code, plate, fleet, lineNo, readOnly = false, block = false, onPick }: {
   code: string;
   plate: string;
+  /** ฟลีท ณ วันทำรายการ (ATMS) — แสดงเป็นป้ายในกล่องรถ */
+  fleet?: string | null;
   lineNo: number;
   readOnly?: boolean;
   /** เต็มความกว้างแบบช่องกรอก (หัวใบ) — ไม่ระบุ = ขนาดในตาราง */
@@ -58,24 +61,30 @@ export function TruckPicker({ code, plate, lineNo, readOnly = false, block = fal
   }
 
   if (readOnly || (code && !open)) {
-    const change = !readOnly && (
-      <button type="button" onClick={() => { setOpen(true); setQuery(code); requestAnimationFrame(() => input.current?.select()); }}
-        aria-label={`เปลี่ยนรถ${lineNo ? ` แถวที่ ${lineNo}` : ''}`}
-        className="ml-auto shrink-0 rounded px-1 text-xs font-medium text-ink-500 underline-offset-2 hover:text-ink-900 hover:underline">เปลี่ยน</button>
+    // กล่องรถที่เลือกแล้ว: บรรทัดเดียวเสมอ (ผู้ใช้สั่ง 16/11/2026) เบอร์รถ · ทะเบียน (ตัดท้ายถ้ายาว) · ป้ายฟลีท · ปุ่มดินสอ
+    const tip = [code, plate, fleet].filter(Boolean).join(' · ');
+    const badge = !!fleet && (
+      <span className="shrink-0 rounded-full bg-[#eef2f8] px-1.5 text-[10.5px] font-medium leading-[18px] text-ink-700">{fleet}</span>
     );
     if (!readOnly) {
       return (
-        <div className={`${block ? FIELD : `${FIELD_SM} h-9`} flex w-full items-center gap-2`}>
-          <span className="font-medium text-ink-900">{code}</span>
-          {plate && <span className="text-ink-500">· {plate}</span>}
-          {change}
+        <div title={tip} className={`${block ? FIELD : `${FIELD_SM} h-9`} flex w-full min-w-0 items-center gap-1.5`}>
+          <span className="shrink-0 font-semibold text-ink-900">{code}</span>
+          {plate && <span className="min-w-0 truncate whitespace-nowrap text-xs text-ink-500">{plate}</span>}
+          {badge}
+          <button type="button" onClick={() => { setOpen(true); setQuery(code); requestAnimationFrame(() => input.current?.select()); }}
+            aria-label={`เปลี่ยนรถ${lineNo ? ` แถวที่ ${lineNo}` : ''}`} title="เปลี่ยนรถ"
+            className="ml-auto inline-flex size-6 shrink-0 items-center justify-center rounded text-ink-500 transition-colors hover:bg-[#eef2f8] hover:text-ink-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/30">
+            <PencilLine className="h-3.5 w-3.5" />
+          </button>
         </div>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 text-sm">
-        <span className="font-medium text-ink-900">{code || '—'}</span>
-        {plate && <span className="text-ink-500">{plate}</span>}
+      <span title={tip} className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-sm">
+        <span className="shrink-0 font-medium text-ink-900">{code || '—'}</span>
+        {plate && <span className="min-w-0 truncate text-ink-500">{plate}</span>}
+        {badge}
       </span>
     );
   }

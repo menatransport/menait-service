@@ -202,12 +202,12 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
                 </div>
                 {/* จอ md ขึ้นไป: ทุกช่องของแถวอยู่บรรทัดเดียวเสมอและบีบให้พอดีกรอบ ไม่มีช่องหลุดออกนอกการ์ด (ผู้ใช้สั่ง 5/11/2026) · มือถือยังเรียง 2 คอลัมน์ */}
                 <div className="grid grid-cols-2 gap-x-3 gap-y-3 p-3.5 md:gap-x-2 md:overflow-x-auto md:[grid-template-columns:var(--row-cols)]"
-                  style={{ '--row-cols': [...(truckField ? ['minmax(150px,1.5fr)'] : []), ...fields.map(f => cellTrack(f.type))].join(' ') } as React.CSSProperties}>
+                  style={{ '--row-cols': [...(truckField ? ['minmax(240px,2fr)'] : []), ...fields.map(f => cellTrack(f.type))].join(' ') } as React.CSSProperties}>
                   {truckField && (
                     <div className="col-span-2 min-w-0 md:col-span-1">
                       <span className={CELL_LABEL}>รถ{truckField.required && <Req />}</span>
                       <TruckPicker lineNo={index + 1}
-                        code={String(row.truck_code ?? '')} plate={String(row.truck_plate ?? '')}
+                        code={String(row.truck_code ?? '')} plate={String(row.truck_plate ?? '')} fleet={row.fleet ? String(row.fleet) : null}
                         onPick={truck => {
                           onChange(rows.map((r, i) => i === index
                             ? { ...r, truck_code: truck.truck_code, truck_plate: truck.truck_plate,
@@ -215,7 +215,6 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
                             : r));
                           lookupFleet(index, truck, row.event_date);
                         }} />
-                      {!!row.fleet && <span className="mt-0.5 block truncate text-[11px] text-ink-500">ฟลีท {String(row.fleet)}</span>}
                     </div>
                   )}
                   {fields.map(f => (
