@@ -6,7 +6,7 @@ import type { PettyClaim, PettySpec } from '@/app/finance/types-petty';
 import { costCenterLabel } from '@/lib/finance/petty-cost-centers';
 import { needsDebtDoc } from '@/lib/finance/petty-debt';
 import { pettyFileProblem } from '@/lib/finance/petty-upload';
-import { formatDate } from '@/lib/finance/status';
+import { formatBaht, formatDate } from '@/lib/finance/status';
 import { showAlert } from '../../../api';
 import { uploadPettyFiles } from '../../../petty-api';
 import { Field } from '../../FinanceShell';
@@ -65,6 +65,10 @@ export function PendingClaimCard({ claim, typeName, spec, files, highlight, proc
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <Money label="จำนวนเงินที่ขอ" value={claim.amount} strong />
+        {/* หัก ณ ที่จ่ายที่ผู้เบิกใส่ — การ์ดกับกล่องอนุมัติจ่ายบอกยอดโอนตรงกัน (16/11/2026) */}
+        {Number(claim.wht_amount ?? 0) > 0 && (
+          <Field label="หัก ณ ที่จ่าย · โอนจริง" value={<span className="tabular-nums">{formatBaht(Number(claim.wht_amount))} · <b>{formatBaht(claim.amount - Number(claim.wht_amount))}</b> บาท</span>} />
+        )}
         <Field label="ช่วงวันที่" value={claimPeriod(claim)} />
         <Field label="วันที่ขอเบิก" value={formatDate(claim.expense_date)} />
         <Field label="ประเภท" value={typeName} />

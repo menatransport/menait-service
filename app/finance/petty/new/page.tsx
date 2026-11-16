@@ -490,7 +490,7 @@ export default function NewPettyClaimPage() {
           </div>
         </StepSection>
 
-        <StepSection index={next()} label="DD และหัก ณ ที่จ่าย" optional done={!whtError && !needsDd}>
+        <StepSection index={next()} label="DD และหัก ณ ที่จ่าย" optional done={!whtError && !needsDd && !(payeeNote && whtAmount <= 0)}>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
               <span className={LABEL}>เลขที่ใบรับสินค้า (DD)</span>
