@@ -29,3 +29,9 @@ export function centerCheckboxesHtml(centers: string[] | null | undefined): stri
   const checked = new Set(centers ?? []);
   return CENTER_OPTIONS.map(c => `<span class="cbi"><span class="cb${checked.has(c) ? ' checked' : ''}"></span>${esc(c)}</span>`).join('');
 }
+
+/** PDF ศูนย์ box follows ค่าใช้จ่ายรายศูนย์ (cost_center); falls back to the requester's site when cost_center is empty/unknown (user, 2026-11-16). */
+export function centerForAdvance(costCenter: string | null | undefined, siteCode: string | null | undefined): { centers: string[] } {
+  const byCost = centerFromSite(costCenter);
+  return byCost.centers.length ? byCost : centerFromSite(siteCode);
+}

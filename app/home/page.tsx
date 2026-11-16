@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Mascot } from "@/components/mascot";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { AccessReviewReminder } from "./access-review-reminder";
 import { MENU_GROUPS, QUICK_LINKS, focusGroup, isMenuItemReady, sectionHeadingAt, visibleItems, type MenuGroup, type MenuItem, type MenuTone } from "./menu-groups";
 
 const TONE = {
@@ -65,6 +66,7 @@ export default function HomePage() {
         <div className="h-dvh overflow-hidden">
             <DesktopHome firstName={firstName} groups={shown} focus={focus} onNavigate={navigate} />
             <MobileHome firstName={firstName} groups={shown} focus={focus} onNavigate={navigate} />
+            <AccessReviewReminder enabled={isClient && Boolean(user)} />
         </div>
     );
 }

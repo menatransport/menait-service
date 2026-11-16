@@ -1,4 +1,4 @@
-import { BadgeCheck, Building, Calculator, ChartNoAxesCombined, CircleAlert, CircleCheck, ClipboardCheck, ClipboardList, Database, FolderKanban, HandCoins, Landmark, Laptop, LayoutDashboard, Mail, Monitor, Receipt, Route, Settings2, ShieldCheck, TriangleAlert, Truck, UserCheck, Wallet, type LucideIcon } from 'lucide-react';
+import { BadgeCheck, Building, ChartNoAxesCombined, CircleAlert, CircleCheck, ClipboardCheck, ClipboardList, Database, FolderKanban, HandCoins, Landmark, Laptop, LayoutDashboard, Mail, Monitor, Receipt, Settings2, ShieldCheck, TriangleAlert, Truck, UserCheck, Wallet, type LucideIcon } from 'lucide-react';
 
 export type MenuTone = 'blue' | 'sun' | 'mint' | 'ink';
 
@@ -91,17 +91,7 @@ export const MENU_GROUPS: MenuGroup[] = [
             { title: 'แจ้งปัญหา', description: 'อุปกรณ์ ระบบ หรือเครือข่ายมีปัญหา', icon: TriangleAlert, href: '/issue' },
             { title: 'ขอบริการ', description: 'ขอสิทธิ์ ขออุปกรณ์ หรือบริการ IT', icon: ClipboardList, href: '/service' },
             { title: 'ติดตามคำร้อง', description: 'ดูสถานะคำร้องทั้งหมดของคุณ', icon: CircleCheck, href: '/mytickets/all' },
-            {
-                title: 'ทบทวนสิทธิ์',
-                description: 'ตรวจสอบและยืนยันสิทธิ์การใช้งานระบบ',
-                icon: ShieldCheck,
-                countLabel: 'ระบบ',
-                children: [
-                    { title: 'ทบทวนสิทธิ์ ATMS', description: 'สิทธิ์บัญชีผู้ใช้งานระบบ ATMS', icon: Route },
-                    { title: 'ทบทวนสิทธิ์ Winspeed', description: 'สิทธิ์ผู้ใช้งานระบบบัญชี Winspeed', icon: Calculator },
-                    { title: 'ทบทวนสิทธิ์ Group Mail', description: 'สมาชิกและสิทธิ์ของ Group Mail', icon: Mail },
-                ],
-            },
+            { title: 'ทบทวนสิทธิ์', description: 'ตรวจสอบและยืนยันสิทธิ์ ATMS, Winspeed และ Group Mail ของคุณในหน้าเดียว', icon: ShieldCheck, href: '/access-review' },
             { title: 'ทรัพย์สินของฉัน', description: 'ดูอุปกรณ์ IT ที่คุณถือครองอยู่', icon: Laptop },
         ],
     },

@@ -3,10 +3,10 @@ import { bankLabel, formatAccountNo } from './bank';
 import { formatDate } from './status';
 
 export const EXPORT_COLUMNS = [
-  'ลำดับ', 'เลขที่คำขอเบิกเงิน', 'ผู้เบิก', 'แผนก', 'ศูนย์', 'สถานะ', 'เลขที่ตั้งเบิก', 'วันที่ตั้งเบิก', 'เลขที่ทำจ่าย',
+  'ลำดับ', 'เลขที่คำขอเบิกเงิน', 'ผู้เบิก', 'แผนก', 'ศูนย์', 'สถานะ', 'ศูนย์ค่าใช้จ่าย', 'เลขที่ตั้งเบิก', 'วันที่ตั้งเบิก', 'เลขที่ทำจ่าย',
   'วันที่ใช้เงิน', 'วัตถุประสงค์', 'ยอดเงิน', 'วันที่โอนเงิน', 'กำหนดการเคลียร์', 'วันที่ส่งเอกสารเคลียร์', 'ยอดใช้จริง',
   'เลขที่เอกสารเคลียร์เงิน', 'ยอดเงินโอนคืนบริษัท', 'วันที่โอนเงินคืนบริษัท', 'หมายเหตุ',
-  'ศูนย์ค่าใช้จ่าย', 'ธนาคาร', 'เลขที่บัญชี', 'ชื่อบัญชี',
+  'ธนาคาร', 'เลขที่บัญชี', 'ชื่อบัญชี',
 ] as const;
 
 export type ExportColumn = (typeof EXPORT_COLUMNS)[number];
@@ -29,6 +29,7 @@ export function toSheetRow(it: AdvanceItem, no: number): Row {
     'แผนก': it.requester.department ?? '',
     'ศูนย์': it.requester.site_code ?? it.requester.site ?? '',
     'สถานะ': it.status_label + (it.overdue ? ' (เกินกำหนด)' : ''),
+    'ศูนย์ค่าใช้จ่าย': it.request.cost_center ?? '',
     'เลขที่ตั้งเบิก': it.fin?.voucher_no ?? '',
     'วันที่ตั้งเบิก': d(it.fin?.voucher_date),
     'เลขที่ทำจ่าย': it.fin?.payment_doc_no ?? '',
@@ -43,7 +44,6 @@ export function toSheetRow(it: AdvanceItem, no: number): Row {
     'ยอดเงินโอนคืนบริษัท': it.fin?.settle_amount ?? null,
     'วันที่โอนเงินคืนบริษัท': d(it.fin?.settle_date),
     'หมายเหตุ': it.fin?.remark ?? '',
-    'ศูนย์ค่าใช้จ่าย': it.request.cost_center ?? '',
     'ธนาคาร': it.request.bank ? bankLabel(it.request.bank) : '',
     'เลขที่บัญชี': it.request.account_no ? formatAccountNo(it.request.account_no) : '',
     'ชื่อบัญชี': it.request.account_name ?? '',

@@ -164,7 +164,7 @@ export default function ServicePage() {
             console.error('Submit error:', error);
             await showErrorAlert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
         }
-    }, []);
+    }, [user, router]);
 
     return (
         <Navbar isHome={false} title="ขอบริการสนับสนุนจากฝ่าย IT">

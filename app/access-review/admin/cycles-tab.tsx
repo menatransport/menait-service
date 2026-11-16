@@ -87,7 +87,11 @@ export function CyclesTab() {
     });
 
     const remove = async (c: Cycle) => {
-        const ok = await showConfirm({ icon: 'warning', title: `ลบรอบทบทวน "${c.name}"?`, text: 'ลบได้เฉพาะรอบที่ยังไม่มีใครทบทวนสิทธิ์' });
+        const ok = await showConfirm({
+            icon: 'warning', title: `ลบรอบทบทวน "${c.name}"?`,
+            text: 'รายการทบทวนสิทธิ์ทั้งหมดในรอบนี้ (ร่าง / รออนุมัติ / อนุมัติแล้ว) จะถูกลบด้วย และกู้คืนไม่ได้',
+            confirmButtonText: 'ลบทั้งหมด', confirmButtonColor: '#e11d48', cancelButtonColor: '#6b7280',
+        });
         if (!ok) return;
         try {
             await adminDeleteCycle(c.id);

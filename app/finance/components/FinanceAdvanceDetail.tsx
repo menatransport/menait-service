@@ -16,8 +16,9 @@ import { PayForm } from './PayForm';
 import { ReviewPanel } from './ReviewPanel';
 import { VoucherForm } from './VoucherForm';
 import { latestReturnRemark } from '@/lib/finance/returnInfo';
-import { PERM, can, canCancelAdvance, canEditDocNumbers, canSendVoucherBack } from '@/lib/finance/permissions';
+import { PERM, can, canCancelAdvance, canEditDocNumbers, canEditUseDate, canSendVoucherBack } from '@/lib/finance/permissions';
 import { EditDocNumbersButton } from './EditDocNumbersButton';
+import { EditUseDateButton } from './EditUseDateButton';
 import { useFinancePermissions } from '../usePermissions';
 
 export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; onChanged?: () => void }) {
@@ -142,6 +143,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
   const canRemind = can(perms, PERM.overdueRemind);
   const canVoucherBack = canSendVoucherBack(detail.status, perms);
   const canEditDocs = canEditDocNumbers(detail.status, perms);
+  const canUseDate = canEditUseDate(detail.status, perms);
 
   return (
     <>
@@ -161,9 +163,10 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
           ตีกลับให้ผู้เบิกแก้ไข — รอผู้เบิกแก้ไขและส่งใหม่: {latestReturnRemark(detail.fin_logs) || '-'}
         </p>
       )}
-      {(canReturn || canCancel || canVoucherBack || canEditDocs) && (
+      {(canReturn || canCancel || canVoucherBack || canEditDocs || canUseDate) && (
         <div className="mb-4 flex flex-wrap gap-2">
           {canEditDocs && <EditDocNumbersButton detail={detail} onSaved={onSaved} />}
+          {canUseDate && <EditUseDateButton detail={detail} onSaved={onSaved} />}
           {canVoucherBack && (
             <Button type="button" variant="outline" onClick={sendBackToVoucher} disabled={busy}
               className="border-amber-400 text-amber-700 hover:bg-amber-50 hover:text-amber-800">

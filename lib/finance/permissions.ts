@@ -41,6 +41,11 @@ export function canSendVoucherBack(status: string, state: PermissionState | null
   return status === 'AWAITING_PAYMENT' && can(state, PERM.pay);
 }
 
+/** บัญชี (สิทธิ์ตั้งเบิก) แก้วันที่ใช้เงินได้เฉพาะตอนรอตั้งเบิกทำจ่าย (ผู้ใช้สั่ง 12/11/2026) · หลังบ้านเช็กซ้ำ */
+export function canEditUseDate(status: string, state: PermissionState | null): boolean {
+  return status === 'AWAITING_VOUCHER' && can(state, PERM.voucher);
+}
+
 /** การเงิน (สิทธิ์จ่ายเงิน) แก้เลขที่ตั้งเบิก / เลขที่ทำจ่าย / เลขที่เคลียร์ที่กรอกผิด ทุกสถานะหลังตั้งเบิก (ผู้ใช้สั่ง 26/10/2026) */
 export function canEditDocNumbers(status: string, state: PermissionState | null): boolean {
   return DOC_NO_EDIT_STATUSES.includes(status) && can(state, PERM.pay);
