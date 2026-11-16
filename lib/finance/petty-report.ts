@@ -23,13 +23,17 @@ export function vehicleTypeOf(claim: PettyClaim): string {
   return fleets.map(f => FLEET_SHORT[f] ?? f).join('+');
 }
 
+// ลำดับคอลัมน์ตามตัวอย่างของผู้ใช้ (16/11/2026): 7 คอลัมน์แรกตรงตัวอย่าง คอลัมน์ประกอบอยู่ขวาสุด
 export type ReportDetailRow = {
-  'ลำดับ': number; 'เลขที่ขอเบิก': string; 'วันที่โอน': string; 'วันที่ขอเบิก': string;
-  'ประเภทค่าใช้จ่าย': string; 'ประเภทรถ': string; 'รหัสใบสำคัญจ่าย': string; 'จ่ายให้': string; 'วงเงิน': string;
-  'ผู้เปิดใบ': string; 'ยอดค่าใช้จ่าย': number; 'WHT': number; 'ยอดจ่ายสุทธิ': number; 'สถานะ': string; 'รหัสรอบส่งเคลียร์': string;
+  'ลำดับ': number; 'เลขที่ขอเบิก': string; 'ประเภทค่าใช้จ่าย': string; 'ประเภทรถ': string;
+  'ยอดค่าใช้จ่าย': number; 'WHT': number; 'ยอดจ่ายสุทธิ': number;
+  'วันที่โอน': string; 'วันที่ขอเบิก': string; 'รหัสใบสำคัญจ่าย': string; 'จ่ายให้': string; 'วงเงิน': string;
+  'ผู้เปิดใบ': string; 'สถานะ': string; 'รหัสรอบส่งเคลียร์': string;
 };
 export type ReportSummaryRow = {
-  'ประเภทค่าใช้จ่าย': string; 'ประเภทรถ': string; 'จำนวนใบ': number; 'ยอดค่าใช้จ่าย': number; 'WHT': number; 'ยอดจ่ายสุทธิ': number;
+  'ประเภทค่าใช้จ่าย': string; 'ประเภทรถ': string; 'ยอดค่าใช้จ่าย': number; 'WHT': number; 'ยอดจ่ายสุทธิ': number;
+  /** ใช้นับในเทสต์/หน้าจอ ไม่ลงชีต */
+  'จำนวนใบ': number;
 };
 
 const typeName = (types: readonly PettyExpenseType[], code: string) => types.find(t => t.code === code)?.name_th ?? code;
@@ -48,10 +52,11 @@ export function detailRows(claims: readonly PettyClaim[], types: readonly PettyE
   return claims.map((c, i) => {
     const fund = funds.find(f => f.id === c.fund_id);
     return {
-      'ลำดับ': i + 1, 'เลขที่ขอเบิก': c.form_id, 'วันที่โอน': c.transfer_date ?? '', 'วันที่ขอเบิก': c.expense_date,
-      'ประเภทค่าใช้จ่าย': typeName(types, c.expense_type), 'ประเภทรถ': vehicleTypeOf(c), 'รหัสใบสำคัญจ่าย': claimExpenseCode(c),
+      'ลำดับ': i + 1, 'เลขที่ขอเบิก': c.form_id, 'ประเภทค่าใช้จ่าย': typeName(types, c.expense_type), 'ประเภทรถ': vehicleTypeOf(c),
+      'ยอดค่าใช้จ่าย': round2(c.amount), 'WHT': wht(c), 'ยอดจ่ายสุทธิ': net(c),
+      'วันที่โอน': c.transfer_date ?? '', 'วันที่ขอเบิก': c.expense_date, 'รหัสใบสำคัญจ่าย': claimExpenseCode(c),
       'จ่ายให้': c.payee_name ?? '', 'วงเงิน': fund ? fundLabel(fund) : String(c.fund_id),
-      'ผู้เปิดใบ': c.created_by_name ?? c.created_by, 'ยอดค่าใช้จ่าย': c.amount, 'WHT': wht(c), 'ยอดจ่ายสุทธิ': net(c),
+      'ผู้เปิดใบ': c.created_by_name ?? c.created_by,
       'สถานะ': PETTY_STATUS_LABELS[c.status] ?? c.status, 'รหัสรอบส่งเคลียร์': c.batch_id ? String(c.batch_id) : '',
     };
   });
@@ -61,7 +66,7 @@ export function summaryRows(claims: readonly PettyClaim[], types: readonly Petty
   const buckets = new Map<string, ReportSummaryRow>();
   for (const c of claims) {
     const key = `${c.expense_type}|${vehicleTypeOf(c)}`;
-    const row = buckets.get(key) ?? { 'ประเภทค่าใช้จ่าย': typeName(types, c.expense_type), 'ประเภทรถ': vehicleTypeOf(c), 'จำนวนใบ': 0, 'ยอดค่าใช้จ่าย': 0, 'WHT': 0, 'ยอดจ่ายสุทธิ': 0 };
+    const row = buckets.get(key) ?? { 'ประเภทค่าใช้จ่าย': typeName(types, c.expense_type), 'ประเภทรถ': vehicleTypeOf(c), 'ยอดค่าใช้จ่าย': 0, 'WHT': 0, 'ยอดจ่ายสุทธิ': 0, 'จำนวนใบ': 0 };
     row['จำนวนใบ'] += 1;
     row['ยอดค่าใช้จ่าย'] = round2(row['ยอดค่าใช้จ่าย'] + c.amount);
     row['WHT'] = round2(row['WHT'] + wht(c));
@@ -76,11 +81,28 @@ export function summaryRows(claims: readonly PettyClaim[], types: readonly Petty
 function totalRow(rows: ReportSummaryRow[]): ReportSummaryRow {
   return {
     'ประเภทค่าใช้จ่าย': 'รวม', 'ประเภทรถ': '',
-    'จำนวนใบ': rows.reduce((s, r) => s + r['จำนวนใบ'], 0),
     'ยอดค่าใช้จ่าย': round2(rows.reduce((s, r) => s + r['ยอดค่าใช้จ่าย'], 0)),
     'WHT': round2(rows.reduce((s, r) => s + r['WHT'], 0)),
     'ยอดจ่ายสุทธิ': round2(rows.reduce((s, r) => s + r['ยอดจ่ายสุทธิ'], 0)),
+    'จำนวนใบ': rows.reduce((s, r) => s + r['จำนวนใบ'], 0),
   };
+}
+
+const SUMMARY_COLS = ['ประเภทค่าใช้จ่าย', 'ประเภทรถ', 'ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ'] as const;
+const DETAIL_COLS = ['ลำดับ', 'เลขที่ขอเบิก', 'ประเภทค่าใช้จ่าย', 'ประเภทรถ', 'ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ',
+  'วันที่โอน', 'วันที่ขอเบิก', 'รหัสใบสำคัญจ่าย', 'จ่ายให้', 'วงเงิน', 'ผู้เปิดใบ', 'สถานะ', 'รหัสรอบส่งเคลียร์'] as const;
+const MONEY_COLS = new Set<string>(['ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ']);
+
+/** แถวของชีตเป็น array ตามลำดับคอลัมน์ · WHT = 0 เว้นว่างตามตัวอย่าง · แถวรวมท้ายตาราง */
+export function sheetAoa(kind: 'summary' | 'detail', claims: readonly PettyClaim[], types: readonly PettyExpenseType[], funds: readonly PettyFund[]): (string | number)[][] {
+  const cols: readonly string[] = kind === 'summary' ? SUMMARY_COLS : DETAIL_COLS;
+  const summary = summaryRows(claims, types);
+  const total = summary.find(r => r['ประเภทค่าใช้จ่าย'] === 'รวม');
+  const body = (kind === 'summary' ? summary.filter(r => r !== total) : detailRows(claims, types, funds)) as Record<string, string | number>[];
+  const cell = (k: string, v: string | number | undefined) => (k === 'WHT' && Number(v) === 0 ? '' : v ?? '');
+  const out: (string | number)[][] = [[...cols], ...body.map(r => cols.map(k => cell(k, r[k])))];
+  if (total) out.push(cols.map(k => (k === cols[0] ? 'รวม' : MONEY_COLS.has(k) ? cell(k, total[k as 'WHT']) : '')));
+  return out;
 }
 
 export async function exportPettyReportXlsx(opts: {
@@ -90,12 +112,24 @@ export async function exportPettyReportXlsx(opts: {
   const picked = reportClaims(opts.claims, opts.from, opts.to);
   const XLSX = await import('xlsx');
   const book = XLSX.utils.book_new();
-  const summary = XLSX.utils.json_to_sheet(summaryRows(picked, opts.types));
-  const detail = XLSX.utils.json_to_sheet(detailRows(picked, opts.types, opts.funds));
-  const detailTotal = totalRow(summaryRows(picked, opts.types).filter(r => r['ประเภทค่าใช้จ่าย'] !== 'รวม'));
-  XLSX.utils.sheet_add_aoa(detail, [['รวม', '', '', '', '', '', '', '', '', '', detailTotal['ยอดค่าใช้จ่าย'], detailTotal['WHT'], detailTotal['ยอดจ่ายสุทธิ']]], { origin: -1 });
-  summary['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 12 }, { wch: 16 }];
-  detail['!cols'] = [{ wch: 6 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 14 }, { wch: 24 }, { wch: 26 }, { wch: 20 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 10 }];
+  const make = (kind: 'summary' | 'detail') => {
+    const aoa = sheetAoa(kind, picked, opts.types, opts.funds);
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    // ตัวเลขเงินโชว์ 1,234.00
+    aoa[0].forEach((head, c) => {
+      if (!MONEY_COLS.has(String(head))) return;
+      for (let r = 1; r < aoa.length; r += 1) {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (ws[ref] && typeof ws[ref].v === 'number') ws[ref].z = '#,##0.00';
+      }
+    });
+    return ws;
+  };
+  const summary = make('summary');
+  const detail = make('detail');
+  summary['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 16 }];
+  detail['!cols'] = [{ wch: 6 }, { wch: 18 }, { wch: 20 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 14 },
+    { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 24 }, { wch: 26 }, { wch: 20 }, { wch: 22 }, { wch: 10 }];
   XLSX.utils.book_append_sheet(book, summary, 'Summary');
   XLSX.utils.book_append_sheet(book, detail, 'Detail');
   XLSX.writeFile(book, opts.fileName);

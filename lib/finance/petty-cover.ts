@@ -3,7 +3,7 @@ import { bahtText } from '@/lib/finance/bahtText';
 import { round2 } from '@/lib/finance/status';
 import { bangkokDate, docHead, field, PETTY_LANDSCAPE_CSS, sec, signBlock, thaiDate, totalBox } from '@/lib/finance/petty-doc';
 import { printableDocs, requiredDocs } from '@/lib/finance/petty-preset';
-import { documentControlFooter, esc, money, printedNow, wrapDocument } from '@/lib/finance/printShared';
+import { documentControlFooter, esc, money, printedNow, wrapDocument, type ESign } from '@/lib/finance/printShared';
 import { fundCostCenterLine } from '@/lib/finance/petty-cost-centers';
 import { claimExpenseCode, expenseCodeLabel } from '@/lib/finance/petty-expense-code';
 
@@ -94,6 +94,8 @@ export function coverSheetHtml(opts: {
   /** 'round' = ใบปะหน้าของรอบส่งเคลียร์ (ผู้ส่ง = เจ้าของเงินสด มีช่องหัวหน้าอนุมัติเคลียร์) */
   mode?: 'clerk' | 'round';
   clearApproverName?: string | null;
+  /** ตรา e-Signature ช่องลงนาม (เหมือนใบสำคัญจ่าย 16/11/2026) — ไม่มี = ช่องว่างให้เซ็นมือ */
+  stamps?: { sender?: ESign | null; head?: ESign | null; accounting?: ESign | null };
   logoUrl?: string | null;
   /** เวลาที่พิมพ์ (ใส่ในเทสต์) — วันที่บนใบคิดตามเวลาไทย */
   now?: Date;
@@ -127,9 +129,9 @@ ${checklistHtml(opts.group, opts.types)}
 
 ${signBlock(4, 'ลงนาม', 'Signatures', isRound
     ? [
-      { title: 'ผู้ส่งเอกสาร (เจ้าของเงินสด)', name: opts.clerkName },
-      { title: 'หัวหน้าอนุมัติเคลียร์', name: opts.clearApproverName ?? '' },
-      { title: 'ผู้รับเอกสาร (บัญชี)', name: '' },
+      { title: 'ผู้ส่งเอกสาร (เจ้าของเงินสด)', name: opts.clerkName, esign: opts.stamps?.sender },
+      { title: 'หัวหน้าอนุมัติเคลียร์', name: opts.clearApproverName ?? '', esign: opts.stamps?.head },
+      { title: 'ผู้รับเอกสาร (บัญชี)', name: opts.stamps?.accounting?.name ?? '', esign: opts.stamps?.accounting },
     ]
     : [
       { title: 'ผู้ส่งเอกสาร', name: opts.clerkName },
@@ -145,4 +147,23 @@ ${signBlock(4, 'ลงนาม', 'Signatures', isRound
       approvedBy: '', approvedDate: '', printed: printedNow(),
     }),
   });
+}
+
+/** ตราลงนามของรอบจากประวัติรอบ: ส่งเคลียร์ (เจ้าของเงินสด) · อนุมัติเคลียร์ (หัวหน้า) · ตั้งเบิก (บัญชีรับเอกสาร) — ref = เลขรอบ */
+export function roundStamps(round: {
+  batch_no: string; holder_name?: string | null; submitted_at?: string | null;
+  clear_approved_by_name?: string | null; clear_approved_at?: string | null;
+  logs?: readonly { action: string; actor_name: string | null; at: string | null }[] | null;
+}): { sender: ESign | null; head: ESign | null; accounting: ESign | null } {
+  const ref = round.batch_no;
+  const log = (action: string) => [...(round.logs ?? [])].reverse().find(l => l.action === action && l.at);
+  const submit = log('SUBMIT_ROUND');
+  const voucher = log('VOUCHER');
+  const stamp = (name: string | null | undefined, at: string | null | undefined): ESign | null =>
+    name && at ? { name, timestamp: at, ref } : null;
+  return {
+    sender: stamp(submit?.actor_name ?? round.holder_name, submit?.at ?? round.submitted_at),
+    head: stamp(round.clear_approved_by_name, round.clear_approved_at),
+    accounting: stamp(voucher?.actor_name, voucher?.at),
+  };
 }

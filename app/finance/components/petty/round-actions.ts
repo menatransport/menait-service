@@ -2,7 +2,7 @@
 
 import type { PettyExpenseType, PettyFund, PettyRound } from '@/app/finance/types-petty';
 import { ApiError } from '@/lib/finance/api-error';
-import { coverSheetHtml, roundGroup } from '@/lib/finance/petty-cover';
+import { coverSheetHtml, roundGroup, roundStamps } from '@/lib/finance/petty-cover';
 import { bangkokDate } from '@/lib/finance/petty-doc';
 import { openPrintWindow } from '@/lib/finance/printShared';
 import { formatBaht } from '@/lib/finance/status';
@@ -80,7 +80,7 @@ export function printRoundCover(round: PettyRound, types: PettyExpenseType[], fu
     group: roundGroup({ holder_employee_id: round.holder_employee_id, claims }), types,
     clerkName: round.holder_name ?? round.holder_employee_id ?? '-',
     branchCode: round.branch_code ?? fund?.branch_code ?? '-', divisionCode: round.division_code ?? fund?.division_code ?? '-',
-    batchNo: round.batch_no, mode: 'round', clearApproverName: round.clear_approved_by_name,
+    batchNo: round.batch_no, mode: 'round', clearApproverName: round.clear_approved_by_name, stamps: roundStamps(round),
     logoUrl: `${window.location.origin}/mena.png`,
   });
   if (!openPrintWindow(html)) {

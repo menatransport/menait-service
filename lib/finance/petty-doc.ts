@@ -28,7 +28,7 @@ export const PETTY_LANDSCAPE_CSS = PETTY_DOC_CSS + `
 .sign-block { margin-top: 0; padding-top: 2mm; }
 .sec { margin: 7px 0 4px; }
 table.items td { padding-top: 3px; padding-bottom: 3px; }
-table.sig td.space { height: 12mm; }
+table.sig td.space { height: 19mm; padding: 2px; }
 /* หน้ากว้าง: ข้อมูลผู้ส่ง 4 ช่องอยู่แถวเดียว */
 .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 `;

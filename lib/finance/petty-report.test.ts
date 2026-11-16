@@ -47,3 +47,23 @@ describe('รายงาน Excel เงินสดย่อย (ข้อ 14)
     expect(reportClaims(list).length).toBe(2);
   });
 });
+
+describe('คอลัมน์ Excel ตามตัวอย่างผู้ใช้ (16/11/2026)', () => {
+  test('Summary 5 คอลัมน์ · Detail 7 คอลัมน์แรกตามตัวอย่าง · WHT 0 เว้นว่าง · แถวรวมท้าย', async () => {
+    const { sheetAoa } = await import('./petty-report');
+    const c = (id: string, amount: number, w: number, fleet: string) => ({
+      id: 1, form_id: id, fund_id: 1, expense_type: 'WEIGH', expense_date: '2026-11-01', transfer_date: '2026-11-02', status: 'APPROVED',
+      amount, wht_amount: w, items: [{ fleet, truck_type: null }], created_by: '1',
+    }) as any;
+    const types = [{ code: 'WEIGH', name_th: 'ค่าชั่งน้ำหนัก' }] as any;
+    const claims = [c('A', 1000, 30, 'Mixer S'), c('B', 200, 0, 'Mixer S')];
+    const sum = sheetAoa('summary', claims, types, []);
+    expect(sum[0]).toEqual(['ประเภทค่าใช้จ่าย', 'ประเภทรถ', 'ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ']);
+    expect(sum[1]).toEqual(['ค่าชั่งน้ำหนัก', 'MS', 1200, 30, 1170]);
+    expect(sum.at(-1)).toEqual(['รวม', '', 1200, 30, 1170]);
+    const det = sheetAoa('detail', claims, types, []);
+    expect(det[0].slice(0, 7)).toEqual(['ลำดับ', 'เลขที่ขอเบิก', 'ประเภทค่าใช้จ่าย', 'ประเภทรถ', 'ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ']);
+    expect(det[2].slice(0, 7)).toEqual([2, 'B', 'ค่าชั่งน้ำหนัก', 'MS', 200, '', 200]);
+    expect(det.at(-1)!.slice(0, 7)).toEqual(['รวม', '', '', '', 1200, 30, 1170]);
+  });
+});
