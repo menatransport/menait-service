@@ -31,7 +31,7 @@ import { ItemGrid, type DupHint } from '../../components/petty/ItemGrid';
 import { PettyFileDrop } from '../../components/petty/PettyFileDrop';
 import { PettyTypeNote } from '../../components/petty/PettyTypeNote';
 import { pettyReview } from '../../components/petty/petty-confirm';
-import { Button, EmptyState, FIELD, HeaderMeta, LABEL, PettyPage, Req, Section, StickyBar, baht2 } from '../../components/petty/ui';
+import { Button, EmptyState, FIELD, HeaderMeta, LABEL, PettyPage, Req, Section, StepSection, StickyBar, baht2 } from '../../components/petty/ui';
 
 type Row = PettyItemDraft & Record<string, unknown>;
 
@@ -320,78 +320,52 @@ export default function NewPettyClaimPage() {
   const hasFiles = (spec.attachments ?? []).length > 0;
   // หมวดที่บังคับเฉพาะบางกรณี (เช่น สำเนาบัตรเมื่อโอนเข้าบุคคล) — บอกเงื่อนไขบนช่องแนบเลย
   const conditionOf = Object.fromEntries(requiredDocs(spec).filter(d => d.condition).map(d => [d.key, d.condition!]));
-  const fileIndex = type && itemBased ? 3 : 2;
 
   const footer = type ? (
     <StickyBar>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-4 gap-y-2.5 sm:flex sm:items-center sm:justify-between sm:gap-6">
-        {/* DD กับหัก ณ ที่จ่าย อยู่ติดกันในแถบล่าง (ผู้ใช้สั่ง 16/11/2026) */}
-        <div className="flex min-w-0 flex-col gap-2.5 sm:shrink-0 sm:flex-row sm:items-center sm:gap-x-4">
-          <label className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-            <span className="shrink-0 text-xs font-medium text-ink-500">เลขที่ใบรับสินค้า (DD)</span>
-            <input value={ddNo} onChange={e => setDdNo(e.target.value)} placeholder="กรอกทีหลังได้"
-              className={`${FIELD} py-2 sm:w-36`} />
-          </label>
-          <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-            <label htmlFor="petty-wht" className="shrink-0 text-xs font-medium text-ink-500">หัก ณ ที่จ่าย (บาท)</label>
-            <div className="flex items-center gap-1.5">
-              <input id="petty-wht" value={wht} onChange={e => setWht(e.target.value)} inputMode="decimal" placeholder="0.00"
-                aria-invalid={!!whtError} className={`${FIELD} min-w-0 flex-1 py-2 text-right tabular-nums sm:w-28 sm:flex-none`} />
-              {WHT_RATES.map(r => (
-                <button key={r.rate} type="button" onClick={() => setWht(whtFromRate(total, r.rate).toFixed(2))} disabled={total <= 0}
-                  title={r.label}
-                  className="h-9 shrink-0 rounded-[10px] border border-[#dbe4f3] bg-white px-2.5 text-xs text-ink-700 hover:bg-[#f3f7fd] disabled:text-ink-300">
-                  {r.label.split(' ')[0]}
-                </button>
-              ))}
-              {!!wht && <button type="button" onClick={() => setWht('')} className="shrink-0 text-xs text-ink-500 underline underline-offset-2">ไม่หัก</button>}
-            </div>
-          </div>
-        </div>
-        <div className="text-right sm:ml-auto">
-          <p className="text-xs text-ink-500">ยอดรวม</p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs text-ink-500">ยอดรวม{whtAmount > 0 && !whtError ? ` · โอนจริง ${baht2(netAmount(total, whtAmount))}` : ''}</p>
           <p className="font-display text-xl font-semibold leading-tight tabular-nums text-ink-900 sm:text-2xl">{baht2(total)}</p>
-          {whtAmount > 0 && !whtError && <p className="text-xs text-ink-700">โอนจริง <b className="tabular-nums">{baht2(netAmount(total, whtAmount))}</b></p>}
+          <p className="truncate text-xs text-ink-500" aria-live="polite">{requiredMissing ?? 'กรอกครบแล้ว พร้อมส่ง'}</p>
         </div>
-        <div className="col-span-2 flex flex-col gap-1.5 sm:items-end">
-          {/* บรรทัดบอกทางของใบ (TOA) เห็นตั้งแต่มียอด ไม่ต้องรอกรอกครบ */}
-          {total > 0 && !!fundId && <p className="text-xs text-ink-500 sm:max-w-[17rem] sm:text-right">{routeHint(route)}</p>}
-          {(whtError || (payeeNote && whtAmount <= 0)) && (
-            <p className={`text-xs sm:max-w-[17rem] sm:text-right ${whtError ? 'text-rose-600' : 'text-sun-700'}`} aria-live="polite">{whtError ?? payeeNote}</p>
-          )}
-          {requiredMissing
-            ? <p className="text-xs text-ink-500" aria-live="polite">{requiredMissing}</p>
-            : <p className="text-xs text-ink-500">
-                {needsDd ? 'ยอดตั้งแต่ 500 ใส่ DD ก่อนส่งบัญชี · ' : ''}ไม่เกิน {PETTY_CLAIM_CAP.toLocaleString('th-TH')} บาทต่อใบ
-              </p>}
-          <Button tone="primary" size="lg" disabled={saving || !!requiredMissing} onClick={() => void confirmSubmit()}
-            className="w-full sm:w-auto">
-            {saving ? 'กำลังส่ง…' : 'ส่งให้ผู้อนุมัติ'}
-          </Button>
-        </div>
+        <Button tone="primary" size="lg" disabled={saving || !!requiredMissing} onClick={() => void confirmSubmit()} className="shrink-0">
+          {saving ? 'กำลังส่ง…' : 'ส่งให้ผู้อนุมัติ'}
+        </Button>
       </div>
     </StickyBar>
   ) : undefined;
 
+  // ขั้นตอนไล่จากบนลงล่าง (ผู้ใช้สั่ง 16/11/2026) — เลขขั้นนับต่อกันเอง ประเภทที่ไม่มีตารางรายการไม่มีขั้น "รายการ"
+  let step = 0;
+  const next = () => ++step;
+  const isPayeeKey = (k: string) => k.startsWith('payee_') || k === 'payment_method';
+  const detailFields = visibleHeader.filter(f => !isPayeeKey(f.key));
+  const payeeFields = visibleHeader.filter(f => isPayeeKey(f.key));
+  const filled = (f: { key: string; type?: string; required?: boolean }) =>
+    !f.required || (f.type === 'truck' ? !!String(header.truck_code ?? '').trim() : String(header[f.key] ?? '').trim() !== '');
+  const rowsDone = rows.length > 0 && rows.every(row => (spec.item_fields ?? []).every(f =>
+    !f.required || (f.key === 'truck' ? !!String(row.truck_code ?? '').trim() : String(row[f.key] ?? '').trim() !== '')));
+  const payeeDone = !!payeeName && !payeeBankProblem(spec, header);
+
   return (
     <PettyPage title={TITLE} aside={requester} footer={footer}>
-      <Section band index={1} label="ข้อมูลการเบิก">
-        {/* ทุกช่องอยู่บนกริด 3 คอลัมน์เดียวกัน กล่องสูงเท่ากันทุกใบ (FIELD h-11) ช่องที่ข้อความยาวกิน 2 คอลัมน์ ไม่มีช่องกว้างลอย ๆ (ผู้ใช้สั่ง 5/11/2026) */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="sm:col-span-2">
-            <label htmlFor="petty-type" className={LABEL}>ประเภทการเบิก<Req /></label>
-            <ExpenseTypeCombobox id="petty-type" types={types} value={typeCode} onChange={setTypeCode} />
-          </div>
-          <label className="block">
-            <span className={LABEL}>วันที่ขอเบิก<Req /></span>
-            <input type="date" value={String(header.expense_date ?? '')}
-              onChange={e => setHeader({ ...header, expense_date: e.target.value })}
-              className={FIELD} />
-          </label>
-        </div>
+      <StepSection index={next()} label="ประเภทการเบิก" done={!!type}>
+        <label htmlFor="petty-type" className="sr-only">ประเภทการเบิก</label>
+        <ExpenseTypeCombobox id="petty-type" types={types} value={typeCode} onChange={setTypeCode} />
         {type && <div className="mt-4"><PettyTypeNote spec={spec} typeName={type.name_th} /></div>}
+        {!type && <p className="mt-2 text-sm text-ink-500">เลือกประเภทก่อน แล้วขั้นถัดไปจะขึ้นตามประเภท</p>}
+      </StepSection>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+      {type && (<>
+        <StepSection index={next()} label="วันที่และศูนย์" done={!!header.expense_date && !!costCenter}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className={LABEL}>วันที่ขอเบิก<Req /></span>
+              <input type="date" value={String(header.expense_date ?? '')}
+                onChange={e => setHeader({ ...header, expense_date: e.target.value })}
+                className={FIELD} />
+            </label>
           <label className="block">
             <span className={LABEL}>ศูนย์และแผนก<Req /></span>
             <select value={costCenter} onChange={e => { setCostCenter(e.target.value); setCostCenterPicked(true); }} className={FIELD}>
@@ -409,8 +383,13 @@ export default function NewPettyClaimPage() {
               </span>
             )}
           </label>
+          </div>
+        </StepSection>
+
+        <StepSection index={next()} label="วงเงินสดย่อย" done={!!fundId}
+          hint={total > 0 && !!fundId ? routeHint(route) : 'ระบบเลือกวงเงินให้ตามแผนกและสาขา'}>
           {canPickFund ? (
-            <label className="block sm:col-span-2">
+            <label className="block">
               <span className={LABEL}>วงเงินสดย่อย<Req /></span>
               <select value={fundId} onChange={e => { setFundId(e.target.value); setFundPicked(true); }} className={FIELD}>
                 <option value="">เลือกวงเงินสดย่อย</option>
@@ -431,7 +410,7 @@ export default function NewPettyClaimPage() {
               )}
             </label>
           ) : (
-            <div className="block sm:col-span-2">
+            <div className="block">
               <span className={LABEL}>วงเงินสดย่อย</span>
               {/* ล็อกตามแผนกและสาขา เลือกเองไม่ได้ (ผู้ใช้สั่ง 7/11/2026) */}
               <div className={`${FIELD} flex items-center bg-[#f5f7fb] text-ink-900`} aria-readonly="true">
@@ -444,10 +423,54 @@ export default function NewPettyClaimPage() {
               </span>
             </div>
           )}
-        </div>
+        </StepSection>
 
-        {type && (
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        {detailFields.length > 0 && (
+          <StepSection index={next()} label={`รายละเอียด${type.name_th}`} done={detailFields.every(filled)}>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {detailFields.map(f => (
+                <HeaderField key={f.key} field={f} value={header[f.key]} form={header}
+                  onChange={patch => setHeader(h => ({ ...h, ...patch }))} />
+              ))}
+            </div>
+          </StepSection>
+        )}
+
+        {itemBased && (
+          <StepSection index={next()} label={spec.item_label ?? 'รายการ'} done={rowsDone}
+            actions={period.from ? <span className="text-xs text-ink-500">ช่วงวันที่ {formatDate(period.from)} – {formatDate(period.to ?? period.from)}</span> : undefined}>
+            <ItemGrid spec={spec} rows={rows} onChange={setRows} onAddMany={() => setAddMany(true)}
+              dups={dups} />
+          </StepSection>
+        )}
+
+        {payeeFields.length > 0 && (
+          <StepSection index={next()} label="จ่ายให้" done={payeeDone && payeeFields.every(filled)}>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {payeeFields.map(f => (
+                <HeaderField key={f.key} field={f} value={header[f.key]} form={header}
+                  onChange={patch => setHeader(h => ({ ...h, ...patch }))} />
+              ))}
+            </div>
+          </StepSection>
+        )}
+
+        {hasFiles && (
+          <StepSection index={next()} label="หลักฐานประกอบการเบิก" done={!missingAtCreate(spec, attachedCounts)}>
+          <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+            {(spec.attachments ?? []).map(a => (
+              <PettyFileDrop key={a.key} label={a.label} required={a.required && !isHolderAttachment(a.key)} max={a.max}
+                note={isHolderAttachment(a.key) ? 'เจ้าของเงินสดแนบตอนอนุมัติจ่าย ถ้ามีสลิปแล้วแนบมาได้เลย' : a.note || conditionOf[a.key]}
+                tag={conditionOf[a.key] && !files[a.key]?.length ? 'มีเงื่อนไข' : undefined}
+                files={files[a.key] ?? []}
+                onChange={list => setFiles({ ...files, [a.key]: a.max ? list.slice(0, a.max) : list })} />
+            ))}
+          </div>
+          </StepSection>
+        )}
+
+        <StepSection index={next()} label="รหัสใบสำคัญจ่าย" done={!!(expenseCode || costCenter)}>
+          <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
               <span className={LABEL}>รหัสใบสำคัญจ่าย</span>
               <select value={expenseCode} onChange={e => { setExpenseCode(e.target.value); setExpenseCodePicked(true); }} className={FIELD}>
@@ -460,43 +483,52 @@ export default function NewPettyClaimPage() {
               </span>
             </label>
           </div>
-        )}
+        </StepSection>
 
-        {type && visibleHeader.length > 0 && (
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
-            {visibleHeader.map(f => (
-              <HeaderField key={f.key} field={f} value={header[f.key]} form={header}
-                onChange={patch => setHeader(h => ({ ...h, ...patch }))} />
-            ))}
+        <StepSection index={next()} label="DD และหัก ณ ที่จ่าย" optional done={!whtError && !needsDd}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className={LABEL}>เลขที่ใบรับสินค้า (DD)</span>
+              <input value={ddNo} onChange={e => setDdNo(e.target.value)} placeholder="กรอกทีหลังได้" className={FIELD} />
+              <span className="mt-1 block text-xs text-ink-500">{needsDd ? 'ยอดตั้งแต่ 500 ต้องใส่ DD ก่อนส่งบัญชี กรอกตอนนี้หรือทีหลังก็ได้' : 'ยอดต่ำกว่า 500 ไม่ต้องใส่ DD'}</span>
+            </label>
+            <div>
+              <label htmlFor="petty-wht" className={LABEL}>หัก ณ ที่จ่าย (บาท)</label>
+              <div className="flex items-center gap-2">
+                <input id="petty-wht" value={wht} onChange={e => setWht(e.target.value)} inputMode="decimal" placeholder="0.00"
+                  aria-invalid={!!whtError} className={`${FIELD} min-w-0 flex-1 text-right tabular-nums`} />
+                {WHT_RATES.map(r => (
+                  <button key={r.rate} type="button" onClick={() => setWht(whtFromRate(total, r.rate).toFixed(2))} disabled={total <= 0}
+                    title={r.label}
+                    className="h-11 shrink-0 rounded-[10px] border border-[#dbe4f3] bg-white px-3 text-sm text-ink-700 hover:bg-[#f3f7fd] disabled:text-ink-300">
+                    {r.label.split(' ')[0]}
+                  </button>
+                ))}
+                {!!wht && <button type="button" onClick={() => setWht('')} className="shrink-0 text-xs text-ink-500 underline underline-offset-2">ไม่หัก</button>}
+              </div>
+              <span className={`mt-1 block text-xs ${whtError ? 'text-rose-600' : payeeNote && whtAmount <= 0 ? 'text-sun-700' : 'text-ink-500'}`}>
+                {whtError ?? payeeNote ?? '1% ค่าขนส่ง · 3% ค่าบริการ คำนวณจากยอดรวม คนจ่ายเห็นยอดโอนจริงในกล่องอนุมัติ'}
+              </span>
+            </div>
           </div>
-        )}
-      </Section>
+        </StepSection>
 
-      {type && itemBased && (
-        <Section band index={2} label={spec.item_label ?? 'รายการ'}
-          actions={period.from ? <span className="text-xs text-ink-500">ช่วงวันที่ {formatDate(period.from)} – {formatDate(period.to ?? period.from)}</span> : undefined}>
-          <ItemGrid spec={spec} rows={rows} onChange={setRows} onAddMany={() => setAddMany(true)}
-            dups={dups} />
-        </Section>
-      )}
-
-      {type && hasFiles && (
-        <Section band index={fileIndex} label="หลักฐานประกอบการเบิก">
-          <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-            {(spec.attachments ?? []).map(a => (
-              <PettyFileDrop key={a.key} label={a.label} required={a.required && !isHolderAttachment(a.key)} max={a.max}
-                note={isHolderAttachment(a.key) ? 'เจ้าของเงินสดแนบตอนอนุมัติจ่าย ถ้ามีสลิปแล้วแนบมาได้เลย' : a.note || conditionOf[a.key]}
-                tag={conditionOf[a.key] && !files[a.key]?.length ? 'มีเงื่อนไข' : undefined}
-                files={files[a.key] ?? []}
-                onChange={list => setFiles({ ...files, [a.key]: a.max ? list.slice(0, a.max) : list })} />
-            ))}
+        <StepSection index={next()} label="ตรวจและส่ง" done={!requiredMissing}>
+          <div className="grid gap-4 rounded-[12px] border border-[#dbe4f3] bg-[#f8fafd] p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+              <dt className="text-ink-500">ยอดรวม</dt><dd className="font-semibold tabular-nums text-ink-900">{baht2(total)} บาท</dd>
+              {whtAmount > 0 && !whtError && (<>
+                <dt className="text-ink-500">หัก ณ ที่จ่าย</dt><dd className="tabular-nums">{baht2(whtAmount)} บาท</dd>
+                <dt className="text-ink-500">โอนจริง</dt><dd className="font-semibold tabular-nums">{baht2(netAmount(total, whtAmount))} บาท</dd>
+              </>)}
+              {total > 0 && !!fundId && (<><dt className="text-ink-500">ผู้อนุมัติ</dt><dd>{routeHint(route)}</dd></>)}
+              <dt className="text-ink-500">สถานะ</dt>
+              <dd className={requiredMissing ? 'text-sun-700' : 'text-brand-800'}>{requiredMissing ?? 'กรอกครบแล้ว พร้อมส่ง'}</dd>
+            </dl>
+            <p className="text-xs text-ink-500 sm:max-w-[14rem] sm:text-right">ไม่เกิน {PETTY_CLAIM_CAP.toLocaleString('th-TH')} บาทต่อใบ · กดปุ่มส่งที่แถบล่างได้ตลอด</p>
           </div>
-        </Section>
-      )}
-
-      {!type && (
-        <p className="mt-2 text-sm text-ink-500">เลือกประเภทการเบิกก่อน แล้วช่องที่ต้องกรอกจะขึ้นตามประเภท</p>
-      )}
+        </StepSection>
+      </>)}
 
       {addMany && type && (
         <AddManyTrucksDialog spec={spec} onClose={() => setAddMany(false)}

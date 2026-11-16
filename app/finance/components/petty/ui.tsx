@@ -221,3 +221,32 @@ export function EmptyState({ title, text }: { title: string; text?: string }) {
 }
 
 export const baht2 = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** ขั้นตอนของหน้าเปิดใบ (ผู้ใช้สั่ง 16/11/2026 "ไล่ทำเป็นขั้นตอน 1-10") — เลขในวงกลมเสมอ (ทึบเมื่อครบ + ป้าย ✓ ครบ) · เส้นคั่นระหว่างขั้น */
+export function StepSection({ index, label, done = false, optional = false, hint, actions, children }: {
+  index: number; label: ReactNode; done?: boolean; optional?: boolean; hint?: ReactNode; actions?: ReactNode; children?: ReactNode;
+}) {
+  return (
+    <section className={`border-t ${LINE} py-6 first:border-t-0 first:pt-1 last:pb-1`} aria-label={`ขั้นที่ ${index}`}>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
+        <div className="flex min-w-0 items-start gap-3">
+          <span aria-hidden="true"
+            className={cn('mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums',
+              done ? 'bg-brand-700 text-white' : 'border-2 border-brand-700 bg-white text-brand-800')}>
+            {index}
+          </span>
+          <div className="min-w-0">
+            <h2 className="font-display text-[15px] font-semibold leading-7 text-ink-900">
+              {label}
+              {optional && <span className="ml-2 text-xs font-normal text-ink-500">ไม่บังคับ</span>}
+              {done && <span className="ml-2 rounded-full bg-[#e7f5ec] px-2 py-0.5 align-middle text-[11px] font-medium text-brand-800">✓ ครบ</span>}
+            </h2>
+            {hint && <p className="text-xs text-ink-500">{hint}</p>}
+          </div>
+        </div>
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      </div>
+      <div className="sm:pl-10">{children}</div>
+    </section>
+  );
+}
