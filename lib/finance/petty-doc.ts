@@ -22,7 +22,15 @@ table.items td.nw { white-space: nowrap; }
 /** ใบปะหน้าพิมพ์แนวนอน (ผู้ใช้สั่ง 7/11/2026) — @page ทับของ CASH_ADVANCE_CSS · หน้าสูง 210mm − หัว 12mm − Document Control ~38mm = 160mm */
 export const PETTY_LANDSCAPE_CSS = PETTY_DOC_CSS + `
 @page { size: A4 landscape; margin: 0 0 9mm; }
-.doc-part { min-height: 160mm; }
+/* แนวนอนเหลือที่ ~150mm (210 − หัว 12 − Document Control ~38 − ขอบ 9) เดิมตั้ง 160mm ลงนามเลยตกไปหน้า 2 คนเดียว (16/11/2026)
+   ไม่บังคับความสูง ให้ลงนามตามท้ายเนื้อหา · ย่อระยะ/ช่องเซ็นให้ใบปะหน้า 3–4 ใบจบหน้าเดียว */
+.doc-part { min-height: 0; }
+.sign-block { margin-top: 0; padding-top: 2mm; }
+.sec { margin: 7px 0 4px; }
+table.items td { padding-top: 3px; padding-bottom: 3px; }
+table.sig td.space { height: 12mm; }
+/* หน้ากว้าง: ข้อมูลผู้ส่ง 4 ช่องอยู่แถวเดียว */
+.grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 `;
 
 export type PettySignature = {

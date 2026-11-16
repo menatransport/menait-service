@@ -122,7 +122,8 @@ ${docHead({ title: 'ใบสำคัญจ่ายเงินสดย่อ
 ${sec(1, 'ข้อมูลการจ่าย', 'Payment')}
 <div class="grid">${field('จ่ายให้', payeeLine(claim))}${field('วงเงินสดย่อย', fundPlaceWithHolder(fund))}
 ${field('รหัสค่าใช้จ่ายของผู้เบิก (บัญชี)', claimCostCenterLine(claim, fund))}${field('ประเภทการเบิก', typeName)}
-${field('รหัสใบสำคัญจ่าย', expenseCodeLabel(claimExpenseCode(claim)))}${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}</div>
+${field('รหัสใบสำคัญจ่าย', expenseCodeLabel(claimExpenseCode(claim)))}${field('เลขที่ใบรับสินค้า (DD)', claim.dd_no)}
+${claim.items.some(i => i.truck_code || i.truck_plate) ? field('ฟลีท', claimFleets(claim) || '-') : ''}</div>
 
 ${sec(2, 'รายการ', 'Items')}
 <table class="items"><thead><tr><th class="c" style="width:9mm">ลำดับ</th><th>รายการ</th>
@@ -238,6 +239,11 @@ ${signBlock(3, 'ลงนาม', 'Signatures', [
   });
 }
 
+/** ฟลีทของใบ ณ วันทำรายการ (ข้อ 10 · ATMS) — ไม่ซ้ำ เรียงตามที่เจอ · ใบไม่มีรถ/ไม่พบ = '' */
+export function claimFleets(claim: Pick<PettyClaim, 'items'>): string {
+  return [...new Set(claim.items.map(i => String(i.fleet ?? '').trim()).filter(Boolean))].join(', ');
+}
+
 // ---------------------------------------------------------------- ใบสรุปรายการประกอบ
 
 type Column = { head: string; cell: (item: PettyClaim['items'][number]) => string; cls?: string };
@@ -247,18 +253,27 @@ function columnsFromSpec(fields: PettySpecField[], unit: string): Column[] {
   const cols: Column[] = [];
   // ยางนับเป็นเส้น: จำนวนและราคาต่อหน่วยอยู่บนใบด้วย · ประเภทที่จำนวนเป็น 1 เสมอ ราคาเท่ายอด ไม่พิมพ์ซ้ำ
   const hasQty = fields.some(f => f.key === 'qty');
+  // ฟลีท (Mixer L/S · Trailer · Side curtain) ต่อจากประเภทรถ ถ้าไม่มีช่องประเภทรถ ต่อจากทะเบียน (ข้อ 10 ผู้ใช้สั่ง 16/11/2026)
+  const hasTruckType = fields.some(f => f.key === 'truck_type');
+  const fleetCol: Column = { head: 'ฟลีท', cell: i => esc(String(i.fleet ?? '').trim() || '-'), cls: 'nw' };
   for (const f of fields) {
+    if (f.key === 'truck_type') {
+      cols.push({ head: f.label, cell: i => esc(i.truck_type || '-') }, fleetCol);
+      continue;
+    }
     if (f.key === 'qty') { cols.push({ head: f.label, cell: i => `${Number(i.qty ?? 1)} ${esc(unit)}`, cls: 'c' }); continue; }
     if (f.key === 'rate') { if (hasQty) cols.push({ head: f.label, cell: i => money(Number(i.rate)), cls: 'a' }); continue; }
     if (f.key === 'truck') {
-      cols.push({ head: 'เบอร์รถ', cell: i => esc(i.truck_code ?? '-') });
-      cols.push({ head: 'ทะเบียน', cell: i => esc(i.truck_plate ?? '-') });
+      cols.push({ head: 'เบอร์รถ', cell: i => esc(i.truck_code ?? '-'), cls: 'nw' });
+      cols.push({ head: 'ทะเบียน', cell: i => esc(i.truck_plate ?? '-'), cls: 'nw' });
+      if (!hasTruckType) cols.push(fleetCol);
       continue;
     }
     if (f.key === 'event_date') { cols.push({ head: f.label, cell: i => esc(thaiDate(i.event_date)), cls: 'c' }); continue; }
     if (f.key === 'driver' || f.key === 'driver_name') { cols.push({ head: f.label, cell: i => esc(i.driver_name || '-') }); continue; }
     const key = f.key as keyof PettyClaim['items'][number];
-    cols.push({ head: f.label, cell: i => esc((i[key] as string | null | undefined) || '-') });
+    // เลขอ้างอิง (บัตรชั่ง/ใบเสร็จ) ไม่ตัดกลางเลข
+    cols.push({ head: f.label, cell: i => esc((i[key] as string | null | undefined) || '-'), cls: f.key === 'ref_no' ? 'nw' : undefined });
   }
   return cols;
 }
@@ -317,7 +332,8 @@ export function itemSummaryHtml(opts: VoucherOpts & {
       const v = detail[f.key];
       return v === undefined || v === null ? '' : String(v);
     };
-    const fields = (spec?.header_fields ?? []).map(f => field(f.label, value(f))).join('');
+    const fields = (spec?.header_fields ?? []).map(f => field(f.label, value(f)) +
+      (f.type === 'truck' ? field('ฟลีท', claimFleets(claim) || String(detail.fleet ?? '') || '-') : '')).join('');
     content = `<div class="kv">${fields}${field('หมายเหตุ', item?.remark ?? '')}</div>` +
       `<div class="sum"><div class="dates"></div>${totalBox('รวมทั้งสิ้น', money(Number(claim.amount)), bahtText(Number(claim.amount)))}</div>`;
   }

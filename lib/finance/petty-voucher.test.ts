@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { itemSummaryHtml, pettyVoucherHtml, receiptSubstituteHtml, travelRequestFormHtml } from './petty-voucher';
+import { claimFleets, itemSummaryHtml, pettyVoucherHtml, receiptSubstituteHtml, travelRequestFormHtml } from './petty-voucher';
 import type { PettyClaim, PettyFund } from '@/app/finance/types-petty';
 
 const fund: PettyFund = {
@@ -498,4 +498,11 @@ describe('ช่องวงเงินสดย่อยบน PDF แบบ�
   test('ใบสรุปรายการ', () => expect(itemSummaryHtml({ claim, fund: held, typeName: 'x', spec: null })).toMatch(want));
   test('ไม่มีชื่อผู้ถือเงิน ใช้รหัสพนักงานแทน', () =>
     expect(pettyVoucherHtml({ claim, fund, typeName: 'x' })).toContain('<span class="v">ลาดกระบัง - ยานยนต์ · 12345</span>'));
+});
+
+describe('ฟลีทใน PDF (ข้อ 10 ผู้ใช้สั่ง 16/11/2026)', () => {
+  test('claimFleets ไม่ซ้ำ ข้ามค่าว่าง', () => {
+    expect(claimFleets({ items: [{ fleet: 'Mixer L' }, { fleet: 'Trailer' }, { fleet: 'Mixer L' }, { fleet: null }] } as any)).toBe('Mixer L, Trailer');
+    expect(claimFleets({ items: [{ fleet: '' }] } as any)).toBe('');
+  });
 });

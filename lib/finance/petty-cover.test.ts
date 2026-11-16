@@ -182,9 +182,10 @@ describe('สรุปตามรหัสใบสำคัญจ่าย (�
 });
 
 describe('ใบปะหน้าแนวนอน (ผู้ใช้สั่ง 7/11/2026)', () => {
-  test('@page เป็น A4 landscape และหน้าสูง 160mm', () => {
+  test('@page เป็น A4 landscape · ไม่บังคับความสูง ลงนามตามท้ายเนื้อหา (ไม่ตกไปหน้า 2 คนเดียว 16/11/2026)', () => {
     const html = coverSheetHtml({ group: groupByClerk(CLAIMS)[0], types: TYPES, clerkName: 'สมชาย', branchCode: '03', divisionCode: 'B02' });
     expect(html).toContain('size: A4 landscape');
-    expect(html).toContain('min-height: 160mm');
+    expect(html).not.toContain('min-height: 160mm');
+    expect(html).toContain('.doc-part { min-height: 0; }');
   });
 });
