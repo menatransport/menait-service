@@ -325,18 +325,40 @@ export default function NewPettyClaimPage() {
   const footer = type ? (
     <StickyBar>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-4 gap-y-2.5 sm:flex sm:items-center sm:justify-between sm:gap-6">
-        <label className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-          <span className="shrink-0 text-xs font-medium text-ink-500">เลขที่ใบรับสินค้า (DD)</span>
-          <input value={ddNo} onChange={e => setDdNo(e.target.value)} placeholder="กรอกทีหลังได้"
-            className={`${FIELD} py-2 sm:w-44`} />
-        </label>
+        {/* DD กับหัก ณ ที่จ่าย อยู่ติดกันในแถบล่าง (ผู้ใช้สั่ง 16/11/2026) */}
+        <div className="flex min-w-0 flex-col gap-2.5 sm:shrink-0 sm:flex-row sm:items-center sm:gap-x-4">
+          <label className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+            <span className="shrink-0 text-xs font-medium text-ink-500">เลขที่ใบรับสินค้า (DD)</span>
+            <input value={ddNo} onChange={e => setDdNo(e.target.value)} placeholder="กรอกทีหลังได้"
+              className={`${FIELD} py-2 sm:w-36`} />
+          </label>
+          <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+            <label htmlFor="petty-wht" className="shrink-0 text-xs font-medium text-ink-500">หัก ณ ที่จ่าย (บาท)</label>
+            <div className="flex items-center gap-1.5">
+              <input id="petty-wht" value={wht} onChange={e => setWht(e.target.value)} inputMode="decimal" placeholder="0.00"
+                aria-invalid={!!whtError} className={`${FIELD} min-w-0 flex-1 py-2 text-right tabular-nums sm:w-28 sm:flex-none`} />
+              {WHT_RATES.map(r => (
+                <button key={r.rate} type="button" onClick={() => setWht(whtFromRate(total, r.rate).toFixed(2))} disabled={total <= 0}
+                  title={r.label}
+                  className="h-9 shrink-0 rounded-[10px] border border-[#dbe4f3] bg-white px-2.5 text-xs text-ink-700 hover:bg-[#f3f7fd] disabled:text-ink-300">
+                  {r.label.split(' ')[0]}
+                </button>
+              ))}
+              {!!wht && <button type="button" onClick={() => setWht('')} className="shrink-0 text-xs text-ink-500 underline underline-offset-2">ไม่หัก</button>}
+            </div>
+          </div>
+        </div>
         <div className="text-right sm:ml-auto">
           <p className="text-xs text-ink-500">ยอดรวม</p>
           <p className="font-display text-xl font-semibold leading-tight tabular-nums text-ink-900 sm:text-2xl">{baht2(total)}</p>
+          {whtAmount > 0 && !whtError && <p className="text-xs text-ink-700">โอนจริง <b className="tabular-nums">{baht2(netAmount(total, whtAmount))}</b></p>}
         </div>
         <div className="col-span-2 flex flex-col gap-1.5 sm:items-end">
           {/* บรรทัดบอกทางของใบ (TOA) เห็นตั้งแต่มียอด ไม่ต้องรอกรอกครบ */}
-          {total > 0 && !!fundId && <p className="text-xs text-ink-500">{routeHint(route)}</p>}
+          {total > 0 && !!fundId && <p className="text-xs text-ink-500 sm:max-w-[17rem] sm:text-right">{routeHint(route)}</p>}
+          {(whtError || (payeeNote && whtAmount <= 0)) && (
+            <p className={`text-xs sm:max-w-[17rem] sm:text-right ${whtError ? 'text-rose-600' : 'text-sun-700'}`} aria-live="polite">{whtError ?? payeeNote}</p>
+          )}
           {requiredMissing
             ? <p className="text-xs text-ink-500" aria-live="polite">{requiredMissing}</p>
             : <p className="text-xs text-ink-500">
@@ -437,26 +459,6 @@ export default function NewPettyClaimPage() {
                   : suggestedCode ? `ระบบเสนอ ${expenseCodeReason(codeRows)}` : 'ระบบจะเสนอให้เมื่อเลือกคนขับ/รถ (พจส. โม่ → บริการ · พจร. → รถร่วม)'}
               </span>
             </label>
-            <div className="sm:col-span-2">
-              <label className="block">
-                <span className={LABEL}>หัก ณ ที่จ่าย (บาท)</span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <input value={wht} onChange={e => setWht(e.target.value)} inputMode="decimal" placeholder="0.00"
-                    aria-label="ยอดหัก ณ ที่จ่าย" className={`${FIELD} w-36 text-right tabular-nums`} />
-                  {WHT_RATES.map(r => (
-                    <button key={r.rate} type="button" onClick={() => setWht(whtFromRate(total, r.rate).toFixed(2))} disabled={total <= 0}
-                      className="h-11 rounded-[10px] border border-[#dbe4f3] bg-white px-3 text-sm text-ink-700 hover:bg-[#f3f7fd] disabled:text-ink-300">
-                      {r.label}
-                    </button>
-                  ))}
-                  {!!wht && <button type="button" onClick={() => setWht('')} className="text-xs text-ink-500 underline underline-offset-2">ไม่หัก</button>}
-                  {whtAmount > 0 && !whtError && <span className="text-sm text-ink-700">โอนจริง <b className="tabular-nums">{baht2(netAmount(total, whtAmount))}</b> บาท</span>}
-                </div>
-              </label>
-              <span className={`mt-1 block text-xs ${whtError ? 'text-rose-600' : payeeNote && whtAmount <= 0 ? 'text-sun-700' : 'text-ink-500'}`}>
-                {whtError ?? payeeNote ?? 'พิมพ์ยอดเองได้ หรือกด 1% / 3% ให้คำนวณจากยอดรวม · คนจ่ายจะเห็นยอดโอนจริงในกล่องอนุมัติ'}
-              </span>
-            </div>
           </div>
         )}
 
