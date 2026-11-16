@@ -30,6 +30,8 @@ export function applyFleet<T extends Record<string, unknown>>(row: T, info: Driv
     truck_type: keep('truck_type') ? row.truck_type : (info.truck_type || row.truck_type),
     driver_name: keep('driver_name') ? row.driver_name : (info.driver_name ?? row.driver_name),
     driver_code: keep('driver_name') ? row.driver_code : (info.driver_code ?? null),
-    driver_role: keep('driver_role') ? row.driver_role : (info.driver_role || row.driver_role),
+    // พจส./พจร. จาก ATMS ชนะค่าตั้งต้นของฟอร์ม (พจส.) เสมอเมื่อเลือกรถ — เดิมแถวมี พจส. อยู่แล้วเลยไม่เคยถูกแทน
+    // รถร่วม (พจร.) ได้รหัส 3200 แทน 3500 (เจอตอนตรวจ 16/11/2026) · ผู้ใช้แก้เองได้หลังเลือก
+    driver_role: info.driver_role || row.driver_role,
   };
 }

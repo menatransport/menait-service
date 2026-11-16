@@ -30,3 +30,16 @@ describe('applyFleet — เลือกรถแล้วรู้ฟลีท 
   test('ไม่พบใน ATMS → ฟลีทว่าง อย่างอื่นคงเดิม', () =>
     expect(applyFleet({ truck_code: 'X1', driver_role: 'พจส.' }, null)).toEqual({ truck_code: 'X1', driver_role: 'พจส.', fleet: null }));
 });
+
+describe('เลือกรถแล้ว พจส./พจร. ตาม ATMS (16/11/2026)', () => {
+  test('แถวที่มี พจส. ค่าตั้งต้น + ATMS บอก พจร. → พจร. (รหัสจะเป็นรถร่วม)', async () => {
+    const { applyFleet } = await import('./petty-driver-fill');
+    const row = applyFleet({ truck_code: 'ME147', driver_role: 'พจส.' }, { fleet: 'Mixer L', driver_role: 'พจร.', driver_name: 'สง่า พัดพรม', driver_code: '072025' } as any);
+    expect(row.driver_role).toBe('พจร.');
+    expect(row.fleet).toBe('Mixer L');
+  });
+  test('ATMS ไม่บอกสถานะ → คงค่าเดิมของแถว', async () => {
+    const { applyFleet } = await import('./petty-driver-fill');
+    expect(applyFleet({ truck_code: 'X', driver_role: 'พจร.' }, { fleet: 'Trailer' } as any).driver_role).toBe('พจร.');
+  });
+});
