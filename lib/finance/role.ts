@@ -16,8 +16,15 @@ export function isFinanceUser(
  * 660057 คุณป้อง ผู้บริหาร อนุมัติขั้น 2 ใบยอดสูง · 670108 narongkorn.a superadmin ทำได้ทุกปุ่ม (หลังบ้านกำหนดสิทธิ์) */
 const ALWAYS_FINANCE_IDS = ['660057', '670108'];
 
-/** แผนกที่เข้าหน้าการเงินได้เสมอ ไม่ขึ้นกับ env · 4 = แผนกการเงิน (ผู้ใช้สั่ง 21/10/2026) */
-const ALWAYS_FINANCE_DEPT_IDS = ['4'];
+/** แผนกที่เข้าหน้าการเงินได้เสมอ ไม่ขึ้นกับ env · 4 = แผนกการเงิน (ผู้ใช้สั่ง 21/10/2026)
+ * 36 = แผนกการเงินรับ · 37 = แผนกการเงินจ่าย (master แยกแผนก 17/11/2026 · BE ดูสายจากแผนกนี้) */
+const FINANCE_SUB_DEPT_IDS = ['36', '37'];
+const ALWAYS_FINANCE_DEPT_IDS = ['4', ...FINANCE_SUB_DEPT_IDS];
+
+/** env ที่ระบุแผนก 4 = หมายถึงการเงินทั้งฝ่าย → รวมแผนกการเงินรับ/จ่ายด้วย */
+function withFinanceSubDepts(ids: string[]): string[] {
+  return ids.includes('4') ? [...new Set([...ids, ...FINANCE_SUB_DEPT_IDS])] : ids;
+}
 
 export function financeConfig(env: Record<string, string | undefined> = process.env) {
   return {
@@ -40,7 +47,7 @@ export function accountingConfig(env: Record<string, string | undefined> = proce
   return {
     accDepts: parseIdList(env.ACCOUNTING_DEPARTMENT_IDS),
     accEmployees: parseIdList(env.ACCOUNTING_EMPLOYEE_IDS),
-    treDepts: parseIdList(env.TREASURY_DEPARTMENT_IDS),
+    treDepts: withFinanceSubDepts(parseIdList(env.TREASURY_DEPARTMENT_IDS)),
     treEmployees: parseIdList(env.TREASURY_EMPLOYEE_IDS),
   };
 }
