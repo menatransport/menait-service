@@ -2,6 +2,8 @@
  * เบิกเพิ่ม (บริษัทต้องโอนเพิ่มให้ผู้เบิก) — ผู้ใช้สั่ง 17/11/2026
  * บัญชีปิดได้เลยโดยไม่ต้องรอวันโอน → "ปิด (รอแนบหลักฐานจากการเงิน)" แล้วการเงินแนบสลิป + วันที่โอน → ปิดแล้ว
  */
+import { PERM, can, type PermissionState } from './permissions';
+
 export const PENDING_PROOF = 'CLOSED_PENDING_PROOF';
 
 /** ตอนบัญชีปิด: ใส่วันโอนกับสลิปพร้อมกัน (ปิดเลย) หรือไม่ใส่ทั้งคู่ (รอการเงิน) · null = ผ่าน */
@@ -17,6 +19,11 @@ export function extraProofProblem(date: string, fileCount: number, today: string
   if (date > today) return 'วันที่โอนต้องไม่เกินวันนี้';
   if (fileCount === 0) return 'แนบสลิปโอนเงินเพิ่มอย่างน้อย 1 ไฟล์';
   return null;
+}
+
+/** ใครแนบสลิปโอนเพิ่มได้: บัญชี (สิทธิ์ปิดรายการ) เป็นคนแนบ (ผู้ใช้สั่ง 17/11/2026 รอบสอง) · การเงินสายจ่ายยังแนบได้ */
+export function canAttachExtraProof(perms: PermissionState | null): boolean {
+  return can(perms, PERM.close) || can(perms, PERM.pay);
 }
 
 /** แถบบอกทุกคนที่เปิดใบ */

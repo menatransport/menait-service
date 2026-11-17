@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { closeExtraProblem, extraProofProblem, pendingProofBanner } from './extraProof';
+import { canAttachExtraProof, closeExtraProblem, extraProofProblem, pendingProofBanner } from './extraProof';
+import { PERM } from './permissions';
 import { STATUS_LABELS } from './status';
 import { OUTSTANDING_STATUSES } from './outstanding';
 import { PRINTABLE_STATUSES } from './cashAdvanceForm';
@@ -27,5 +28,11 @@ describe('เบิกเพิ่ม: ปิด (รอแนบหลักฐ
   test('แถบบอกยอดโอนเพิ่ม เฉพาะสถานะนี้', () => {
     expect(pendingProofBanner('CLOSED_PENDING_PROOF', -600)).toBe('บัญชีปิดรายการแล้ว รอการเงินโอนเงินเพิ่ม 600.00 บาท และแนบหลักฐาน');
     expect(pendingProofBanner('CLOSED', -600)).toBeNull();
+  });
+  test('บัญชีแนบสลิปโอนเพิ่มได้ · การเงินสายจ่ายก็ได้ · ไม่มีสิทธิ์ปิดหรือจ่าย = ไม่ได้', () => {
+    expect(canAttachExtraProof({ permissions: [PERM.voucher, PERM.clearingReview, PERM.close] })).toBe(true);
+    expect(canAttachExtraProof({ permissions: [PERM.pay, PERM.payeeAdmin] })).toBe(true);
+    expect(canAttachExtraProof({ permissions: [PERM.receive] })).toBe(false);
+    expect(canAttachExtraProof({ permissions: [] })).toBe(false);
   });
 });

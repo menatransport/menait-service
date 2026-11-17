@@ -15,7 +15,7 @@ import { LogList } from './LogList';
 import { PayForm } from './PayForm';
 import { ReviewPanel } from './ReviewPanel';
 import { ExtraProofPanel } from './ExtraProofPanel';
-import { pendingProofBanner } from '@/lib/finance/extraProof';
+import { canAttachExtraProof, pendingProofBanner } from '@/lib/finance/extraProof';
 import { VoucherForm } from './VoucherForm';
 import { latestReturnRemark } from '@/lib/finance/returnInfo';
 import { PERM, can, canCancelAdvance, canEditDocNumbers, canEditUseDate, canSendVoucherBack } from '@/lib/finance/permissions';
@@ -158,7 +158,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
           <AttachmentPanel formId={formId} folder="clear" refreshKey={refreshKey} />
           <AttachmentPanel formId={formId} folder="related" refreshKey={refreshKey} />
           <AttachmentPanel formId={formId} folder="check" canUpload={(detail.status === 'AWAITING_REVIEW' && can(perms, PERM.close))
-            || (detail.status === 'CLOSED_PENDING_PROOF' && can(perms, PERM.pay))} refreshKey={refreshKey} />
+            || (detail.status === 'CLOSED_PENDING_PROOF' && canAttachExtraProof(perms))} refreshKey={refreshKey} />
         </div>
       </Panel>
       {pendingProofBanner(detail.status, detail.fin?.settle_amount) && (
@@ -215,7 +215,7 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
         <ReviewPanel key={`rev-${refreshKey}`} detail={detail} onSaved={onSaved}
           canSendBack={can(perms, PERM.clearingReview)} canClose={can(perms, PERM.close)} />
       )}
-      {detail.status === 'CLOSED_PENDING_PROOF' && can(perms, PERM.pay) && (
+      {detail.status === 'CLOSED_PENDING_PROOF' && canAttachExtraProof(perms) && (
         <ExtraProofPanel key={`xp-${refreshKey}`} detail={detail} onSaved={onSaved} />
       )}
       <LogList approvalLogs={detail.approval_logs} finLogs={detail.fin_logs} clearLogs={detail.clear_logs} />

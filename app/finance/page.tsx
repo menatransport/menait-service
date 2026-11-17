@@ -29,8 +29,6 @@ const TABS: AdvanceListTab[] = [
   { key: 'voucher', label: 'รอตั้งเบิก', status: ['AWAITING_VOUCHER'] },
   { key: 'pay', label: 'รอจ่าย', status: ['AWAITING_PAYMENT'] },
   { key: 'clear', label: 'ติดตามเคลียร์', ...combineTabs(CLEAR_OPTIONS), options: CLEAR_OPTIONS },
-  // เบิกเพิ่ม: บัญชีปิดแล้ว การเงินต้องโอนเพิ่มและแนบหลักฐาน (ผู้ใช้สั่ง 17/11/2026)
-  { key: 'extraproof', label: 'รอแนบหลักฐานโอนเพิ่ม', status: ['CLOSED_PENDING_PROOF'] },
   { key: 'closed', label: 'ปิดแล้ว', status: ['CLOSED', 'CLOSED_PENDING_PROOF'] }, // ใบยกเลิกไม่นับเป็นปิด ดูได้ในแท็บทั้งหมด (ผู้ใช้สั่ง 07/11/2026)
   { key: 'all', label: 'ทั้งหมด' },
 ];

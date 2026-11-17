@@ -47,12 +47,12 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
       rows: [
         ['เลขที่คำขอ', detail.form_id],
         [settleLabel(settle), `${formatBaht(Math.abs(settle))} บาท`],
-        ...(needsExtraDate ? [['วันที่การเงินโอนเงินเพิ่ม', waitFinance ? 'รอการเงินแนบหลักฐาน' : formatDate(extraDate)] as [string, string]] : []),
+        ...(needsExtraDate ? [['วันที่การเงินโอนเงินเพิ่ม', waitFinance ? 'รอแนบสลิปโอนเพิ่ม' : formatDate(extraDate)] as [string, string]] : []),
         ['เลขที่เอกสารเคลียร์เงิน', clearDocNo.trim()],
         ['วันที่รับเอกสารตัวจริง', formatDate(receivedDate)],
         ['ไฟล์ที่แนบ', files.length ? `${files.length} ไฟล์` : 'ไม่มี'],
       ],
-      note: waitFinance ? 'ใบจะขึ้นว่า ปิด (รอแนบหลักฐานจากการเงิน) จนการเงินแนบสลิปโอนเพิ่ม' : 'ปิดรายการแล้วแก้ไขไม่ได้',
+      note: waitFinance ? 'ใบจะขึ้นว่า ปิด (รอแนบหลักฐานจากการเงิน) จนกว่าจะแนบสลิปโอนเพิ่ม' : 'ปิดรายการแล้วแก้ไขไม่ได้',
       confirmButtonText: 'ยืนยันปิดรายการ',
     }))) return;
     setSaving(true);
@@ -70,7 +70,7 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
         expected_clear_submitted_at: detail.fin?.clear_submitted_at ?? null,
       });
       setFiles([]);
-      await showSuccess(waitFinance ? 'ปิดรายการแล้ว รอการเงินแนบหลักฐานโอนเพิ่ม' : 'ปิดรายการแล้ว');
+      await showSuccess(waitFinance ? 'ปิดรายการแล้ว รอแนบสลิปโอนเพิ่ม' : 'ปิดรายการแล้ว');
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ปิดรายการไม่สำเร็จ', text: (err as Error).message });
@@ -117,7 +117,7 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
               <p className="mb-1 text-sm">แนบสลิปโอนเงินเพิ่ม</p>
               <FilePicker files={files} onChange={setFiles} disabled={saving} />
             </div>
-            <p className="text-xs text-ink-500 sm:col-span-2">ไม่ใส่ = ปิดแบบรอการเงินแนบหลักฐานโอนเพิ่ม · ถ้าการเงินโอนแล้ว ใส่วันที่กับสลิปพร้อมกันได้เลย</p>
+            <p className="text-xs text-ink-500 sm:col-span-2">ไม่ใส่ = ปิดไปก่อน แล้วค่อยกลับมาแนบสลิปโอนเพิ่ม · ถ้าการเงินโอนแล้ว ใส่วันที่กับสลิปพร้อมกันได้เลย</p>
           </div>
         )}
         <div className="grid gap-4 sm:grid-cols-2">

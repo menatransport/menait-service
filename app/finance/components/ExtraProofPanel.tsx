@@ -10,7 +10,7 @@ import { DateField } from './DateField';
 import { FilePicker } from './FilePicker';
 import { Panel } from './FinanceShell';
 
-/** การเงินสายจ่าย: ใบเบิกเพิ่มที่บัญชีปิดแล้ว → โอนเพิ่ม แนบสลิป ใส่วันที่โอน แล้วปิดจริง (ผู้ใช้สั่ง 17/11/2026) */
+/** บัญชี (หรือการเงินสายจ่าย): ใบเบิกเพิ่มที่บัญชีปิดแล้ว → โอนเพิ่ม แนบสลิป ใส่วันที่โอน แล้วปิดจริง (ผู้ใช้สั่ง 17/11/2026) */
 export function ExtraProofPanel({ detail, onSaved }: { detail: AdvanceDetail; onSaved: (d: AdvanceDetail) => void }) {
   const extra = Math.abs(detail.fin?.settle_amount ?? 0);
   const [date, setDate] = useState(todayBkk());
