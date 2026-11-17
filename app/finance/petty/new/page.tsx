@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import type { PettyClaim } from '@/app/finance/types-petty';
+import { canEditReturned, editPrefill, fileCounts, withoutOwnClaim } from '@/lib/finance/petty-edit';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
@@ -22,7 +24,7 @@ import {
 import { requiredDocs } from '@/lib/finance/petty-preset';
 import { formatDate } from '@/lib/finance/status';
 import { showAlert, showSuccess } from '../../api';
-import { checkDuplicate, createClaim, getExpenseTypes, getFunds, payeeMonth, previewRoute, uploadPettyFiles, type RoutePreview } from '../../petty-api';
+import { checkDuplicate, createClaim, getClaim, getExpenseTypes, updateClaim, getFunds, payeeMonth, previewRoute, uploadPettyFiles, type RoutePreview } from '../../petty-api';
 import { WHT_RATES, netAmount, payeeWarning, whtFromRate, whtProblem, type PayeeMonth } from '@/lib/finance/petty-wht';
 import { AddManyTrucksDialog } from '../../components/petty/AddManyTrucksDialog';
 import { ExpenseTypeCombobox } from '../../components/petty/ExpenseTypeCombobox';
@@ -40,8 +42,23 @@ const TITLE = 'เปิดใบเบิกเงินสดย่อย';
 const PETTY_FUND_PICK_IDS = ['670108'];
 
 export default function NewPettyClaimPage() {
+  return (
+    <Suspense fallback={<PettyPage title={TITLE}><div className="py-10"><MascotLoader text="กำลังเตรียมแบบฟอร์ม" size={80} /></div></PettyPage>}>
+      <PettyClaimForm />
+    </Suspense>
+  );
+}
+
+function PettyClaimForm() {
   const { user, loading } = useSessionContext();
   const router = useRouter();
+  // ?edit=<เลขใบ> = แก้ใบที่ถูกตีกลับ แล้วส่งขออนุมัติใหม่ (ผู้ใช้สั่ง 17/11/2026) · ประเภทและวงเงินคงเดิม
+  const editId = useSearchParams().get('edit');
+  const [editClaim, setEditClaim] = useState<PettyClaim | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [existingFiles, setExistingFiles] = useState<Record<string, number>>({});
+  const prefilled = useRef(false);
+  const editing = !!editId;
 
   const [types, setTypes] = useState<PettyExpenseType[] | null>(null);
   const [funds, setFunds] = useState<PettyFund[] | null>(null);
@@ -79,9 +96,8 @@ export default function NewPettyClaimPage() {
   const spec = type?.spec ?? {};
   const itemBased = isItemBased(spec);
   const period = periodOf(rows);
-  const attachedCounts = Object.fromEntries(
-    Object.entries(files).map(([key, list]) => [key, list.length]),
-  );
+  const attachedCounts: Record<string, number> = { ...existingFiles };
+  for (const [key, list] of Object.entries(files)) attachedCounts[key] = (attachedCounts[key] ?? 0) + list.length;
   const total = itemBased ? claimTotal(rows) : claimTotal(itemsFrom(header));
   const whtAmount = Number(wht) || 0;
   const whtError = whtProblem(wht, total);
@@ -90,10 +106,11 @@ export default function NewPettyClaimPage() {
     const month = String(header.expense_date ?? '').slice(0, 7);
     if (!payeeName || payeeName.length < 2 || !month) { setPayeeInfo(null); return; }
     const timer = setTimeout(() => {
-      payeeMonth(payeeName, month).then(setPayeeInfo).catch(() => setPayeeInfo(null));
+      // แก้ใบเดิม: ไม่นับยอดเก่าของใบนี้ซ้ำ
+      payeeMonth(payeeName, month, editClaim?.id).then(setPayeeInfo).catch(() => setPayeeInfo(null));
     }, 500);
     return () => clearTimeout(timer);
-  }, [payeeName, header.expense_date]);
+  }, [payeeName, header.expense_date, editClaim?.id]);
   const payeeNote = payeeWarning(payeeInfo, total, whtAmount);
   const codeRows = itemBased ? rows : [header];
   const suggestedCode = expenseCodeFor(costCenter, codeRows);
@@ -123,12 +140,49 @@ export default function NewPettyClaimPage() {
     })();
   }, []);
 
+  // โหลดใบที่จะแก้ + ไฟล์ที่แนบไว้แล้ว — แก้ได้เฉพาะผู้เปิดใบ และเฉพาะใบที่ถูกตีกลับ
+  useEffect(() => {
+    if (!editId || loading) return;
+    let alive = true;
+    (async () => {
+      try {
+        const c = await getClaim(editId);
+        if (!alive) return;
+        if (!canEditReturned(c, user?.employee_id)) {
+          setEditError(c.status !== 'RETURNED' ? `ใบ ${c.form_id} ไม่ได้อยู่ในสถานะตีกลับ แก้ไม่ได้แล้ว` : 'แก้ได้เฉพาะใบที่คุณเปิดเอง');
+          return;
+        }
+        try {
+          const res = await fetch(`/api/uploads3?form_id=${encodeURIComponent(editId)}`, { cache: 'no-store' });
+          if (res.ok && alive) setExistingFiles(fileCounts(((await res.json()) as { files?: { folder?: string | null }[] }).files ?? []));
+        } catch { /* นับไฟล์เดิมไม่ได้ BE ยังเช็กเอกสารครบตอนอนุมัติ */ }
+        const p = editPrefill(c);
+        setCostCenter(p.costCenter); setCostCenterPicked(true);
+        setFundId(p.fundId);
+        setDdNo(p.ddNo); setWht(p.wht);
+        if (p.expenseCode) { setExpenseCode(p.expenseCode); setExpenseCodePicked(true); }
+        setEditClaim(c);
+        setTypeCode(p.typeCode);
+      } catch (err) {
+        if (alive) setEditError((err as Error).message);
+      }
+    })();
+    return () => { alive = false; };
+  }, [editId, loading, user?.employee_id]);
+
   // เปลี่ยนประเภท = เริ่มกรอกใหม่ เพราะช่องและหมวดไฟล์มาจาก spec ของประเภทนั้น — วันที่ขอเบิกกลับเป็นวันนี้เสมอ
   // ช่องที่ spec ตั้งค่าตั้งต้นไว้ (เช่น พจส./พจร. = พจส.) เติมให้ตั้งแต่แรก
   useEffect(() => {
+    if (editClaim && typeCode === editClaim.expense_type) {
+      if (prefilled.current || !types) return;
+      const p = editPrefill(editClaim);
+      setHeader(p.header); setRows(p.rows); setFiles({}); setDups([]);
+      prefilled.current = true;
+      return;
+    }
     setHeader(blankHeader(types?.find(t => t.code === typeCode)?.spec, bangkokToday()));
     setRows([]); setFiles({}); setDups([]);
-  }, [typeCode, types]);
+  }, [typeCode, types, editClaim]);
 
   // ค่าตั้งต้นจากแผนกของผู้เบิก (map ที่ผู้ใช้อนุมัติ) — อยู่ในศูนย์ของผู้เบิกเสมอ จึงอยู่ในตัวเลือกที่เห็น
   useEffect(() => {
@@ -148,6 +202,7 @@ export default function NewPettyClaimPage() {
   const canPickFund = !!user?.is_petty_super || PETTY_FUND_PICK_IDS.includes(String(user?.employee_id ?? ''));
   const locked = useMemo(() => lockedFundFor(funds ?? [], costCenter, typeCode), [funds, costCenter, typeCode]);
   useEffect(() => {
+    if (editing) return;  // แก้ใบ: วงเงินคงเดิมของใบ (BE ไม่รับเปลี่ยนวงเงินตอนแก้)
     if (canPickFund) {
       setFundId(id => {
         if (fundPicked && shownFunds.some(f => String(f.id) === id)) return id;
@@ -156,7 +211,7 @@ export default function NewPettyClaimPage() {
       return;
     }
     setFundId(locked.fund ? String(locked.fund.id) : '');
-  }, [shownFunds, costCenter, fundPicked, canPickFund, locked]);
+  }, [shownFunds, costCenter, fundPicked, canPickFund, locked, editing]);
 
   // เตือนซ้ำขณะกรอก — ด่านจริงอยู่ที่ BE ตอนอนุมัติ ตรงนี้ให้เห็นก่อนจะส่ง
   useEffect(() => {
@@ -174,10 +229,10 @@ export default function NewPettyClaimPage() {
             message: d.message ?? 'อาจซ้ำ', form_id: d.form_id }));
         } catch { /* ปล่อยผ่าน — BE เป็นผู้ตัดสินจริงตอนอนุมัติ */ }
       }
-      setDups(hints);
+      setDups(withoutOwnClaim(hints, editId));
     }, 600);
     return () => clearTimeout(timer);
-  }, [rows, typeCode, header.payee_name]);
+  }, [rows, typeCode, header.payee_name, editId]);
 
   const requiredMissing = (() => {
     if (!type || !fundId) return 'เลือกประเภทการเบิกและวงเงินสดย่อยก่อน';
@@ -231,7 +286,7 @@ export default function NewPettyClaimPage() {
     const fileCount = Object.values(files).reduce((s, list) => s + list.length, 0);
     const soft = dups.filter(d => d.level === 'soft');
     const ok = await pettyReview({
-      title: 'ส่งใบเบิกให้ผู้อนุมัติ',
+      title: editing ? `ส่งใบ ${editId} ที่แก้แล้วขออนุมัติใหม่` : 'ส่งใบเบิกให้ผู้อนุมัติ',
       rows: [
         ['ประเภท', type.name_th],
         ['ศูนย์และแผนก', costCenter],
@@ -242,7 +297,7 @@ export default function NewPettyClaimPage() {
         ...(itemBased ? [['รายการ', `${rows.length} รายการ`] as [string, string]] : []),
         ['ยอดรวม', `${baht2(total)} บาท`],
         ...(whtAmount > 0 ? [['หัก ณ ที่จ่าย', `${baht2(whtAmount)} บาท · โอนจริง ${baht2(netAmount(total, whtAmount))} บาท`] as [string, string]] : []),
-        ['ไฟล์แนบ', `${fileCount} ไฟล์`],
+        ['ไฟล์แนบ', editing ? `ไฟล์เดิม ${Object.values(existingFiles).reduce((a, b) => a + b, 0)} · ใหม่ ${fileCount} ไฟล์` : `${fileCount} ไฟล์`],
         ['เลข DD', ddNo.trim() || 'กรอกทีหลัง'],
         ['ส่งไปที่', routeHint(route)],
       ],
@@ -274,7 +329,7 @@ export default function NewPettyClaimPage() {
         detail: header,
       }, items);
 
-      const claim = await createClaim(body);
+      const claim = editId ? await updateClaim(editId, body) : await createClaim(body);
 
       const failed: string[] = [];
       for (const [folder, list] of Object.entries(files)) {
@@ -284,12 +339,12 @@ export default function NewPettyClaimPage() {
         showAlert({ icon: 'warning', title: 'เปิดใบแล้ว แต่มีไฟล์ขึ้นไม่ครบ',
           text: `ไฟล์ที่ไม่ขึ้น: ${failed.join(', ')} — เปิดใบแล้วแนบเพิ่มได้` });
       } else {
-        showSuccess(`เปิดใบ ${claim.form_id} แล้ว`,
+        showSuccess(editId ? `ส่งใบ ${claim.form_id} ที่แก้แล้ว` : `เปิดใบ ${claim.form_id} แล้ว`,
           claim.status === 'PENDING_APPROVAL' ? 'ยอดอยู่ในอำนาจเจ้าของเงินสด ใบไปรอเจ้าของเงินสดอนุมัติจ่ายเลย' : 'ใบไปรอหัวหน้าอนุมัติก่อน');
       }
-      router.push('/finance/petty');
+      router.push(editId ? `/finance/petty/${encodeURIComponent(claim.form_id)}` : '/finance/petty');
     } catch (err) {
-      showAlert({ icon: 'error', title: 'เปิดใบไม่สำเร็จ', text: (err as Error).message });
+      showAlert({ icon: 'error', title: editId ? 'ส่งใบที่แก้ไม่สำเร็จ' : 'เปิดใบไม่สำเร็จ', text: (err as Error).message });
     } finally { setSaving(false); }
   }
 
@@ -299,9 +354,17 @@ export default function NewPettyClaimPage() {
   );
 
   // โหลดอยู่ในโครงหน้าเดียวกับหน้าจริง — หัวเรื่อง/Navbar/ผู้เบิกไม่กระพริบหรือขยับตอนข้อมูลตั้งต้นมาถึง
-  if (loading || types === null || funds === null) {
+  const title = editing ? `แก้ไขใบเบิก ${editId}` : TITLE;
+  if (editError) {
     return (
-      <PettyPage title={TITLE} aside={user ? requester : undefined}>
+      <PettyPage title={title} aside={user ? requester : undefined}>
+        <EmptyState title="แก้ใบนี้ไม่ได้" text={editError} />
+      </PettyPage>
+    );
+  }
+  if (loading || types === null || funds === null || (editing && !prefilled.current)) {
+    return (
+      <PettyPage title={title} aside={user ? requester : undefined}>
         <Section band index={1} label="ข้อมูลการเบิก">
           <div className="py-10"><MascotLoader text="กำลังเตรียมแบบฟอร์ม" size={80} /></div>
         </Section>
@@ -311,7 +374,7 @@ export default function NewPettyClaimPage() {
 
   if (funds.length === 0) {
     return (
-      <PettyPage title={TITLE} aside={requester}>
+      <PettyPage title={title} aside={requester}>
         <EmptyState title="ยังไม่มีวงเงินสดย่อยที่เปิดใบได้" text="ให้ผู้ดูแลระบบตั้งวงเงิน (สาขา · แผนก · ผู้อนุมัติ) ที่หน้าตั้งค่าก่อน" />
       </PettyPage>
     );
@@ -332,7 +395,7 @@ export default function NewPettyClaimPage() {
           <p className="truncate text-xs text-ink-500" aria-live="polite">{requiredMissing ?? 'กรอกครบแล้ว พร้อมส่ง'}</p>
         </div>
         <Button tone="primary" size="lg" disabled={saving || !!requiredMissing} onClick={() => void confirmSubmit()} className="shrink-0">
-          {saving ? 'กำลังส่ง…' : 'ส่งให้ผู้อนุมัติ'}
+          {saving ? 'กำลังส่ง…' : editing ? 'ส่งขออนุมัติอีกครั้ง' : 'ส่งให้ผู้อนุมัติ'}
         </Button>
       </div>
     </StickyBar>
@@ -353,10 +416,20 @@ export default function NewPettyClaimPage() {
   const roleMix = itemBased ? singleDriverRoleProblem(type?.code ?? '', rows) : null;
 
   return (
-    <PettyPage title={TITLE} aside={requester} footer={footer}>
-      <StepSection index={next()} label="ประเภทการเบิก" done={!!type}>
+    <PettyPage title={title} aside={requester} footer={footer}>
+      {editClaim?.return_reason && (
+        <div className="mb-4 rounded-[12px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" role="note">
+          <span className="font-medium">เหตุที่ถูกตีกลับ:</span> {editClaim.return_reason}
+        </div>
+      )}
+      <StepSection index={next()} label="ประเภทการเบิก" done={!!type}
+        hint={editing ? 'แก้ใบเดิม ประเภทเปลี่ยนไม่ได้ ถ้าผิดประเภทให้เปิดใบใหม่' : undefined}>
         <label htmlFor="petty-type" className="sr-only">ประเภทการเบิก</label>
-        <ExpenseTypeCombobox id="petty-type" types={types} value={typeCode} onChange={setTypeCode} />
+        {editing ? (
+          <div id="petty-type" className={`${FIELD} flex items-center bg-[#f5f7fb] text-ink-900`} aria-readonly="true">{type?.name_th ?? typeCode}</div>
+        ) : (
+          <ExpenseTypeCombobox id="petty-type" types={types} value={typeCode} onChange={setTypeCode} />
+        )}
         {type && <div className="mt-4"><PettyTypeNote spec={spec} typeName={type.name_th} /></div>}
         {!type && <p className="mt-2 text-sm text-ink-500">เลือกประเภทก่อน แล้วขั้นถัดไปจะขึ้นตามประเภท</p>}
       </StepSection>
@@ -372,7 +445,8 @@ export default function NewPettyClaimPage() {
             </label>
           <label className="block">
             <span className={LABEL}>ศูนย์และแผนก<Req /></span>
-            <select value={costCenter} onChange={e => { setCostCenter(e.target.value); setCostCenterPicked(true); }} className={FIELD}>
+            <select value={costCenter} onChange={e => { setCostCenter(e.target.value); setCostCenterPicked(true); }} className={FIELD}
+              disabled={editing} title={editing ? 'แก้ใบเดิม ศูนย์และแผนกคงเดิมตามวงเงินของใบ' : undefined}>
               <option value="">เลือกศูนย์และแผนก</option>
               {ccGroups.map(g => (
                 <optgroup key={g.center} label={g.center}>
@@ -380,7 +454,7 @@ export default function NewPettyClaimPage() {
                 </optgroup>
               ))}
             </select>
-            {myCenter && !showAllCenters && (
+            {myCenter && !showAllCenters && !editing && (
               <span className="mt-1 block text-xs text-ink-500">
                 แสดงเฉพาะ {myCenter} ตามศูนย์ของคุณ ·{' '}
                 <button type="button" onClick={() => setShowAllCenters(true)} className="font-medium text-ink-700 underline underline-offset-2 hover:text-ink-900">ดูทุกศูนย์</button>
@@ -391,8 +465,16 @@ export default function NewPettyClaimPage() {
         </StepSection>
 
         <StepSection index={next()} label="วงเงินสดย่อย" done={!!fundId}
-          hint={total > 0 && !!fundId ? routeHint(route) : canPickFund ? 'คุณเป็น superadmin เลือกวงเงินเองได้ ไม่ล็อกตามแผนก' : 'ระบบเลือกวงเงินให้ตามแผนกและสาขา'}>
-          {canPickFund ? (
+          hint={total > 0 && !!fundId ? routeHint(route) : editing ? 'วงเงินเดิมของใบ' : canPickFund ? 'คุณเป็น superadmin เลือกวงเงินเองได้ ไม่ล็อกตามแผนก' : 'ระบบเลือกวงเงินให้ตามแผนกและสาขา'}>
+          {editing ? (
+            <div className="block">
+              <span className={LABEL}>วงเงินสดย่อย</span>
+              <div className={`${FIELD} flex items-center bg-[#f5f7fb] text-ink-900`} aria-readonly="true">
+                {(() => { const f = funds.find(x => String(x.id) === fundId); return f ? fundLabelWithHolder(f) : `วงเงิน #${fundId}`; })()}
+              </div>
+              <span className="mt-1 block text-xs text-ink-500">แก้ใบเดิม วงเงินคงเดิม</span>
+            </div>
+          ) : canPickFund ? (
             <label className="block">
               <span className={LABEL}>วงเงินสดย่อย<Req /></span>
               <select value={fundId} onChange={e => { setFundId(e.target.value); setFundPicked(true); }} className={FIELD}>
@@ -461,7 +543,8 @@ export default function NewPettyClaimPage() {
         )}
 
         {hasFiles && (
-          <StepSection index={next()} label="หลักฐานประกอบการเบิก" done={!missingAtCreate(spec, attachedCounts)}>
+          <StepSection index={next()} label="หลักฐานประกอบการเบิก" done={!missingAtCreate(spec, attachedCounts)}
+            hint={editing && Object.keys(existingFiles).length ? `ไฟล์ที่แนบไว้แล้ว ${Object.values(existingFiles).reduce((a, b) => a + b, 0)} ไฟล์ยังอยู่ในใบ แนบเพิ่มได้ที่นี่` : undefined}>
           <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
             {(spec.attachments ?? []).map(a => (
               <PettyFileDrop key={a.key} label={a.label} required={a.required && !isHolderAttachment(a.key)} max={a.max}

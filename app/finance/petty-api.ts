@@ -1,3 +1,4 @@
+import { itemDraftsFrom } from '@/lib/finance/petty-edit';
 import type { PettyBalance, PettyClaim, PettyExpenseType, PettyFund, PettyRound } from './types-petty';
 import { roundDuplicateText, type RoundDocField, type RoundDupField } from '@/lib/finance/petty-worklist';
 import { fetchAllClaimPages } from '@/lib/finance/petty-type-filter';
@@ -48,13 +49,7 @@ export const postAction = (formId: string, action: PettyAction, body: Record<str
 
 /** ส่งใบเดิมกลับเข้าคิวโดยไม่แก้รายการ — ใช้หลังแนบเอกสารที่ขาด (ตีกลับผู้เบิก → ผู้อนุมัติ · บัญชีตีกลับ → บัญชี) */
 export function resubmitClaim(claim: PettyClaim) {
-  const items = claim.items.map(i => ({
-    event_date: i.event_date, truck_code: i.truck_code ?? null, truck_plate: i.truck_plate ?? null,
-    truck_type: i.truck_type ?? null, ref_no: i.ref_no ?? null, qty: i.qty, rate: i.rate,
-    remark: i.remark ?? null, driver_name: i.driver_name ?? null,
-    driver_role: i.driver_role ?? null, tire_position: i.tire_position ?? null,
-    fleet: i.fleet ?? null, driver_code: i.driver_code ?? null,
-  }));
+  const items = itemDraftsFrom(claim);
   return updateClaim(claim.form_id, {
     fund_id: claim.fund_id, expense_type: claim.expense_type, expense_date: claim.expense_date,
     driver_employee_id: claim.driver_employee_id, driver_name: claim.driver_name, payee_name: claim.payee_name,

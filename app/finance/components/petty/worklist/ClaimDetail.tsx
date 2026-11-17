@@ -16,6 +16,7 @@ import { isItemBased } from '@/lib/finance/petty-spec';
 import { transferCalc } from '@/lib/finance/petty-transfer';
 import { canUploadPettyFile } from '@/lib/finance/petty-upload';
 import { claimHistory } from '@/lib/finance/petty-worklist';
+import { canEditReturned } from '@/lib/finance/petty-edit';
 import { formatBaht, formatDate } from '@/lib/finance/status';
 import { showAlert, showSuccess } from '../../../api';
 import { checkDuplicate, getClaim, getExpenseTypes, getFunds, resubmitClaim, type PettyAction } from '../../../petty-api';
@@ -309,9 +310,21 @@ export function ClaimDetail({ formId, onChanged, onOpenRound }: {
       {/* ผู้เปิดใบ: แก้แล้วส่งอีกครั้ง */}
       {isClerk && (claim.status === 'RETURNED' || claim.status === 'SENT_BACK') && (
         <Panel title="ส่งอีกครั้ง">
-          <Button type="button" onClick={() => void resubmit()} disabled={busy !== null} className={PRIMARY_BTN}>
-            {busy === 'resubmit' ? 'กำลังส่ง...' : claim.status === 'SENT_BACK' ? 'ส่งกลับให้บัญชี' : 'ส่งขออนุมัติอีกครั้ง'}
-          </Button>
+          {/* ใบที่ถูกตีกลับ แก้รายการ/ยอดได้ (ผู้ใช้สั่ง 17/11/2026) · ใบที่บัญชีส่งกลับ แนบเอกสารที่ขาดแล้วส่งตรงกลับบัญชี */}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {canEditReturned(claim, user?.employee_id) && (
+              <Link href={`/finance/petty/new?edit=${encodeURIComponent(claim.form_id)}`}
+                className={`${OUTLINE_BTN} inline-flex flex-1 items-center justify-center border border-gray-200 px-4 text-sm font-medium text-ink-700 hover:bg-gray-50`}>
+                แก้ไขใบ
+              </Link>
+            )}
+            <Button type="button" onClick={() => void resubmit()} disabled={busy !== null} className={`${PRIMARY_BTN} flex-1`}>
+              {busy === 'resubmit' ? 'กำลังส่ง...' : claim.status === 'SENT_BACK' ? 'ส่งกลับให้บัญชี' : 'ส่งอีกครั้งโดยไม่แก้รายการ'}
+            </Button>
+          </div>
+          {claim.status === 'RETURNED' && (
+            <p className="mt-2 text-xs text-ink-500">ต้องแก้ยอดหรือรายการ กด "แก้ไขใบ" · แค่แนบไฟล์เพิ่ม แนบด้านบนแล้วกดส่งอีกครั้ง</p>
+          )}
         </Panel>
       )}
 
