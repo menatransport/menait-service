@@ -26,7 +26,10 @@ function cached<T>(cache: Map<SystemCode, Promise<T[]>>, system: SystemCode, loa
 const itemCatalog = new Map<SystemCode, Promise<RoleItem[]>>();
 const roleCatalog = new Map<SystemCode, Promise<CatalogRole[]>>();
 
-interface PickerCopy {
+/** Every distinct item of a system (cached per page load) — also used by the per-menu "ขอเพิ่ม" in the checklist. */
+export const loadItemCatalog = (system: SystemCode) => cached(itemCatalog, system, () => getCatalog(system).then(r => r.items));
+
+export interface PickerCopy {
     title: string;
     trigger: string;
     triggerMore: string;
@@ -60,7 +63,7 @@ function sectionize<T>(list: T[], groups?: PickerGroup[], groupOf?: (opt: T) => 
 }
 
 function RequestPicker<T extends { id: number }>({
-    copy, icon: Icon, load, exclude, picked, readOnly, labelOf, tagOf, groups, groupOf, onChange,
+    copy, icon: Icon, load, exclude, picked, readOnly, labelOf, tagOf, groups, groupOf, onChange, showPicked = true,
 }: {
     copy: PickerCopy;
     icon: IconType;
@@ -74,6 +77,8 @@ function RequestPicker<T extends { id: number }>({
     groups?: PickerGroup[];
     groupOf?: (opt: T) => string;
     onChange?: (next: T[]) => void;
+    /** false: picks are listed elsewhere (ATMS shows them inside each menu group) — render the picker only */
+    showPicked?: boolean;
 }) {
     const [open, setOpen] = useState(false);
     const [catalog, setCatalog] = useState<T[] | null>(null);
@@ -103,11 +108,11 @@ function RequestPicker<T extends { id: number }>({
     const toggle = (opt: T) => onChange?.(pickedIds.has(opt.id) ? picked.filter(p => p.id !== opt.id) : [...picked, opt]);
     const close = () => { setOpen(false); setSearch(''); };
 
-    if (readOnly && picked.length === 0) return null;
+    if (readOnly && (picked.length === 0 || !showPicked)) return null;
 
     return (
         <div className="space-y-2">
-            {picked.length > 0 && (
+            {showPicked && picked.length > 0 && (
                 <div className="rounded-xl border border-mint-300/70 bg-emerald-50/60 overflow-hidden">
                     <div className="flex items-center gap-2 px-3 py-2 border-b border-mint-300/50">
                         <span className="v2-tile-mint size-6 rounded-lg flex items-center justify-center shrink-0">
@@ -252,7 +257,7 @@ function RequestPicker<T extends { id: number }>({
     );
 }
 
-const labelKey = (it: RoleItem) => `${it.category}\u0000${it.item ?? ''}\u0000${it.permission ?? ''}`;
+export const labelKey = (it: RoleItem) => `${it.category}\u0000${it.item ?? ''}\u0000${it.permission ?? ''}`;
 const itemTag = (it: RoleItem) => it.permission;
 
 const ITEM_COPY: PickerCopy = {
@@ -268,7 +273,7 @@ const ITEM_COPY: PickerCopy = {
 
 /** Menus/warehouses to add to one role (ATMS: shown above เมนูสิทธิ์ปัจจุบัน). */
 export function RequestCard({
-    system, ownItems, requested, readOnly, labelOf, groups, groupOf, onChange,
+    system, ownItems, requested, readOnly, labelOf, groups, groupOf, onChange, copy = ITEM_COPY, showPicked,
 }: {
     system: SystemCode;
     /** The role's own items — anything with the same label is not offered */
@@ -280,16 +285,18 @@ export function RequestCard({
     groups?: PickerGroup[];
     groupOf?: (it: RoleItem) => string;
     onChange?: (items: RoleItem[]) => void;
+    copy?: PickerCopy;
+    showPicked?: boolean;
 }) {
-    const load = useMemo(() => () => cached(itemCatalog, system, () => getCatalog(system).then(r => r.items)), [system]);
+    const load = useMemo(() => () => loadItemCatalog(system), [system]);
     const exclude = useMemo(() => {
         const own = new Set(ownItems.map(labelKey));
         return (it: RoleItem) => own.has(labelKey(it));
     }, [ownItems]);
     return (
         <RequestPicker
-            copy={ITEM_COPY} icon={Plus} load={load} exclude={exclude} picked={requested} readOnly={readOnly}
-            labelOf={labelOf} tagOf={itemTag} groups={groups} groupOf={groupOf} onChange={onChange}
+            copy={copy} icon={Plus} load={load} exclude={exclude} picked={requested} readOnly={readOnly}
+            labelOf={labelOf} tagOf={itemTag} groups={groups} groupOf={groupOf} onChange={onChange} showPicked={showPicked}
         />
     );
 }

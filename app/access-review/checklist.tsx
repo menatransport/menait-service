@@ -3,13 +3,14 @@
 import { memo, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ListChecks, Search, Warehouse } from 'lucide-react';
 import { SYSTEM_META, SystemIcon } from './components';
-import { GroupRequestCard, RequestCard, type PickerGroup } from './request-card';
+import { GroupRequestCard, RequestCard, type PickerCopy, type PickerGroup } from './request-card';
+import { ItemGroups, isWarehouse } from './item-groups';
 import type { CatalogRole, Decision, RoleItem, SystemCode } from './types';
 
 /**
- * The "ยืนยันสิทธิ์การเข้าถึง" checklist — one tab per system, each grouped role → category,
- * matching the Apps Script prototype (gas-modal.png). Everything starts ticked; an unticked row is
- * what gets removed.
+ * The "ยืนยันสิทธิ์การเข้าถึง" checklist — one tab per system, each role → collapsible หมวด / เมนู groups
+ * (item-groups.tsx, same pattern as the admin รายละเอียดสิทธิ์ dialog). Everything starts ticked; an unticked
+ * row is what gets removed.
  */
 
 export interface ChecklistRoleData {
@@ -68,23 +69,12 @@ export function checklistSections(systems: ChecklistSystemData[], showGroups: bo
         : systems;
 }
 
-// A handful of V2 gradient tiles cycled per category box — keeps the prototype's colourful feel
-// without hardcoding hex (CLAUDE: tokens only).
-const CATEGORY_TILES = ['v2-tile-mint', 'v2-tile-blue', 'v2-tile-sun'] as const;
-
 const norm = (s: string) => s.toLowerCase();
 
-/**
- * ATMS imports put warehouses under this category (item = warehouse name). Rows with no item are the
- * คลังสินค้า MENU's own permissions (แก้ไข/ค้นหา/บันทึก/แสดง) and belong with the other menus.
- */
-const ATMS_WAREHOUSE_CATEGORY = 'คลังสินค้า';
-
-const isWarehouse = (it: RoleItem) => it.category === ATMS_WAREHOUSE_CATEGORY && !!it.item;
 const warehouseLabel = (it: RoleItem) => it.item ?? it.category;
 const menuLabel = (it: RoleItem) => it.item ? `${it.category} · ${it.item}` : it.category;
 
-/** "ต้องการเพิ่มสิทธิ์และคลังสินค้า" sections — warehouses first, matching the left/right panels below. */
+/** "ค้นหาเพื่อขอเพิ่มเมนูอื่น" picker sections — warehouses first, like the grouped list below. */
 const ATMS_REQUEST_GROUPS: PickerGroup[] = [
     { key: 'warehouse', label: 'คลังสินค้า', icon: Warehouse },
     { key: 'menu', label: 'สิทธิ์', icon: ListChecks },
@@ -93,200 +83,78 @@ const atmsRequestGroup = (it: RoleItem) => isWarehouse(it) ? 'warehouse' : 'menu
 // Inside the คลังสินค้า section the category prefix is redundant — show just the warehouse name.
 const atmsRequestLabel = (it: RoleItem) => isWarehouse(it) ? warehouseLabel(it) : menuLabel(it);
 
+/** Picks are listed inside their menu group, so this picker only searches across every menu (incl. ones not held). */
+const ATMS_SEARCH_COPY: PickerCopy = {
+    title: 'สิทธิ์และคลังสินค้าที่ต้องการเพิ่ม',
+    trigger: 'ค้นหาเพื่อขอเพิ่มเมนูหรือคลังสินค้าอื่น',
+    triggerMore: 'ค้นหาเพื่อขอเพิ่มเมนูหรือคลังสินค้าอื่น',
+    hint: 'รายการที่เลือกจะแสดงในเมนูนั้น',
+    placeholder: 'ค้นหาคลังสินค้า เมนู หรือสิทธิ์...',
+    allTaken: 'มีสิทธิ์และคลังสินค้าครบทุกรายการแล้ว',
+    unit: 'รายการ',
+    readOnlyNote: 'ผู้แจ้งขอเพิ่มสิทธิ์เหล่านี้ในกลุ่มนี้',
+};
+
 /**
- * ATMS role body: warehouses on the left, every menu permission in one compact list on the right
- * (ATMS menus are one item per category, so a box per category was mostly headers).
+ * ATMS role body: warehouses on the left, menus on the right — each side a collapsible grouped list (item-groups.tsx).
+ * Requests are split the same way, so each side only edits its own half.
  */
 function AtmsRoleBody({
-    items, userRoleId, uncheckedSet, readOnly, onlyUnchecked, search, onToggleItem, onToggleMany, requested, onRequestChange,
+    role, requested, uncheckedSet, readOnly, onlyUnchecked, search, onToggleItem, onToggleMany, onRequestChange,
 }: {
-    items: RoleItem[];
+    role: ChecklistRoleData;
     requested: RoleItem[];
-    onRequestChange?: (userRoleId: number, items: RoleItem[]) => void;
-    userRoleId: number;
     uncheckedSet: Set<number>;
     readOnly: boolean;
     onlyUnchecked: boolean;
     search: string;
     onToggleItem?: (userRoleId: number, itemId: number) => void;
     onToggleMany?: (userRoleId: number, itemIds: number[], checked: boolean) => void;
+    onRequestChange?: (userRoleId: number, items: RoleItem[]) => void;
 }) {
-    const warehouses = useMemo(() => items.filter(isWarehouse), [items]);
-    const menus = useMemo(() => items.filter(it => !isWarehouse(it)), [items]);
-    const shared = { userRoleId, uncheckedSet, readOnly, onlyUnchecked, search, onToggleItem, onToggleMany };
+    const id = role.user_role_id;
+    const warehouses = useMemo(() => role.items.filter(isWarehouse), [role.items]);
+    const menus = useMemo(() => role.items.filter(it => !isWarehouse(it)), [role.items]);
+    const reqWarehouses = useMemo(() => requested.filter(isWarehouse), [requested]);
+    const reqMenus = useMemo(() => requested.filter(it => !isWarehouse(it)), [requested]);
+    const shared = {
+        system: 'ATMS' as const, uncheckedSet, readOnly, onlyUnchecked, search,
+        onToggleItem: onToggleItem && ((itemId: number) => onToggleItem(id, itemId)),
+        onToggleMany: onToggleMany && ((ids: number[], checked: boolean) => onToggleMany(id, ids, checked)),
+    };
     return (
         <div className="px-3 pb-3 grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start">
-            <ItemPanel {...shared} title="คลังสินค้าปัจจุบัน" icon={Warehouse} items={warehouses} labelOf={warehouseLabel} />
+            <ItemGroups
+                {...shared}
+                title="คลังสินค้าปัจจุบัน"
+                icon={Warehouse}
+                flat
+                items={warehouses}
+                requested={reqWarehouses}
+                onRequestChange={onRequestChange && (next => onRequestChange(id, [...next, ...reqMenus]))}
+            />
             <div className="space-y-3 min-w-0">
                 <RequestCard
                     system="ATMS"
-                    ownItems={items}
+                    ownItems={role.items}
                     requested={requested}
                     readOnly={readOnly}
                     labelOf={atmsRequestLabel}
                     groups={ATMS_REQUEST_GROUPS}
                     groupOf={atmsRequestGroup}
-                    onChange={next => onRequestChange?.(userRoleId, next)}
+                    copy={ATMS_SEARCH_COPY}
+                    showPicked={false}
+                    onChange={next => onRequestChange?.(id, next)}
                 />
-                <ItemPanel {...shared} title="เมนูสิทธิ์ปัจจุบัน" icon={ListChecks} items={menus} labelOf={menuLabel} />
+                <ItemGroups
+                    {...shared}
+                    title="เมนูสิทธิ์ปัจจุบัน"
+                    icon={ListChecks}
+                    items={menus}
+                    requested={reqMenus}
+                    onRequestChange={onRequestChange && (next => onRequestChange(id, [...reqWarehouses, ...next]))}
+                />
             </div>
-        </div>
-    );
-}
-
-/** One titled, dense checklist column used by the ATMS layout. Stays visible (with a dash) when empty. */
-function ItemPanel({
-    title, icon: Icon, items, labelOf, userRoleId, uncheckedSet, readOnly, onlyUnchecked, search, onToggleItem, onToggleMany,
-}: {
-    title: string;
-    icon: React.ComponentType<{ className?: string }>;
-    items: RoleItem[];
-    labelOf: (it: RoleItem) => string;
-    userRoleId: number;
-    uncheckedSet: Set<number>;
-    readOnly: boolean;
-    onlyUnchecked: boolean;
-    search: string;
-    onToggleItem?: (userRoleId: number, itemId: number) => void;
-    onToggleMany?: (userRoleId: number, itemIds: number[], checked: boolean) => void;
-}) {
-    const visible = useMemo(() => {
-        const term = norm(search.trim());
-        return items.filter(it => {
-            if (onlyUnchecked && !uncheckedSet.has(it.id)) return false;
-            if (!term) return true;
-            return norm(labelOf(it)).includes(term) || norm(it.permission ?? '').includes(term);
-        });
-    }, [items, uncheckedSet, onlyUnchecked, search, labelOf]);
-
-    const activeItems = items.filter(it => it.is_active);
-    const tickedCount = activeItems.filter(it => !uncheckedSet.has(it.id)).length;
-    const allChecked = activeItems.length > 0 && tickedCount === activeItems.length;
-
-    return (
-        <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50/60">
-                <Icon className="size-4 text-brand-600 shrink-0" />
-                <span className="text-sm font-semibold text-ink-900 flex-1 truncate">{title}</span>
-                <span className="text-[11px] text-gray-400 tabular-nums shrink-0">{tickedCount}/{activeItems.length}</span>
-                {!readOnly && activeItems.length > 0 && (
-                    <button
-                        type="button"
-                        onClick={() => onToggleMany?.(userRoleId, activeItems.map(i => i.id), !allChecked)}
-                        className="text-xs font-medium text-brand-600 hover:underline cursor-pointer shrink-0"
-                    >
-                        {allChecked ? 'ไม่เลือกทั้งหมด' : 'เลือกทั้งหมด'}
-                    </button>
-                )}
-            </div>
-            {visible.length === 0 ? (
-                <p className="px-3 py-3 text-xs text-gray-400">-</p>
-            ) : (
-                <ul className="divide-y divide-gray-50">
-                    {visible.map(it => {
-                        const checked = it.is_active && !uncheckedSet.has(it.id);
-                        const locked = readOnly || !it.is_active;
-                        const label = labelOf(it);
-                        return (
-                            <li key={it.id}>
-                                <label className={`flex items-center gap-2 px-3 py-1.5 text-[13px] transition-colors ${checked ? 'hover:bg-gray-50' : 'bg-rose-50/70 hover:bg-rose-50'} ${locked ? 'cursor-default' : 'cursor-pointer'}`}>
-                                    <input
-                                        type="checkbox"
-                                        checked={checked}
-                                        disabled={locked}
-                                        onChange={() => onToggleItem?.(userRoleId, it.id)}
-                                        className="size-3.5 shrink-0 accent-brand-600 disabled:opacity-60"
-                                    />
-                                    <span className={`flex-1 min-w-0 truncate ${checked ? 'text-gray-700' : 'text-rose-700 line-through decoration-rose-300'}`} title={label}>{label}</span>
-                                    {it.permission && (
-                                        <span className="shrink-0 rounded bg-gray-100 px-1.5 py-px text-[10px] font-medium text-gray-500">{it.permission}</span>
-                                    )}
-                                    {!it.is_active && <span className="shrink-0 text-[10px] font-semibold text-gray-400">(ยกเลิกแล้ว)</span>}
-                                </label>
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
-        </div>
-    );
-}
-
-function CategoryBox({
-    category, items, userRoleId, uncheckedSet, readOnly, onlyUnchecked, search, tileClass, onToggleItem, onToggleMany,
-}: {
-    category: string;
-    items: RoleItem[];
-    userRoleId: number;
-    uncheckedSet: Set<number>;
-    readOnly: boolean;
-    onlyUnchecked: boolean;
-    search: string;
-    tileClass: string;
-    onToggleItem?: (userRoleId: number, itemId: number) => void;
-    onToggleMany?: (userRoleId: number, itemIds: number[], checked: boolean) => void;
-}) {
-    const visible = useMemo(() => {
-        const term = norm(search.trim());
-        return items.filter(it => {
-            if (onlyUnchecked && !uncheckedSet.has(it.id)) return false;
-            if (!term) return true;
-            return norm(it.item ?? '').includes(term) || norm(category).includes(term) || norm(it.permission ?? '').includes(term);
-        });
-    }, [items, uncheckedSet, onlyUnchecked, search, category]);
-
-    if (visible.length === 0) return null;
-
-    // Inactive items (removed from the source system) can only ever appear unticked — they never
-    // count toward "all checked" and "เลือกทั้งหมด" never touches them.
-    const activeItems = items.filter(it => it.is_active);
-    const allChecked = activeItems.length > 0 && activeItems.every(it => !uncheckedSet.has(it.id));
-
-    return (
-        <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
-                <span className={`${tileClass} size-6 rounded-lg flex items-center justify-center shrink-0`}>
-                    <span className="size-1.5 rounded-full bg-white/90" />
-                </span>
-                <span className="text-sm font-semibold text-ink-900 flex-1 truncate">{category}</span>
-                {!readOnly && activeItems.length > 0 && (
-                    <button
-                        type="button"
-                        onClick={() => onToggleMany?.(userRoleId, activeItems.map(i => i.id), !allChecked)}
-                        className="text-xs font-medium text-brand-600 hover:underline cursor-pointer shrink-0"
-                    >
-                        เลือกทั้งหมด
-                    </button>
-                )}
-            </div>
-            <ul className="divide-y divide-gray-50">
-                {visible.map(it => {
-                    const checked = it.is_active && !uncheckedSet.has(it.id);
-                    const locked = readOnly || !it.is_active;
-                    return (
-                        <li key={it.id}>
-                            <label className={`flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${checked ? 'hover:bg-gray-50' : 'bg-rose-50/70 hover:bg-rose-50'} ${locked ? 'cursor-default' : 'cursor-pointer'}`}>
-                                <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    disabled={locked}
-                                    onChange={() => onToggleItem?.(userRoleId, it.id)}
-                                    className="size-4 shrink-0 accent-brand-600 disabled:opacity-60"
-                                />
-                                <span className={`flex-1 min-w-0 truncate ${checked ? 'text-gray-700' : 'text-rose-700'}`}>{it.item}</span>
-                                {it.permission && (
-                                    <span className="shrink-0 rounded border border-gray-200 px-1.5 py-0.5 text-[10px] text-gray-500">{it.permission}</span>
-                                )}
-                                {!it.is_active ? (
-                                    <span className="shrink-0 text-[10px] font-semibold text-gray-400">(ยกเลิกในระบบแล้ว)</span>
-                                ) : !checked ? (
-                                    <span className="shrink-0 text-[10px] font-semibold text-rose-600">ไม่ได้รับสิทธิ์</span>
-                                ) : null}
-                            </label>
-                        </li>
-                    );
-                })}
-            </ul>
         </div>
     );
 }
@@ -310,15 +178,6 @@ const RoleBlock = memo(({
     onToggleMany?: (userRoleId: number, itemIds: number[], checked: boolean) => void;
     onDecision?: (userRoleId: number, decision: Decision) => void;
 }) => {
-    const categories = useMemo(() => {
-        const map = new Map<string, RoleItem[]>();
-        for (const it of role.items) {
-            if (!map.has(it.category)) map.set(it.category, []);
-            map.get(it.category)!.push(it);
-        }
-        return Array.from(map.entries());
-    }, [role.items]);
-
     const tickedCount = role.items.filter(it => it.is_active && !uncheckedSet.has(it.id)).length;
     const term = norm(search.trim());
     const roleMatches = !term || norm(role.role_name).includes(term) || norm(role.account_name).includes(term);
@@ -371,35 +230,30 @@ const RoleBlock = memo(({
             </button>
             {expanded && systemCode === 'ATMS' && (
                 <AtmsRoleBody
-                    items={role.items}
-                    userRoleId={role.user_role_id}
+                    role={role}
+                    requested={requested}
                     uncheckedSet={uncheckedSet}
                     readOnly={readOnly}
                     onlyUnchecked={onlyUnchecked}
                     search={search}
                     onToggleItem={onToggleItem}
                     onToggleMany={onToggleMany}
-                    requested={requested}
                     onRequestChange={onRequestChange}
                 />
             )}
             {expanded && systemCode !== 'ATMS' && (
-                <div className="px-3 pb-3 grid gap-3 sm:grid-cols-2">
-                    {categories.map(([category, items], i) => (
-                        <CategoryBox
-                            key={category}
-                            category={category}
-                            items={items}
-                            userRoleId={role.user_role_id}
-                            uncheckedSet={uncheckedSet}
-                            readOnly={readOnly}
-                            onlyUnchecked={onlyUnchecked}
-                            search={search}
-                            tileClass={CATEGORY_TILES[i % CATEGORY_TILES.length]}
-                            onToggleItem={onToggleItem}
-                            onToggleMany={onToggleMany}
-                        />
-                    ))}
+                <div className="px-3 pb-3">
+                    <ItemGroups
+                        system={systemCode}
+                        items={role.items}
+                        requested={NO_ITEMS}
+                        uncheckedSet={uncheckedSet}
+                        readOnly={readOnly}
+                        onlyUnchecked={onlyUnchecked}
+                        search={search}
+                        onToggleItem={onToggleItem && (id => onToggleItem(role.user_role_id, id))}
+                        onToggleMany={onToggleMany && ((ids, checked) => onToggleMany(role.user_role_id, ids, checked))}
+                    />
                 </div>
             )}
         </div>
