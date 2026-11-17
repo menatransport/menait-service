@@ -14,7 +14,7 @@ export const FIELD_LABELS: Record<string, string> = {
 export const LOG_ACTION_LABELS: Record<string, string> = {
   VOUCHER: 'ตั้งเบิกทำจ่าย', VOUCHER_EDIT: 'แก้ไขข้อมูลตั้งเบิก',
   PAY: 'บันทึกการจ่ายเงิน', PAY_EDIT: 'แก้ไขข้อมูลการจ่าย', CLEAR_SUBMIT: 'ส่งเคลียร์เงิน',
-  CLEAR_EDIT: 'แก้ไขข้อมูลเคลียร์', SEND_BACK: 'ส่งกลับแก้ไข', CONFIRM: 'ยืนยันปิดรายการ',
+  CLEAR_EDIT: 'แก้ไขข้อมูลเคลียร์', SEND_BACK: 'ส่งกลับแก้ไข', CONFIRM: 'ยืนยันปิดรายการ', EXTRA_PROOF: 'การเงินแนบหลักฐานโอนเงินเพิ่ม',
   VOUCHER_REJECT: 'ส่งกลับให้บัญชีแก้ตั้งเบิก', DOC_NO_EDIT: 'แก้ไขเลขที่เอกสาร', USE_DATE_EDIT: 'แก้ไขวันที่ใช้เงิน',
   RETURN: 'ตีกลับให้ผู้เบิกแก้ไข', RETURNED: 'ตีกลับให้ผู้เบิกแก้ไข', CANCEL: 'ตีกลับแบบยกเลิก', CANCELLED: 'ตีกลับแบบยกเลิก', RESUBMITTED: 'ส่งใหม่หลังแก้ไข', RESUBMIT: 'ส่งใหม่หลังแก้ไข',
   APPROVED: 'อนุมัติ', REJECTED: 'ไม่อนุมัติ',

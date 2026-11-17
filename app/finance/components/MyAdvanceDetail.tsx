@@ -18,6 +18,7 @@ import { useSessionContext } from '@/app/context/SessionContext';
 import { LogList } from './LogList';
 import { ShareApprovalLink } from './ShareApprovalLink';
 import { RequesterOutstanding } from './RequesterOutstanding';
+import { pendingProofBanner } from '@/lib/finance/extraProof';
 
 // once submitted (AWAITING_REVIEW) the clearing is locked until Accounting sends it back
 const CLEARABLE = new Set(['AWAITING_CLEARING', 'SENT_BACK']);
@@ -82,6 +83,11 @@ export function MyAdvanceDetail({ formId, onChanged, showRequesterOutstanding = 
       {detail.status === 'AWAITING_REVIEW' && (
         <p className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">
           ส่งเคลียร์เงินแล้ว รอบัญชีตรวจ — แก้ไขไม่ได้ หากต้องแก้ไข ให้ติดต่อบัญชีเพื่อส่งกลับแก้ไข
+        </p>
+      )}
+      {pendingProofBanner(detail.status, detail.fin?.settle_amount) && (
+        <p className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-sun-700">
+          {pendingProofBanner(detail.status, detail.fin?.settle_amount)}
         </p>
       )}
       <LogList approvalLogs={detail.approval_logs} finLogs={detail.fin_logs} clearLogs={detail.clear_logs} />

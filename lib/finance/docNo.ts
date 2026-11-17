@@ -29,7 +29,7 @@ export function duplicateText(field: DocNoField, value: string, formIds: string[
 // ---- การเงินแก้เลขเอกสารที่กรอกผิด (ผู้ใช้สั่ง 26/10/2026) — หลังบ้าน PUT .../doc-numbers เช็กแบบเดียวกัน
 export const DOC_NO_FIELDS: DocNoField[] = ['voucher_no', 'payment_doc_no', 'clear_doc_no'];
 /** ทุกสถานะหลังตั้งเบิก รวมปิดรายการแล้ว */
-export const DOC_NO_EDIT_STATUSES = ['AWAITING_PAYMENT', 'AWAITING_CLEARING', 'SENT_BACK', 'CLEARING_APPROVAL', 'AWAITING_REVIEW', 'CLOSED'];
+export const DOC_NO_EDIT_STATUSES = ['AWAITING_PAYMENT', 'AWAITING_CLEARING', 'SENT_BACK', 'CLEARING_APPROVAL', 'AWAITING_REVIEW', 'CLOSED_PENDING_PROOF', 'CLOSED'];
 /** fin_advances.voucher_no / payment_doc_no String(50) */
 export const DOC_NO_MAX = 50;
 

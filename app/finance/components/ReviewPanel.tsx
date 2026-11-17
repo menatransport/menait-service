@@ -7,6 +7,7 @@ import { DateField } from './DateField';
 import { Textarea } from '@/components/ui/textarea';
 import { formatBaht, formatDate, settleLabel, todayBkk } from '@/lib/finance/status';
 import { CLEAR_DOC_NO_LEN, clearDocNoError } from '@/lib/finance/docNo';
+import { closeExtraProblem } from '@/lib/finance/extraProof';
 import { confirmReview, duplicateDocNoWarning, putAction, showAlert, showSuccess, uploadFiles } from '../api';
 import type { AdvanceDetail } from '../types';
 import { FilePicker } from './FilePicker';
@@ -31,8 +32,10 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
   };
 
   const confirm = async () => {
-    if (needsExtraDate && !extraDate) return showAlert({ icon: 'warning', title: 'กรุณาระบุวันที่การเงินโอนเงินเพิ่ม' });
-    if (needsExtraDate && files.length === 0) return showAlert({ icon: 'warning', title: 'กรุณาแนบสลิปโอนเงินเพิ่ม' });
+    // เบิกเพิ่ม: ใส่วันโอน+สลิปพร้อมกัน = ปิดเลย · ไม่ใส่ทั้งคู่ = ปิดแบบรอการเงินแนบหลักฐาน (ผู้ใช้สั่ง 17/11/2026)
+    const extraProblem = needsExtraDate ? closeExtraProblem(extraDate, files.length) : null;
+    if (extraProblem) return showAlert({ icon: 'warning', title: extraProblem });
+    const waitFinance = needsExtraDate && !extraDate;
     if (!received || !receivedDate) return showAlert({ icon: 'warning', title: 'กรุณาติ๊กรับเอกสารตัวจริงแล้ว และใส่วันที่รับ' });
     if (receivedDate > todayBkk()) return showAlert({ icon: 'warning', title: 'วันที่รับเอกสารตัวจริงต้องไม่เกินวันนี้' });
     const docError = clearDocNoError(clearDocNo);
@@ -44,12 +47,12 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
       rows: [
         ['เลขที่คำขอ', detail.form_id],
         [settleLabel(settle), `${formatBaht(Math.abs(settle))} บาท`],
-        ...(needsExtraDate ? [['วันที่การเงินโอนเงินเพิ่ม', formatDate(extraDate)] as [string, string]] : []),
+        ...(needsExtraDate ? [['วันที่การเงินโอนเงินเพิ่ม', waitFinance ? 'รอการเงินแนบหลักฐาน' : formatDate(extraDate)] as [string, string]] : []),
         ['เลขที่เอกสารเคลียร์เงิน', clearDocNo.trim()],
         ['วันที่รับเอกสารตัวจริง', formatDate(receivedDate)],
         ['ไฟล์ที่แนบ', files.length ? `${files.length} ไฟล์` : 'ไม่มี'],
       ],
-      note: 'ปิดรายการแล้วแก้ไขไม่ได้',
+      note: waitFinance ? 'ใบจะขึ้นว่า ปิด (รอแนบหลักฐานจากการเงิน) จนการเงินแนบสลิปโอนเพิ่ม' : 'ปิดรายการแล้วแก้ไขไม่ได้',
       confirmButtonText: 'ยืนยันปิดรายการ',
     }))) return;
     setSaving(true);
@@ -63,11 +66,11 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
       const saved = await putAction(detail.form_id, 'confirm', {
         clear_doc_no: clearDocNo.trim(),
         original_received_date: receivedDate,
-        settle_date: needsExtraDate ? extraDate : null,
+        settle_date: needsExtraDate && extraDate ? extraDate : null,
         expected_clear_submitted_at: detail.fin?.clear_submitted_at ?? null,
       });
       setFiles([]);
-      await showSuccess('ปิดรายการแล้ว');
+      await showSuccess(waitFinance ? 'ปิดรายการแล้ว รอการเงินแนบหลักฐานโอนเพิ่ม' : 'ปิดรายการแล้ว');
       onSaved(saved);
     } catch (err) {
       showAlert({ icon: 'error', title: 'ปิดรายการไม่สำเร็จ', text: (err as Error).message });
@@ -107,13 +110,14 @@ export function ReviewPanel({ detail, onSaved, canSendBack = true, canClose = tr
         </p>
         {needsExtraDate && (
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="space-y-1 text-sm">วันที่การเงินโอนเงินเพิ่ม *
+            <label className="space-y-1 text-sm">วันที่การเงินโอนเงินเพิ่ม
               <DateField value={extraDate} onChange={setExtraDate} disabled={saving} />
             </label>
             <div>
-              <p className="mb-1 text-sm">แนบสลิปโอนเงินเพิ่ม *</p>
+              <p className="mb-1 text-sm">แนบสลิปโอนเงินเพิ่ม</p>
               <FilePicker files={files} onChange={setFiles} disabled={saving} />
             </div>
+            <p className="text-xs text-ink-500 sm:col-span-2">ไม่ใส่ = ปิดแบบรอการเงินแนบหลักฐานโอนเพิ่ม · ถ้าการเงินโอนแล้ว ใส่วันที่กับสลิปพร้อมกันได้เลย</p>
           </div>
         )}
         <div className="grid gap-4 sm:grid-cols-2">

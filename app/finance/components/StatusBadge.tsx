@@ -1,5 +1,5 @@
 import {
-  ShieldCheck, Ban, Banknote, CircleCheck, CornerUpLeft, CircleX, FilePen, Hourglass, ReceiptText, SearchCheck, TriangleAlert, Undo2, type LucideIcon } from 'lucide-react';
+  ShieldCheck, Ban, Banknote, BadgeCheck, CircleCheck, CornerUpLeft, CircleX, FilePen, Hourglass, ReceiptText, SearchCheck, TriangleAlert, Undo2, type LucideIcon } from 'lucide-react';
 import { STATUS_LABELS, STATUS_STYLES, type AdvanceStatus } from '@/lib/finance/status';
 
 const STATUS_ICONS: Record<AdvanceStatus, LucideIcon> = {
@@ -12,6 +12,7 @@ const STATUS_ICONS: Record<AdvanceStatus, LucideIcon> = {
   SENT_BACK: Undo2,
   CLEARING_APPROVAL: ShieldCheck,
   AWAITING_REVIEW: SearchCheck,
+  CLOSED_PENDING_PROOF: BadgeCheck,
   CLOSED: CircleCheck,
   CANCELLED: Ban,
 };

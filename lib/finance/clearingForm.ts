@@ -109,7 +109,8 @@ function clearApprovalSignatures(detail: AdvanceDetail): { unit_head?: ClearingS
 export function toClearingData(detail: AdvanceDetail): ClearingFormData {
   const fin = detail.fin;
   const name = detail.requester.name ?? '';
-  const closed = detail.status === 'CLOSED' && fin?.closed_at;
+  // บัญชีปิดแล้ว (รวมเบิกเพิ่มที่รอการเงินแนบหลักฐาน) → ลายเซ็นบัญชีขึ้นเหมือนกัน (17/11/2026)
+  const closed = (detail.status === 'CLOSED' || detail.status === 'CLOSED_PENDING_PROOF') && fin?.closed_at;
   const center = centerForAdvance(detail.request.cost_center, detail.requester.site_code);
   const items: ClaimRow[] = fin?.clear_items?.length
     ? [...fin.clear_items].sort((a, b) => a.line_no - b.line_no).map(toRow)

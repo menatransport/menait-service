@@ -3,7 +3,8 @@ import { BASE_PATH, FORM_ID_PATTERN, hasFiles } from '@/lib/s3';
 import { CLEAR_ATTACHMENT_REQUIRED } from '@/app/finance/labels';
 import { beUrl, canViewAdv, proxy, requireFinance, requireUser } from '@/lib/finance/server';
 
-const FINANCE_ACTIONS = new Set(['voucher', 'pay', 'send-back', 'confirm', 'return', 'cancel', 'reject-voucher', 'doc-numbers', 'use-date']);
+const FINANCE_ACTIONS = new Set(['voucher', 'pay', 'send-back', 'confirm', 'return', 'cancel', 'reject-voucher', 'doc-numbers', 'use-date',
+  'extra-proof']);
 
 type Ctx = { params: Promise<{ form_id: string }> };
 
@@ -47,6 +48,18 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
       }
     } catch (err) {
       console.error('clear attachment check error:', err);
+      return NextResponse.json({ error: 'ตรวจสอบไฟล์แนบไม่สำเร็จ กรุณาลองใหม่' }, { status: 502 });
+    }
+  }
+  // การเงินแนบหลักฐานโอนเพิ่ม: ต้องมีสลิปในหมวดหลักฐานการเงินจริง ไม่ใช่แค่ชื่อไฟล์ที่ส่งมา (17/11/2026)
+  if (action === 'extra-proof') {
+    if (!FORM_ID_PATTERN.test(form_id)) return NextResponse.json({ error: 'หมายเลขเอกสารไม่ถูกต้อง' }, { status: 400 });
+    try {
+      if (!(await hasFiles(`${BASE_PATH}/${form_id}/check/`))) {
+        return NextResponse.json({ error: 'ยังไม่มีสลิปโอนเงินเพิ่ม แนบสลิปก่อน' }, { status: 400 });
+      }
+    } catch (err) {
+      console.error('extra-proof attachment check error:', err);
       return NextResponse.json({ error: 'ตรวจสอบไฟล์แนบไม่สำเร็จ กรุณาลองใหม่' }, { status: 502 });
     }
   }

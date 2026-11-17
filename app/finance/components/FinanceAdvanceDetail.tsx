@@ -14,6 +14,8 @@ import { useClearApprovals } from '../useClearApprovals';
 import { LogList } from './LogList';
 import { PayForm } from './PayForm';
 import { ReviewPanel } from './ReviewPanel';
+import { ExtraProofPanel } from './ExtraProofPanel';
+import { pendingProofBanner } from '@/lib/finance/extraProof';
 import { VoucherForm } from './VoucherForm';
 import { latestReturnRemark } from '@/lib/finance/returnInfo';
 import { PERM, can, canCancelAdvance, canEditDocNumbers, canEditUseDate, canSendVoucherBack } from '@/lib/finance/permissions';
@@ -155,9 +157,15 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
           <AttachmentPanel formId={formId} folder="pay" canUpload={canPay} refreshKey={refreshKey} />
           <AttachmentPanel formId={formId} folder="clear" refreshKey={refreshKey} />
           <AttachmentPanel formId={formId} folder="related" refreshKey={refreshKey} />
-          <AttachmentPanel formId={formId} folder="check" canUpload={detail.status === 'AWAITING_REVIEW' && can(perms, PERM.close)} refreshKey={refreshKey} />
+          <AttachmentPanel formId={formId} folder="check" canUpload={(detail.status === 'AWAITING_REVIEW' && can(perms, PERM.close))
+            || (detail.status === 'CLOSED_PENDING_PROOF' && can(perms, PERM.pay))} refreshKey={refreshKey} />
         </div>
       </Panel>
+      {pendingProofBanner(detail.status, detail.fin?.settle_amount) && (
+        <p className="mb-4 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-sun-700">
+          {pendingProofBanner(detail.status, detail.fin?.settle_amount)}
+        </p>
+      )}
       {detail.status === 'RETURNED' && (
         <p className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           ตีกลับให้ผู้เบิกแก้ไข — รอผู้เบิกแก้ไขและส่งใหม่: {latestReturnRemark(detail.fin_logs) || '-'}
@@ -206,6 +214,9 @@ export function FinanceAdvanceDetail({ formId, onChanged }: { formId: string; on
       {detail.status === 'AWAITING_REVIEW' && (can(perms, PERM.clearingReview) || can(perms, PERM.close)) && (
         <ReviewPanel key={`rev-${refreshKey}`} detail={detail} onSaved={onSaved}
           canSendBack={can(perms, PERM.clearingReview)} canClose={can(perms, PERM.close)} />
+      )}
+      {detail.status === 'CLOSED_PENDING_PROOF' && can(perms, PERM.pay) && (
+        <ExtraProofPanel key={`xp-${refreshKey}`} detail={detail} onSaved={onSaved} />
       )}
       <LogList approvalLogs={detail.approval_logs} finLogs={detail.fin_logs} clearLogs={detail.clear_logs} />
     </>

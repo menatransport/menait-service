@@ -1,6 +1,6 @@
 export type AdvanceStatus =
   | 'PENDING_APPROVAL' | 'REJECTED' | 'AWAITING_VOUCHER' | 'AWAITING_PAYMENT' | 'AWAITING_CLEARING'
-  | 'RETURNED' | 'SENT_BACK' | 'CLEARING_APPROVAL' | 'AWAITING_REVIEW' | 'CLOSED' | 'CANCELLED';
+  | 'RETURNED' | 'SENT_BACK' | 'CLEARING_APPROVAL' | 'AWAITING_REVIEW' | 'CLOSED_PENDING_PROOF' | 'CLOSED' | 'CANCELLED';
 
 export const STATUS_LABELS: Record<AdvanceStatus, string> = {
   PENDING_APPROVAL: 'รออนุมัติ',
@@ -12,6 +12,8 @@ export const STATUS_LABELS: Record<AdvanceStatus, string> = {
   SENT_BACK: 'ส่งกลับแก้ไข',
   CLEARING_APPROVAL: 'รออนุมัติเคลียร์',
   AWAITING_REVIEW: 'รอบัญชีตรวจ',
+  // เบิกเพิ่ม: บัญชีปิดแล้ว รอการเงินโอนเพิ่มและแนบหลักฐาน (ผู้ใช้สั่ง 17/11/2026)
+  CLOSED_PENDING_PROOF: 'ปิด (รอแนบหลักฐานจากการเงิน)',
   CLOSED: 'ปิดแล้ว',
   CANCELLED: 'ยกเลิก', // ตีกลับแบบยกเลิกโดยบัญชี จบใบ (04/11/2026)
 };
@@ -28,6 +30,7 @@ export const STATUS_STYLES: Record<AdvanceStatus, string> = {
   SENT_BACK: 'bg-orange-50 text-sun-700 border-orange-200',
   CLEARING_APPROVAL: 'bg-amber-50 text-amber-700 border-amber-200',
   AWAITING_REVIEW: 'bg-violet-50 text-violet-700 border-violet-200',
+  CLOSED_PENDING_PROOF: 'bg-orange-50 text-sun-700 border-orange-200',
   CLOSED: 'bg-emerald-50 text-mint-700 border-emerald-200',
   CANCELLED: 'bg-slate-100 text-ink-600 border-slate-300',
 };
