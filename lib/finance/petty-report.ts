@@ -9,7 +9,7 @@ import { fundLabel } from './petty-fund-label';
  * และชีต Detail รายใบ · ยอด WHT และยอดจ่ายสุทธิ ตามตัวอย่างที่ผู้ใช้ส่ง · ช่วงวันที่ยึดวันที่โอน (ข้อ 4)
  */
 
-/** ประเภทรถของใบ: ฟลีทจากแถวรายการ (Mixer S → MS · Mixer L → ML · อื่นตามชื่อ) · ใบไม่มีรถ = รหัสใบสำคัญจ่าย/แผนก */
+/** คอลัมน์ฟลีท (ผู้ใช้สั่ง 17/11/2026 เปลี่ยนหัวจาก ประเภทรถ): ฟลีทจากแถวรายการ (Mixer S → MS · Mixer L → ML · อื่นตามชื่อ) · ใบไม่มีรถ = รหัสใบสำคัญจ่าย/แผนก */
 export const FLEET_SHORT: Record<string, string> = { 'Mixer S': 'MS', 'Mixer L': 'ML', Trailer: 'TR', 'Side curtain': 'SC' };
 
 export function vehicleTypeOf(claim: PettyClaim): string {
@@ -25,13 +25,13 @@ export function vehicleTypeOf(claim: PettyClaim): string {
 
 // ลำดับคอลัมน์ตามตัวอย่างของผู้ใช้ (16/11/2026): 7 คอลัมน์แรกตรงตัวอย่าง คอลัมน์ประกอบอยู่ขวาสุด
 export type ReportDetailRow = {
-  'ลำดับ': number; 'เลขที่ขอเบิก': string; 'ประเภทค่าใช้จ่าย': string; 'ประเภทรถ': string;
+  'ลำดับ': number; 'เลขที่ขอเบิก': string; 'ประเภทค่าใช้จ่าย': string; 'ฟลีท': string;
   'ยอดค่าใช้จ่าย': number; 'WHT': number; 'ยอดจ่ายสุทธิ': number;
   'วันที่โอน': string; 'วันที่ขอเบิก': string; 'รหัสใบสำคัญจ่าย': string; 'จ่ายให้': string; 'วงเงิน': string;
   'ผู้เปิดใบ': string; 'สถานะ': string; 'รหัสรอบส่งเคลียร์': string;
 };
 export type ReportSummaryRow = {
-  'ประเภทค่าใช้จ่าย': string; 'ประเภทรถ': string; 'ยอดค่าใช้จ่าย': number; 'WHT': number; 'ยอดจ่ายสุทธิ': number;
+  'ประเภทค่าใช้จ่าย': string; 'ฟลีท': string; 'ยอดค่าใช้จ่าย': number; 'WHT': number; 'ยอดจ่ายสุทธิ': number;
   /** ใช้นับในเทสต์/หน้าจอ ไม่ลงชีต */
   'จำนวนใบ': number;
 };
@@ -52,7 +52,7 @@ export function detailRows(claims: readonly PettyClaim[], types: readonly PettyE
   return claims.map((c, i) => {
     const fund = funds.find(f => f.id === c.fund_id);
     return {
-      'ลำดับ': i + 1, 'เลขที่ขอเบิก': c.form_id, 'ประเภทค่าใช้จ่าย': typeName(types, c.expense_type), 'ประเภทรถ': vehicleTypeOf(c),
+      'ลำดับ': i + 1, 'เลขที่ขอเบิก': c.form_id, 'ประเภทค่าใช้จ่าย': typeName(types, c.expense_type), 'ฟลีท': vehicleTypeOf(c),
       'ยอดค่าใช้จ่าย': round2(c.amount), 'WHT': wht(c), 'ยอดจ่ายสุทธิ': net(c),
       'วันที่โอน': c.transfer_date ?? '', 'วันที่ขอเบิก': c.expense_date, 'รหัสใบสำคัญจ่าย': claimExpenseCode(c),
       'จ่ายให้': c.payee_name ?? '', 'วงเงิน': fund ? fundLabel(fund) : String(c.fund_id),
@@ -66,21 +66,21 @@ export function summaryRows(claims: readonly PettyClaim[], types: readonly Petty
   const buckets = new Map<string, ReportSummaryRow>();
   for (const c of claims) {
     const key = `${c.expense_type}|${vehicleTypeOf(c)}`;
-    const row = buckets.get(key) ?? { 'ประเภทค่าใช้จ่าย': typeName(types, c.expense_type), 'ประเภทรถ': vehicleTypeOf(c), 'ยอดค่าใช้จ่าย': 0, 'WHT': 0, 'ยอดจ่ายสุทธิ': 0, 'จำนวนใบ': 0 };
+    const row = buckets.get(key) ?? { 'ประเภทค่าใช้จ่าย': typeName(types, c.expense_type), 'ฟลีท': vehicleTypeOf(c), 'ยอดค่าใช้จ่าย': 0, 'WHT': 0, 'ยอดจ่ายสุทธิ': 0, 'จำนวนใบ': 0 };
     row['จำนวนใบ'] += 1;
     row['ยอดค่าใช้จ่าย'] = round2(row['ยอดค่าใช้จ่าย'] + c.amount);
     row['WHT'] = round2(row['WHT'] + wht(c));
     row['ยอดจ่ายสุทธิ'] = round2(row['ยอดจ่ายสุทธิ'] + net(c));
     buckets.set(key, row);
   }
-  const rows = [...buckets.values()].sort((a, b) => a['ประเภทค่าใช้จ่าย'].localeCompare(b['ประเภทค่าใช้จ่าย']) || a['ประเภทรถ'].localeCompare(b['ประเภทรถ']));
+  const rows = [...buckets.values()].sort((a, b) => a['ประเภทค่าใช้จ่าย'].localeCompare(b['ประเภทค่าใช้จ่าย']) || a['ฟลีท'].localeCompare(b['ฟลีท']));
   if (rows.length) rows.push(totalRow(rows));
   return rows;
 }
 
 function totalRow(rows: ReportSummaryRow[]): ReportSummaryRow {
   return {
-    'ประเภทค่าใช้จ่าย': 'รวม', 'ประเภทรถ': '',
+    'ประเภทค่าใช้จ่าย': 'รวม', 'ฟลีท': '',
     'ยอดค่าใช้จ่าย': round2(rows.reduce((s, r) => s + r['ยอดค่าใช้จ่าย'], 0)),
     'WHT': round2(rows.reduce((s, r) => s + r['WHT'], 0)),
     'ยอดจ่ายสุทธิ': round2(rows.reduce((s, r) => s + r['ยอดจ่ายสุทธิ'], 0)),
@@ -88,8 +88,8 @@ function totalRow(rows: ReportSummaryRow[]): ReportSummaryRow {
   };
 }
 
-const SUMMARY_COLS = ['ประเภทค่าใช้จ่าย', 'ประเภทรถ', 'ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ'] as const;
-const DETAIL_COLS = ['ลำดับ', 'เลขที่ขอเบิก', 'ประเภทค่าใช้จ่าย', 'ประเภทรถ', 'ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ',
+const SUMMARY_COLS = ['ประเภทค่าใช้จ่าย', 'ฟลีท', 'ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ'] as const;
+const DETAIL_COLS = ['ลำดับ', 'เลขที่ขอเบิก', 'ประเภทค่าใช้จ่าย', 'ฟลีท', 'ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ',
   'วันที่โอน', 'วันที่ขอเบิก', 'รหัสใบสำคัญจ่าย', 'จ่ายให้', 'วงเงิน', 'ผู้เปิดใบ', 'สถานะ', 'รหัสรอบส่งเคลียร์'] as const;
 const MONEY_COLS = new Set<string>(['ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ']);
 

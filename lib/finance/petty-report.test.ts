@@ -22,7 +22,7 @@ const CLAIMS = [
 describe('รายงาน Excel เงินสดย่อย (ข้อ 14)', () => {
   test('Summary ตรงตัวอย่างของผู้ใช้ ทั้งยอด WHT สุทธิ และแถวรวม 7,300 / 180 / 7,120', () => {
     const rows = summaryRows(CLAIMS, TYPES);
-    const pick = (t: string, v: string) => rows.find(r => r['ประเภทค่าใช้จ่าย'] === t && r['ประเภทรถ'] === v)!;
+    const pick = (t: string, v: string) => rows.find(r => r['ประเภทค่าใช้จ่าย'] === t && r['ฟลีท'] === v)!;
     expect([pick('ค่าชั่งน้ำหนัก', 'MS')['ยอดค่าใช้จ่าย'], pick('ค่าชั่งน้ำหนัก', 'MS')['WHT'], pick('ค่าชั่งน้ำหนัก', 'MS')['ยอดจ่ายสุทธิ']]).toEqual([1200, 30, 1170]);
     expect([pick('ค่าชั่งน้ำหนัก', 'ML')['ยอดค่าใช้จ่าย'], pick('ค่าชั่งน้ำหนัก', 'ML')['WHT'], pick('ค่าชั่งน้ำหนัก', 'ML')['ยอดจ่ายสุทธิ']]).toEqual([2100, 60, 2040]);
     expect([pick('ค่าปะยาง', 'ML')['ยอดค่าใช้จ่าย'], pick('ค่าปะยาง', 'ML')['WHT'], pick('ค่าปะยาง', 'ML')['ยอดจ่ายสุทธิ']]).toEqual([3500, 90, 3410]);
@@ -33,7 +33,7 @@ describe('รายงาน Excel เงินสดย่อย (ข้อ 14)
   test('Detail รายใบ 9 แถว ยอดสุทธิ = ยอด − WHT', () => {
     const rows = detailRows(CLAIMS, TYPES, []);
     expect(rows).toHaveLength(9);
-    expect([rows[0]['เลขที่ขอเบิก'], rows[0]['ประเภทรถ'], rows[0]['ยอดค่าใช้จ่าย'], rows[0]['WHT'], rows[0]['ยอดจ่ายสุทธิ']]).toEqual(['LB-B02-2611-001', 'MS', 1000, 30, 970]);
+    expect([rows[0]['เลขที่ขอเบิก'], rows[0]['ฟลีท'], rows[0]['ยอดค่าใช้จ่าย'], rows[0]['WHT'], rows[0]['ยอดจ่ายสุทธิ']]).toEqual(['LB-B02-2611-001', 'MS', 1000, 30, 970]);
   });
   test('ประเภทรถ: ฟลีทย่อ MS/ML · ไม่มีฟลีทใช้ประเภทรถเดิม · ไม่มีรถใช้รหัสใบสำคัญจ่าย/แผนก', () => {
     expect(vehicleTypeOf(claim('WEIGH', 'Trailer', 1, 0))).toBe('TR');
@@ -58,11 +58,11 @@ describe('คอลัมน์ Excel ตามตัวอย่างผู้
     const types = [{ code: 'WEIGH', name_th: 'ค่าชั่งน้ำหนัก' }] as any;
     const claims = [c('A', 1000, 30, 'Mixer S'), c('B', 200, 0, 'Mixer S')];
     const sum = sheetAoa('summary', claims, types, []);
-    expect(sum[0]).toEqual(['ประเภทค่าใช้จ่าย', 'ประเภทรถ', 'ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ']);
+    expect(sum[0]).toEqual(['ประเภทค่าใช้จ่าย', 'ฟลีท', 'ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ']);
     expect(sum[1]).toEqual(['ค่าชั่งน้ำหนัก', 'MS', 1200, 30, 1170]);
     expect(sum.at(-1)).toEqual(['รวม', '', 1200, 30, 1170]);
     const det = sheetAoa('detail', claims, types, []);
-    expect(det[0].slice(0, 7)).toEqual(['ลำดับ', 'เลขที่ขอเบิก', 'ประเภทค่าใช้จ่าย', 'ประเภทรถ', 'ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ']);
+    expect(det[0].slice(0, 7)).toEqual(['ลำดับ', 'เลขที่ขอเบิก', 'ประเภทค่าใช้จ่าย', 'ฟลีท', 'ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ']);
     expect(det[2].slice(0, 7)).toEqual([2, 'B', 'ค่าชั่งน้ำหนัก', 'MS', 200, '', 200]);
     expect(det.at(-1)!.slice(0, 7)).toEqual(['รวม', '', '', '', 1200, 30, 1170]);
   });
