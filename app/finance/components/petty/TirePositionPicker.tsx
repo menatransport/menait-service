@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { pageZoom } from '@/lib/page-zoom';
 import { parsePositions, positionCountHint, SPARE_TIRES, TIRE_AXLES, togglePosition } from '@/lib/finance/tire-positions';
 
 /**
@@ -39,7 +40,8 @@ export function TirePositionPicker({ value, qty, onChange, readOnly = false, mis
 
   function toggle() {
     const r = trigger.current?.getBoundingClientRect();
-    if (r) setAt({ top: r.bottom + 4, left: Math.max(8, Math.min(r.left, window.innerWidth - 272)) });
+    const z = pageZoom(); // ค่าบนจอ → หน่วยในหน้าที่ถูกย่อ
+    if (r) setAt({ top: r.bottom / z + 4, left: Math.max(8, Math.min(r.left / z, window.innerWidth / z - 272)) });
     setOpen(v => !v);
   }
 

@@ -3,11 +3,12 @@
 import { ArrowLeft, Bell, HomeIcon, Shield, User, ChevronDown, LayoutDashboard, Building, Database, Settings, LogOut, TriangleAlert, ClipboardList, CircleCheck, Wallet, Landmark, ClipboardCheck, BadgeCheck, ShieldCheck } from "lucide-react";
 import { Button } from "./ui/button";
 import { UserAvatar } from "./ui/user-avatar";
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, memo, useState, useRef, useEffect } from "react";
 import { signOut } from "next-auth/react";
 import { useSessionContext } from "@/app/context/SessionContext";
 import { cn } from "@/lib/utils";
+import { homeHrefFor } from "@/app/home/menu-groups";
 
 
 interface NavbarProps {
@@ -71,9 +72,11 @@ export const NavbarHeader = memo(({ isHome = false, title, pagelock = false, cla
         router.push(path);
     }, [router]);
 
+    // Back from an OPS / Finance page lands on that group's Home (/home?group=…), not the IT one
+    const pathname = usePathname();
     const handleGoHome = useCallback(() => {
-        router.push('/home');
-    }, [router]);
+        router.push(homeHrefFor(pathname));
+    }, [router, pathname]);
 
     const handleLogout = useCallback(async () => {
         try {

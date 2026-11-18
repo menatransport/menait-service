@@ -9,7 +9,8 @@ import { Mascot } from "@/components/mascot";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { AccessReviewReminder } from "./access-review-reminder";
-import { MENU_GROUPS, QUICK_LINKS, focusGroup, isMenuItemReady, sectionHeadingAt, visibleItems, type MenuGroup, type MenuItem, type MenuTone } from "./menu-groups";
+import { pageZoom } from "@/lib/page-zoom";
+import { DEFAULT_GROUP_ID, MENU_GROUPS, QUICK_LINKS, focusGroup, isMenuItemReady, sectionHeadingAt, visibleItems, type MenuGroup, type MenuItem, type MenuTone } from "./menu-groups";
 
 const TONE = {
     blue: { tile: 'v2-tile-blue', soft: 'bg-[#eaf4ff]', text: 'text-brand-700', ring: 'border-[#cfe4ff]' },
@@ -21,8 +22,9 @@ const TONE = {
 const isExternal = (href?: string) => Boolean(href?.startsWith('http'));
 
 /**
- * Home — desktop: "Assistant-first" (mascot + big search + group columns),
- * mobile: "App Launcher" (icon grid per group). Menus come from menu-groups.ts.
+ * Home — desktop: "Assistant-first" (mascot + big search + one group card),
+ * mobile: "App Launcher" (icon grid). Menus come from menu-groups.ts.
+ * Shows one group: IT Service by default, OPS / Finance via their own link (?group=ops, ?group=finance).
  */
 export default function HomePage() {
     const router = useRouter();
@@ -37,9 +39,13 @@ export default function HomePage() {
             .map(g => ({ ...g, items: visibleItems(g.items, isClient && !!(user?.is_finance || user?.is_accounting || user?.is_treasury)) })),
         [isClient, user]
     );
-    // /home?group=finance → a link that shows one group only (no IT search or quick links)
-    const focus = useMemo(() => focusGroup(groups, searchParams.get('group')), [groups, searchParams]);
-    const shown = focus ? [focus] : groups;
+    // /home → IT Service · /home?group=finance → Finance Service only (no IT search or quick links)
+    const group = useMemo(
+        () => focusGroup(groups, searchParams.get('group')) ?? groups.find(g => g.id === DEFAULT_GROUP_ID)!,
+        [groups, searchParams]
+    );
+    // Admin tools sit under IT Service (dashboard, form builder, master data)
+    const adminGroup = group.id === DEFAULT_GROUP_ID ? groups.find(g => g.adminOnly) : undefined;
 
     const navigate = useCallback((href?: string) => {
         if (!href) return;
@@ -64,8 +70,8 @@ export default function HomePage() {
 
     return (
         <div className="h-dvh overflow-hidden">
-            <DesktopHome firstName={firstName} groups={shown} focus={focus} onNavigate={navigate} />
-            <MobileHome firstName={firstName} groups={shown} focus={focus} onNavigate={navigate} />
+            <DesktopHome firstName={firstName} group={group} adminGroup={adminGroup} onNavigate={navigate} />
+            <MobileHome firstName={firstName} group={group} adminGroup={adminGroup} onNavigate={navigate} />
             <AccessReviewReminder enabled={isClient && Boolean(user)} />
         </div>
     );
@@ -73,19 +79,18 @@ export default function HomePage() {
 
 interface LayoutProps {
     firstName: string;
-    groups: MenuGroup[];
-    /** Set when the page was opened with ?group=… — only that group is shown */
-    focus: MenuGroup | null;
+    /** The one group on screen — IT by default, or the ?group=… one */
+    group: MenuGroup;
+    /** Admin links (admins only, on the IT page) */
+    adminGroup?: MenuGroup;
     onNavigate: (href?: string) => void;
 }
 
 /* ───────────── Desktop · Assistant-first ───────────── */
 
 // Home fits one screen: hero sizes follow the viewport height (clamp + vh), the columns take what is left.
-function DesktopHome({ firstName, groups, focus, onNavigate }: LayoutProps) {
-    // Focused link: one card in the middle, no admin footer
-    const columns = focus ? [focus] : groups.filter(g => !g.adminOnly);
-    const adminGroup = focus ? undefined : groups.find(g => g.adminOnly);
+function DesktopHome({ firstName, group, adminGroup, onNavigate }: LayoutProps) {
+    const isIT = group.id === DEFAULT_GROUP_ID;
 
     return (
         <div className="hidden lg:flex h-full overflow-hidden v2-canvas flex-col">
@@ -114,11 +119,11 @@ function DesktopHome({ firstName, groups, focus, onNavigate }: LayoutProps) {
                         ให้น้องมีนาช่วยอะไรดี?
                     </h1>
                     <p className="text-white/90 text-[clamp(13px,1.9vh,17px)] [@media(max-height:700px)]:hidden">
-                        {focus ? `เลือกเมนู ${focus.label} ด้านล่างได้เลย` : 'พิมพ์สิ่งที่ต้องการ หรือเลือกจากเมนูด้านล่าง'}
+                        {isIT ? 'พิมพ์สิ่งที่ต้องการ หรือเลือกจากเมนูด้านล่าง' : `เลือกเมนู ${group.label} ด้านล่างได้เลย`}
                     </p>
                 </div>
 
-                {!focus && <>
+                {isIT && <>
                 <ServiceSearch
                     className="w-[820px] max-w-[calc(100%-3rem)] mx-auto mt-[clamp(10px,2.4vh,24px)]"
                     inputClassName="h-[clamp(46px,6.6vh,64px)] bg-white/95 border-0 shadow-soft"
@@ -152,19 +157,13 @@ function DesktopHome({ firstName, groups, focus, onNavigate }: LayoutProps) {
                 </>}
             </section>
 
-            <main
-                className={cn(
-                    'relative z-10 flex-1 min-h-0 -mt-[clamp(36px,6vh,64px)] px-[clamp(24px,5vw,72px)] pb-[clamp(10px,2vh,20px)] grid grid-rows-1 gap-[clamp(14px,1.8vw,24px)] items-start',
-                    focus ? 'grid-cols-1 w-full max-w-[760px] mx-auto' : 'grid-cols-3'
-                )}
-            >
-                {columns.map((group, i) => (
-                    <GroupColumn key={group.id} group={group} index={i} onNavigate={onNavigate} />
-                ))}
+            {/* One card, as wide as the search above it */}
+            <main className="relative z-10 flex-1 min-h-0 -mt-[clamp(36px,6vh,64px)] px-6 pb-[clamp(10px,2vh,20px)] grid grid-rows-1 items-start w-full max-w-[868px] mx-auto">
+                <GroupColumn key={group.id} group={group} index={0} onNavigate={onNavigate} />
             </main>
 
             {adminGroup && (
-                <footer className="shrink-0 px-[clamp(24px,5vw,72px)] pb-[clamp(8px,1.6vh,16px)] flex items-center gap-2.5 text-ink-500 text-sm">
+                <footer className="shrink-0 px-6 pb-[clamp(8px,1.6vh,16px)] flex items-center justify-center gap-2.5 text-ink-500 text-sm">
                     <LayoutDashboard className="w-4 h-4" />
                     {adminGroup.tagline}:
                     {adminGroup.items.map((item, i) => (
@@ -177,18 +176,6 @@ function DesktopHome({ firstName, groups, focus, onNavigate }: LayoutProps) {
                     ))}
                 </footer>
             )}
-            {focus && <ShowAllMenus onNavigate={onNavigate} className="shrink-0 pb-[clamp(8px,1.6vh,16px)]" />}
-        </div>
-    );
-}
-
-/** Way out of a ?group=… link back to the full Home */
-function ShowAllMenus({ onNavigate, className }: { onNavigate: (href?: string) => void; className?: string }) {
-    return (
-        <div className={cn('flex justify-center', className)}>
-            <button type="button" onClick={() => onNavigate('/home')} className="text-sm text-brand-600 hover:text-brand-700 font-medium cursor-pointer">
-                ดูเมนูทั้งหมด
-            </button>
         </div>
     );
 }
@@ -313,7 +300,7 @@ function MenuRow({ item, tone, onNavigate, open, onToggle }: {
             const list = panel?.closest<HTMLElement>('[data-scroll-area]');
             if (!panel || !list) return;
             const overflow = panel.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom;
-            if (overflow > 0) list.scrollBy({ top: overflow + 8, behavior: 'smooth' });
+            if (overflow > 0) list.scrollBy({ top: overflow / pageZoom() + 8, behavior: 'smooth' });
         }, 320);
         return () => clearTimeout(timer);
     }, [open]);
@@ -413,9 +400,8 @@ function SubMenuRow({ item, tone, onNavigate, size = 'sm' }: {
 
 /* ───────────── Mobile · App Launcher ───────────── */
 
-function MobileHome({ firstName, groups, focus, onNavigate }: LayoutProps) {
-    const [activeId, setActiveId] = useState(groups[0]?.id);
-    const current = groups.find(g => g.id === activeId) ?? groups[0];
+function MobileHome({ firstName, group, adminGroup, onNavigate }: LayoutProps) {
+    const isIT = group.id === DEFAULT_GROUP_ID;
 
     return (
         <div className="lg:hidden relative h-full overflow-hidden v2-shell flex flex-col">
@@ -434,47 +420,33 @@ function MobileHome({ firstName, groups, focus, onNavigate }: LayoutProps) {
             </div>
 
             <main className="relative flex-1 min-h-0 rounded-t-[34px] v2-canvas px-4 pt-5 pb-[max(16px,env(safe-area-inset-bottom))] flex flex-col gap-3.5">
-                {!focus && <>
-                <ServiceSearch inputClassName="h-[50px] bg-white border border-border shadow-[0_4px_14px_-8px_rgba(21,86,201,0.25)]" />
+                {isIT && <ServiceSearch inputClassName="h-[50px] bg-white border border-border shadow-[0_4px_14px_-8px_rgba(21,86,201,0.25)]" />}
 
-                <div
-                    role="tablist"
-                    aria-label="กลุ่มเมนู"
-                    className="shrink-0 grid gap-1 p-1 rounded-full bg-white border border-border shadow-[0_4px_14px_-8px_rgba(21,86,201,0.25)]"
-                    style={{ gridTemplateColumns: `repeat(${groups.length}, minmax(0, 1fr))` }}
-                >
-                    {groups.map(g => {
-                        const active = g.id === current?.id;
-                        return (
-                            <button
-                                key={g.id}
-                                type="button"
-                                role="tab"
-                                aria-selected={active}
-                                onClick={() => setActiveId(g.id)}
-                                className={cn(
-                                    'h-10 rounded-full text-sm truncate px-2 transition-all cursor-pointer',
-                                    active ? 'bg-linear-to-br from-[#eaf4ff] to-[#dff9ef] text-brand-700 font-semibold' : 'text-ink-500 font-medium'
-                                )}
-                            >
-                                {g.label}
-                            </button>
-                        );
-                    })}
-                </div>
-                </>}
+                <AppGroup key={group.id} group={group} onNavigate={onNavigate} />
 
-                {current && <AppGroup key={current.id} group={current} standalone={Boolean(focus)} onNavigate={onNavigate} />}
-                {focus && <ShowAllMenus onNavigate={onNavigate} />}
+                {adminGroup && (
+                    <div className="shrink-0 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-ink-500 text-xs">
+                        <LayoutDashboard className="w-3.5 h-3.5" />
+                        {adminGroup.tagline}:
+                        {adminGroup.items.map((item, i) => (
+                            <span key={item.title} className="flex items-center gap-2">
+                                {i > 0 && <span aria-hidden="true">·</span>}
+                                <button type="button" onClick={() => onNavigate(item.href)} className="text-brand-600 font-medium cursor-pointer">
+                                    {item.title}
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                )}
             </main>
         </div>
     );
 }
 
-function AppGroup({ group, standalone, onNavigate }: { group: MenuGroup; standalone?: boolean; onNavigate: (href?: string) => void }) {
+function AppGroup({ group, onNavigate }: { group: MenuGroup; onNavigate: (href?: string) => void }) {
     const tone = TONE[group.tone];
     return (
-        <section role={standalone ? undefined : 'tabpanel'} className="min-h-0 overflow-y-auto rounded-[28px] bg-white border border-border shadow-[0_4px_14px_-8px_rgba(21,86,201,0.25)] px-4 pt-4 pb-5 flex flex-col gap-4 v2-pop-in">
+        <section className="min-h-0 overflow-y-auto rounded-[28px] bg-white border border-border shadow-[0_4px_14px_-8px_rgba(21,86,201,0.25)] px-4 pt-4 pb-5 flex flex-col gap-4 v2-pop-in">
             <div className="flex items-center gap-2">
                 <span className={cn('w-2 h-[22px] rounded-full', tone.tile)} />
                 <h2 className="text-base font-semibold text-ink-900">{group.label}</h2>

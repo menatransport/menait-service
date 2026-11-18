@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, ChevronDown, ChevronUp, ListFilter, Search, X } from 'lucide-react';
 import type { FilterOption, SortDir } from '@/lib/finance/petty-grid';
+import { pageZoom } from '@/lib/page-zoom';
 import { buttonClass } from './ui';
 
 const POP_W = 288;
@@ -89,11 +90,15 @@ function FilterPopover({ anchor, label, options, selected, sortDir, sortLabels, 
 
   useLayoutEffect(() => {
     if (!anchor || !box.current) return;
-    const r = anchor.getBoundingClientRect();
+    // ค่าบนจอ → หน่วยในหน้าที่ถูกย่อ (globals.css --page-zoom)
+    const z = pageZoom();
+    const b = anchor.getBoundingClientRect();
+    const r = { top: b.top / z, right: b.right / z, bottom: b.bottom / z };
+    const vw = window.innerWidth / z, vh = window.innerHeight / z;
     const h = box.current.offsetHeight;
-    const left = Math.min(Math.max(8, r.right - POP_W), window.innerWidth - POP_W - 8);
+    const left = Math.min(Math.max(8, r.right - POP_W), vw - POP_W - 8);
     const below = r.bottom + 6;
-    const top = below + h > window.innerHeight - 8 && r.top - h - 6 > 8 ? r.top - h - 6 : below;
+    const top = below + h > vh - 8 && r.top - h - 6 > 8 ? r.top - h - 6 : below;
     setPos({ top, left });
   }, [anchor]);
 

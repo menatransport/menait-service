@@ -28,15 +28,25 @@ export function sectionHeadingAt(items: readonly MenuItem[], index: number): str
     return items[index - 1]?.section === section ? null : section;
 }
 
+/** /home with no ?group shows IT Service only — OPS / Finance each have their own link (?group=ops, ?group=finance) */
+export const DEFAULT_GROUP_ID = 'it';
+
 /**
  * Link filter for /home?group=<id> (e.g. /home?group=finance shows only Finance Service).
  * Picks from the groups this user can already see, so a link can't open a hidden group.
- * No param or an unknown id → null = show every group.
+ * No param or an unknown id → null (the page then falls back to DEFAULT_GROUP_ID).
  */
 export function focusGroup(groups: readonly MenuGroup[], id: string | null | undefined): MenuGroup | null {
     const key = id?.trim().toLowerCase();
     if (!key) return null;
     return groups.find(g => g.id === key) ?? null;
+}
+
+/** "หน้าหลัก" link that keeps you in the group you came from: /ops/* → /home?group=ops, /finance/* → /home?group=finance */
+export function homeHrefFor(pathname: string | null | undefined): string {
+    const id = MENU_GROUPS.find(g => !g.adminOnly && g.id !== DEFAULT_GROUP_ID
+        && (pathname === `/${g.id}` || pathname?.startsWith(`/${g.id}/`)))?.id;
+    return id ? `/home?group=${id}` : '/home';
 }
 
 /** An item with a link or with sub-items can be opened; anything else is "เร็ว ๆ นี้". */
@@ -181,5 +191,4 @@ export const QUICK_LINKS: { label: string; image: string; href?: string }[] = [
     { label: 'แจ้งปัญหา', image: '/icons3d/report-issue.png', href: '/issue' },
     { label: 'ขอบริการ', image: '/icons3d/request-service.png', href: '/service' },
     { label: 'ติดตามคำร้องล่าสุด', image: '/icons3d/track-ticket.png', href: '/mytickets/all' },
-    { label: 'เปิดโปรเจกต์ OPS', image: '/icons3d/ops-project.png', href: '/ops/request' },
 ];

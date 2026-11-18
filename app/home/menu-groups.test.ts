@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { Wallet } from 'lucide-react';
-import { MENU_GROUPS, focusGroup, sectionHeadingAt, visibleItems, type MenuItem } from './menu-groups';
+import { MENU_GROUPS, focusGroup, homeHrefFor, sectionHeadingAt, visibleItems, type MenuItem } from './menu-groups';
 
 const item = (title: string, section?: string): MenuItem => ({ title, description: '', icon: Wallet, href: '/x', section });
 
@@ -50,7 +50,7 @@ describe('focusGroup (/home?group=…)', () => {
         expect(focusGroup(visible, ' Finance ')?.id).toBe('finance');
     });
 
-    test('no param or an unknown id shows every group', () => {
+    test('no param or an unknown id → null (the page falls back to IT)', () => {
         expect(focusGroup(visible, null)).toBeNull();
         expect(focusGroup(visible, '')).toBeNull();
         expect(focusGroup(visible, 'finan')).toBeNull();
@@ -58,6 +58,19 @@ describe('focusGroup (/home?group=…)', () => {
 
     test('a group the user cannot see is not opened by the link', () => {
         expect(focusGroup(visible, 'admin')).toBeNull();
+    });
+});
+
+describe('homeHrefFor (ปุ่มกลับหน้าหลัก)', () => {
+    test('OPS / Finance กลับไปหน้า Home ของกลุ่มตัวเอง', () => {
+        expect(homeHrefFor('/ops/request')).toBe('/home?group=ops');
+        expect(homeHrefFor('/finance')).toBe('/home?group=finance');
+        expect(homeHrefFor('/finance/petty/new')).toBe('/home?group=finance');
+    });
+    test('หน้า IT และหน้าอื่นกลับ /home (IT Service)', () => {
+        expect(homeHrefFor('/issue')).toBe('/home');
+        expect(homeHrefFor('/financeX')).toBe('/home');
+        expect(homeHrefFor(null)).toBe('/home');
     });
 });
 

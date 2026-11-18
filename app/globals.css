@@ -510,3 +510,25 @@
 }
 .theme-petty .v2-btn:hover { box-shadow: 0 12px 24px -8px rgba(27, 140, 75, .85); }
 .theme-petty .v2-canvas { background: linear-gradient(180deg, #d7f3e2 0%, #effaf3 45%, #f7fbf8 100%); }
+
+/* เดสก์ท็อป (≥ 64rem) ย่อทั้งหน้าเหลือ 80% ให้เหมือนเบราว์เซอร์ซูม 80% — พื้นที่ทำงานกว้างขึ้น (18/11/2026)
+ * ไม่ใส่ที่ html: กล่องลอยของ Radix (dropdown/popover) วางตำแหน่งจากพิกเซลบนจอ จะเยื้องไป 80%
+ * จึงย่อลูกของ body ทุกตัว ยกเว้นกล่องนอกของ Radix popper แล้วย่อเนื้อหาข้างในแทน
+ *
+ * หน่วยจอ (`dvh` `vw` …) และ `--radix-*-width/height` ถูก `postcss/zoom-viewport.cjs` หารกลับด้วย
+ * `--page-zoom` ตอน build · JS ที่วางป๊อปโอเวอร์เองจาก `getBoundingClientRect()` (ได้ค่าบนจอ)
+ * ต้องหารด้วย `pageZoom()` ใน `lib/page-zoom.ts` ก่อนใส่เป็น `left/top`
+ */
+@media (width >= 64rem) {
+  :root {
+    --page-zoom: 0.8;
+    /* กรอบความกว้างของหน้า (max-w-screen-2xl / max-w-7xl) หารกลับด้วย zoom — บนจอกว้างเท่าเดิม
+       แต่ข้างในได้พื้นที่เพิ่ม 25% · ฟอร์ม/ไดอะล็อกที่แคบกว่า (≤ 5xl) ย่อตามปกติ */
+    --breakpoint-2xl: calc(96rem / var(--page-zoom));
+    --container-7xl: calc(80rem / var(--page-zoom));
+  }
+  body > :not([data-radix-popper-content-wrapper]),
+  [data-radix-popper-content-wrapper] > * {
+    zoom: var(--page-zoom);
+  }
+}

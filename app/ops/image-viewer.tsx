@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { ChevronLeft, ChevronRight, ExternalLink, RotateCcw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { pageZoom } from '@/lib/page-zoom';
 import type { OpsAttachment } from './types';
 
 const MIN_ZOOM = 1;
@@ -122,7 +123,7 @@ export function ImageViewer({ images, index, onIndexChange, onClose }: {
                                 onPointerMove={(e) => {
                                     const d = drag.current;
                                     if (!d) return;
-                                    setPan({ x: d.px + (e.clientX - d.x) / zoom, y: d.py + (e.clientY - d.y) / zoom });
+                                    setPan({ x: d.px + (e.clientX - d.x) / zoom / pageZoom(), y: d.py + (e.clientY - d.y) / zoom / pageZoom() });
                                 }}
                                 onPointerUp={() => { drag.current = null; }}
                                 onPointerCancel={() => { drag.current = null; }}
