@@ -1,8 +1,11 @@
+import { useEffect, useState } from 'react';
 import { sumItems, type ClearItemRow } from '@/lib/finance/clearItems';
 import { formatBaht, formatDate, settleLabel } from '@/lib/finance/status';
 import { formatBkkDateTime } from '@/lib/finance/printShared';
 import { bankLabel, formatAccountNo } from '@/lib/finance/bank';
-import type { AdvanceDetail, AdvanceItem, ApprovalTierInfo, ClearItem } from '../types';
+import type { AdvanceDetail, AdvanceItem, ApprovalTierInfo, ClearItem, SuggestedApprover, SuggestedApprovers } from '../types';
+import { fetchJson } from '../api';
+import { waitingLabel } from '@/lib/finance/approvalWaiting';
 import { CLAIM_TITLE } from '@/lib/finance/clearingForm';
 import { sentBackLabel } from '@/lib/finance/historyLog';
 import { PrintDocumentButton } from './PrintDocumentButton';
@@ -25,6 +28,18 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
   const cancellation = item.status === 'CANCELLED'
     ? [...(detail?.fin_logs ?? [])].reverse().find(l => l.action === 'CANCEL') ?? null
     : null;
+  // ใบที่รออนุมัติ: ดึงชื่อคนที่อนุมัติขั้นปัจจุบันได้ มาโชว์ว่ากำลังรอใคร (ผู้ใช้สั่ง 18/11/2026)
+  const pending = item.status === 'PENDING_APPROVAL' && !!item.approval;
+  const [waitingFor, setWaitingFor] = useState<SuggestedApprover[] | null>(null);
+  useEffect(() => {
+    if (!pending) { setWaitingFor(null); return; }
+    let cancelled = false;
+    fetchJson<SuggestedApprovers>(`/api/finance/advances/${encodeURIComponent(item.form_id)}/approvers`)
+      .then(d => { if (!cancelled) setWaitingFor(d.approvers ?? []); })
+      .catch(() => { if (!cancelled) setWaitingFor(null); });  // ดูชื่อไม่ได้ (ไม่มีสิทธิ์/BE ล่ม) = โชว์ รออนุมัติ เหมือนเดิม
+    return () => { cancelled = true; };
+  }, [pending, item.form_id, item.approval?.current_step]);
+  const waitingText = waitingLabel(waitingFor);
   return (
     <>
       {rejection && (
@@ -71,11 +86,15 @@ export function AdvanceSummary({ item, detail }: { item: AdvanceItem & { approva
                         {done
                           ? <span className="text-emerald-700">{done.name ?? '-'}{when ? ` · ${when.date} ${when.time.slice(0, 5)} น.` : ''}</span>
                           : rejectedHere ? <span className="text-rose-700">ไม่อนุมัติ · {rejection!.actor_name ?? '-'}</span>
-                          : waiting ? <span className="text-amber-700">รอ</span> : <span className="text-gray-400">-</span>}
+                          : waiting ? <span className="text-amber-700">{waitingText}</span> : <span className="text-gray-400">-</span>}
                       </li>
                     );
                   })}
                 </ol>
+              )}
+              {/* ขั้นเดียว: ไม่มีรายการขั้น บอกคนที่รอไว้ใต้ขั้นอนุมัติ */}
+              {pending && (item.approval.steps?.length ?? 0) < 2 && (
+                <p className="mt-2 text-sm text-amber-700">{waitingText}</p>
               )}
             </div>
           )}
