@@ -9,7 +9,6 @@ import { Mascot } from "@/components/mascot";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { AccessReviewReminder } from "./access-review-reminder";
-import { pageZoom } from "@/lib/page-zoom";
 import { DEFAULT_GROUP_ID, MENU_GROUPS, QUICK_LINKS, focusGroup, isMenuItemReady, sectionHeadingAt, visibleItems, type MenuGroup, type MenuItem, type MenuTone } from "./menu-groups";
 
 const TONE = {
@@ -300,7 +299,7 @@ function MenuRow({ item, tone, onNavigate, open, onToggle }: {
             const list = panel?.closest<HTMLElement>('[data-scroll-area]');
             if (!panel || !list) return;
             const overflow = panel.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom;
-            if (overflow > 0) list.scrollBy({ top: overflow / pageZoom() + 8, behavior: 'smooth' });
+            if (overflow > 0) list.scrollBy({ top: overflow + 8, behavior: 'smooth' });
         }, 320);
         return () => clearTimeout(timer);
     }, [open]);

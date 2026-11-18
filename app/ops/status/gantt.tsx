@@ -6,7 +6,6 @@ import {
 } from 'date-fns';
 import { th } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { pageZoom } from '@/lib/page-zoom';
 import { OPS_STATUSES, type Project } from '../types';
 import { REJECT_HATCH, STATUS_META, StatusBadge, formatThaiDate, isOverdue } from '../components';
 
@@ -185,10 +184,7 @@ export function GanttChart({ projects, zoom, onOpen }: {
 
 const GanttTooltip = ({ p, span, x, y }: { p: Project; span: Span; x: number; y: number }) => {
     const days = differenceInCalendarDays(span.end, span.start) + 1;
-    // clientX/Y เป็นพิกเซลบนจอ → หน่วยในหน้าที่ถูกย่อ
-    const z = pageZoom();
-    x /= z; y /= z;
-    const flip = typeof window !== 'undefined' && x > window.innerWidth / z - 280;
+    const flip = typeof window !== 'undefined' && x > window.innerWidth - 280;
     return (
         <div
             role="tooltip"
