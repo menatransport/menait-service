@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettyClaim, PettyExpenseType, PettyFund, PettyRound } from '@/app/finance/types-petty';
-import {
+import { CLAIM_LOG_LABELS,
   CLAIM_COLUMNS, CLAIM_STATUS_LABELS, ROUND_COLUMNS, WORKLIST_TABS, claimHistory, defaultTab, inMonthRange, matchesWorklistFilters,
   payFormError, payPayload, resolveTab, roundActionBody, roundDocChanges, roundDocError, roundDuplicateText,
   roundHistory, roundLogLabel, rowsForTab, searchWorklist, sortWorklist, tabKind, voucherFormError,
@@ -297,6 +297,16 @@ describe('history', () => {
       ['ส่งถึงบัญชี', null],
       ['ส่งกลับแก้ไข', 'ใบชั่งเบลอ'],
     ]);
+  });
+  test('every claim log code the BE writes has a Thai label (23/11/2026)', () => {
+    const codes = ['CREATE', 'UPDATE', 'RESUBMIT', 'RESUBMIT_ACC', 'APPROVE', 'RETURN', 'HEAD_APPROVE', 'HEAD_RETURN',
+      'HEAD_SKIP_TOA', 'SET_DD', 'SET_DEBT_DOC', 'SUBMIT_ROUND', 'CLEAR_APPROVE', 'CLEAR_REJECT', 'ACC_PASS',
+      'SEND_BACK', 'VOUCHER', 'PAY_CLOSE', 'EDIT_DOC_NUMBERS'];
+    expect(codes.filter(c => !CLAIM_LOG_LABELS[c])).toEqual([]);
+  });
+  test('claimHistory from BE logs names who returned the claim', () => {
+    const c = claim('RETURNED', { logs: [{ action: 'RETURN', actor: '690189', actor_name: 'เสถียรพงษ์ ชะเอมจันทร์', at: '2026-11-23T15:00:00Z', remark: 'ยอดไม่ตรง' }] });
+    expect(claimHistory(c).map(r => [r.label, r.actor, r.remark])).toEqual([['ตีกลับผู้เบิก', 'เสถียรพงษ์ ชะเอมจันทร์', 'ยอดไม่ตรง']]);
   });
   test('claimHistory prefers BE logs when present', () => {
     const c = claim('REVIEWED', { logs: [{ action: 'ACC_PASS', actor: '660548', actor_name: 'ชญาดา', at: '2026-10-28T02:00:00Z', remark: null }] });

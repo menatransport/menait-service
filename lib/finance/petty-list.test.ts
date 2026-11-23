@@ -78,20 +78,28 @@ describe('quickAction — ปุ่มลัดตามสถานะและ
 });
 
 describe('flowPosition — แถบขั้นตอน', () => {
-  test('seven steps in order — หัวหน้าอนุมัติก่อนเจ้าของเงินสด (flow v3)', () =>
-    expect(FLOW_STEPS.map(s => s.status)).toEqual(
-      ['PENDING_HEAD', 'PENDING_APPROVAL', 'APPROVED', 'CLEAR_PENDING', 'AWAITING_REVIEW', 'REVIEWED', 'CLOSED']));
-  test('on-track statuses map to their step', () => {
-    expect(flowPosition('PENDING_HEAD')).toEqual({ index: 0, offTrack: false });
-    expect(flowPosition('PENDING_APPROVAL')).toEqual({ index: 1, offTrack: false });
-    expect(flowPosition('CLEAR_PENDING')).toEqual({ index: 3, offTrack: false });
-    expect(flowPosition('CLOSED')).toEqual({ index: 6, offTrack: false });
+  // ขั้นที่ไฮไลต์ = ขั้นที่ใบกำลังรออยู่ ตรงกับป้ายสถานะ (23/11/2026: ใบรอเจ้าของเงินสดเคยไปไฮไลต์ที่หัวหน้า)
+  test('eight steps in swimlane order (flow v3.2)', () =>
+    expect(FLOW_STEPS.map(s => s.label)).toEqual(
+      ['ขออนุมัติ', 'หัวหน้า (ถ้าเกิน TOA)', 'เจ้าของเงินสดอนุมัติ', 'ส่งเคลียร์', 'หัวหน้าอนุมัติเคลียร์', 'บัญชีตรวจ', 'ตั้งเบิก/ทำจ่าย', 'ปิด']));
+  test('each on-track status highlights the step it waits on', () => {
+    expect(flowPosition('PENDING_HEAD')).toEqual({ index: 1, offTrack: false });
+    expect(flowPosition('PENDING_APPROVAL')).toEqual({ index: 2, offTrack: false });
+    expect(flowPosition('APPROVED')).toEqual({ index: 3, offTrack: false });
+    expect(flowPosition('CLEAR_PENDING')).toEqual({ index: 4, offTrack: false });
+    expect(flowPosition('AWAITING_REVIEW')).toEqual({ index: 5, offTrack: false });
+    expect(flowPosition('REVIEWED')).toEqual({ index: 6, offTrack: false });
+    expect(flowPosition('CLOSED')).toEqual({ index: 7, offTrack: false });
+  });
+  test('waiting on the cash holder is never shown as the head step (TOA skip = head step done)', () => {
+    const { index } = flowPosition('PENDING_APPROVAL');
+    expect(FLOW_STEPS[index].label).toBe('เจ้าของเงินสดอนุมัติ');
   });
   test('returned sits at step 0 off track', () => expect(flowPosition('RETURNED')).toEqual({ index: 0, offTrack: true }));
   test('sent back sits at the accounting step off track (clerk fixes, then straight back)', () =>
-    expect(flowPosition('SENT_BACK')).toEqual({ index: 4, offTrack: true }));
+    expect(flowPosition('SENT_BACK')).toEqual({ index: 5, offTrack: true }));
   test('old transferred claims sit with the approved ones', () =>
-    expect(flowPosition('TRANSFERRED')).toEqual({ index: 2, offTrack: false }));
+    expect(flowPosition('TRANSFERRED')).toEqual({ index: 3, offTrack: false }));
 });
 
 describe('paidInRange — รวมรอบตามช่วงวันที่จ่าย (29/10/2026)', () => {

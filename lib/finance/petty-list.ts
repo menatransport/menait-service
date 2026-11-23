@@ -58,23 +58,23 @@ export function quickAction(claim: PettyClaim, role: PettyRole): QuickAction | n
   return null;
 }
 
-/** ขั้นตอนหลักของใบ ซ้าย→ขวา (flow v3.2) — ตีกลับคือ "หลุดราง" อยู่ที่ขั้นที่ต้องทำซ้ำ
- * ขั้น "หัวหน้าอนุมัติ" มีเฉพาะเมื่อยอดเกินอำนาจเจ้าของเงินสดตาม TOA (7/11/2026) ใบที่ข้ามจะเห็นเป็นผ่านแล้ว */
-export const FLOW_STEPS: { status: PettyStatus; label: string }[] = [
-  { status: 'PENDING_HEAD', label: 'ขออนุมัติ' },
-  { status: 'PENDING_APPROVAL', label: 'หัวหน้าอนุมัติ (ถ้าเกิน TOA)' },
-  { status: 'APPROVED', label: 'เจ้าของเงินสดอนุมัติ' },
-  { status: 'CLEAR_PENDING', label: 'หัวหน้าอนุมัติเคลียร์' },
-  { status: 'AWAITING_REVIEW', label: 'บัญชีตรวจ' },
-  { status: 'REVIEWED', label: 'ตั้งเบิก/ทำจ่าย' },
-  { status: 'CLOSED', label: 'ปิด' },
+/** ขั้นตอนหลักของใบ ซ้าย→ขวา ตาม swimlane v3.2 · แต่ละขั้นบอกว่าใบ "กำลังรอ" อะไร (at = สถานะที่ใบรอที่ขั้นนี้)
+ * ขั้น "หัวหน้าอนุมัติ" มีเฉพาะเมื่อยอดเกินอำนาจเจ้าของเงินสดตาม TOA (7/11/2026) ใบที่ข้ามจะเห็นเป็นผ่านแล้ว
+ * ตีกลับคือ "หลุดราง" อยู่ที่ขั้นที่ต้องทำซ้ำ · 23/11/2026 แก้ใบรอเจ้าของเงินสดที่เคยไฮไลต์ขั้นหัวหน้า + เพิ่มขั้นส่งเคลียร์ */
+export const FLOW_STEPS: { key: string; label: string; at: PettyStatus[] }[] = [
+  { key: 'submit', label: 'ขออนุมัติ', at: ['RETURNED'] },
+  { key: 'head', label: 'หัวหน้า (ถ้าเกิน TOA)', at: ['PENDING_HEAD'] },
+  { key: 'holder', label: 'เจ้าของเงินสดอนุมัติ', at: ['PENDING_APPROVAL'] },
+  { key: 'round', label: 'ส่งเคลียร์', at: ['APPROVED', 'TRANSFERRED'] },
+  { key: 'clear', label: 'หัวหน้าอนุมัติเคลียร์', at: ['CLEAR_PENDING'] },
+  { key: 'review', label: 'บัญชีตรวจ', at: ['AWAITING_REVIEW', 'SENT_BACK'] },
+  { key: 'pay', label: 'ตั้งเบิก/ทำจ่าย', at: ['REVIEWED'] },
+  { key: 'closed', label: 'ปิด', at: ['CLOSED'] },
 ];
 
 export function flowPosition(status: PettyStatus): { index: number; offTrack: boolean } {
-  if (status === 'RETURNED') return { index: 0, offTrack: true };
-  if (status === 'SENT_BACK') return { index: 4, offTrack: true };
-  if (status === 'TRANSFERRED') return { index: 2, offTrack: false };
-  return { index: Math.max(0, FLOW_STEPS.findIndex(s => s.status === status)), offTrack: false };
+  const index = Math.max(0, FLOW_STEPS.findIndex(s => s.at.includes(status)));
+  return { index, offTrack: status === 'RETURNED' || status === 'SENT_BACK' };
 }
 
 export const statusLabel = (status: PettyStatus) => PETTY_STATUS_LABELS[status];

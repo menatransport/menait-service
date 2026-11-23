@@ -390,6 +390,7 @@ export const CLAIM_LOG_LABELS: Record<string, string> = {
   APPROVE: 'อนุมัติจ่าย', RETURN: 'ตีกลับผู้เบิก', SET_DD: 'ใส่เลข DD', SUBMIT_ROUND: 'ส่งเคลียร์',
   HEAD_SKIP_TOA: 'ข้ามขั้นหัวหน้า (เจ้าของเงินสดมีอำนาจตาม TOA)', CLEAR_APPROVE: 'หัวหน้าอนุมัติเคลียร์', CLEAR_REJECT: 'หัวหน้าไม่อนุมัติเคลียร์', ACC_PASS: 'บัญชีตรวจผ่าน',
   SEND_BACK: 'ส่งกลับแก้ไข', PAY_CLOSE: 'จ่ายเงิน ปิดใบ', EDIT_DOC_NUMBERS: 'แก้ไขเลขที่เอกสารของรอบ',
+  HEAD_APPROVE: 'หัวหน้าอนุมัติ', HEAD_RETURN: 'หัวหน้าตีกลับผู้เบิก', SET_DEBT_DOC: 'ใส่เลขรับสภาพหนี้', VOUCHER: 'ตั้งเบิกทำจ่าย',
 };
 
 export const roundLogLabel = (action: string) => ROUND_LOG_LABELS[action] ?? action;
