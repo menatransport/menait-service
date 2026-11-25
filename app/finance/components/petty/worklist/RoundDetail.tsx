@@ -1,14 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { FileStack } from 'lucide-react';
+import { FileSpreadsheet, FileStack } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyClaim, PettyExpenseType, PettyFund, PettyRound } from '@/app/finance/types-petty';
 import { canUploadRoundSlip, worklistPerms } from '@/lib/finance/petty-access';
+import { exportRoundsXlsx } from '@/lib/finance/petty-round-export';
 import { roundHistory } from '@/lib/finance/petty-worklist';
 import { formatBaht, formatDate } from '@/lib/finance/status';
+import { showAlert } from '../../../api';
 import { getExpenseTypes, getFunds, getRound } from '../../../petty-api';
 import { Field, NoAccess, Panel } from '../../FinanceShell';
 import { printRoundCover } from '../round-actions';
@@ -104,7 +106,13 @@ export function RoundDetail({ roundId, onChanged, onOpenClaim, onLoaded }: {
 
   return (
     <>
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {/* Excel ของรอบนี้ ชุดเดียวกับปุ่ม Excel รอบที่ส่งเคลียร์ของเจ้าของเงินสด (ผู้ใช้ขอ 25/11/2026) */}
+        <Button type="button" variant="outline" size="sm"
+          onClick={() => void exportRoundsXlsx([{ ...round, claims }], types, `petty-round_${round.batch_no}.xlsx`)
+            .catch(err => showAlert({ icon: 'error', title: 'ออก Excel ไม่สำเร็จ', text: (err as Error).message }))}>
+          <FileSpreadsheet className="mr-1 h-4 w-4" /> Export Excel
+        </Button>
         <Button type="button" variant="outline" size="sm" onClick={() => printRoundCover(round, types, funds)}>
           <FileStack className="mr-1 h-4 w-4" /> พิมพ์ใบปะหน้า
         </Button>

@@ -14,6 +14,7 @@ import { filterByType, filterRoundsByType, roundTypeHint } from '@/lib/finance/p
 import { formatBaht, formatDate } from '@/lib/finance/status';
 import { showAlert, showSuccess } from '../../api';
 import { countAttachments, createRound, getBalance, getExpenseTypes, getFunds, getRound, listAllClaims, listRounds } from '../../petty-api';
+import { RoundExcelButton } from '../../components/petty/RoundExcelButton';
 import { DateField } from '../../components/DateField';
 import { PettySheet } from '../../components/petty/PettySheet';
 import { TypeFilter, usePettyTypeFilter } from '../../components/petty/TypeFilter';
@@ -283,7 +284,10 @@ function PettyApprovals() {
       )}
 
       {view === 'clear' && (
-        <Section label="ใบที่รอส่งเคลียร์">
+        <Section label="ใบที่รอส่งเคลียร์" actions={
+          <RoundExcelButton rounds={myRounds} types={types}
+            fileTag={(() => { const f = (funds ?? []).find(x => x.id === fundId); return f ? `${f.branch_code}-${f.division_code}` : 'fund'; })()} />
+        }>
           <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
             <div className="space-y-1">
               <p className="text-xs text-gray-500">จ่ายตั้งแต่วันที่</p>
