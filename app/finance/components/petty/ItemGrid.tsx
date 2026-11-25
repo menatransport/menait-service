@@ -1,10 +1,10 @@
 'use client';
 
 import { useRef } from 'react';
-import { Plus, Trash2, Truck } from 'lucide-react';
+import { ListPlus, Plus, Trash2, Truck } from 'lucide-react';
 import type { PettySpec } from '@/app/finance/types-petty';
 import { claimTotal, lineAmount, type PettyItemDraft } from '@/lib/finance/petty-items';
-import { blankItem, itemFields } from '@/lib/finance/petty-spec';
+import { addsByTruck, blankItem, itemFields } from '@/lib/finance/petty-spec';
 import { fleetAt } from '@/app/finance/petty-api';
 import { applyDriver, applyFleet } from '@/lib/finance/petty-driver-fill';
 import { DriverPicker } from './DriverPicker';
@@ -46,6 +46,8 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
   dups?: DupHint[];
   readOnly?: boolean;
 }) {
+  const byTruck = addsByTruck(spec);  // ค่าใช้จ่ายทั่วไป: รถไม่บังคับ → เพิ่มเป็นแถวธรรมดา
+  const manyLabel = byTruck ? 'เพิ่มหลายคัน' : 'เพิ่มหลายรายการ';
   // 'truck' มีช่องของตัวเอง ส่วนช่องอื่น (รวม qty ถ้าประเภทนั้นประกาศไว้) เรนเดอร์ตามลำดับใน spec
   const fields = itemFields(spec).filter(f => f.key !== 'truck');
   const truckField = itemFields(spec).find(f => f.key === 'truck');
@@ -178,7 +180,7 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
     <div>
       {rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[#dbe4f3] px-4 py-8 text-center text-sm text-ink-500">
-          ยังไม่มีรายการ — กด &ldquo;เพิ่มแถว&rdquo;{onAddMany && <> หรือ &ldquo;เพิ่มหลายคัน&rdquo;</>} ด้านล่าง
+          ยังไม่มีรายการ — กด &ldquo;เพิ่มแถว&rdquo;{onAddMany && <> หรือ &ldquo;{manyLabel}&rdquo;</>} ด้านล่าง
         </div>
       ) : (
         <ol className="space-y-3">
@@ -242,7 +244,7 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
           </Button>
           {onAddMany && (
             <Button onClick={onAddMany} className="min-h-11 sm:min-h-10">
-              <Truck className="h-4 w-4 text-ink-500" /> เพิ่มหลายคัน
+              {byTruck ? <Truck className="h-4 w-4 text-ink-500" /> : <ListPlus className="h-4 w-4 text-ink-500" />} {manyLabel}
             </Button>
           )}
         </div>

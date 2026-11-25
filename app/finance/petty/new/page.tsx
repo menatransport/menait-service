@@ -11,7 +11,7 @@ import { claimTotal, periodOf, type PettyItemDraft } from '@/lib/finance/petty-i
 import { PETTY_CLAIM_CAP, claimCapProblem, routeHint, singleDriverRoleProblem } from '@/lib/finance/petty-rules';
 import { EXPENSE_CODES, expenseCodeFor, expenseCodeLabel, expenseCodeReason } from '@/lib/finance/petty-expense-code';
 import {
-  blankHeader, claimPayload, dupCheckParams, headerFields, isHolderAttachment, isItemBased, itemsFrom, missingAtCreate,
+  addsByTruck, blankHeader, claimPayload, dupCheckParams, headerFields, isHolderAttachment, isItemBased, itemsFrom, missingAtCreate,
 } from '@/lib/finance/petty-spec';
 import { payeeBankProblem, payeeBankText } from '@/lib/finance/petty-payee';
 import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
@@ -27,6 +27,7 @@ import { showAlert, showSuccess } from '../../api';
 import { checkDuplicate, createClaim, getClaim, getExpenseTypes, updateClaim, getFunds, payeeMonth, previewRoute, uploadPettyFiles, type RoutePreview } from '../../petty-api';
 import { WHT_RATES, netAmount, payeeWarning, whtFromRate, whtProblem, type PayeeMonth } from '@/lib/finance/petty-wht';
 import { AddManyTrucksDialog } from '../../components/petty/AddManyTrucksDialog';
+import { AddManyRowsDialog } from '../../components/petty/AddManyRowsDialog';
 import { ExpenseTypeCombobox } from '../../components/petty/ExpenseTypeCombobox';
 import { HeaderField } from '../../components/petty/HeaderField';
 import { ItemGrid, type DupHint } from '../../components/petty/ItemGrid';
@@ -618,10 +619,9 @@ function PettyClaimForm() {
         </StepSection>
       </>)}
 
-      {addMany && type && (
-        <AddManyTrucksDialog spec={spec} onClose={() => setAddMany(false)}
-          onAdd={extra => setRows([...rows, ...extra])} />
-      )}
+      {addMany && type && (addsByTruck(spec)
+        ? <AddManyTrucksDialog spec={spec} onClose={() => setAddMany(false)} onAdd={extra => setRows([...rows, ...extra])} />
+        : <AddManyRowsDialog spec={spec} onClose={() => setAddMany(false)} onAdd={extra => setRows([...rows, ...extra])} />)}
     </PettyPage>
   );
 }

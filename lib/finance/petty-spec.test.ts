@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettySpec } from '@/app/finance/types-petty';
+import { addsByTruck } from './petty-spec';
 import {
   blankHeader, blankItem, claimPayload, dupCheckParams, HOLDER_ATTACHMENTS, headerFields, isHolderAttachment, isItemBased, itemFields, itemsFrom,
   missingAtCreate, printUnit, requiredAtCreate, requiredAttachments, singleItemFrom,
@@ -216,5 +217,17 @@ describe('ใบยอดเดียว: คนขับ/ฟลีทหัว�
     const row = singleItemFrom({ event_date: '2026-11-13', truck_code: 'T-0043', truck_plate: 'สบ.72-5616', rate: 185,
       fleet: 'Side curtain', driver_code: '650167', driver_role: 'พจส.', driver: 'กมล อ่อนทวี' });
     expect(row).toMatchObject({ fleet: 'Side curtain', driver_code: '650167', driver_role: 'พจส.', driver_name: 'กมล อ่อนทวี' });
+  });
+});
+
+describe('addsByTruck — ปุ่มเพิ่มหลายคัน เฉพาะประเภทที่รถบังคับ (25/11/2026)', () => {
+  const truck = (required: boolean) => ({ key: 'truck', type: 'truck', label: 'รถ', required });
+  test('weigh / tire / repair: truck required → add many trucks', () =>
+    expect(addsByTruck({ item_fields: [truck(true)] })).toBe(true));
+  test('general: truck optional → plain rows', () =>
+    expect(addsByTruck({ item_fields: [{ key: 'event_date', type: 'date', label: 'วันที่' }, truck(false)] })).toBe(false));
+  test('no truck field or no spec → plain rows', () => {
+    expect(addsByTruck({ item_fields: [{ key: 'rate', type: 'number', label: 'ราคา' }] })).toBe(false);
+    expect(addsByTruck(null)).toBe(false);
   });
 });

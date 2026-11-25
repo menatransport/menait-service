@@ -13,6 +13,14 @@ export function itemFields(spec: PettySpec | null | undefined): PettySpecField[]
   return spec?.item_fields ?? [];
 }
 
+/**
+ * ประเภทที่แถวรายการผูกกับรถ (ช่องรถบังคับ เช่น ค่าชั่ง ยาง ซ่อม) → ปุ่ม "เพิ่มหลายคัน" วางรหัสรถรวดเดียว
+ * ช่องรถไม่บังคับ (ค่าใช้จ่ายทั่วไป "รถ (ถ้ามี)") หรือไม่มีช่องรถ → "เพิ่มหลายรายการ" แถวธรรมดา (ผู้ใช้สั่ง 25/11/2026)
+ */
+export function addsByTruck(spec: PettySpec | null | undefined): boolean {
+  return itemFields(spec).some(f => f.key === 'truck' && f.required === true);
+}
+
 export function requiredAttachments(spec: PettySpec | null | undefined): PettySpecAttachment[] {
   return (spec?.attachments ?? []).filter(a => a.required === true);
 }
