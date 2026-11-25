@@ -4,6 +4,9 @@ import { accountingConfig, financeConfig, isAccountingUser, isFinanceUser, isTre
 /** role "a" (admin): IT department or a named employee — same rule login always used. */
 export const ADMIN_DEPARTMENT_IDS = [21];
 export const ADMIN_EMPLOYEE_IDS = ['680043', '670108'];
+/** superadmin ของการเงิน — ตรงกับ permission_logic.SUPERADMIN_EMPLOYEE_IDS หลังบ้าน (670108 narongkorn.a)
+ *  เป็นผู้ดูแลเงินสดย่อยบน prod ด้วย ดูและกดได้ทุกขั้น (ผู้ใช้สั่ง 25/11/2026) */
+export const FINANCE_SUPERADMIN_IDS = ['670108'];
 
 type BackendUser = Omit<UserInfo, 'role' | 'is_finance' | 'is_accounting' | 'is_treasury' | 'is_petty_super'> & Record<string, unknown>;
 
@@ -25,8 +28,8 @@ export function buildSessionUser(beUser: BackendUser, env: Record<string, string
     is_finance: isFinanceUser(beUser, finance.deptIds, finance.employeeIds),
     is_accounting: isAccountingUser(beUser, backOffice),
     is_treasury: isTreasuryUser(beUser, backOffice),
-    // ผู้ดูแลทดสอบเงินสดย่อย — ตั้ง PETTY_SUPERUSERS เฉพาะเครื่องทดสอบ (BE มี env ชื่อเดียวกัน) บน prod ไม่ตั้ง = false
-    is_petty_super: parseIdList(env.PETTY_SUPERUSERS).includes(beUser.employee_id),
+    // ผู้ดูแลเงินสดย่อย — env PETTY_SUPERUSERS (เครื่องทดสอบ) หรือ superadmin ของการเงิน (prod ด้วย) · BE ใช้กติกาเดียวกัน
+    is_petty_super: parseIdList(env.PETTY_SUPERUSERS).includes(beUser.employee_id) || FINANCE_SUPERADMIN_IDS.includes(beUser.employee_id),
   } as UserInfo;
 }
 

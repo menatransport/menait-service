@@ -27,6 +27,12 @@ describe('buildSessionUser — same rules login always used', () => {
     expect([u.role, u.is_finance]).toEqual(['u', false]);
   });
   test('keeps every BE field', () => expect(session().department_th).toBe('แผนกสโตร์'));
+  // ผู้ดูแลเงินสดย่อย (25/11/2026): superadmin ของการเงินเป็นด้วยแม้ไม่ตั้ง env · คนอื่นต้องอยู่ใน PETTY_SUPERUSERS
+  test('finance superadmin is petty super without env', () => expect(session({ employee_id: '670108' }).is_petty_super).toBe(true));
+  test('other admin is not petty super', () => expect(session({ employee_id: '680043' }).is_petty_super).toBe(false));
+  test('everyone else is not petty super', () => expect(session().is_petty_super).toBe(false));
+  test('env list still works', () =>
+    expect(buildSessionUser(be({ employee_id: '650520' }), { ...ENV, PETTY_SUPERUSERS: '650520' }).is_petty_super).toBe(true));
 });
 
 describe('buildSessionUser — petty cash back office (บัญชีตรวจเอกสาร / การเงินปิดรอบ)', () => {
