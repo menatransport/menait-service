@@ -5,7 +5,7 @@ import { MascotLoader } from '@/components/loading';
 import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyBalance, PettyExpenseType, PettyFund } from '@/app/finance/types-petty';
 import { canSeeAllClaims } from '@/lib/finance/petty-access';
-import { fundSummaryRows, grandTotals, type FundSummaryRow } from '@/lib/finance/petty-funds';
+import { fundSummaryRows, grandTotals, holderSummaryRows, type FundSummaryRow } from '@/lib/finance/petty-funds';
 import { showAlert } from '../../api';
 import { getBalance, getExpenseTypes, getFunds } from '../../petty-api';
 import { FundMapTable } from '../../components/petty/FundMapTable';
@@ -112,7 +112,68 @@ export default function PettyFundsPage() {
         </table>
       </div>
       <p className="mt-4 text-xs text-ink-500">พร้อมอนุมัติ = คงเหลือ − ใบที่อนุมัติแล้วแต่ยังไม่ทำจ่ายคืน · ติดลบได้ แต่ควรเร่งส่งเคลียร์</p>
+      <HolderSummary rows={holderSummaryRows(rows)} />
       <FundMapTable funds={funds} types={types} />
     </PettyPage>
+  );
+}
+
+/** สรุปรายเจ้าของเงินสด — เหลือในวงเงินเท่าไหร่ (วงเงิน − ยังไม่คืนยอด) รวมทุกวงเงินที่คนนั้นถือ (ผู้ใช้ขอ 25/11/2026) */
+function HolderSummary({ rows }: { rows: ReturnType<typeof holderSummaryRows> }) {
+  if (rows.length === 0) return null;
+  const TH = 'px-3 py-2.5 text-left text-xs font-medium text-ink-500 whitespace-nowrap';
+  const pct = (h: (typeof rows)[number]) => (h.fund_limit > 0 ? Math.max(0, Math.min(100, (h.left_in_limit / h.fund_limit) * 100)) : 0);
+  return (
+    <section className={`mt-8 border-t ${LINE} pt-6`}>
+      <h2 className="font-display text-lg font-semibold text-ink-900">สรุปรายเจ้าของเงินสด</h2>
+      <p className="mt-1 text-xs text-ink-500">เหลือในวงเงิน = วงเงิน − ใบที่อนุมัติจ่ายแล้วแต่ยังไม่คืนยอด · รวมทุกวงเงินที่คนนั้นถือ เฉพาะวงเงินที่ใช้งาน · เรียงจากคนที่ใช้วงเงินไปมากที่สุด (เหลือน้อยเป็น %) ก่อน</p>
+
+      {/* มือถือ */}
+      <ul className={`mt-3 divide-y ${LINE} sm:hidden`}>
+        {rows.map(h => (
+          <li key={h.holder_employee_id} className="py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-ink-900">{h.holder}</p>
+                <p className="text-xs text-ink-500">{h.funds.join(', ')}</p>
+              </div>
+              <p className={`shrink-0 font-display text-base font-semibold tabular-nums ${h.negative ? 'text-rose-700' : 'text-ink-900'}`}>{baht(h.left_in_limit)}</p>
+            </div>
+            <p className="mt-1 text-xs tabular-nums text-ink-500">วงเงิน {baht(h.fund_limit)} · ยังไม่คืน {baht(h.petty_committed)}</p>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-3 hidden overflow-x-auto sm:block">
+        <table className="w-full text-sm">
+          <thead className={`border-b ${LINE}`}>
+            <tr>
+              <th className={TH}>เจ้าของเงินสด</th>
+              <th className={TH}>วงเงินที่ถือ</th>
+              <th className={`${TH} text-right`}>วงเงิน</th>
+              <th className={`${TH} text-right`}>ยังไม่คืนยอด</th>
+              <th className={`${TH} text-right`}>เหลือในวงเงิน</th>
+              <th className={`${TH} w-40`} />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(h => (
+              <tr key={h.holder_employee_id} className="border-b border-[#f3f6fa] text-ink-900">
+                <td className="px-3 py-2.5">{h.holder}{h.holder !== h.holder_employee_id && <span className="ml-1 text-xs text-ink-500">{h.holder_employee_id}</span>}</td>
+                <td className="px-3 py-2.5 text-ink-700">{h.funds.join(', ')}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-ink-700">{baht(h.fund_limit)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{h.petty_committed ? `− ${baht(h.petty_committed)}` : baht(0)}</td>
+                <td className={`px-3 py-2.5 text-right font-semibold tabular-nums ${h.negative ? 'text-rose-700' : ''}`}>{baht(h.left_in_limit)}</td>
+                <td className="px-3 py-2.5">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-[#eef2f7]" title={`เหลือ ${pct(h).toFixed(0)}%`}>
+                    <div className={`h-full rounded-full ${pct(h) < 20 ? 'bg-rose-500' : 'bg-mint-500'}`} style={{ width: `${pct(h)}%` }} />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

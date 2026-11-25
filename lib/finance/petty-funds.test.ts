@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettyBalance, PettyFund } from '@/app/finance/types-petty';
-import { fundSummaryRows, grandTotals } from './petty-funds';
+import { fundSummaryRows, grandTotals, holderSummaryRows, type FundSummaryRow } from './petty-funds';
 
 const funds: PettyFund[] = [
   { id: 1, branch_code: '03', division_code: 'B02', holder_employee_id: '670108', holder_name: 'ณรงค์กรณ์ อัจฉริยญาติ', fund_limit: 10000, is_active: true },
@@ -33,4 +33,33 @@ describe('fundSummaryRows — หน้าสรุปยอดกองทุ�
   });
   test('รวมทั้งหมดเฉพาะกองทุนที่มีตัวเลข', () =>
     expect(grandTotals(rows)).toEqual({ advance_outstanding: 12200, petty_committed: 2263, available: 9937 }));
+});
+
+describe('holderSummaryRows — สรุปรายเจ้าของเงินสด', () => {
+  const row = (o: Partial<FundSummaryRow>): FundSummaryRow => ({
+    id: 1, branch_code: '03', division_code: 'B02', holder: 'เสถียรพงษ์', holder_employee_id: '690189',
+    fund_limit: 50000, is_active: true, advance_outstanding: 0, petty_committed: 0, available: 0, negative: false, ...o,
+  });
+  test('left in limit = limit − not yet returned (Advance not used)', () => {
+    const [h] = holderSummaryRows([row({ petty_committed: 10935, advance_outstanding: 0, available: -10935 })]);
+    expect([h.fund_limit, h.petty_committed, h.left_in_limit, h.available]).toEqual([50000, 10935, 39065, -10935]);
+    expect(h.negative).toBe(false);
+  });
+  test('one holder with two funds is summed', () => {
+    const out = holderSummaryRows([row({}), row({ id: 2, branch_code: '02', fund_limit: 30000, petty_committed: 620 })]);
+    expect(out).toHaveLength(1);
+    expect(out[0].funds).toEqual(['03 · B02', '02 · B02']);
+    expect(out[0].left_in_limit).toBe(79380);
+  });
+  test('closed funds are left out', () => expect(holderSummaryRows([row({ is_active: false })])).toEqual([]));
+  test('missing balance counts as 0', () =>
+    expect(holderSummaryRows([row({ petty_committed: null, advance_outstanding: null, available: null })])[0].left_in_limit).toBe(50000));
+  test('smallest share left first, not smallest baht', () => {
+    const out = holderSummaryRows([row({ id: 4, holder: 'ณชญาดา', holder_employee_id: '630039', fund_limit: 10000 }), row({ petty_committed: 25000 })]);
+    expect(out.map(h => h.holder_employee_id)).toEqual(['690189', '630039']);
+  });
+  test('least left first', () => {
+    const out = holderSummaryRows([row({}), row({ id: 3, holder: 'นวรัตน์', holder_employee_id: '680179', fund_limit: 30000, petty_committed: 620 })]);
+    expect(out.map(h => h.holder_employee_id)).toEqual(['680179', '690189']);
+  });
 });
