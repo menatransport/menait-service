@@ -33,6 +33,7 @@ import { ExpenseTypeCombobox } from '../../components/petty/ExpenseTypeCombobox'
 import { HeaderField } from '../../components/petty/HeaderField';
 import { ItemGrid, type DupHint } from '../../components/petty/ItemGrid';
 import { PettyFileDrop } from '../../components/petty/PettyFileDrop';
+import { PettyTypeGuide } from '../../components/petty/PettyTypeGuide';
 import { PettyTypeNote } from '../../components/petty/PettyTypeNote';
 import { pettyReview } from '../../components/petty/petty-confirm';
 import { Button, EmptyState, FIELD, HeaderMeta, LABEL, PettyPage, Req, Section, StepSection, StickyBar, baht2 } from '../../components/petty/ui';
@@ -65,6 +66,9 @@ function PettyClaimForm() {
   const [types, setTypes] = useState<PettyExpenseType[] | null>(null);
   const [funds, setFunds] = useState<PettyFund[] | null>(null);
   const [typeCode, setTypeCode] = useState('');
+  // การ์ดวิธีกรอก: เลือกประเภทแล้วต้องกดรับทราบก่อนกรอกต่อ ทุกครั้งที่เลือก (ผู้ใช้สั่ง 25/11/2026) — เก็บว่ารับทราบประเภทไหนไปแล้ว
+  const [ackedType, setAckedType] = useState('');
+  const [guideOpen, setGuideOpen] = useState(false);
   const [fundId, setFundId] = useState('');
   // วงเงินเห็นเฉพาะสาขาของศูนย์และแผนกที่เลือก และเลือกวงเงินของแผนกนั้นให้ — "ดูทุกวงเงิน" ถ้าต้องใช้วงอื่น (ผู้ใช้สั่ง 29/10/2026)
   const [fundPicked, setFundPicked] = useState(false);
@@ -388,7 +392,8 @@ function PettyClaimForm() {
   // หมวดที่บังคับเฉพาะบางกรณี (เช่น สำเนาบัตรเมื่อโอนเข้าบุคคล) — บอกเงื่อนไขบนช่องแนบเลย
   const conditionOf = Object.fromEntries(requiredDocs(spec).filter(d => d.condition).map(d => [d.key, d.condition!]));
 
-  const footer = type ? (
+  const acked = editing || (!!typeCode && ackedType === typeCode);
+  const footer = type && acked ? (
     <StickyBar>
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
@@ -424,7 +429,7 @@ function PettyClaimForm() {
           <span className="font-medium">เหตุที่ถูกตีกลับ:</span> {editClaim.return_reason}
         </div>
       )}
-      <StepSection index={next()} label="ประเภทการเบิก" done={!!type}
+      <StepSection index={next()} label="ประเภทการเบิก" done={!!type && acked}
         hint={editing ? 'แก้ใบเดิม ประเภทเปลี่ยนไม่ได้ ถ้าผิดประเภทให้เปิดใบใหม่' : undefined}>
         <label htmlFor="petty-type" className="sr-only">ประเภทการเบิก</label>
         {editing ? (
@@ -432,11 +437,23 @@ function PettyClaimForm() {
         ) : (
           <ExpenseTypeCombobox id="petty-type" types={types} value={typeCode} onChange={setTypeCode} />
         )}
-        {type && <div className="mt-4"><PettyTypeNote spec={spec} typeName={type.name_th} /></div>}
+        {type && !acked && (
+          <div className="mt-4">
+            <PettyTypeGuide spec={spec} code={type.code} typeName={type.name_th}
+              onAck={() => { setAckedType(type.code); setGuideOpen(false); }} />
+          </div>
+        )}
+        {type && acked && (guideOpen ? (
+          <div className="mt-4"><PettyTypeGuide spec={spec} code={type.code} typeName={type.name_th} onClose={() => setGuideOpen(false)} /></div>
+        ) : (<>
+          <div className="mt-4"><PettyTypeNote spec={spec} typeName={type.name_th} /></div>
+          <button type="button" onClick={() => setGuideOpen(true)}
+            className="mt-2 text-sm font-medium text-brand-700 underline underline-offset-2 hover:text-brand-800">ดูวิธีกรอกอีกครั้ง</button>
+        </>))}
         {!type && <p className="mt-2 text-sm text-ink-500">เลือกประเภทก่อน แล้วขั้นถัดไปจะขึ้นตามประเภท</p>}
       </StepSection>
 
-      {type && (<>
+      {type && acked && (<>
         <StepSection index={next()} label="วันที่และศูนย์" done={!!header.expense_date && !!costCenter}>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
