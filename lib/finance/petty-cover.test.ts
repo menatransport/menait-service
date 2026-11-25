@@ -65,10 +65,7 @@ describe('coverSheetHtml', () => {
     expect(html).toContain('03-B02-2610-001');
     expect(html).toContain('03-B02-2610-002');
   });
-  test('shows the group total and baht text', () => {
-    expect(html).toContain('ยอดจ่ายสุทธิ 2,840.00 บาท');
-    expect(html).toContain('สองพันแปดร้อยสี่สิบบาทถ้วน');
-  });
+  test('shows the group total in the code summary', () => expect(html).toContain('2,840.00'));
   test('escapes data', () => {
     const nasty = coverSheetHtml({ group: groupByClerk(CLAIMS)[0], types: TYPES,
       clerkName: '<script>bad()</script>', branchCode: '03', divisionCode: 'B02' });
@@ -84,10 +81,10 @@ describe('ใบปะหน้า มาตรฐานเดียวกับ
     expect(html).toContain('<div class="t1">ใบปะหน้าเอกสารเบิกเงินสดย่อย</div>');
     expect(html).toContain('(Petty Cash Cover Sheet)');
   });
-  test('ตารางรายการแบบ Advance · สรุปยอดเป็นบรรทัดท้าย ไม่มีกล่องยอดใหญ่ (25/11/2026)', () => {
+  test('ตารางรายการแบบ Advance · ไม่มีกล่องยอดหรือบรรทัดสรุปท้าย ยอดอยู่ในตารางรหัสด้านบน (25/11/2026)', () => {
     expect(html).toContain('<table class="items">');
-    expect(html).toContain('<div class="cover-sum">');
     expect(html).not.toContain('<div class="tot">');
+    expect(html).not.toContain('cover-sum');
   });
   test('ลงนาม ผู้ส่ง/ผู้รับ (บัญชี)', () => {
     expect(html).toContain('<th>ผู้ส่งเอกสาร</th>');
@@ -222,15 +219,13 @@ describe('ใบปะหน้า 1 แผ่นต่อฟลีท × พจ
     expect(html).not.toContain('<span>ฟลีท</span>');
     expect(html).toContain('<span>แผ่น</span><b>2/4</b>');
   });
-  test('section is "รายการใบเบิก" with the code summary on top, rows show net only', () => {
+  test('section is "รายการใบเบิก" with the code summary on top, rows show expense, WHT and net', () => {
     expect(html).toContain('รายการใบเบิก');
     expect(html).not.toContain('ใบเบิกที่ส่งมาด้วย');
     expect(html.indexOf('<th>รหัสใบสำคัญจ่าย</th>')).toBeLessThan(html.indexOf('<th style="width:34mm">เลขที่ใบเบิก</th>'));
     expect(html).toContain('<td class="a">1,200.00</td><td class="a">30.00</td><td class="a">1,170.00</td>');
-    expect(html).toContain('<td class="nw">ML</td><td>LBDD26090931</td><td class="a">970.00</td>');
+    expect(html).toContain('<td class="nw">ML</td><td>LBDD26090931</td><td class="a">1,000.00</td><td class="a">30.00</td><td class="a">970.00</td>');
   });
-  test('closing line sums expense, WHT and net', () =>
-    expect(html).toContain('รวม 2 ใบ · ยอดค่าใช้จ่าย 1,200.00 · WHT 30.00 · <b>ยอดจ่ายสุทธิ 1,170.00 บาท</b>'));
   test('a single part has no page counter', () => {
     const one = coverSheetHtml({ group: roundGroup({ holder_employee_id: 'h', claims: [claims[0]] }), types: TYPES, clerkName: 'x', branchCode: '03', divisionCode: 'B02' });
     expect(one).not.toContain('<span>แผ่น</span>');

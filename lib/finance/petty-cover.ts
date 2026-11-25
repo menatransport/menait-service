@@ -1,5 +1,4 @@
 import type { PettyClaim, PettyExpenseType } from '@/app/finance/types-petty';
-import { bahtText } from '@/lib/finance/bahtText';
 import { round2 } from '@/lib/finance/status';
 import { bangkokDate, docHead, field, PETTY_LANDSCAPE_CSS, sec, signBlock, thaiDate } from '@/lib/finance/petty-doc';
 import { printableDocs, requiredDocs } from '@/lib/finance/petty-preset';
@@ -127,11 +126,6 @@ export function checklistHtml(group: ClerkGroup, types: readonly PettyExpenseTyp
   return `<table class="items"><thead><tr><th style="width:34mm">เลขที่ใบเบิก</th><th>เอกสารที่พิมพ์จากระบบ</th><th>หลักฐานที่ต้องแนบ</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-/** สรุปยอดท้ายตารางแบบบรรทัดเดียว ไม่ใช้กล่องยอดใหญ่ (ผู้ใช้สั่ง 25/11/2026) */
-const COVER_SUM_CSS = `
-.cover-sum { margin: 4px 0 2px; padding: 4px 8px; border-top: 1px solid var(--line); font-size: 11.5px; text-align: right; }
-.cover-sum span { margin-left: 6px; color: var(--muted); }`;
-
 /** ใบปะหน้าส่งบัญชี — โครงและสไตล์เดียวกับใบ Advance */
 export function coverSheetHtml(opts: {
   group: ClerkGroup;
@@ -181,11 +175,10 @@ ${sec(2, 'รายการใบเบิก', 'Documents')}
 ${codes.length > 1 ? `<tr><td><b>รวม</b></td><td class="c">${rows.length}</td><td class="a">${money(amount)}</td><td class="a">${whtCell(wht)}</td><td class="a">${money(net)}</td></tr>` : ''}</tbody></table>
 <table class="items"><thead><tr><th class="c" style="width:8mm">#</th><th style="width:34mm">เลขที่ใบเบิก</th><th>ประเภท</th>
 <th>จ่ายให้</th><th style="width:34mm">ช่วงวันที่</th><th style="width:14mm">ฟลีท</th><th style="width:28mm">เลขที่ DD</th>
-<th class="a" style="width:28mm">ยอดจ่ายสุทธิ</th></tr></thead>
+<th class="a" style="width:24mm">ยอดค่าใช้จ่าย</th><th class="a" style="width:18mm">WHT</th><th class="a" style="width:24mm">ยอดจ่ายสุทธิ</th></tr></thead>
 <tbody>${rows.map(r => `<tr><td class="c">${r.no}</td><td class="nw">${esc(r.formId)}</td><td>${esc(r.typeName)}</td><td>${esc(r.payee)}</td>` +
-    `<td>${esc(r.period)}</td><td class="nw">${esc(r.fleet)}</td><td>${esc(r.ddNo)}</td><td class="a">${money(r.net)}</td></tr>`).join('')}</tbody></table>
-<div class="cover-sum">รวม ${rows.length} ใบ · ยอดค่าใช้จ่าย ${money(amount)} · WHT ${whtCell(wht)} · <b>ยอดจ่ายสุทธิ ${money(net)} บาท</b>
-<span>(${esc(bahtText(net))})</span></div>
+    `<td>${esc(r.period)}</td><td class="nw">${esc(r.fleet)}</td><td>${esc(r.ddNo)}</td><td class="a">${money(r.amount)}</td>` +
+    `<td class="a">${whtCell(r.wht)}</td><td class="a">${money(r.net)}</td></tr>`).join('')}</tbody></table>
 
 ${sec(3, 'รายการเอกสารที่ต้องรวบรวม', 'Checklist')}
 ${checklistHtml(part, opts.types)}
@@ -205,7 +198,7 @@ ${signBlock(4, 'ลงนาม', 'Signatures', isRound
 
   return wrapDocument({
     title: `ใบปะหน้าเงินสดย่อย ${opts.clerkName}`,
-    body, extraCss: PETTY_LANDSCAPE_CSS + COVER_SUM_CSS, fontCss: true,  // แนวนอน (ผู้ใช้สั่ง 7/11/2026)
+    body, extraCss: PETTY_LANDSCAPE_CSS, fontCss: true,  // แนวนอน (ผู้ใช้สั่ง 7/11/2026)
     footerHtml: documentControlFooter({
       ref, name: 'Petty Cash Cover Sheet (PC)', owner: opts.clerkName,
       approvedBy: '', approvedDate: '', printed: printedNow(),
