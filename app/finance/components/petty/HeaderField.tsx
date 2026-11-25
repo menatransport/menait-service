@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import type { PettySpecField } from '@/app/finance/types-petty';
 import { BANKS } from '@/lib/finance/bank';
 import { payeeAccountHint, payeeAccountType, type PayeeAccountType } from '@/lib/finance/petty-payee';
@@ -22,6 +23,25 @@ export function HeaderField({ field, value, form, onChange }: {
       {field.required && <Req />}
     </>
   );
+  // วันที่ล่าสุดที่ถามฟลีทไป — คำตอบของวันเก่าที่มาช้าไม่ทับของวันใหม่
+  const askedDate = useRef<string | null>(null);
+
+  /** เปลี่ยนวันที่ทำรายการในหัวใบ + มีรถแล้ว → ถาม พจส./พจร. และคนขับของวันใหม่ (ค่าแนะนำ แก้เองได้) — แบบเดียวกับแถวค่าชั่ง (25/11/2026) */
+  function onDateChange(next: string) {
+    onChange({ [field.key]: next });
+    const code = String(form.truck_code ?? '');
+    if (field.key !== 'event_date' || !code || !/^\d{4}-\d{2}-\d{2}$/.test(next)) return;
+    askedDate.current = next;
+    fleetAt({ truck_code: code, truck_plate: String(form.truck_plate ?? ''), date: next })
+      .then(info => {
+        if (askedDate.current !== next) return;
+        const row = { truck_code: code, truck_type: form.truck_type, driver_name: form.driver, driver_code: form.driver_code, driver_role: form.driver_role };
+        const filled = applyFleet(row, info, { dateChanged: true });
+        onChange({ fleet: filled.fleet, truck_type: filled.truck_type, driver: filled.driver_name ?? form.driver,
+          driver_code: filled.driver_code ?? null, driver_role: filled.driver_role });
+      })
+      .catch(() => { /* ไม่รู้สถานะก็เปิดใบได้ เลือกเอง */ });
+  }
 
   if (field.type === 'truck') {
     return (
@@ -146,7 +166,7 @@ export function HeaderField({ field, value, form, onChange }: {
         type={field.type === 'date' ? 'date' : 'text'}
         inputMode={numeric ? 'decimal' : undefined}
         placeholder={field.type === 'employee' ? 'ชื่อ-สกุล' : numeric ? '0.00' : undefined}
-        onChange={e => onChange({ [field.key]: e.target.value })} />
+        onChange={e => (field.type === 'date' ? onDateChange(e.target.value) : onChange({ [field.key]: e.target.value }))} />
     </label>
   );
 }
