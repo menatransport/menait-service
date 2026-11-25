@@ -42,6 +42,10 @@ export function RoundCard({ round, mode, highlight = false, processing = false, 
         <Field label="ส่งเคลียร์เมื่อ" value={formatDate(round.submitted_at)} />
         <div className="col-span-2"><Field label="วงเงิน" value={round.branch_code && round.division_code ? fundLabel({ branch_code: round.branch_code, division_code: round.division_code }) : '-'} /></div>
         {mode === 'head-history' && <Field label="วันที่ดำเนินการ" value={formatDate(round.clear_approved_at)} />}
+        {/* รอบที่หัวหน้าอนุมัติไปแล้ว บอกว่าตอนนี้ไปถึงไหน แบบการ์ดใบเบิก (ผู้ใช้ขอ 25/11/2026) · รอบที่ไม่อนุมัติไม่ต้อง ใบหลุดรอบไปแล้ว */}
+        {mode === 'head-history' && !rejected && (
+          <Field label="ตอนนี้อยู่ที่" value={<RoundStatusPill status={round.status} />} />
+        )}
         {mode === 'holder' && decided && (
           <Field label={rejected ? 'หัวหน้าที่ไม่อนุมัติ' : 'หัวหน้าที่อนุมัติ'} value={round.clear_approved_by_name ?? round.clear_approved_by ?? '-'} />
         )}
