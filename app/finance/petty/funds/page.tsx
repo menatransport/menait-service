@@ -12,7 +12,7 @@ import { FundMapTable } from '../../components/petty/FundMapTable';
 import { EmptyState, LINE, PettyPage, StatRow } from '../../components/petty/ui';
 
 const TITLE = 'ยอดกองทุนเงินสดย่อย';
-const CAPTION = 'Advance คงเหลือ · ใบที่ยังไม่คืนยอด · พร้อมอนุมัติ ของทุกกองทุน';
+const CAPTION = 'คงเหลือ · ใบที่ยังไม่คืนยอด · พร้อมอนุมัติ ของทุกกองทุน';
 const baht = (n: number | null) => n === null ? '-' : n.toLocaleString('th-TH', { minimumFractionDigits: 2 });
 
 export default function PettyFundsPage() {
@@ -58,7 +58,7 @@ export default function PettyFundsPage() {
     <PettyPage title={TITLE} caption={CAPTION}>
       <StatRow items={[
         { label: 'กองทุน', value: rows.length },
-        { label: 'Advance คงเหลือ (บาท)', value: baht(totals.advance_outstanding) },
+        { label: 'คงเหลือ (บาท)', value: baht(totals.advance_outstanding) },
         { label: 'ยังไม่คืนยอด (บาท)', value: baht(totals.petty_committed) },
         { label: 'พร้อมอนุมัติ (บาท)', value: baht(totals.available) },
         { label: 'ติดลบ', value: negatives },
@@ -75,7 +75,7 @@ export default function PettyFundsPage() {
               </div>
               <p className={`shrink-0 font-display text-base font-semibold tabular-nums ${r.negative ? 'text-rose-700' : 'text-ink-900'}`}>{baht(r.available)}</p>
             </div>
-            <p className="mt-1 text-xs tabular-nums text-ink-500">วงเงิน {baht(r.fund_limit)} · Advance {baht(r.advance_outstanding)} · ยังไม่คืน {r.petty_committed === null ? '-' : baht(r.petty_committed)}</p>
+            <p className="mt-1 text-xs tabular-nums text-ink-500">วงเงิน {baht(r.fund_limit)} · คงเหลือ {baht(r.advance_outstanding)} · ยังไม่คืน {r.petty_committed === null ? '-' : baht(r.petty_committed)}</p>
           </li>
         ))}
         {rows.length === 0 && <li className="py-10 text-center text-sm text-ink-500">ยังไม่มีกองทุน</li>}
@@ -88,7 +88,7 @@ export default function PettyFundsPage() {
               <th className={TH}>สาขา · ดิวิชัน</th>
               <th className={TH}>เจ้าของเงินสด</th>
               <th className={`${TH} text-right`}>วงเงิน</th>
-              <th className={`${TH} text-right`}>Advance คงเหลือ</th>
+              <th className={`${TH} text-right`}>คงเหลือ</th>
               <th className={`${TH} text-right`}>ยังไม่คืนยอด</th>
               <th className={`${TH} text-right`}>พร้อมอนุมัติ</th>
               <th className={TH}>สถานะ</th>
@@ -108,20 +108,10 @@ export default function PettyFundsPage() {
             ))}
             {rows.length === 0 && <tr><td colSpan={7} className="py-10 text-center text-ink-500">ยังไม่มีกองทุน</td></tr>}
           </tbody>
-          {rows.length > 0 && (
-            <tfoot className={`border-t ${LINE} font-semibold text-ink-900`}>
-              <tr>
-                <td className="px-3 py-2.5" colSpan={3}>รวม {rows.length} กองทุน</td>
-                <td className="px-3 py-2.5 text-right tabular-nums">{baht(totals.advance_outstanding)}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums">− {baht(totals.petty_committed)}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums">{baht(totals.available)}</td>
-                <td />
-              </tr>
-            </tfoot>
-          )}
+          {/* แถวรวมท้ายตารางเอาออก (ผู้ใช้สั่ง 25/11/2026) ยอดรวมดูที่แถวสรุปด้านบน */}
         </table>
       </div>
-      <p className="mt-4 text-xs text-ink-500">พร้อมอนุมัติ = Advance คงเหลือ − ใบที่อนุมัติแล้วแต่ยังไม่ทำจ่ายคืน · ติดลบได้ แต่ควรเร่งส่งเคลียร์</p>
+      <p className="mt-4 text-xs text-ink-500">พร้อมอนุมัติ = คงเหลือ − ใบที่อนุมัติแล้วแต่ยังไม่ทำจ่ายคืน · ติดลบได้ แต่ควรเร่งส่งเคลียร์</p>
       <FundMapTable funds={funds} types={types} />
     </PettyPage>
   );
