@@ -12,15 +12,17 @@ import { fundLabel } from './petty-fund-label';
 /** คอลัมน์ฟลีท (ผู้ใช้สั่ง 17/11/2026 เปลี่ยนหัวจาก ประเภทรถ): ฟลีทจากแถวรายการ (Mixer S → MS · Mixer L → ML · อื่นตามชื่อ) · ใบไม่มีรถ = รหัสใบสำคัญจ่าย/แผนก */
 export const FLEET_SHORT: Record<string, string> = { 'Mixer S': 'MS', 'Mixer L': 'ML', Trailer: 'TR', 'Side curtain': 'SC' };
 
+/** ฟลีทแบบย่อของใบ (MS / ML / TR / SC · หลายฟลีทต่อด้วย +) · ใบไม่มีรถ = '' */
+export function fleetShortOf(claim: Pick<PettyClaim, 'items'>): string {
+  const items = claim.items ?? [];
+  const fleets = [...new Set(items.map(i => (i.fleet ?? '').trim()).filter(Boolean))];
+  if (fleets.length) return fleets.map(f => FLEET_SHORT[f] ?? f).join('+');
+  const types = [...new Set(items.map(i => (i.truck_type ?? '').trim()).filter(Boolean))];
+  return types.map(t => (t === 'โม่เล็ก' ? 'MS' : t === 'โม่ใหญ่' ? 'ML' : t)).join('+');
+}
+
 export function vehicleTypeOf(claim: PettyClaim): string {
-  const fleets = [...new Set(claim.items.map(i => (i.fleet ?? '').trim()).filter(Boolean))];
-  if (fleets.length === 0) {
-    const types = [...new Set(claim.items.map(i => (i.truck_type ?? '').trim()).filter(Boolean))];
-    const byType = types.map(t => (t === 'โม่เล็ก' ? 'MS' : t === 'โม่ใหญ่' ? 'ML' : t));
-    if (byType.length) return byType.join('+');
-    return claimExpenseCode(claim) || '-';
-  }
-  return fleets.map(f => FLEET_SHORT[f] ?? f).join('+');
+  return fleetShortOf(claim) || claimExpenseCode(claim) || '-';
 }
 
 // ลำดับคอลัมน์ตามตัวอย่างของผู้ใช้ (16/11/2026): 7 คอลัมน์แรกตรงตัวอย่าง คอลัมน์ประกอบอยู่ขวาสุด

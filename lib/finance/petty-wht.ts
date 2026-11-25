@@ -9,6 +9,25 @@ export const WHT_MONTH_THRESHOLD = 1000;
 
 export const whtFromRate = (amount: number, rate: number) => round2((Number(amount) || 0) * rate);
 
+/**
+ * ฐานคิด 1% / 3% = ยอดก่อน VAT ที่ผู้เบิกพิมพ์เอง (ผู้ใช้สั่ง 25/11/2026) · ว่างหรือไม่ใช่ตัวเลข = ยอดรวมใบ
+ * ระบบไม่รู้ว่าบิลไหนมี VAT (ประเภทค่าใช้จ่ายตั้ง VAT 0 หมด) จึงให้คนดูจากบิลแล้วใส่
+ */
+export function whtBase(total: number, preVat: string | number | null | undefined): number {
+  const n = Number(String(preVat ?? '').replace(/,/g, '').trim());
+  return String(preVat ?? '').trim() && Number.isFinite(n) && n > 0 ? round2(n) : round2(Number(total) || 0);
+}
+
+/** ยอดก่อน VAT ต้องเป็นตัวเลขมากกว่า 0 และไม่เกินยอดใบ · '' = ไม่ใส่ */
+export function preVatProblem(raw: string | number | null | undefined, total: number): string | null {
+  const text = String(raw ?? '').replace(/,/g, '').trim();
+  if (!text) return null;
+  const n = Number(text);
+  if (!Number.isFinite(n) || n <= 0) return 'ยอดก่อน VAT ต้องเป็นตัวเลขมากกว่า 0';
+  if (n > total) return 'ยอดก่อน VAT เกินยอดรวมใบ';
+  return null;
+}
+
 export const netAmount = (amount: number, wht: number | null | undefined) => round2((Number(amount) || 0) - (Number(wht) || 0));
 
 /** ยอดหักต้องเป็นตัวเลข ≥ 0 และไม่เกินยอดใบ · '' = 0 */

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { netAmount, payeeWarning, whtFromRate, whtProblem } from './petty-wht';
+import { netAmount, payeeWarning, preVatProblem, whtBase, whtFromRate, whtProblem } from './petty-wht';
 
 describe('หัก ณ ที่จ่าย (ข้อ 12–13 ผู้ใช้สั่ง 7/11/2026)', () => {
   test('ปุ่มช่วย 1%/3% และยอดโอนจริง', () => {
@@ -21,5 +21,20 @@ describe('หัก ณ ที่จ่าย (ข้อ 12–13 ผู้ใช
     expect(payeeWarning(info, 200, 0)).toBe('เจ้านี้เดือนนี้จ่ายไปแล้ว 900.00 บาท (2 ใบ) รวมใบนี้ 1,100.00 เกิน 1,000.00 ควรหัก ณ ที่จ่าย');
     expect(payeeWarning(info, 200, 33)).toContain('ใส่หัก ณ ที่จ่ายไว้แล้ว');
     expect(payeeWarning(null, 200, 0)).toBeNull();
+  });
+});
+
+describe('ฐาน 1%/3% = ยอดก่อน VAT ที่ผู้เบิกใส่ (25/11/2026)', () => {
+  test('blank uses the claim total', () => expect(whtBase(1070, '')).toBe(1070));
+  test('typed pre-VAT amount is the base', () => {
+    expect(whtBase(1070, '1000')).toBe(1000);
+    expect(whtFromRate(whtBase(1070, '1,000'), 0.03)).toBe(30);
+  });
+  test('junk falls back to the total', () => expect(whtBase(500, 'abc')).toBe(500));
+  test('pre-VAT must be > 0 and not above the total', () => {
+    expect(preVatProblem('', 1070)).toBeNull();
+    expect(preVatProblem('1000', 1070)).toBeNull();
+    expect(preVatProblem('0', 1070)).toBe('ยอดก่อน VAT ต้องเป็นตัวเลขมากกว่า 0');
+    expect(preVatProblem('1100', 1070)).toBe('ยอดก่อน VAT เกินยอดรวมใบ');
   });
 });

@@ -6,6 +6,7 @@ import { printableDocs, requiredDocs } from '@/lib/finance/petty-preset';
 import { documentControlFooter, esc, money, printedNow, wrapDocument, type ESign } from '@/lib/finance/printShared';
 import { fundCostCenterLine } from '@/lib/finance/petty-cost-centers';
 import { claimExpenseCode, expenseCodeLabel } from '@/lib/finance/petty-expense-code';
+import { fleetShortOf } from '@/lib/finance/petty-report';
 
 export type ClerkGroup = { clerk: string; claims: PettyClaim[]; total: number };
 
@@ -40,17 +41,57 @@ export function clerkNameOf(group: ClerkGroup): string {
 
 export type CoverRow = {
   no: number; formId: string; typeName: string; payee: string; ddNo: string;
-  period: string; amount: number; code: string;
+  period: string; amount: number; code: string; fleet: string; wht: number; net: number;
 };
 
+const whtOf = (c: PettyClaim) => round2(Number(c.wht_amount ?? 0));
+const netOf = (c: PettyClaim) => round2(c.amount - whtOf(c));
+
+/** พจส. / พจร. ของใบ จากแถวรายการ (ใบหัวเดียวใช้ detail) · ไม่มีคนขับ = '' */
+export function claimRole(claim: Pick<PettyClaim, 'items' | 'detail'>): string {
+  const roles = new Set((claim.items ?? []).map(i => String(i.driver_role ?? '').trim()).filter(Boolean));
+  const head = String(claim.detail?.driver_role ?? '').trim();
+  if (head) roles.add(head);
+  return [...roles].sort().join('+');
+}
+
+export type CoverPart = ClerkGroup & { fleet: string; role: string };
+
+/**
+ * ใบปะหน้า 1 แผ่นต่อฟลีท × พจส./พจร. (ผู้ใช้สั่ง 25/11/2026) — บัญชีลงรหัสใบสำคัญจ่ายแยกกองได้เลย
+ * เรียงฟลีทตามตัวอักษร ใบไม่มีรถไว้ท้าย · ใบในแผ่นคงลำดับเดิม
+ */
+export function splitByFleetRole(group: ClerkGroup): CoverPart[] {
+  const parts = new Map<string, CoverPart>();
+  for (const claim of group.claims) {
+    const fleet = fleetShortOf(claim);
+    const role = claimRole(claim);
+    const key = `${fleet}|${role}`;
+    const part = parts.get(key) ?? { clerk: group.clerk, claims: [], total: 0, fleet, role };
+    part.claims.push(claim);
+    part.total = round2(part.total + claim.amount);
+    parts.set(key, part);
+  }
+  const rank = (p: CoverPart) => `${p.fleet ? 0 : 1}|${p.fleet}|${p.role ? 0 : 1}|${p.role}`;
+  return [...parts.values()].sort((a, b) => rank(a).localeCompare(rank(b)));
+}
+
+/** ป้ายฟลีทของแผ่น เช่น "ML · พจส." · ไม่มีรถ = "ไม่มีรถ" */
+export function partLabel(part: Pick<CoverPart, 'fleet' | 'role'>): string {
+  return [part.fleet || 'ไม่มีรถ', part.role].filter(Boolean).join(' · ');
+}
+
 /** สรุปยอดตามรหัสใบสำคัญจ่าย (ข้อ 8 ผู้ใช้สั่ง 7/11/2026 "ใบสำคัญจ่ายแยกตามรหัส") — บัญชีลงบัญชีแยกกอง */
-export function codeSummary(group: ClerkGroup): { code: string; label: string; count: number; amount: number }[] {
-  const buckets = new Map<string, { code: string; label: string; count: number; amount: number }>();
+export type CodeRow = { code: string; label: string; count: number; amount: number; wht: number; net: number };
+export function codeSummary(group: ClerkGroup): CodeRow[] {
+  const buckets = new Map<string, CodeRow>();
   for (const claim of group.claims) {
     const code = claimExpenseCode(claim) || '-';
-    const row = buckets.get(code) ?? { code, label: expenseCodeLabel(code) || 'ไม่ระบุรหัส', count: 0, amount: 0 };
+    const row = buckets.get(code) ?? { code, label: expenseCodeLabel(code) || 'ไม่ระบุรหัส', count: 0, amount: 0, wht: 0, net: 0 };
     row.count += 1;
     row.amount = round2(row.amount + claim.amount);
+    row.wht = round2(row.wht + whtOf(claim));
+    row.net = round2(row.net + netOf(claim));
     buckets.set(code, row);
   }
   return [...buckets.values()].sort((a, b) => a.code.localeCompare(b.code));
@@ -68,6 +109,9 @@ export function coverRows(group: ClerkGroup, types: readonly PettyExpenseType[])
       : thaiDate(claim.period_from ?? claim.expense_date),
     amount: claim.amount,
     code: claimExpenseCode(claim),
+    fleet: fleetShortOf(claim) || '-',
+    wht: whtOf(claim),
+    net: netOf(claim),
   }));
 }
 
@@ -100,15 +144,25 @@ export function coverSheetHtml(opts: {
   /** เวลาที่พิมพ์ (ใส่ในเทสต์) — วันที่บนใบคิดตามเวลาไทย */
   now?: Date;
 }): string {
-  const rows = coverRows(opts.group, opts.types);
-  const codes = codeSummary(opts.group);  // แยกตามรหัสใบสำคัญจ่าย (ข้อ 8)
   const isRound = opts.mode === 'round';
   const ref = opts.batchNo ?? opts.group.claims[0]?.form_id ?? '-';
   const today = thaiDate(bangkokDate((opts.now ?? new Date()).toISOString()));
+  const parts = splitByFleetRole(opts.group);  // 1 แผ่นต่อฟลีท × พจส./พจร. (25/11/2026)
+  const body = parts.map((part, i) => coverPart(part, i, parts.length)).join('\n');
 
-  const body = `<section class="doc-part">
-${docHead({ title: 'ใบปะหน้าเอกสารเบิกเงินสดย่อย', english: '(Petty Cash Cover Sheet)', logoUrl: opts.logoUrl,
-    meta: [['อ้างอิง', ref], ['วันที่', today]] })}
+  function coverPart(part: CoverPart, index: number, count: number): string {
+  const rows = coverRows(part, opts.types);
+  const codes = codeSummary(part);  // แยกตามรหัสใบสำคัญจ่าย (ข้อ 8)
+  const amount = round2(rows.reduce((s, r) => s + r.amount, 0));
+  const wht = round2(rows.reduce((s, r) => s + r.wht, 0));
+  const net = round2(rows.reduce((s, r) => s + r.net, 0));
+  const meta: [string, string][] = [['รหัสใบสำคัญจ่าย', codes.map(c => c.code).join(', ')], ['ฟลีท', partLabel(part)],
+    ['อ้างอิง', ref], ['วันที่', today]];
+  if (count > 1) meta.push(['แผ่น', `${index + 1}/${count}`]);
+  const whtCell = (n: number) => (n > 0 ? money(n) : '-');
+
+  return `<section class="doc-part">
+${docHead({ title: 'ใบปะหน้าเอกสารเบิกเงินสดย่อย', english: '(Petty Cash Cover Sheet)', logoUrl: opts.logoUrl, meta })}
 
 ${sec(1, 'ผู้ส่งเอกสาร', 'Sender')}
 <div class="grid">${field(isRound ? 'เจ้าของเงินสด (ผู้อนุมัติจ่าย)' : 'เจ้าหน้าที่ผู้เปิดใบ', opts.clerkName)}${field('ส่งถึง', 'ฝ่ายบัญชีและการเงิน')}
@@ -116,16 +170,21 @@ ${field('สาขา · แผนก', fundCostCenterLine({ branch_code: opts.b
 
 ${sec(2, 'ใบเบิกที่ส่งมาด้วย', 'Documents')}
 <table class="items"><thead><tr><th class="c" style="width:8mm">#</th><th style="width:34mm">เลขที่ใบเบิก</th><th>ประเภท</th>
-<th>จ่ายให้</th><th style="width:36mm">ช่วงวันที่</th><th style="width:22mm">รหัส</th><th style="width:28mm">เลขที่ DD</th><th class="a" style="width:26mm">จำนวนเงิน</th></tr></thead>
+<th>จ่ายให้</th><th style="width:34mm">ช่วงวันที่</th><th style="width:14mm">ฟลีท</th><th style="width:28mm">เลขที่ DD</th>
+<th class="a" style="width:24mm">ยอดค่าใช้จ่าย</th><th class="a" style="width:18mm">WHT</th><th class="a" style="width:24mm">ยอดจ่ายสุทธิ</th></tr></thead>
 <tbody>${rows.map(r => `<tr><td class="c">${r.no}</td><td class="nw">${esc(r.formId)}</td><td>${esc(r.typeName)}</td><td>${esc(r.payee)}</td>` +
-    `<td>${esc(r.period)}</td><td class="nw">${esc(r.code || '-')}</td><td>${esc(r.ddNo)}</td><td class="a">${money(r.amount)}</td></tr>`).join('')}</tbody></table>
+    `<td>${esc(r.period)}</td><td class="nw">${esc(r.fleet)}</td><td>${esc(r.ddNo)}</td><td class="a">${money(r.amount)}</td>` +
+    `<td class="a">${whtCell(r.wht)}</td><td class="a">${money(r.net)}</td></tr>`).join('')}</tbody></table>
 <div class="sum"><div class="dates" style="grid-template-columns:1fr">
-<table class="items" style="margin-top:0"><thead><tr><th>รหัสใบสำคัญจ่าย</th><th class="c" style="width:18mm">จำนวนใบ</th><th class="a" style="width:30mm">จำนวนเงิน</th></tr></thead>
-<tbody>${codes.map(c => `<tr><td>${esc(c.label)}</td><td class="c">${c.count}</td><td class="a">${money(c.amount)}</td></tr>`).join('')}</tbody></table></div>
-${totalBox('รวมทั้งสิ้น', money(opts.group.total), bahtText(opts.group.total))}</div>
+<table class="items" style="margin-top:0"><thead><tr><th>รหัสใบสำคัญจ่าย</th><th class="c" style="width:16mm">จำนวนใบ</th>
+<th class="a" style="width:26mm">ยอดค่าใช้จ่าย</th><th class="a" style="width:20mm">WHT</th><th class="a" style="width:26mm">ยอดจ่ายสุทธิ</th></tr></thead>
+<tbody>${codes.map(c => `<tr><td>${esc(c.label)}</td><td class="c">${c.count}</td><td class="a">${money(c.amount)}</td>` +
+    `<td class="a">${whtCell(c.wht)}</td><td class="a">${money(c.net)}</td></tr>`).join('')}
+${codes.length > 1 ? `<tr><td><b>รวม</b></td><td class="c">${rows.length}</td><td class="a">${money(amount)}</td><td class="a">${whtCell(wht)}</td><td class="a">${money(net)}</td></tr>` : ''}</tbody></table></div>
+${wht > 0 ? totalBox('ยอดจ่ายสุทธิ', money(net), bahtText(net)) : totalBox('รวมทั้งสิ้น', money(amount), bahtText(amount))}</div>
 
 ${sec(3, 'รายการเอกสารที่ต้องรวบรวม', 'Checklist')}
-${checklistHtml(opts.group, opts.types)}
+${checklistHtml(part, opts.types)}
 
 ${signBlock(4, 'ลงนาม', 'Signatures', isRound
     ? [
@@ -138,6 +197,7 @@ ${signBlock(4, 'ลงนาม', 'Signatures', isRound
       { title: 'ผู้รับเอกสาร (บัญชี)', name: '' },
     ])}
 </section>`;
+  }
 
   return wrapDocument({
     title: `ใบปะหน้าเงินสดย่อย ${opts.clerkName}`,

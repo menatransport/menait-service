@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { clerkNameOf, codeSummary, coverRows, coverSheetHtml, groupByClerk, roundGroup } from './petty-cover';
+import { claimRole, clerkNameOf, codeSummary, coverRows, coverSheetHtml, groupByClerk, partLabel, roundGroup, splitByFleetRole } from './petty-cover';
 import type { PettyClaim } from '@/app/finance/types-petty';
 
 const CLAIMS = [
@@ -172,8 +172,8 @@ describe('สรุปตามรหัสใบสำคัญจ่าย (�
       { ...CLAIMS[0], form_id: 'X3', expense_code: null, cost_center: '3B01', amount: 20 },
     ] as PettyClaim[] });
     expect(codeSummary(group)).toEqual([
-      { code: '3200', label: '3200 ศลบ - บริการ', count: 2, amount: 150 },
-      { code: '3B01', label: '3B01 ศลบ - จัดส่ง', count: 1, amount: 20 },
+      { code: '3200', label: '3200 ศลบ - บริการ', count: 2, amount: 150, wht: 0, net: 150 },
+      { code: '3B01', label: '3B01 ศลบ - จัดส่ง', count: 1, amount: 20, wht: 0, net: 20 },
     ]);
     const html = coverSheetHtml({ group, types: TYPES, clerkName: 'x', branchCode: '03', divisionCode: 'B02', mode: 'round' });
     expect(html).toContain('รหัสใบสำคัญจ่าย');
@@ -187,5 +187,47 @@ describe('ใบปะหน้าแนวนอน (ผู้ใช้สั�
     expect(html).toContain('size: A4 landscape');
     expect(html).not.toContain('min-height: 160mm');
     expect(html).toContain('.doc-part { min-height: 0; }');
+  });
+});
+
+describe('ใบปะหน้า 1 แผ่นต่อฟลีท × พจส./พจร. มีรหัสด้านบนและ WHT (ผู้ใช้สั่ง 25/11/2026)', () => {
+  const item = (fleet: string | null, role: string | null) => ({ event_date: '2026-11-10', qty: 1, rate: 1, amount: 1, fleet, driver_role: role });
+  const c = (form_id: string, amount: number, code: string, items: object[], wht = 0) =>
+    ({ ...CLAIMS[0], form_id, amount, expense_code: code, wht_amount: wht, items }) as unknown as PettyClaim;
+  const claims = [
+    c('A1', 1000, '3200', [item('Mixer L', 'พจส.')], 30),
+    c('A2', 500, '3300', [item('Mixer L', 'พจร.')]),
+    c('A3', 400, '3200', [item('Mixer S', 'พจส.')]),
+    c('A4', 200, '3200', [item('Mixer L', 'พจส.')]),
+    c('A5', 100, '3B02', []),
+  ];
+  const group = roundGroup({ holder_employee_id: 'h', claims });
+
+  test('claimRole reads the rows, falls back to the header', () => {
+    expect(claimRole(claims[1])).toBe('พจร.');
+    expect(claimRole({ items: [], detail: { driver_role: 'พจส.' } })).toBe('พจส.');
+    expect(claimRole(claims[4])).toBe('');
+  });
+  test('one part per fleet × role, no-truck last, claims keep their order', () => {
+    const parts = splitByFleetRole(group);
+    expect(parts.map(partLabel)).toEqual(['ML · พจร.', 'ML · พจส.', 'MS · พจส.', 'ไม่มีรถ']);
+    expect(parts[1].claims.map(x => x.form_id)).toEqual(['A1', 'A4']);
+    expect(parts[1].total).toBe(1200);
+  });
+  const html = coverSheetHtml({ group, types: TYPES, clerkName: 'x', branchCode: '03', divisionCode: 'B02', mode: 'round', batchNo: 'B1' });
+  test('one section per part, each with its code and fleet at the top', () => {
+    expect(html.match(/<section class="doc-part">/g)).toHaveLength(4);
+    expect(html).toContain('<span>รหัสใบสำคัญจ่าย</span><b>3300</b>');
+    expect(html).toContain('<span>ฟลีท</span><b>ML · พจส.</b>');
+    expect(html).toContain('<span>แผ่น</span><b>2/4</b>');
+  });
+  test('expense, WHT and net per row and in the total box', () => {
+    expect(html).toContain('<th class="a" style="width:24mm">ยอดค่าใช้จ่าย</th><th class="a" style="width:18mm">WHT</th>');
+    expect(html).toContain('<td class="a">1,000.00</td><td class="a">30.00</td><td class="a">970.00</td>');
+    expect(html).toContain('<div class="k">ยอดจ่ายสุทธิ</div><div class="amt">1,170.00');
+  });
+  test('a single part has no page counter', () => {
+    const one = coverSheetHtml({ group: roundGroup({ holder_employee_id: 'h', claims: [claims[0]] }), types: TYPES, clerkName: 'x', branchCode: '03', divisionCode: 'B02' });
+    expect(one).not.toContain('<span>แผ่น</span>');
   });
 });
