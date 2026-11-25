@@ -43,3 +43,19 @@ describe('เลือกรถแล้ว พจส./พจร. ตาม ATMS
     expect(applyFleet({ truck_code: 'X', driver_role: 'พจร.' }, { fleet: 'Trailer' } as any).driver_role).toBe('พจร.');
   });
 });
+
+describe('applyFleet — เปลี่ยนวันที่ชั่ง สถานะ พจส./พจร. ตามวันใหม่ (25/11/2026)', () => {
+  const day2 = { ...DRIVER, driver_name: 'คนขับวันใหม่', driver_code: 'D-NEW', driver_role: 'พจร.' };
+  test('role always follows the new date', () =>
+    expect(applyFleet({ truck_code: 'ME166', driver_role: 'พจส.' }, day2, { dateChanged: true }).driver_role).toBe('พจร.'));
+  test('driver filled by the system is replaced', () => {
+    const row = applyFleet({ truck_code: 'ME166', driver_name: 'คนขับวันเก่า', driver_code: 'D-OLD' }, day2, { dateChanged: true });
+    expect([row.driver_name, row.driver_code]).toEqual(['คนขับวันใหม่', 'D-NEW']);
+  });
+  test('name typed by hand stays', () => {
+    const row = applyFleet({ truck_code: 'ME166', driver_name: 'พิมพ์เอง', driver_code: null }, day2, { dateChanged: true });
+    expect([row.driver_name, row.driver_code]).toEqual(['พิมพ์เอง', null]);
+  });
+  test('without dateChanged a picked driver is kept (truck pick behaviour unchanged)', () =>
+    expect(applyFleet({ truck_code: 'ME166', driver_name: 'คนขับวันเก่า', driver_code: 'D-OLD' }, day2).driver_name).toBe('คนขับวันเก่า'));
+});

@@ -21,9 +21,12 @@ export function applyDriver<T extends Record<string, unknown>>(row: T, driver: D
 }
 
 /** หลังเลือกรถ: ฟลีท ณ วันนั้นลงแถว · ประเภทรถและคนขับเติมเฉพาะช่องที่ยังว่าง (ข้อ 10) */
-export function applyFleet<T extends Record<string, unknown>>(row: T, info: DriverOption | null): T & DriverFields {
+export function applyFleet<T extends Record<string, unknown>>(row: T, info: DriverOption | null, opts: { dateChanged?: boolean } = {}): T & DriverFields {
   if (!info) return { ...row, fleet: null };
-  const keep = (key: string) => String(row[key] ?? '').trim() !== '';
+  // เปลี่ยนวันที่ชั่ง (ผู้ใช้สั่ง 25/11/2026 "จับสถานะ พจส/พจร จากวันที่เกิดรายการ"): คนขับที่ระบบเติมให้ (มี driver_code)
+  // เปลี่ยนตามวันใหม่ได้ · ชื่อที่พิมพ์เอง (ไม่มี driver_code) ยังเก็บไว้
+  const autoDriver = opts.dateChanged && String(row.driver_code ?? '').trim() !== '';
+  const keep = (key: string) => (key === 'driver_name' && autoDriver ? false : String(row[key] ?? '').trim() !== '');
   return {
     ...row,
     fleet: info.fleet || null,

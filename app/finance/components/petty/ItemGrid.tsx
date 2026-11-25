@@ -64,12 +64,14 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
 
   // เลือกรถแล้วถามฟลีท ณ วันทำรายการจาก ATMS (Mixer L/S · Trailer · Side curtain) เติมลงแถว + ประเภทรถ/คนขับที่ยังว่าง (ข้อ 10)
   // ตอบช้า/ไม่พบ = แถวยังใช้ได้ ฟลีทว่าง · ใช้แถวล่าสุดจาก rowsRef และเช็กว่ารถในแถวยังเป็นคันเดิมก่อนเขียน
-  function lookupFleet(index: number, truck: { truck_code: string; truck_plate: string }, eventDate: unknown) {
-    fleetAt({ truck_code: truck.truck_code, truck_plate: truck.truck_plate, date: String(eventDate ?? '') || null })
+  function lookupFleet(index: number, truck: { truck_code: string; truck_plate: string }, eventDate: unknown, dateChanged = false) {
+    const date = String(eventDate ?? '') || null;
+    fleetAt({ truck_code: truck.truck_code, truck_plate: truck.truck_plate, date })
       .then(info => {
         const latest = rowsRef.current;
         if (String(latest[index]?.truck_code ?? '') !== truck.truck_code) return;
-        onChange(latest.map((r, i) => (i === index ? applyFleet(r, info) : r)));
+        if ((String(latest[index]?.event_date ?? '') || null) !== date) return; // วันที่เปลี่ยนอีกระหว่างรอ ใช้ผลของรอบใหม่
+        onChange(latest.map((r, i) => (i === index ? applyFleet(r, info, { dateChanged }) : r)));
       })
       .catch(() => { /* ไม่รู้ฟลีทก็เปิดใบได้ */ });
   }
@@ -169,10 +171,20 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
         </select>
       );
     }
+    // วันที่ของแถวเปลี่ยน + มีรถแล้ว → ถามฟลีท/พจส.-พจร. ของวันใหม่ (เดิมถามแค่ตอนเลือกรถ ใส่วันทีหลังเลยไม่ได้สถานะ)
+    const onInput = (next: string) => {
+      setCell(index, f.key, next);
+      const code = String(row.truck_code ?? '');
+      if (f.key === 'event_date' && truckField && code && /^\d{4}-\d{2}-\d{2}$/.test(next)) {
+        const latest = rowsRef.current.map((r, i) => (i === index ? { ...r, event_date: next } : r));
+        rowsRef.current = latest;
+        lookupFleet(index, { truck_code: code, truck_plate: String(row.truck_plate ?? '') }, next, true);
+      }
+    };
     return (
       <input value={value} type={f.type === 'date' ? 'date' : 'text'}
         inputMode={numeric ? 'decimal' : undefined}
-        onChange={e => setCell(index, f.key, e.target.value)} aria-label={label}
+        onChange={e => onInput(e.target.value)} aria-label={label}
         className={`${FIELD_SM} h-9 w-full ${numeric ? 'text-right tabular-nums' : ''}`} />
     );
   }
