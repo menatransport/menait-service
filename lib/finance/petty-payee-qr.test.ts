@@ -5,7 +5,7 @@ describe('QR ผู้รับเงิน (25/11/2026 ทุกประเภ
   const spec = { attachments: [{ key: 'receipt', label: 'บิล' }] };
   test('labels: spec first, then the QR folder, else the key', () => {
     expect(attachmentLabel(spec, 'receipt')).toBe('บิล');
-    expect(attachmentLabel(spec, PAYEE_QR_FOLDER)).toBe('QR Code / บาร์โค้ดสำหรับโอน');
+    expect(attachmentLabel(spec, PAYEE_QR_FOLDER)).toBe('ใบชำระหนี้ / QR Code / บาร์โค้ด');
     expect(attachmentLabel(null, 'other')).toBe('other');
   });
   test('no QR file → nothing in the pay box', () =>
@@ -17,7 +17,7 @@ describe('QR ผู้รับเงิน (25/11/2026 ทุกประเภ
     ]);
     expect(html).toContain('<img src="https://s3/x/qr.png"');
     expect(html).toContain('เปิดไฟล์ bar.pdf');
-    expect(html).toContain('สแกนโอนได้เลย');
+    expect(html).toContain('สแกนหรือโอนตามนี้ได้เลย');
   });
   test('urls and names are escaped', () =>
     expect(payeeQrHtml([{ url: 'x" onerror="bad()', key: '<b>.pdf', folder: PAYEE_QR_FOLDER }])).not.toMatch(/onerror="bad|<b>/));

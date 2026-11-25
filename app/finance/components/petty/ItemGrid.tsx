@@ -50,7 +50,8 @@ export function ItemGrid({ spec, rows, onChange, onAddMany, dups = [], readOnly 
   const manyLabel = byTruck ? 'เพิ่มหลายคัน' : 'เพิ่มหลายรายการ';
   // 'truck' มีช่องของตัวเอง ส่วนช่องอื่น (รวม qty ถ้าประเภทนั้นประกาศไว้) เรนเดอร์ตามลำดับใน spec
   const fields = itemFields(spec).filter(f => f.key !== 'truck');
-  const truckField = itemFields(spec).find(f => f.key === 'truck');
+  // ช่องรถโชว์เฉพาะประเภทที่รถบังคับ · ค่าใช้จ่ายทั่วไปไม่ต้องมีรถ ชื่อรายการพอ (ผู้ใช้สั่ง 25/11/2026)
+  const truckField = byTruck ? itemFields(spec).find(f => f.key === 'truck') : undefined;
   const hasTruck = !!truckField;
   const total = claimTotal(rows);
   // แถวล่าสุดสำหรับ callback ที่มาช้า (ถามฟลีทจาก ATMS) — ไม่งั้นเขียนทับด้วยแถวเก่าที่ยังไม่มีรถ

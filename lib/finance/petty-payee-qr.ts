@@ -5,7 +5,7 @@ import type { PettySpec } from '@/app/finance/types-petty';
  * เจ้าของเงินสดเห็นรูปในกล่องอนุมัติจ่าย สแกนโอนได้เลย · ไม่บังคับ ไม่อยู่ใน spec ของประเภท จึงไม่เข้าด่านเอกสาร
  */
 export const PAYEE_QR_FOLDER = 'payee_qr';
-export const PAYEE_QR_LABEL = 'QR Code / บาร์โค้ดสำหรับโอน';
+export const PAYEE_QR_LABEL = 'ใบชำระหนี้ / QR Code / บาร์โค้ด';
 export const PAYEE_QR_MAX = 2;
 
 /** ชื่อหมวดไฟล์ที่คนอ่าน: จาก spec ก่อน แล้ว QR ผู้รับเงิน ไม่รู้จักก็คืนคีย์ */
@@ -28,6 +28,6 @@ export function payeeQrHtml(files: readonly { url: string; key: string; fileName
       : `<a href="${url}" target="_blank" rel="noreferrer" style="color:#1d4ed8">เปิดไฟล์ ${esc(name.split('/').pop() ?? name)}</a>`;
   }).join('');
   return `<div style="margin-top:12px;padding:10px;border-radius:12px;background:#f8fafd;border:1px solid #edf1f7;text-align:center">`
-    + `<div style="font-size:12px;color:#33476b;margin-bottom:8px">QR Code / บาร์โค้ดของผู้รับเงิน สแกนโอนได้เลย</div>`
+    + `<div style="font-size:12px;color:#33476b;margin-bottom:8px">ใบชำระหนี้ / QR Code ของผู้รับเงิน สแกนหรือโอนตามนี้ได้เลย</div>`
     + `<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">${items}</div></div>`;
 }

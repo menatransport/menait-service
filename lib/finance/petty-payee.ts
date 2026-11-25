@@ -7,12 +7,18 @@ import { accountNoError, bankLabel, formatAccountNo, normalizeAccountNo } from '
  */
 export type PayeeBank = { payee_account_type?: unknown; payee_bank?: unknown; payee_account_no?: unknown };
 
-/** ปลายทางเงิน: บัญชีธนาคาร (ค่าเริ่มต้น ใบเก่าไม่มีช่องนี้) หรือพร้อมเพย์ (ผู้ใช้สั่ง 2026-10-13) */
-export type PayeeAccountType = 'bank' | 'promptpay';
+/**
+ * ปลายทางเงิน: บัญชีธนาคาร (ค่าเริ่มต้น ใบเก่าไม่มีช่องนี้) · พร้อมเพย์ (ผู้ใช้สั่ง 2026-10-13)
+ * · ใบชำระหนี้ = แนบใบแจ้งหนี้หรือ QR Code แทนเลขบัญชี (ผู้ใช้สั่ง 25/11/2026)
+ */
+export type PayeeAccountType = 'bank' | 'promptpay' | 'bill';
 
 export function payeeAccountType(detail: PayeeBank | null | undefined): PayeeAccountType {
-  return String(detail?.payee_account_type ?? '') === 'promptpay' ? 'promptpay' : 'bank';
+  const t = String(detail?.payee_account_type ?? '');
+  return t === 'promptpay' || t === 'bill' ? t : 'bank';
 }
+
+export const PAYEE_BILL_TEXT = 'ใบชำระหนี้ / QR Code (ดูไฟล์แนบ)';
 
 export const PROMPTPAY_ERROR = 'พร้อมเพย์ต้องเป็นเบอร์มือถือ 10 หลัก หรือเลขบัตรประชาชน 13 หลัก';
 
@@ -33,6 +39,7 @@ export function formatPromptPay(raw: string | null | undefined): string {
 
 /** "ธนาคารกสิกรไทย 123-4-56789-0" หรือ "พร้อมเพย์ 081-234-5678" · ไม่มีอะไรเลย = '' */
 export function payeeBankText(detail: PayeeBank | null | undefined): string {
+  if (payeeAccountType(detail) === 'bill') return PAYEE_BILL_TEXT;
   const no = normalizeAccountNo(String(detail?.payee_account_no ?? ''));
   if (payeeAccountType(detail) === 'promptpay') return no ? `พร้อมเพย์ ${formatPromptPay(no)}` : '';
   const bank = String(detail?.payee_bank ?? '').trim();
@@ -47,10 +54,11 @@ export function payeeBankRequired(spec: PettySpec | null | undefined, header: Re
   return String(header.payment_method ?? '') === 'โอนเงิน';
 }
 
-/** ข้อความที่ยังกรอกไม่ครบ/ไม่ถูก สำหรับบล็อกปุ่มส่ง · null = ผ่าน */
-export function payeeBankProblem(spec: PettySpec | null | undefined, header: Record<string, unknown>): string | null {
+/** ข้อความที่ยังกรอกไม่ครบ/ไม่ถูก สำหรับบล็อกปุ่มส่ง · null = ผ่าน · billFiles = จำนวนไฟล์ใบชำระหนี้/QR ที่แนบแล้ว */
+export function payeeBankProblem(spec: PettySpec | null | undefined, header: Record<string, unknown>, billFiles = 0): string | null {
   const no = String(header.payee_account_no ?? '').trim();
   const required = payeeBankRequired(spec, header);
+  if (payeeAccountType(header) === 'bill') return billFiles > 0 || !required ? null : 'ยังไม่แนบใบชำระหนี้หรือ QR Code';
   if (payeeAccountType(header) === 'promptpay') {
     if (!no) return required ? 'ยังไม่กรอกเบอร์พร้อมเพย์ของผู้รับเงิน' : null;
     return promptPayError(no);
@@ -65,7 +73,7 @@ export function payeeBankProblem(spec: PettySpec | null | undefined, header: Rec
 /** คำเตือนใต้ช่องเลขบัญชีขณะพิมพ์ — เตือนเฉพาะเมื่อพิมพ์เลขแล้ว (ช่องว่างให้ปุ่มส่งเป็นคนบอก) · null = ไม่ต้องเตือน */
 export function payeeAccountHint(header: Record<string, unknown>): string | null {
   const no = String(header.payee_account_no ?? '').trim();
-  if (!no) return null;
+  if (!no || payeeAccountType(header) === 'bill') return null;
   if (payeeAccountType(header) === 'promptpay') return promptPayError(no);
   const bank = String(header.payee_bank ?? '').trim();
   if (!bank) return 'เลือกธนาคารก่อน จะได้ตรวจจำนวนหลักให้ถูก';

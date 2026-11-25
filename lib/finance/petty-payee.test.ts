@@ -76,3 +76,17 @@ describe('payeeAccountHint — คำเตือนใต้ช่องขณ�
     expect(payeeAccountHint({ payee_account_no: '1234567890' })).toBe('เลือกธนาคารก่อน จะได้ตรวจจำนวนหลักให้ถูก'));
   test('พร้อมเพย์พิมพ์ครบ = ไม่เตือน', () => expect(payeeAccountHint({ payee_account_type: 'promptpay', payee_account_no: '0812345678' })).toBeNull());
 });
+
+describe('ใบชำระหนี้ แทนเลขบัญชี (25/11/2026)', () => {
+  const weigh = { header_fields: [{ key: 'payee_name', type: 'text', label: 'จ่ายให้' }] };
+  test('needs a bill/QR file instead of an account number', () => {
+    expect(payeeBankProblem(weigh, { payee_account_type: 'bill' })).toBe('ยังไม่แนบใบชำระหนี้หรือ QR Code');
+    expect(payeeBankProblem(weigh, { payee_account_type: 'bill' }, 1)).toBeNull();
+  });
+  test('shows a fixed text, never an account number', () =>
+    expect(payeeBankText({ payee_account_type: 'bill', payee_bank: 'KBANK', payee_account_no: '1234567890' })).toBe('ใบชำระหนี้ / QR Code (ดูไฟล์แนบ)'));
+  test('no account hint while on the bill tab', () =>
+    expect(payeeAccountHint({ payee_account_type: 'bill', payee_account_no: '12' })).toBeNull());
+  test('cash payment (tire/repair) does not need the file', () =>
+    expect(payeeBankProblem({ header_fields: [{ key: 'payment_method', type: 'select', label: 'วิธีจ่าย' }] }, { payee_account_type: 'bill', payment_method: 'เงินสด' })).toBeNull());
+});

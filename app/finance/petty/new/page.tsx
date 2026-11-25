@@ -13,7 +13,7 @@ import { EXPENSE_CODES, expenseCodeFor, expenseCodeLabel, expenseCodeReason } fr
 import {
   addsByTruck, blankHeader, claimPayload, dupCheckParams, headerFields, isHolderAttachment, isItemBased, itemsFrom, missingAtCreate,
 } from '@/lib/finance/petty-spec';
-import { payeeBankProblem, payeeBankText } from '@/lib/finance/petty-payee';
+import { payeeAccountType, payeeBankProblem, payeeBankText } from '@/lib/finance/petty-payee';
 import { fundLabelWithHolder } from '@/lib/finance/petty-fund-label';
 import { fundsForExpenseType } from '@/lib/finance/petty-account-code';
 import { bangkokToday } from '@/lib/finance/petty-doc';
@@ -246,7 +246,7 @@ function PettyClaimForm() {
         : String(header[f.key] ?? '').trim() !== '';
       if (f.required && !filled) return `ยังไม่กรอก ${f.label}`;
       if (f.key === 'payee_name') {
-        const problem = payeeBankProblem(spec, header);
+        const problem = payeeBankProblem(spec, header, attachedCounts[PAYEE_QR_FOLDER] ?? 0);
         if (problem) return problem;
       }
     }
@@ -413,7 +413,7 @@ function PettyClaimForm() {
     !f.required || (f.type === 'truck' ? !!String(header.truck_code ?? '').trim() : String(header[f.key] ?? '').trim() !== '');
   const rowsDone = rows.length > 0 && rows.every(row => (spec.item_fields ?? []).every(f =>
     !f.required || (f.key === 'truck' ? !!String(row.truck_code ?? '').trim() : String(row[f.key] ?? '').trim() !== '')));
-  const payeeDone = !!payeeName && !payeeBankProblem(spec, header);
+  const payeeDone = !!payeeName && !payeeBankProblem(spec, header, attachedCounts[PAYEE_QR_FOLDER] ?? 0);
   // ค่าชั่งปน พจส./พจร. — เตือนที่ส่วนรายการทันที ไม่ต้องรอกรอกช่องอื่นครบ (16/11/2026)
   const roleMix = itemBased ? singleDriverRoleProblem(type?.code ?? '', rows) : null;
 
@@ -544,7 +544,8 @@ function PettyClaimForm() {
             {/* QR / บาร์โค้ดของผู้รับเงิน ทุกประเภท ไม่บังคับ — เจ้าของเงินสดเห็นรูปในกล่องอนุมัติจ่าย (25/11/2026) */}
             <div className="mt-4 sm:max-w-sm">
               <PettyFileDrop label={PAYEE_QR_LABEL} max={PAYEE_QR_MAX}
-                note="ไม่บังคับ · เจ้าของเงินสดสแกนโอนได้เลย"
+                required={payeeAccountType(header) === 'bill'}
+                note={payeeAccountType(header) === 'bill' ? 'ต้องแนบ · เจ้าของเงินสดเห็นตอนอนุมัติจ่าย' : 'ไม่บังคับ · เจ้าของเงินสดสแกนโอนได้เลย'}
                 files={files[PAYEE_QR_FOLDER] ?? []}
                 onChange={list => setFiles({ ...files, [PAYEE_QR_FOLDER]: list.slice(0, PAYEE_QR_MAX) })} />
             </div>

@@ -83,7 +83,7 @@ export function HeaderField({ field, value, form, onChange }: {
         <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-medium text-ink-500">{label}</span>
           <div className="inline-flex overflow-hidden rounded-lg border border-[#dbe4f3] bg-white" role="group" aria-label="ปลายทางเงิน">
-            {tab('bank', 'บัญชีธนาคาร')}{tab('promptpay', 'พร้อมเพย์')}
+            {tab('bank', 'บัญชีธนาคาร')}{tab('promptpay', 'พร้อมเพย์')}{tab('bill', 'ใบชำระหนี้')}
           </div>
         </div>
         {/* ป้ายเหนือทุกช่องและกล่องสูงเท่ากัน เหมือนช่องอื่นของหัวใบ (ผู้ใช้สั่ง 5/11/2026) */}
@@ -105,7 +105,12 @@ export function HeaderField({ field, value, form, onChange }: {
               </select>
             </label>
           )}
-          <label className={`block ${type === 'promptpay' ? 'sm:col-span-2' : ''}`}>
+          {type === 'bill' && (
+            <p className="self-end pb-3 text-sm text-ink-500 sm:col-span-2">
+              ไม่ต้องกรอกเลขบัญชี แนบใบชำระหนี้หรือ QR Code ในช่องด้านล่างแทน
+            </p>
+          )}
+          {type !== 'bill' && <label className={`block ${type === 'promptpay' ? 'sm:col-span-2' : ''}`}>
             <span className={LABEL}>{type === 'promptpay' ? 'เบอร์พร้อมเพย์' : 'เลขบัญชี'}</span>
             <input value={String(form.payee_account_no ?? '')}
               className={`${FIELD} ${hint ? '!border-rose-400' : ''}`}
@@ -114,7 +119,7 @@ export function HeaderField({ field, value, form, onChange }: {
               aria-invalid={Boolean(hint)}
               onChange={e => onChange({ payee_account_no: e.target.value })} />
             {hint && <span className="mt-1 block text-xs text-rose-700">{hint}</span>}
-          </label>
+          </label>}
         </div>
       </div>
     );
