@@ -216,10 +216,10 @@ describe('ใบปะหน้า 1 แผ่นต่อฟลีท × พจ
     expect(parts[1].total).toBe(1200);
   });
   const html = coverSheetHtml({ group, types: TYPES, clerkName: 'x', branchCode: '03', divisionCode: 'B02', mode: 'round', batchNo: 'B1' });
-  test('one section per part, each with its code and fleet at the top', () => {
+  test('one section per part, each with its code at the top (no fleet in the box)', () => {
     expect(html.match(/<section class="doc-part">/g)).toHaveLength(4);
     expect(html).toContain('<span>รหัสใบสำคัญจ่าย</span><b>3300</b>');
-    expect(html).toContain('<span>ฟลีท</span><b>ML · พจส.</b>');
+    expect(html).not.toContain('<span>ฟลีท</span>');
     expect(html).toContain('<span>แผ่น</span><b>2/4</b>');
   });
   test('section is "รายการใบเบิก" with the code summary on top, rows show net only', () => {

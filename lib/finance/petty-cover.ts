@@ -161,8 +161,8 @@ export function coverSheetHtml(opts: {
   const amount = round2(rows.reduce((s, r) => s + r.amount, 0));
   const wht = round2(rows.reduce((s, r) => s + r.wht, 0));
   const net = round2(rows.reduce((s, r) => s + r.net, 0));
-  const meta: [string, string][] = [['รหัสใบสำคัญจ่าย', codes.map(c => c.code).join(', ')], ['ฟลีท', partLabel(part)],
-    ['อ้างอิง', ref], ['วันที่', today]];
+  // กล่องมุมขวาบนไม่มีฟลีท (ผู้ใช้สั่ง 25/11/2026) — ฟลีทดูได้จากคอลัมน์ในตาราง
+  const meta: [string, string][] = [['รหัสใบสำคัญจ่าย', codes.map(c => c.code).join(', ')], ['อ้างอิง', ref], ['วันที่', today]];
   if (count > 1) meta.push(['แผ่น', `${index + 1}/${count}`]);
   const whtCell = (n: number) => (n > 0 ? money(n) : '-');
 
