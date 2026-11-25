@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PAYEE_QR_FOLDER, PAYEE_QR_LABEL, PAYEE_QR_MAX } from '@/lib/finance/petty-payee-qr';
 import { FileText, Trash2 } from 'lucide-react';
 import type { PettySpec } from '@/app/finance/types-petty';
 import { displayFileName } from '@/lib/finance/status';
@@ -21,7 +22,8 @@ export function PettyAttachments({ formId, spec, files, canUpload, onChanged }: 
 }) {
   const [pending, setPending] = useState<Record<string, File[]>>({});
   const [busy, setBusy] = useState<string | null>(null);
-  const folders = spec.attachments ?? [];
+  // หมวด QR ผู้รับเงินอยู่ทุกประเภท ไม่บังคับ (25/11/2026) — ต่อท้ายหมวดของ spec
+  const folders = [...(spec.attachments ?? []), { key: PAYEE_QR_FOLDER, label: PAYEE_QR_LABEL, max: PAYEE_QR_MAX, required: false }];
 
   async function upload(folder: string, label: string) {
     const picked = pending[folder] ?? [];

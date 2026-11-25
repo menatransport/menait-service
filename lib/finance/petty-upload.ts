@@ -4,7 +4,9 @@ import type { PettyStatus } from '@/lib/finance/petty-status';
 /** หมวดไฟล์แนบที่ spec ของประเภทการเบิกใช้ได้ — คุมที่นี่เพราะ /api/uploads3 ไม่รู้จัก spec
  *  เพิ่มหมวดใหม่ใน master ต้องเพิ่มที่นี่ด้วย ไม่งั้นอัปโหลดไม่ได้ (ปลอดภัยกว่าเปิดอิสระ) */
 export const PETTY_FOLDERS =
-  ['weigh_slip', 'transfer', 'receipt', 'receipt_substitute', 'photo', 'id_card', 'request_form', 'map', 'other'] as const;
+  ['weigh_slip', 'transfer', 'receipt', 'receipt_substitute', 'photo', 'id_card', 'request_form', 'map', 'other',
+    'payee_qr', // QR/บาร์โค้ดผู้รับเงิน ทุกประเภท (25/11/2026 · lib/finance/petty-payee-qr.ts)
+  ] as const;
 
 export function isPettyFolder(folder: unknown): boolean {
   return typeof folder === 'string' && (PETTY_FOLDERS as readonly string[]).includes(folder);

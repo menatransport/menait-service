@@ -3,6 +3,7 @@
  * — ไม่มี React ไม่มี fetch · โครงแถบ/การ์ดลอกหน้าอนุมัติ Advance (app/finance/approvals/page.tsx)
  */
 import type { PettyClaim, PettyRound, PettySpec } from '@/app/finance/types-petty';
+import { attachmentLabel } from '@/lib/finance/petty-payee-qr';
 import { needsDebtDoc } from '@/lib/finance/petty-debt';
 import { isHolderAttachment } from '@/lib/finance/petty-spec';
 import { formatDate } from '@/lib/finance/status';
@@ -106,7 +107,7 @@ export function docsState(spec: PettySpec | null | undefined, counts: Record<str
       if (r.require_attachment && r.at === 'BEFORE_APPROVE' && ruleApplies(r.when, claim)) keys.add(r.require_attachment);
     }
   }
-  const label = (key: string) => spec?.attachments?.find(a => a.key === key)?.label ?? key;
+  const label = (key: string) => attachmentLabel(spec, key);
   const missingKeys = [...keys].filter(k => !(counts[k] > 0));
   const holderKeys = missingKeys.filter(isHolderAttachment);
   return {

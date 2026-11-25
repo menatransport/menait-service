@@ -28,6 +28,7 @@ import { checkDuplicate, createClaim, getClaim, getExpenseTypes, updateClaim, ge
 import { WHT_RATES, netAmount, payeeWarning, whtFromRate, whtProblem, type PayeeMonth } from '@/lib/finance/petty-wht';
 import { AddManyTrucksDialog } from '../../components/petty/AddManyTrucksDialog';
 import { AddManyRowsDialog } from '../../components/petty/AddManyRowsDialog';
+import { PAYEE_QR_FOLDER, PAYEE_QR_LABEL, PAYEE_QR_MAX } from '@/lib/finance/petty-payee-qr';
 import { ExpenseTypeCombobox } from '../../components/petty/ExpenseTypeCombobox';
 import { HeaderField } from '../../components/petty/HeaderField';
 import { ItemGrid, type DupHint } from '../../components/petty/ItemGrid';
@@ -539,6 +540,13 @@ function PettyClaimForm() {
                 <HeaderField key={f.key} field={f} value={header[f.key]} form={header}
                   onChange={patch => setHeader(h => ({ ...h, ...patch }))} />
               ))}
+            </div>
+            {/* QR / บาร์โค้ดของผู้รับเงิน ทุกประเภท ไม่บังคับ — เจ้าของเงินสดเห็นรูปในกล่องอนุมัติจ่าย (25/11/2026) */}
+            <div className="mt-4 sm:max-w-sm">
+              <PettyFileDrop label={PAYEE_QR_LABEL} max={PAYEE_QR_MAX}
+                note="ไม่บังคับ · เจ้าของเงินสดสแกนโอนได้เลย"
+                files={files[PAYEE_QR_FOLDER] ?? []}
+                onChange={list => setFiles({ ...files, [PAYEE_QR_FOLDER]: list.slice(0, PAYEE_QR_MAX) })} />
             </div>
           </StepSection>
         )}

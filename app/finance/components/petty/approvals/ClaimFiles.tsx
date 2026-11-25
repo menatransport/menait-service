@@ -1,13 +1,14 @@
 'use client';
 
 import { FileText } from 'lucide-react';
+import { attachmentLabel } from '@/lib/finance/petty-payee-qr';
 import type { PettySpec } from '@/app/finance/types-petty';
 import { displayFileName } from '@/lib/finance/status';
 import type { ClaimFile } from './files-api';
 
 /** ไฟล์แนบบนการ์ด (อ่านอย่างเดียว) — หน้าตาแบบ AttachmentPanel ของ Advance แต่บอกหมวดตาม spec ด้วย */
 export function ClaimFiles({ spec, files, missing }: { spec?: PettySpec | null; files: ClaimFile[] | undefined; missing: string[] }) {
-  const label = (folder: string) => spec?.attachments?.find(a => a.key === folder)?.label ?? folder;
+  const label = (folder: string) => attachmentLabel(spec, folder);
   return (
     <div className="space-y-2">
       <p className="text-xs font-semibold text-gray-600">เอกสารแนบ</p>
