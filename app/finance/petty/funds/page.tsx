@@ -122,7 +122,6 @@ export default function PettyFundsPage() {
 function HolderSummary({ rows }: { rows: ReturnType<typeof holderSummaryRows> }) {
   if (rows.length === 0) return null;
   const TH = 'px-3 py-2.5 text-left text-xs font-medium text-ink-500 whitespace-nowrap';
-  const pct = (h: (typeof rows)[number]) => (h.fund_limit > 0 ? Math.max(0, Math.min(100, (h.left_in_limit / h.fund_limit) * 100)) : 0);
   return (
     <section className={`mt-8 border-t ${LINE} pt-6`}>
       <h2 className="font-display text-lg font-semibold text-ink-900">สรุปรายเจ้าของเงินสด</h2>
@@ -153,7 +152,6 @@ function HolderSummary({ rows }: { rows: ReturnType<typeof holderSummaryRows> })
               <th className={`${TH} text-right`}>วงเงิน</th>
               <th className={`${TH} text-right`}>ยังไม่คืนยอด</th>
               <th className={`${TH} text-right`}>เหลือในวงเงิน</th>
-              <th className={`${TH} w-40`} />
             </tr>
           </thead>
           <tbody>
@@ -164,11 +162,6 @@ function HolderSummary({ rows }: { rows: ReturnType<typeof holderSummaryRows> })
                 <td className="px-3 py-2.5 text-right tabular-nums text-ink-700">{baht(h.fund_limit)}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{h.petty_committed ? `− ${baht(h.petty_committed)}` : baht(0)}</td>
                 <td className={`px-3 py-2.5 text-right font-semibold tabular-nums ${h.negative ? 'text-rose-700' : ''}`}>{baht(h.left_in_limit)}</td>
-                <td className="px-3 py-2.5">
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-[#eef2f7]" title={`เหลือ ${pct(h).toFixed(0)}%`}>
-                    <div className={`h-full rounded-full ${pct(h) < 20 ? 'bg-rose-500' : 'bg-mint-500'}`} style={{ width: `${pct(h)}%` }} />
-                  </div>
-                </td>
               </tr>
             ))}
           </tbody>
