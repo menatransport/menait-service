@@ -25,7 +25,7 @@ import { requiredDocs } from '@/lib/finance/petty-preset';
 import { formatDate } from '@/lib/finance/status';
 import { showAlert, showSuccess } from '../../api';
 import { checkDuplicate, createClaim, getClaim, getExpenseTypes, updateClaim, getFunds, payeeMonth, previewRoute, uploadPettyFiles, type RoutePreview } from '../../petty-api';
-import { WHT_RATES, netAmount, payeeWarning, preVatProblem, whtBase, whtFromRate, whtProblem, type PayeeMonth } from '@/lib/finance/petty-wht';
+import { WHT_RATES, netAmount, payeeWarning, whtFromRate, whtProblem, type PayeeMonth } from '@/lib/finance/petty-wht';
 import { AddManyTrucksDialog } from '../../components/petty/AddManyTrucksDialog';
 import { ExpenseTypeCombobox } from '../../components/petty/ExpenseTypeCombobox';
 import { HeaderField } from '../../components/petty/HeaderField';
@@ -89,7 +89,6 @@ function PettyClaimForm() {
   const [expenseCode, setExpenseCode] = useState('');
   // หัก ณ ที่จ่าย (ข้อ 12): ผู้เบิกใส่ยอดเอง ปุ่ม 1%/3% ช่วยคำนวณ · เจ้าที่จ่ายบ่อย (ข้อ 13) เตือนจากยอดเดือนนี้
   const [wht, setWht] = useState('');
-  const [preVat, setPreVat] = useState('');  // ยอดก่อน VAT ฐานคิด 1%/3% (25/11/2026) — ช่วยคิดเท่านั้น ไม่บันทึก
   const [payeeInfo, setPayeeInfo] = useState<PayeeMonth | null>(null);
   const [expenseCodePicked, setExpenseCodePicked] = useState(false);
 
@@ -101,7 +100,6 @@ function PettyClaimForm() {
   for (const [key, list] of Object.entries(files)) attachedCounts[key] = (attachedCounts[key] ?? 0) + list.length;
   const total = itemBased ? claimTotal(rows) : claimTotal(itemsFrom(header));
   const whtAmount = Number(wht) || 0;
-  const preVatError = preVatProblem(preVat, total);
   const whtError = whtProblem(wht, total);
   const payeeName = String(header.payee_name ?? '').trim();
   useEffect(() => {
@@ -575,20 +573,12 @@ function PettyClaimForm() {
           </div>
         </StepSection>
 
-        <StepSection index={next()} label="DD และหัก ณ ที่จ่าย" optional done={!whtError && !preVatError && !needsDd && !(payeeNote && whtAmount <= 0)}>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_0.8fr_1.4fr]">
+        <StepSection index={next()} label="DD และหัก ณ ที่จ่าย" optional done={!whtError && !needsDd && !(payeeNote && whtAmount <= 0)}>
+          <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
               <span className={LABEL}>เลขที่ใบรับสินค้า (DD)</span>
               <input value={ddNo} onChange={e => setDdNo(e.target.value)} placeholder="กรอกทีหลังได้" className={FIELD} />
               <span className="mt-1 block text-xs text-ink-500">{needsDd ? 'ยอดตั้งแต่ 500 ต้องใส่ DD ก่อนส่งบัญชี กรอกตอนนี้หรือทีหลังก็ได้' : 'ยอดต่ำกว่า 500 ไม่ต้องใส่ DD'}</span>
-            </label>
-            <label className="block">
-              <span className={LABEL}>ยอดก่อน VAT (บาท)</span>
-              <input value={preVat} onChange={e => setPreVat(e.target.value)} inputMode="decimal" placeholder={total > 0 ? baht2(total) : '0.00'}
-                aria-invalid={!!preVatError} className={`${FIELD} text-right tabular-nums`} />
-              <span className={`mt-1 block text-xs ${preVatError ? 'text-rose-600' : 'text-ink-500'}`}>
-                {preVatError ?? 'ดูจากบิล ถ้าบิลไม่มี VAT ปล่อยว่าง ระบบใช้ยอดรวม'}
-              </span>
             </label>
             <div>
               <label htmlFor="petty-wht" className={LABEL}>หัก ณ ที่จ่าย (บาท)</label>
@@ -596,7 +586,7 @@ function PettyClaimForm() {
                 <input id="petty-wht" value={wht} onChange={e => setWht(e.target.value)} inputMode="decimal" placeholder="0.00"
                   aria-invalid={!!whtError} className={`${FIELD} min-w-0 flex-1 text-right tabular-nums`} />
                 {WHT_RATES.map(r => (
-                  <button key={r.rate} type="button" onClick={() => setWht(whtFromRate(whtBase(total, preVat), r.rate).toFixed(2))} disabled={total <= 0 || !!preVatError}
+                  <button key={r.rate} type="button" onClick={() => setWht(whtFromRate(total, r.rate).toFixed(2))} disabled={total <= 0}
                     title={r.label}
                     className="h-11 shrink-0 rounded-[10px] border border-[#dbe4f3] bg-white px-3 text-sm text-ink-700 hover:bg-[#f3f7fd] disabled:text-ink-300">
                     {r.label.split(' ')[0]}
@@ -605,7 +595,7 @@ function PettyClaimForm() {
                 {!!wht && <button type="button" onClick={() => setWht('')} className="shrink-0 text-xs text-ink-500 underline underline-offset-2">ไม่หัก</button>}
               </div>
               <span className={`mt-1 block text-xs ${whtError ? 'text-rose-600' : payeeNote && whtAmount <= 0 ? 'text-sun-700' : 'text-ink-500'}`}>
-                {whtError ?? payeeNote ?? '1% ค่าขนส่ง · 3% ค่าบริการ คำนวณจากยอดก่อน VAT คนจ่ายเห็นยอดโอนจริงในกล่องอนุมัติ'}
+                {whtError ?? payeeNote ?? '1% ค่าขนส่ง · 3% ค่าบริการ คำนวณจากยอดรวมก่อน VAT คนจ่ายเห็นยอดโอนจริงในกล่องอนุมัติ'}
               </span>
             </div>
           </div>
