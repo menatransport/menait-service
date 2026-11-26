@@ -69,7 +69,7 @@ export async function runPettyAction(claim: PettyClaim, action: PettyAction, opt
       html: approveDialogHtml(claim, balance) + (payeeNote && !(claim.wht_amount && claim.wht_amount > 0)
         ? `<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:12px;text-align:left">${escapeHtml(payeeNote)} · เจ้าหน้าที่แก้ยอดหักในใบได้ก่อนคุณอนุมัติ</div>` : '')
         + payeeQrHtml(claimFiles) + approveFormHtml(ids, slips),
-      focusConfirm: false,
+      focusConfirm: false, didOpen: () => bindSlipPicker(ids),
       preConfirm: () => readApproveForm(ids, slips) }) as { isConfirmed?: boolean; value?: ApproveFormValue | string };
     if (!res?.isConfirmed) return false;
     // เทสต์/กล่องเก่าส่ง value เป็นวันที่ล้วน ๆ ก็ยังรับ
@@ -202,9 +202,49 @@ export function approveFormHtml(ids: { date: string; file: string }, slipsAttach
   return `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #edf1f7;text-align:left">`
     + `<label for="${ids.date}" style="${label}">วันที่จ่ายเงิน <span style="color:#6b7f9e">(โอนไปก่อนแล้วใส่วันจริงย้อนหลังได้ รายงานยึดวันนี้)</span></label>`
     + `<input id="${ids.date}" type="date" value="${today}" max="${today}" style="display:block;width:100%;box-sizing:border-box;height:40px;margin:0 0 12px;padding:0 10px;border:1px solid #dbe4f3;border-radius:10px;font-size:14px;color:#10233f">`
-    + `<label for="${ids.file}" style="${label}">สลิปโอนเงิน${slipsAttached > 0 ? '' : ' <span style="color:#be123c">*</span>'}</label>`
-    + `<input id="${ids.file}" type="file" multiple accept="image/*,application/pdf" style="display:block;width:100%;font-size:13px;color:#10233f">`
-    + `<div style="font-size:12px;color:#6b7f9e;margin-top:4px">${slipNote}</div></div>`;
+    + `<div style="${label}">สลิปโอนเงิน${slipsAttached > 0 ? '' : ' <span style="color:#be123c">*</span>'}</div>`
+    // ปุ่มแนบเป็นกล่องใหญ่แทน "เลือกไฟล์ ไม่ได้เลือกไฟล์ใด" ของเบราว์เซอร์ (UAT 26/11/2026 "ปรับปุ่มให้ชัดๆ")
+    // input ตัวจริงยังอยู่ (readApproveForm อ่านจากตัวนี้) แค่ซ่อนไว้หลังกล่อง · ชื่อไฟล์ขึ้นผ่าน bindSlipPicker ใน didOpen
+    + `<input id="${ids.file}" type="file" multiple accept="image/*,application/pdf" style="${SLIP_INPUT_HIDDEN}">`
+    + `<label for="${ids.file}" id="${ids.file}-box" style="${slipBoxStyle(false)}">`
+    + `<span aria-hidden="true" id="${ids.file}-icon" style="flex:none;display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:999px;background:#1c6ef2;color:#fff">`
+    + `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/></svg></span>`
+    + `<span style="min-width:0"><span id="${ids.file}-title" style="display:block;font-size:15px;font-weight:700;color:#1557c0">กดเพื่อแนบสลิปโอนเงิน</span>`
+    + `<span id="${ids.file}-names" style="display:block;font-size:12px;color:#5a6a80;overflow-wrap:anywhere">รูปหรือ PDF เลือกได้หลายไฟล์</span></span></label>`
+    + `<div style="font-size:12px;color:#6b7f9e;margin-top:6px">${slipNote}</div></div>`;
+}
+
+const SLIP_INPUT_HIDDEN = 'position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none';
+
+function slipBoxStyle(picked: boolean): string {
+  const [line, bg] = picked ? ['solid #0b7a54', '#e4f6ee'] : ['dashed #1c6ef2', '#eef5ff'];
+  return `display:flex;align-items:center;gap:12px;width:100%;box-sizing:border-box;padding:12px 14px;border:2px ${line};`
+    + `border-radius:12px;background:${bg};cursor:pointer;text-align:left`;
+}
+
+/** ข้อความในกล่องแนบหลังเลือกไฟล์ — แยกออกมาให้เทสต์ได้ */
+export function slipPickedText(names: readonly string[]): { title: string; names: string } {
+  if (!names.length) return { title: 'กดเพื่อแนบสลิปโอนเงิน', names: 'รูปหรือ PDF เลือกได้หลายไฟล์' };
+  return { title: `เลือกแล้ว ${names.length} ไฟล์ · กดเพื่อเปลี่ยน`, names: names.join(', ') };
+}
+
+/** ผูกกล่องแนบกับ input ตอนกล่องเปิด (didOpen ของ SweetAlert): เลือกแล้วกล่องเป็นสีเขียวและขึ้นชื่อไฟล์ */
+export function bindSlipPicker(ids: { file: string }): void {
+  const input = document.getElementById(ids.file) as HTMLInputElement | null;
+  const box = document.getElementById(`${ids.file}-box`);
+  const title = document.getElementById(`${ids.file}-title`);
+  const names = document.getElementById(`${ids.file}-names`);
+  const icon = document.getElementById(`${ids.file}-icon`);
+  if (!input || !box || !title || !names) return;
+  input.addEventListener('change', () => {
+    const picked = Array.from(input.files ?? []).map(f => f.name);
+    const text = slipPickedText(picked);
+    title.textContent = text.title;
+    title.style.color = picked.length ? '#0b7a54' : '#1557c0';
+    names.textContent = text.names;
+    box.setAttribute('style', slipBoxStyle(picked.length > 0));
+    if (icon) icon.style.background = picked.length ? '#0b7a54' : '#1c6ef2';
+  });
 }
 
 /**

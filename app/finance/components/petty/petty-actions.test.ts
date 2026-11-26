@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettyClaim } from '@/app/finance/types-petty';
-import { approveDialogHtml, approveFormHtml, runPettyAction, type PettyActionDeps } from './petty-actions';
+import { approveDialogHtml, approveFormHtml, runPettyAction, slipPickedText, type PettyActionDeps } from './petty-actions';
 
 const claim = (over: Partial<PettyClaim> = {}): PettyClaim => ({
   id: 1, form_id: 'LB-B02-2610-001', fund_id: 1, expense_type: 'TIRE', expense_date: '2026-10-20',
@@ -116,6 +116,16 @@ describe('approveFormHtml — ฟอร์มวันที่จ่าย + �
     const some = approveFormHtml(ids, 2);
     expect(some).toContain('แนบไว้แล้ว 2 ไฟล์');
     expect(some).not.toContain('color:#be123c">*');
+  });
+  test('ปุ่มแนบเป็นกล่องใหญ่ที่ผูกกับ input ตัวจริง ไม่ใช่ปุ่มเลือกไฟล์ของเบราว์เซอร์', () => {
+    const html = approveFormHtml({ date: 'd1', file: 'f1' }, 0);
+    expect(html).toContain('<label for="f1" id="f1-box"');
+    expect(html).toContain('กดเพื่อแนบสลิปโอนเงิน');
+    expect(html).toMatch(/id="f1" type="file"[^>]*opacity:0/);
+  });
+  test('slipPickedText บอกจำนวนและชื่อไฟล์ที่เลือก', () => {
+    expect(slipPickedText(['a.jpg', 'b.pdf'])).toEqual({ title: 'เลือกแล้ว 2 ไฟล์ · กดเพื่อเปลี่ยน', names: 'a.jpg, b.pdf' });
+    expect(slipPickedText([]).title).toBe('กดเพื่อแนบสลิปโอนเงิน');
   });
 });
 
