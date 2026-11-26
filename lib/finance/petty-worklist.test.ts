@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettyClaim, PettyExpenseType, PettyFund, PettyRound } from '@/app/finance/types-petty';
-import { CLAIM_LOG_LABELS,
+import { clearWaitingText, CLAIM_LOG_LABELS,
   CLAIM_COLUMNS, CLAIM_STATUS_LABELS, ROUND_COLUMNS, WORKLIST_TABS, claimHistory, defaultTab, inMonthRange, matchesWorklistFilters,
   payFormError, payPayload, resolveTab, roundActionBody, roundDocChanges, roundDocError, roundDuplicateText,
   roundHistory, roundLogLabel, rowsForTab, searchWorklist, sortWorklist, tabKind, voucherFormError,
@@ -311,5 +311,17 @@ describe('history', () => {
   test('claimHistory prefers BE logs when present', () => {
     const c = claim('REVIEWED', { logs: [{ action: 'ACC_PASS', actor: '660548', actor_name: 'ชญาดา', at: '2026-10-28T02:00:00Z', remark: null }] });
     expect(claimHistory(c).map(r => r.label)).toEqual(['บัญชีตรวจผ่าน']);
+  });
+});
+
+describe('clearWaitingText', () => {
+  test('a named fund lists who may approve', () => {
+    expect(clearWaitingText({ clear_required_level: 5, clear_named: [
+      { employee_id: '690261', name: 'พุทธชาติ นุเคราะห์' }, { employee_id: '600181', name: null }] }))
+      .toBe('รอ พุทธชาติ นุเคราะห์ หรือ 600181');
+  });
+  test('otherwise the line level, or a dash', () => {
+    expect(clearWaitingText({ clear_required_level: 5 })).toBe('รอหัวหน้าระดับ 5 ขึ้นไป');
+    expect(clearWaitingText({ clear_required_level: null, clear_named: [] })).toBe('-');
   });
 });

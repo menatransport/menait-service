@@ -437,3 +437,10 @@ export function claimHistory(claim: PettyClaim): HistoryEntry[] {
   }
   return byTime(rows);
 }
+
+/** ช่องหัวหน้าที่อนุมัติเคลียร์ตอนยังไม่มีใครกด: กองที่กำหนดผู้อนุมัติไว้บอกชื่อ (26/11/2026) · ไม่งั้นบอกระดับตามสายงาน */
+export function clearWaitingText(round: Pick<PettyRound, 'clear_named' | 'clear_required_level'>): string {
+  const named = (round.clear_named ?? []).map(p => p.name || p.employee_id).filter(Boolean);
+  if (named.length) return `รอ ${named.join(' หรือ ')}`;
+  return round.clear_required_level ? `รอหัวหน้าระดับ ${round.clear_required_level} ขึ้นไป` : '-';
+}

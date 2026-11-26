@@ -100,6 +100,8 @@ export type PettyRound = {
   holder_employee_id: string | null; holder_name: string | null;
   total_amount: number; remark: string | null; claim_count?: number;
   submitted_by: string | null; submitted_at: string | null; clear_required_level: number | null;
+  /** กองที่กำหนดผู้อนุมัติเคลียร์ไว้ (BE 26/11/2026) · ว่าง/ไม่มี = ตามสายงาน */
+  clear_named?: { employee_id: string; name: string | null }[];
   clear_approved_by: string | null; clear_approved_by_name: string | null; clear_approved_at: string | null;
   clear_reject_reason: string | null;
   voucher_no: string | null; vouchered_by: string | null; vouchered_at: string | null;

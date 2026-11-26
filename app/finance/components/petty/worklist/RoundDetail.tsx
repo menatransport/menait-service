@@ -8,7 +8,7 @@ import { useSessionContext } from '@/app/context/SessionContext';
 import type { PettyClaim, PettyExpenseType, PettyFund, PettyRound } from '@/app/finance/types-petty';
 import { canUploadRoundSlip, worklistPerms } from '@/lib/finance/petty-access';
 import { exportRoundsXlsx } from '@/lib/finance/petty-round-export';
-import { roundHistory } from '@/lib/finance/petty-worklist';
+import { clearWaitingText, roundHistory } from '@/lib/finance/petty-worklist';
 import { formatBaht, formatDate } from '@/lib/finance/status';
 import { showAlert } from '../../../api';
 import { getExpenseTypes, getFunds, getRound } from '../../../petty-api';
@@ -129,7 +129,7 @@ export function RoundDetail({ roundId, onChanged, onOpenClaim, onLoaded }: {
           <Field label="ยอดเงิน" value={`${formatBaht(round.total_amount)} บาท · ${round.claim_count ?? claims.length} ใบ`} />
           <Field label="วันที่ส่งเคลียร์" value={at(round.submitted_at)} />
           <Field label={round.status === 'CLEAR_REJECTED' ? 'หัวหน้าที่ไม่อนุมัติ' : 'หัวหน้าที่อนุมัติเคลียร์'}
-            value={round.clear_approved_by_name ?? round.clear_approved_by ?? (round.clear_required_level ? `รอหัวหน้าระดับ ${round.clear_required_level} ขึ้นไป` : '-')} />
+            value={round.clear_approved_by_name ?? round.clear_approved_by ?? clearWaitingText(round)} />
           <Field label="วันที่อนุมัติเคลียร์" value={at(round.clear_approved_at)} />
           <Field label="เลขที่ตั้งเบิก" value={round.voucher_no || '-'} />
           <Field label="วันที่ตั้งเบิก" value={at(round.voucher_date ?? null)} />
