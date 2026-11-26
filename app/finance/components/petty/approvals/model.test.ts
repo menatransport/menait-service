@@ -4,7 +4,7 @@ import {
   claimOutcome, claimPeriod, clearableClaims, clearedByMe, ddRequired, debtDocButton, debtDocMissing, docsLabel, docsState,
   handledClaims, headDoneClaims, locateClaim, waitingHeadClaims,
   locateRound, parseHeadView, parseHolderView, itemSummaryLabel, pendingClaims, pendingHint, pickSummary, printsFor, roundBlocker, roundOutcome, ruleApplies,
-  splitByPrimary, tabLabel, usesDd, type ClearRound,
+  splitByPrimary, splitTeamClaims, tabLabel, usesDd, type ClearRound,
 } from './model';
 
 const base = {
@@ -58,6 +58,18 @@ describe('parseHeadView', () => {
     expect(parseHeadView('pending')).toBe('pending');
     expect(parseHeadView('clear')).toBe('pending');
     expect(parseHeadView('rounds')).toBe('pending');
+    expect(parseHeadView('team')).toBe('team');
+  });
+});
+
+describe('splitTeamClaims', () => {
+  test('open claims first by newest, closed ones apart', () => {
+    const rows = [
+      { ...base, id: 3, status: 'CLOSED' }, { ...base, id: 5, status: 'PENDING_APPROVAL' }, { ...base, id: 7, status: 'PENDING_HEAD' },
+    ] as PettyClaim[];
+    const out = splitTeamClaims(rows);
+    expect(out.open.map(c => c.id)).toEqual([7, 5]);
+    expect(out.closed.map(c => c.id)).toEqual([3]);
   });
 });
 

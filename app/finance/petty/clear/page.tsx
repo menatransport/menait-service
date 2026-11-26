@@ -20,12 +20,12 @@ import { useRoundTypeTally } from '../../components/petty/useRoundTypeTally';
 import { RoundCard } from '../../components/petty/approvals/RoundCard';
 import { decideRound, listClearHistory } from '../../components/petty/approvals/clear-actions';
 import {
-  clearedByMe, headDoneClaims, locateRound, parseHeadView, splitByPrimary, tabLabel, type ClearRound, type HeadView, type SubTab,
+  clearedByMe, headDoneClaims, locateRound, parseHeadView, splitByPrimary, splitTeamClaims, tabLabel, type ClearRound, type HeadView, type SubTab,
 } from '../../components/petty/approvals/model';
 import { EmptyState, HeaderTabs, HintLine, NoticeBar, SubTabs } from '../../components/petty/approvals/ui';
 
 const TITLE = 'หัวหน้าอนุมัติเงินสดย่อย';
-const CAPTION = 'อนุมัติใบเบิกของลูกทีมก่อนเจ้าของเงินสดโอน และอนุมัติเคลียร์รอบที่เจ้าของเงินสดในสายงานส่งมา';
+const CAPTION = 'อนุมัติใบเบิกของลูกทีมก่อนเจ้าของเงินสดโอน อนุมัติเคลียร์รอบที่เจ้าของเงินสดในสายงานส่งมา และดูใบที่ลูกทีมกำลังขอ';
 const PAGE_SIZE = 20;
 const NO_ROUNDS: ClearRound[] = [];
 const NO_CLAIMS: PettyClaim[] = [];
@@ -43,6 +43,7 @@ function Loading() {
  * 1. ใบเบิกรอหัวหน้าอนุมัติ (flow v3 30/10/2026) — หัวหน้าของผู้ขอเบิก อนุมัติแล้วใบไปที่เจ้าของเงินสดโอน
  * 2. รอบรออนุมัติเคลียร์ — ผู้จัดการตามสายงานของเจ้าของเงินสด การ์ดหนึ่งใบ = หนึ่งรอบ
  * BE คัดให้เฉพาะของที่คนนี้กดได้ · is_primary แยก รอฉันอนุมัติ / อนุมัติแทนได้ (แบบ Advance)
+ * 3. ใบของลูกทีม — ทุกสถานะ ดูอย่างเดียว ไม่เปลี่ยน flow (ผู้ใช้สั่ง 26/11/2026)
  */
 function PettyClear() {
   const { user, loading } = useSessionContext();
@@ -59,6 +60,9 @@ function PettyClear() {
   const [claimSub, setClaimSub] = useState<SubTab>('mine');
   const [headDone, setHeadDone] = useState<PettyClaim[] | null>(null);
   const [historyKind, setHistoryKind] = useState<'claims' | 'rounds'>('claims');
+  const [teamClaims, setTeamClaims] = useState<PettyClaim[] | null>(null);
+  const [teamSub, setTeamSub] = useState<'open' | 'closed'>('open');
+  const [teamPage, setTeamPage] = useState(1);
   const [files, setFiles] = useState<Record<string, ClaimFile[]>>({});
   const [openId, setOpenId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
@@ -104,7 +108,12 @@ function PettyClear() {
     // กรองคนกดอีกชั้นเสมอ — ถ้า BFF ยังไม่รู้จัก view นี้ จะได้แถบว่าง ไม่ใช่รอบของคนอื่น
     try { setHistory(clearedByMe(await listClearHistory() as ClearRound[], me)); } catch { setHistory([]); }
   }, [me]);
+  const loadTeam = useCallback(async () => {
+    try { setTeamClaims((await listAllClaims({ view: 'team' })).items); } catch { setTeamClaims([]); }
+  }, []);
   useEffect(() => { if (me) void load(); }, [me, load]);
+  useEffect(() => { if (me && view === 'team' && teamClaims === null) void loadTeam(); }, [me, view, teamClaims, loadTeam]);
+  useEffect(() => { setTeamPage(1); }, [teamSub, typeCode]);
   useEffect(() => { if (me && view === 'history') { void loadHistory(); void loadHeadDone(); } }, [me, view, loadHistory, loadHeadDone]);
 
   // ลิงก์ ?doc=<เลขที่ใบ | id หรือเลขรอบ>: เปิดแถบที่ของอยู่แล้วเลื่อนไปหา (อีเมลหาหัวหน้าลิงก์มาที่ใบ)
@@ -150,6 +159,8 @@ function PettyClear() {
   const shownClaims = doc ? [...shownClaimsRaw].sort((a, b) => Number(b.form_id === doc) - Number(a.form_id === doc)) : shownClaimsRaw;
   const headDoneT = filterByType(headDone ?? [], typeCode);
   const specOf = (code: string) => types.find(t => t.code === code)?.spec;
+  const teamSplit = splitTeamClaims(filterByType(teamClaims ?? [], typeCode));
+  const teamShown = teamSub === 'open' ? teamSplit.open : teamSplit.closed;
 
   const { mine, delegable } = splitByPrimary(roundsT);
   const typeName = typeFilter.name;
@@ -167,6 +178,7 @@ function PettyClear() {
           ['claims', tabLabel('รออนุมัติใบเบิก', claimsT.length)],
           ['pending', tabLabel('รออนุมัติเคลียร์', roundsT.length)],
           ['history', 'อนุมัติ/ไม่อนุมัติแล้ว'],
+          ['team', 'ใบของลูกทีม'],
         ]} />
       }>
       <NoticeBar text={notice} onClose={() => setNotice('')} />
@@ -264,6 +276,32 @@ function PettyClear() {
               ))}
               <div className="flex justify-end pt-2">
                 <PaginationControls currentPage={historyPage} totalPages={pageCount(historyT.length, PAGE_SIZE)} onPageChange={setHistoryPage} />
+              </div>
+            </div>
+          )}
+        </Section>
+      )}
+
+      {view === 'team' && (
+        <Section label="ใบที่ลูกทีมกำลังขอ" actions={typeSelect}>
+          <SubTabs value={teamSub} onChange={setTeamSub} tabs={[
+            ['open', `กำลังดำเนินการ${teamClaims ? ` (${teamSplit.open.length})` : ''}`],
+            ['closed', `ปิดแล้ว${teamClaims ? ` (${teamSplit.closed.length})` : ''}`],
+          ]} />
+          <HintLine>ใบที่ลูกทีมเปิด ทุกขั้น ดูได้อย่างเดียว ใบที่ต้องให้คุณกดอนุมัติอยู่แถบ รออนุมัติใบเบิก</HintLine>
+          {teamClaims === null ? (
+            <div className="py-8"><MascotLoader text="กำลังโหลดใบของลูกทีม" size={80} /></div>
+          ) : teamShown.length === 0 ? (
+            <EmptyState text={teamSub === 'open'
+              ? (typeCode ? `ลูกทีมไม่มีใบ${typeName}ที่กำลังดำเนินการ` : 'ลูกทีมไม่มีใบที่กำลังดำเนินการ')
+              : (typeCode ? `ยังไม่มีใบ${typeName}ของลูกทีมที่ปิดแล้ว` : 'ยังไม่มีใบของลูกทีมที่ปิดแล้ว')} />
+          ) : (
+            <div className="space-y-4">
+              {paginate(teamShown, teamPage, PAGE_SIZE).map(c => (
+                <HeadClaimCard key={c.id} claim={c} mode="team" typeName={typeNameOf(c.expense_type)} onView={() => setOpenId(c.form_id)} />
+              ))}
+              <div className="flex justify-end pt-2">
+                <PaginationControls currentPage={teamPage} totalPages={pageCount(teamShown.length, PAGE_SIZE)} onPageChange={setTeamPage} />
               </div>
             </div>
           )}

@@ -188,8 +188,9 @@ export async function isRoundHeadOf(employeeId: string, batchId: number | null |
 /** หัวหน้าของผู้ขอเบิก (flow v3): กดอนุมัติใบนี้ได้ตอนนี้ หรือเคยอนุมัติขั้นหัวหน้าไปแล้ว — สายงานรู้ที่ BE เท่านั้น */
 export async function isClaimHeadOf(employeeId: string, formId: string): Promise<boolean> {
   const claim = await beJsonOrNull(beUrl(`/finance/petty/claims/${encodeURIComponent(formId)}`, { employee_id: employeeId })) as
-    { can_head_approve?: boolean; head_approved_by?: string | null } | null;
-  return !!claim && (claim.can_head_approve === true || claim.head_approved_by === employeeId);
+    { can_head_approve?: boolean; can_team_view?: boolean; head_approved_by?: string | null } | null;
+  // can_team_view = หัวหน้าตามสายงานของผู้ขอเบิก ดูใบลูกทีมได้ทุกสถานะ (ดูอย่างเดียว ปุ่มกดยังตาม can_head_approve)
+  return !!claim && (claim.can_head_approve === true || claim.can_team_view === true || claim.head_approved_by === employeeId);
 }
 
 /** กองทุนที่คนนี้ถือ — ใช้ตัดสินว่าเห็นใบของกองทุนนั้นได้ไหม (fail closed: BE ล่ม = ไม่ถือกองทุนไหน) */

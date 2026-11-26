@@ -10,7 +10,7 @@ import { formatDate } from '@/lib/finance/status';
 
 export type HolderView = 'pending' | 'clear' | 'history';
 /** claims = ใบรอหัวหน้าอนุมัติ (flow v3) · pending = รอบรออนุมัติเคลียร์ · history = ที่ตัดสินไปแล้ว */
-export type HeadView = 'claims' | 'pending' | 'history';
+export type HeadView = 'claims' | 'pending' | 'history' | 'team';
 export type SubTab = 'mine' | 'delegable';
 
 /** รอบในคิวหัวหน้า · is_primary = คนที่ระบบส่งอีเมลหา (clear_notify) — BE ส่งมาหลังงาน lane A */
@@ -27,6 +27,7 @@ export function parseHolderView(tab: string | null | undefined): HolderView {
 
 export function parseHeadView(tab: string | null | undefined): HeadView {
   if (tab === 'history') return 'history';
+  if (tab === 'team') return 'team';
   if (tab === 'pending' || tab === 'clear' || tab === 'rounds') return 'pending';
   return 'claims';
 }
@@ -254,4 +255,10 @@ export function locateRound(doc: string, rounds: readonly ClearRound[]): { id: n
   const hit = rounds.find(r => String(r.id) === doc || r.batch_no === doc);
   if (!hit) return null;
   return { id: hit.id, sub: hit.is_primary === false ? 'delegable' : 'mine' };
+}
+
+/** ใบของลูกทีม (ผู้ใช้สั่ง 26/11/2026) — แยก กำลังดำเนินการ / ปิดแล้ว ใบใหม่ขึ้นก่อน */
+export function splitTeamClaims(claims: PettyClaim[]): { open: PettyClaim[]; closed: PettyClaim[] } {
+  const sorted = [...claims].sort((a, b) => b.id - a.id);
+  return { open: sorted.filter(c => c.status !== 'CLOSED'), closed: sorted.filter(c => c.status === 'CLOSED') };
 }

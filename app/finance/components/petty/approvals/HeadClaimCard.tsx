@@ -14,14 +14,16 @@ import { BTN_APPROVE, BTN_REJECT, BTN_VIEW, CARD, CARD_FOOT, CARD_HEAD, ClaimSta
 /**
  * การ์ดใบเบิกในหน้าหัวหน้า (flow v3 30/10/2026) — หัวหน้าของผู้ขอเบิกอนุมัติก่อน เจ้าของเงินสดถึงโอนได้
  * mode pending: ปุ่ม ตีกลับ / อนุมัติ · mode done: ใบที่อนุมัติไปแล้ว บอกว่าตอนนี้ไปถึงไหน
+ * mode team: ใบของลูกทีมทุกสถานะ ดูอย่างเดียว ไม่มีปุ่มกด (ผู้ใช้สั่ง 26/11/2026)
  * หัวหน้าไม่ต้องดูยอดวงเงินหรือสลิปโอน — ดูแค่ว่าเบิกอะไร เท่าไร เอกสารแนบมีอะไร
  */
 export function HeadClaimCard({ claim, typeName, spec, files, mode, highlight = false, processing = false, onView, onReturn, onApprove }: {
   claim: PettyClaim; typeName: string; spec?: PettySpec | null; files?: ClaimFile[];
-  mode: 'pending' | 'done'; highlight?: boolean; processing?: boolean;
+  mode: 'pending' | 'done' | 'team'; highlight?: boolean; processing?: boolean;
   onView: () => void; onReturn?: () => void; onApprove?: () => void;
 }) {
   const pending = mode === 'pending';
+  const team = mode === 'team';
   return (
     <div id={`head-${claim.form_id}`} className={`${CARD} ${highlight ? 'ring-2 ring-mint-500' : ''}`}>
       <div className={CARD_HEAD}>
@@ -29,7 +31,8 @@ export function HeadClaimCard({ claim, typeName, spec, files, mode, highlight = 
           <p className="text-sm font-semibold text-brand-800">{claim.form_id}</p>
           <p className="text-xs text-gray-500">{openerName(claim)}</p>
         </div>
-        {pending ? <WaitingBadge text="รอหัวหน้าอนุมัติ" /> : <OutcomeBadge ok okText="อนุมัติแล้ว" noText="" />}
+        {team ? <ClaimStatusPill status={claim.status} />
+          : pending ? <WaitingBadge text="รอหัวหน้าอนุมัติ" /> : <OutcomeBadge ok okText="อนุมัติแล้ว" noText="" />}
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -38,10 +41,10 @@ export function HeadClaimCard({ claim, typeName, spec, files, mode, highlight = 
         <Field label="จ่ายให้" value={claim.payee_name ?? '-'} />
         <Field label="ช่วงวันที่" value={claimPeriod(claim)} />
         <Field label="ศูนย์และแผนก" value={costCenterLabel(claim.cost_center) || '-'} />
-        {pending
+        {pending || team
           ? <Field label="วันที่ขอเบิก" value={formatDate(claim.created_at ?? claim.expense_date)} />
           : <Field label="วันที่อนุมัติ" value={formatDate(claim.head_approved_at)} />}
-        {!pending && <Field label="ตอนนี้อยู่ที่" value={<ClaimStatusPill status={claim.status} />} />}
+        {mode === 'done' && <Field label="ตอนนี้อยู่ที่" value={<ClaimStatusPill status={claim.status} />} />}
       </div>
 
       {pending && (
