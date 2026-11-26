@@ -17,7 +17,7 @@ export const ROUND_SHEET_COLS = [
 ] as const;
 
 export const CLAIM_SHEET_COLS = [
-  'เลขที่รอบ', 'วันที่ส่งเคลียร์', '#', 'เลขที่ใบเบิก', 'ประเภท', 'จ่ายให้', 'ช่วงวันที่', 'ฟลีท', 'พจส./พจร.',
+  'เลขที่รอบ', 'วันที่ส่งเคลียร์', '#', 'เลขที่ใบเบิก', 'ประเภท', 'รายละเอียดค่าใช้จ่าย', 'จ่ายให้', 'ช่วงวันที่', 'ฟลีท', 'พจส./พจร.',
   'รหัสใบสำคัญจ่าย', 'เลขที่ DD', 'ยอดค่าใช้จ่าย', 'WHT', 'ยอดจ่ายสุทธิ',
 ] as const;
 
@@ -69,16 +69,32 @@ export function roundSheetAoa(rounds: readonly RoundWithClaims[]): (string | num
   return [[...ROUND_SHEET_COLS], ...rows, ...foot];
 }
 
+const text = (v: unknown) => String(v ?? '').trim();
+
+/** ใบนี้จ่ายค่าอะไร (UAT 26/11/2026 ขอคอลัมน์ "รายละเอียดค่าใช้จ่าย" ใน Excel)
+ * รายการ/อาการ/รายการที่ทำ ของทุกแถวไม่ซ้ำ · ทางด่วน/เดินทางใช้ เส้นทาง (+ เหตุที่ใช้) · ค่าชั่งบอกจำนวนครั้ง */
+export function expenseDetailText(claim: Pick<PettyClaim, 'items' | 'detail' | 'expense_type'>): string {
+  const remarks = [...new Set((claim.items ?? []).map(i => text(i.remark)).filter(Boolean))];
+  if (remarks.length) return remarks.join(', ');
+  const d = claim.detail ?? {};
+  const from = text(d.route_from), to = text(d.route_to);
+  const route = from || to ? `${from || '-'} → ${to || '-'}` : '';
+  const reason = text(d.reason);
+  if (route || reason) return [route, reason].filter(Boolean).join(' · ');
+  if (claim.expense_type === 'WEIGH' && claim.items?.length) return `ชั่งน้ำหนัก ${claim.items.length} ครั้ง`;
+  return '';
+}
+
 export function claimSheetAoa(rounds: readonly RoundWithClaims[], types: readonly PettyExpenseType[]): (string | number)[][] {
   const out: (string | number)[][] = [[...CLAIM_SHEET_COLS]];
   for (const r of rounds) {
     const day = thaiDay(submittedDay(r));
     coverRows({ clerk: '', claims: r.claims, total: 0 }, types).forEach((row, i) => {
-      out.push([r.batch_no, day, row.no, row.formId, row.typeName, row.payee, row.period, row.fleet, claimRole(r.claims[i]) || '-',
+      out.push([r.batch_no, day, row.no, row.formId, row.typeName, expenseDetailText(r.claims[i]) || '-', row.payee, row.period, row.fleet, claimRole(r.claims[i]) || '-',
         row.code || '-', row.ddNo, row.amount, whtCell(row.wht), row.net]);
     });
     const t = totals(r.claims);
-    out.push([`รวมรอบ ${r.batch_no}`, '', '', `${r.claims.length} ใบ`, '', '', '', '', '', '', '', t.amount, whtCell(t.wht), t.net]);
+    out.push([`รวมรอบ ${r.batch_no}`, '', '', `${r.claims.length} ใบ`, '', '', '', '', '', '', '', '', t.amount, whtCell(t.wht), t.net]);
   }
   return out;
 }
@@ -99,6 +115,6 @@ export async function exportRoundsXlsx(rounds: readonly RoundWithClaims[], types
     return ws;
   };
   XLSX.utils.book_append_sheet(book, sheet(roundSheetAoa(rounds), [6, 18, 14, 22, 24, 16, 9, 14, 10, 14, 16, 16]), 'รอบส่งเคลียร์');
-  XLSX.utils.book_append_sheet(book, sheet(claimSheetAoa(rounds, types), [22, 14, 5, 18, 20, 26, 22, 8, 10, 14, 16, 14, 10, 14]), 'ใบในรอบ');
+  XLSX.utils.book_append_sheet(book, sheet(claimSheetAoa(rounds, types), [22, 14, 5, 18, 20, 36, 26, 22, 8, 10, 14, 16, 14, 10, 14]), 'ใบในรอบ');
   XLSX.writeFile(book, fileName);
 }

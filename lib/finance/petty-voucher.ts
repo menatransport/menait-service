@@ -188,8 +188,11 @@ ${sec(2, 'คำรับรอง', 'Declaration')}
 <ol class="clauses"><li>ขอรับรองว่า รายจ่ายข้างต้นนี้ไม่อาจเรียกเก็บใบเสร็จรับเงินจากผู้รับได้ และข้าพเจ้าได้จ่ายไปในงานของทางบริษัทฯโดยแท้ ตั้งแต่วันที่ ${esc(from)} ถึงวันที่ ${esc(to)}</li></ol>
 
 ${signBlock(3, 'ลงชื่อ', 'Signatures', [
-    { title: 'ผู้เบิกจ่าย', name: claim.payee_name },
+    // ตราเวลาผู้ขอเบิกกับหัวหน้าเหมือนใบสำคัญจ่าย (UAT 26/11/2026 "ขอแล้ว หัวหน้าอนุมัติแล้ว ไม่มีไทม์สแตมป์")
+    { title: 'ผู้ขอเบิก', name: clerkName(claim), esign: requesterEsign(claim) },
+    { title: 'หัวหน้าแผนก', name: headName(claim), esign: headEsign(claim) },
     { title: 'ผู้อนุมัติ', name: approverName(claim), esign: approverEsign(claim) },
+    { title: 'ผู้เบิกจ่าย', name: claim.payee_name },
   ])}
 </section>`;
 

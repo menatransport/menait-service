@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { PettyClaim, PettyExpenseType } from '@/app/finance/types-petty';
-import { CLAIM_SHEET_COLS, ROUND_SHEET_COLS, claimSheetAoa, roundSheetAoa, roundsInRange, submittedDay, type RoundWithClaims } from './petty-round-export';
+import { CLAIM_SHEET_COLS, ROUND_SHEET_COLS, claimSheetAoa, expenseDetailText, roundSheetAoa, roundsInRange, submittedDay, type RoundWithClaims } from './petty-round-export';
 
 const types = [{ code: 'WEIGH', name_th: 'ค่าชั่งน้ำหนัก' }, { code: 'GENERAL', name_th: 'ค่าใช้จ่ายทั่วไป' }] as PettyExpenseType[];
 const claim = (over: Partial<PettyClaim>): PettyClaim => ({
@@ -52,9 +52,22 @@ describe('claimSheetAoa — ใบละแถว เรียงตามรอ
   test('claim rows carry the round number and type name', () => {
     expect(aoa[1].slice(0, 5)).toEqual(['LB-B02-2611-B1', '24/11/2026', 1, 'A1', 'ค่าชั่งน้ำหนัก']);
     expect(aoa[2][4]).toBe('ค่าใช้จ่ายทั่วไป');
-    expect(aoa[2][10]).toBe('-');
+    expect(aoa[2][11]).toBe('-');
   });
-  test('amounts per claim', () => expect(aoa[1].slice(11)).toEqual([1000, 10, 990]));
-  test('round subtotal row', () => expect([aoa[3][0], aoa[3][3], ...aoa[3].slice(11)]).toEqual(['รวมรอบ LB-B02-2611-B1', '2 ใบ', 1300, 10, 1290]));
+  test('amounts per claim', () => expect(aoa[1].slice(12)).toEqual([1000, 10, 990]));
+  test('round subtotal row', () => expect([aoa[3][0], aoa[3][3], ...aoa[3].slice(12)]).toEqual(['รวมรอบ LB-B02-2611-B1', '2 ใบ', 1300, 10, 1290]));
 });
 
+
+describe('expenseDetailText — คอลัมน์ รายละเอียดค่าใช้จ่าย', () => {
+  const it = (remark: string | null) => ({ event_date: '2026-11-25', qty: 1, rate: 1, amount: 1, remark });
+  test('item remarks, unique, in order', () =>
+    expect(expenseDetailText({ expense_type: 'GENERAL', items: [it('ค่าน้ำมันเครื่อง'), it('ค่าแรง'), it('ค่าน้ำมันเครื่อง')] }))
+      .toBe('ค่าน้ำมันเครื่อง, ค่าแรง'));
+  test('toll and travel fall back to the route and reason', () =>
+    expect(expenseDetailText({ expense_type: 'TRAVEL', items: [it(null)], detail: { route_from: 'ลาดกระบัง', route_to: 'สระบุรี', reason: 'รถเสีย' } }))
+      .toBe('ลาดกระบัง → สระบุรี · รถเสีย'));
+  test('weigh says how many times', () =>
+    expect(expenseDetailText({ expense_type: 'WEIGH', items: [it(null), it(null)] })).toBe('ชั่งน้ำหนัก 2 ครั้ง'));
+  test('nothing to say is empty', () => expect(expenseDetailText({ expense_type: 'X', items: [] })).toBe(''));
+});

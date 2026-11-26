@@ -67,6 +67,15 @@ describe('receiptSubstituteHtml', () => {
     const noPeriod = { ...claim, period_from: null, period_to: null } as PettyClaim;
     expect(receiptSubstituteHtml({ claim: noPeriod, fund, typeName: 'x' })).toContain('25/09/2026');
   });
+  test('stamps the requester and the head, not only the approver (UAT 26/11/2026)', () => {
+    const headed = { ...claim, created_at: '2026-09-24T02:00:00Z', head_approved_by: '600100',
+      head_approved_by_name: 'หัวหน้า ทดสอบ', head_approved_at: '2026-09-24T05:30:00Z' } as PettyClaim;
+    const out = receiptSubstituteHtml({ claim: headed, fund, typeName: 'x' });
+    expect(out).toContain('ผู้ขอเบิก');
+    expect(out).toContain('หัวหน้าแผนก');
+    expect(out).toContain('หัวหน้า ทดสอบ');
+    expect((out.match(/class="esign"/g) ?? []).length).toBe(3);
+  });
 });
 
 describe('หน่วยนับบนใบ มาจากประเภท ไม่ใช่ฮาร์ดโค้ด', () => {
